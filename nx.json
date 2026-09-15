@@ -93,7 +93,7 @@
       "inputs": ["production", "^production"]
     },
     "typecheck": {
-      "dependsOn": ["build"]
+      "dependsOn": ["build", "^typecheck"]
     },
     "e2e": {
       "options": {

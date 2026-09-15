@@ -32,11 +32,17 @@ jobs:
       # build in about a minute; the sharding r10c needs is for a twelve-service
       # fleet, and a matrix here would cost more to maintain than it saves.
       - run: pnpm nx run-many -t lint
-      - run: pnpm nx run-many -t build
+      # ⚠️ `--skipTypeCheck=false` is load-bearing, not thoroughness. The build's
+      # declaration pass is what writes the `.d.ts`, and with the default
+      # `skipTypeCheck: true` its diagnostics are **suppressed**: a package whose
+      # declarations fail to compile emits nothing, leaves a build-info file
+      # behind, exits 0 — and `typecheck` then reads that file, concludes the
+      # project is up to date and no-ops. The first symptom is `TS6305` in nine
+      # unrelated consumers naming an import that is perfectly fine.
+      - run: pnpm nx run-many -t build --skipTypeCheck=false
 
-      # Separate from `build`, and not merged into it. The library build is SWC
-      # with `skipTypeCheck: true` — it emits JavaScript and reports nothing — so
-      # a green build says nothing about whether the declarations compile.
+      # Still separate, and not merged into the line above: this is the pass that
+      # checks the spec files, which the library build excludes entirely.
       - run: pnpm nx run-many -t typecheck
 
       # Coverage is gated at 100% for `packages/*`; the plain `test` target does
