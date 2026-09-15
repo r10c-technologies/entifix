@@ -1,0 +1,76 @@
+{
+  "name": "@entifix/tooling",
+  "version": "0.1.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/r10c-technologies/entifix.git",
+    "directory": "packages/ts/tooling"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@entifix/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./logging": {
+      "@entifix/source": "./src/logging/index.ts",
+      "types": "./dist/logging/index.d.ts",
+      "import": "./dist/logging/index.js",
+      "default": "./dist/logging/index.js"
+    },
+    "./tracking": {
+      "@entifix/source": "./src/tracking/index.ts",
+      "types": "./dist/tracking/index.d.ts",
+      "import": "./dist/tracking/index.js",
+      "default": "./dist/tracking/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo",
+    "LICENSE"
+  ],
+  "nx": {
+    "tags": [
+      "layer:entifix",
+      "scope:shared",
+      "entifix:tooling",
+      "tier:0"
+    ],
+    "sourceRoot": "packages/ts/tooling/src",
+    "targets": {
+      "build": {
+        "executor": "@nx/js:swc",
+        "outputs": [
+          "{options.outputPath}"
+        ],
+        "options": {
+          "outputPath": "packages/ts/tooling/dist",
+          "main": "packages/ts/tooling/src/index.ts",
+          "tsConfig": "packages/ts/tooling/tsconfig.lib.json",
+          "skipTypeCheck": true,
+          "stripLeadingPaths": true
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "@swc/helpers": "0.5.23"
+  },
+  "peerDependencies": {
+    "@opentelemetry/api": ">=1.9 <2"
+  },
+  "devDependencies": {
+    "@opentelemetry/api": "1.9.1"
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "name": "@entifix/authz",
+  "version": "0.1.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/r10c-technologies/entifix.git",
+    "directory": "packages/ts/authz"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo",
+    "LICENSE"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@entifix/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "nx": {
+    "tags": [
+      "layer:entifix",
+      "scope:shared",
+      "entifix:contract",
+      "tier:4"
+    ],
+    "sourceRoot": "packages/ts/authz/src",
+    "targets": {
+      "build": {
+        "executor": "@nx/js:swc",
+        "outputs": [
+          "{options.outputPath}"
+        ],
+        "options": {
+          "outputPath": "packages/ts/authz/dist",
+          "main": "packages/ts/authz/src/index.ts",
+          "tsConfig": "packages/ts/authz/tsconfig.lib.json",
+          "skipTypeCheck": true,
+          "stripLeadingPaths": true
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "@entifix/core": "workspace:*",
+    "@swc/helpers": "0.5.23"
+  },
+  "peerDependencies": {
+    "effect": ">=3.22 <4"
+  },
+  "devDependencies": {
+    "effect": "3.22.1"
+  }
+}

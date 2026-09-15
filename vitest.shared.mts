@@ -1,0 +1,183 @@
+import * as path from 'node:path';
+
+import swc from 'unplugin-swc';
+import { configDefaults, defineConfig } from 'vitest/config';
+
+const workspaceRoot = import.meta.dirname;
+
+/**
+ * Vite 8 transforms TypeScript with oxc, which does not implement stage-3
+ * decorators. Entity classes rely on them (`@entity()`/`@accessor()` register on
+ * `MetaEntity`), so every project runs its sources through SWC instead, with the
+ * same `decoratorVersion` + `keepClassNames` the library builds use.
+ */
+const swcTransform = () =>
+  swc.vite({
+    // Ignore the per-project `.swcrc` files so the test transform is defined in
+    // exactly one place.
+    swcrc: false,
+    configFile: false,
+    jsc: {
+      target: 'es2022',
+      parser: {
+        syntax: 'typescript',
+        decorators: true,
+        dynamicImport: true,
+        tsx: true,
+      },
+      transform: {
+        decoratorVersion: '2022-03',
+        react: { runtime: 'automatic', development: false },
+      },
+      keepClassNames: true,
+      externalHelpers: false,
+      loose: true,
+    },
+    module: { type: 'es6' },
+    sourceMaps: true,
+  });
+
+/**
+ * Files that are excluded from coverage everywhere. Keep this list short and
+ * justified — every addition is a hole in the 100% gate.
+ */
+const sharedCoverageExclude = [
+  // Pure re-export barrels. If a barrel grows logic, move the logic out rather
+  // than adding an exception here.
+  '**/index.ts',
+  // Type-only modules compile to nothing executable.
+  '**/*.types.ts',
+  '**/*.d.ts',
+  // Test material and configuration.
+  '**/*.spec.{ts,tsx}',
+  '**/*.test.{ts,tsx}',
+  '**/*.config.{ts,mts,cts}',
+  // Driver connection Layers: they open a real socket to Mongo/Redis/RabbitMQ
+  // and contain no branching of their own. Covering them would mean either
+  // mocking the driver module — which asserts nothing about our code — or
+  // running infrastructure in the unit gate. The infrastructure-bound examples
+  // exercise them for real instead.
+  '**/mongo-database/mongo-database.ts',
+  '**/redis-connection/redis-connection.ts',
+  '**/amqp-connection/amqp-connection.ts',
+];
+
+/** Resolution conditions, with the workspace's source condition winning. */
+// Note: no `module` condition. It is a bundler-ism that, for
+// `@opentelemetry/api`, selects an ESM entry using extensionless imports that
+// Node's loader rejects; without it OTel packages resolve to their `import`/
+// `default` (working) entries. `@entifix/source` still wins for workspace
+// packages.
+const workspaceConditions = ['@entifix/source', 'import', 'node', 'default'];
+
+export interface EntifixTestOptions {
+  /** Project name, as reported by the Vitest runner (`@entifix/…`). */
+  name: string;
+  /** The project directory — pass `__dirname`. */
+  root: string;
+  /** `jsdom` for anything rendering React. */
+  environment?: 'node' | 'jsdom';
+  setupFiles?: string[];
+  /** Runs once before the whole suite — used by the service e2e projects. */
+  globalSetup?: string[];
+  /**
+   * `false` disables the 100% thresholds — used by the examples, which are
+   * covered by their e2e suites rather than by unit tests.
+   */
+  thresholds?: boolean;
+  /** Project-specific coverage exclusions, appended to the shared list. */
+  coverageExclude?: string[];
+  /**
+   * Spec files to leave uncollected — selection by filename rather than by an
+   * in-spec `skip`, so a run with the wrong environment fails loudly instead of
+   * reporting green.
+   */
+  exclude?: string[];
+  /**
+   * Overrides Vitest's 10s `beforeAll`/`afterAll` budget.
+   *
+   * Needed by a suite whose start-up does real work — an example service boots
+   * a composition root, and a CI runner can overrun the default, failing every
+   * spec in the file before it starts.
+   */
+  hookTimeout?: number;
+}
+
+export const defineEntifixTest = ({
+  name,
+  root,
+  environment = 'node',
+  setupFiles = [],
+  globalSetup = [],
+  thresholds = true,
+  coverageExclude = [],
+  exclude = [],
+  hookTimeout,
+}: EntifixTestOptions) =>
+  defineConfig(() => ({
+    root,
+    cacheDir: path.join(
+      workspaceRoot,
+      'node_modules/.vite',
+      path.relative(workspaceRoot, root),
+    ),
+    // SWC owns the transform; oxc would otherwise run first and choke on
+    // decorator syntax.
+    oxc: false as const,
+    plugins: [swcTransform()],
+    resolve: {
+      // Same condition `tsconfig.base.json` sets: cross-package imports resolve
+      // to each package's `src/index.ts`, so tests never need a prior build and
+      // a shared test library can depend on the packages that consume it.
+      conditions: workspaceConditions,
+    },
+    // Vitest runs specs through Vite's SSR pipeline, which resolves with its own
+    // condition list.
+    ssr: { resolve: { conditions: workspaceConditions } },
+    test: {
+      name,
+      watch: false,
+      globals: true,
+      environment,
+      // Every jsdom project gets jest-dom matchers, RTL cleanup, and the
+      // TextEncoder/TextDecoder polyfills `effect` needs.
+      setupFiles:
+        environment === 'jsdom'
+          ? [path.join(workspaceRoot, 'vitest.setup.dom.ts'), ...setupFiles]
+          : setupFiles,
+      globalSetup,
+      ...(hookTimeout === undefined ? {} : { hookTimeout }),
+      include: [
+        '{src,specs,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
+      ],
+      exclude: [...configDefaults.exclude, ...exclude],
+      // Packages still awaiting their suite must not fail the run; the coverage
+      // thresholds are what actually enforce the goal.
+      passWithNoTests: true,
+      server: {
+        // Workspace packages must go through Vite's resolver rather than being
+        // externalized to Node, which knows nothing of `@entifix/source`. The
+        // OpenTelemetry SDK packages are inlined too: their internal directory
+        // imports (e.g. `@opentelemetry/semantic-conventions`) are rejected by
+        // Node's native ESM resolver when externalized, but Vite handles them.
+        deps: {
+          // OpenTelemetry SDK packages ship bundler-oriented ESM with directory
+          // imports Node's native loader rejects; inline them so Vite resolves
+          // those imports (`@opentelemetry/api` is additionally aliased to its
+          // CommonJS build above).
+          inline: [/@entifix\//, /@opentelemetry\//, /@effect\/opentelemetry/],
+        },
+      },
+      reporters: ['default'],
+      coverage: {
+        provider: 'v8' as const,
+        reportsDirectory: './test-output/vitest/coverage',
+        reporter: ['text', 'html', 'lcov'],
+        include: ['src/**/*.{ts,tsx}'],
+        exclude: [...sharedCoverageExclude, ...coverageExclude],
+        thresholds: thresholds
+          ? { lines: 100, branches: 100, functions: 100, statements: 100 }
+          : undefined,
+      },
+    },
+  }));

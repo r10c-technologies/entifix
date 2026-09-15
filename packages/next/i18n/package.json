@@ -1,0 +1,79 @@
+{
+  "name": "@entifix/next-i18n",
+  "version": "0.1.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/r10c-technologies/entifix.git",
+    "directory": "packages/next/i18n"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@entifix/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./server": {
+      "@entifix/source": "./src/server.ts",
+      "types": "./dist/server.d.ts",
+      "import": "./dist/server.js",
+      "default": "./dist/server.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo",
+    "LICENSE"
+  ],
+  "nx": {
+    "tags": [
+      "layer:shell",
+      "scope:shared",
+      "shell:base",
+      "tier:4"
+    ],
+    "sourceRoot": "packages/next/i18n/src",
+    "targets": {
+      "build": {
+        "executor": "@nx/js:swc",
+        "outputs": [
+          "{options.outputPath}"
+        ],
+        "options": {
+          "outputPath": "packages/next/i18n/dist",
+          "main": "packages/next/i18n/src/index.ts",
+          "tsConfig": "packages/next/i18n/tsconfig.lib.json",
+          "skipTypeCheck": true,
+          "stripLeadingPaths": true
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "@entifix/i18n": "workspace:*",
+    "@swc/helpers": "0.5.23",
+    "@entifix/core": "workspace:*"
+  },
+  "peerDependencies": {
+    "next": ">=16",
+    "i18next": ">=26 <27"
+  },
+  "devDependencies": {
+    "next": "16.2.10",
+    "i18next": "26.3.6"
+  },
+  "peerDependenciesMeta": {
+    "i18next": {
+      "optional": true
+    }
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compileOnSave": false,
+  "files": [],
+  "references": [
+    {
+      "path": "./packages/effect/service-shell"
+    },
+    {
+      "path": "./packages/next/i18n"
+    },
+    {
+      "path": "./packages/next/shell"
+    },
+    {
+      "path": "./packages/react/controls"
+    },
+    {
+      "path": "./packages/react/integration"
+    },
+    {
+      "path": "./packages/ts/amqp-client"
+    },
+    {
+      "path": "./packages/ts/authz"
+    },
+    {
+      "path": "./packages/ts/business"
+    },
+    {
+      "path": "./packages/ts/core"
+    },
+    {
+      "path": "./packages/ts/i18n"
+    },
+    {
+      "path": "./packages/ts/jwt-client"
+    },
+    {
+      "path": "./packages/ts/mongo-client"
+    },
+    {
+      "path": "./packages/ts/posthog-client"
+    },
+    {
+      "path": "./packages/ts/redis-client"
+    },
+    {
+      "path": "./packages/ts/rest-client"
+    },
+    {
+      "path": "./packages/ts/sql-client"
+    },
+    {
+      "path": "./packages/ts/testing-auth"
+    },
+    {
+      "path": "./packages/ts/testing-e2e"
+    },
+    {
+      "path": "./packages/ts/testing-unit"
+    },
+    {
+      "path": "./packages/ts/tooling"
+    },
+    {
+      "path": "./packages/ts/transactions"
+    },
+    {
+      "path": "./packages/ts/zitadel-client"
+    },
+    {
+      "path": "./tools/tiers"
+    },
+    {
+      "path": "./tools/docs"
+    }
+  ]
+}

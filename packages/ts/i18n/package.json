@@ -1,0 +1,71 @@
+{
+  "name": "@entifix/i18n",
+  "version": "0.1.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/r10c-technologies/entifix.git",
+    "directory": "packages/ts/i18n"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@entifix/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./routing": {
+      "@entifix/source": "./src/routing.ts",
+      "types": "./dist/routing.d.ts",
+      "import": "./dist/routing.js",
+      "default": "./dist/routing.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo",
+    "LICENSE"
+  ],
+  "nx": {
+    "tags": [
+      "layer:entifix",
+      "scope:shared",
+      "entifix:client",
+      "tier:2"
+    ],
+    "sourceRoot": "packages/ts/i18n/src",
+    "targets": {
+      "build": {
+        "executor": "@nx/js:swc",
+        "outputs": [
+          "{options.outputPath}"
+        ],
+        "options": {
+          "outputPath": "packages/ts/i18n/dist",
+          "main": "packages/ts/i18n/src/index.ts",
+          "tsConfig": "packages/ts/i18n/tsconfig.lib.json",
+          "skipTypeCheck": true,
+          "stripLeadingPaths": true
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "@entifix/core": "workspace:*",
+    "@swc/helpers": "0.5.23"
+  },
+  "peerDependencies": {
+    "i18next": ">=26 <27"
+  },
+  "devDependencies": {
+    "i18next": "26.3.6"
+  }
+}

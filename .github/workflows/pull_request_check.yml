@@ -1,0 +1,52 @@
+name: Pull Request Check
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: pr-checks-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lint, build, typecheck, test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11.9'
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # Deliberately `run-many`, not `affected`. Twenty-three small packages
+      # build in about a minute; the sharding r10c needs is for a twelve-service
+      # fleet, and a matrix here would cost more to maintain than it saves.
+      - run: pnpm nx run-many -t lint
+      - run: pnpm nx run-many -t build
+
+      # Separate from `build`, and not merged into it. The library build is SWC
+      # with `skipTypeCheck: true` — it emits JavaScript and reports nothing — so
+      # a green build says nothing about whether the declarations compile.
+      - run: pnpm nx run-many -t typecheck
+
+      # Coverage is gated at 100% for `packages/*`; the plain `test` target does
+      # not collect it, so CI asks for it explicitly.
+      - run: pnpm nx run-many -t test --coverage
+
+      - name: The repository's own assertions
+        run: |
+          pnpm nx test @entifix/tiers
+          pnpm nx test @entifix/docs-check
+
+      - name: Formatting
+        run: pnpm exec prettier --check .

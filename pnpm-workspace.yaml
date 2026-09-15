@@ -1,0 +1,42 @@
+packages:
+  - 'packages/ts/*'
+  - 'packages/react/*'
+  - 'packages/next/*'
+  - 'packages/effect/*'
+  - 'packages/style'
+  # The examples are the composability proof and the only e2e this framework
+  # has. They are workspace members so they consume the packages through the
+  # source condition, and they are excluded from `nx release` so they never
+  # publish.
+  - 'examples/*'
+  # Not shipped code: the check that asserts the tier contract against the tree.
+  - 'tools/tiers'
+  - 'tools/docs'
+allowBuilds:
+  '@parcel/watcher': false
+  less: false
+  '@swc/core': false
+  core-js: false
+  core-js-pure: false
+  esbuild: true
+  msgpackr-extract: false
+  # Only needed to emit the browser service worker; tests use `msw/node`.
+  msw: false
+  nx: false
+  sharp: false
+  unrs-resolver: false
+autoInstallPeers: true
+ignoreWorkspaceRootCheck: true
+# Nx 23.0.1's eslint plugin floats `@typescript-eslint/utils` on a caret range,
+# and 8.70.0 is a partial publish — `typescript-estree@8.70.0` does not exist on
+# the registry, so a fresh resolve fails outright. Pinned to the set Nx was
+# tested against, which is what r10c's lockfile happened to be holding.
+overrides:
+  '@typescript-eslint/utils': 8.62.1
+  '@typescript-eslint/typescript-estree': 8.62.1
+  '@typescript-eslint/scope-manager': 8.62.1
+  '@typescript-eslint/type-utils': 8.62.1
+  '@typescript-eslint/types': 8.62.1
+  '@typescript-eslint/visitor-keys': 8.62.1
+  '@typescript-eslint/project-service': 8.62.1
+  '@typescript-eslint/tsconfig-utils': 8.62.1

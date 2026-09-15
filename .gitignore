@@ -1,0 +1,76 @@
+# See https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
+
+# compiled output
+dist
+tmp
+out-tsc
+
+# dependencies
+node_modules
+
+# IDEs and editors
+/.idea
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# IDE - VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# misc
+/.sass-cache
+/connect.lock
+/coverage
+/libpeerconnection.log
+npm-debug.log
+yarn-error.log
+testem.log
+/typings
+
+# Local-infra heal lock (serializes the parallel `ensure-infra` tasks)
+infra/local/.heal.lock/
+
+# Environment / secrets — never commit real .env, only .env.example templates
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Claude Code local artifacts — entire directory excluded
+.claude/
+# Skills CLI lockfile — the skill itself lives under the ignored .claude/, so
+# the lock is local tooling only (re-fetch via `npx skills add`).
+skills-lock.json
+
+# System Files
+.DS_Store
+Thumbs.db
+
+.nx/cache
+.nx/workspace-data
+.cursor/rules/nx-rules.mdc
+.github/instructions/nx.instructions.md
+
+# Next.js
+.next
+out
+
+# Storybook
+storybook-static
+
+test-output
+vite.config.*.timestamp*
+vitest.config.*.timestamp*
+
+# graphify generated knowledge-graph output
+graphify-out
+
+# Playwright
+.playwright-mcp

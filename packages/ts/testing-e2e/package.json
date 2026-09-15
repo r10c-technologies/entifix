@@ -1,0 +1,131 @@
+{
+  "name": "@entifix/testing-e2e",
+  "version": "0.1.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/r10c-technologies/entifix.git",
+    "directory": "packages/ts/testing-e2e"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo",
+    "LICENSE"
+  ],
+  "type": "module",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@entifix/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./fixtures": {
+      "@entifix/source": "./src/fixtures/index.ts",
+      "types": "./dist/fixtures/index.d.ts",
+      "import": "./dist/fixtures/index.js",
+      "default": "./dist/fixtures/index.js"
+    },
+    "./service": {
+      "@entifix/source": "./src/service/index.ts",
+      "types": "./dist/service/index.d.ts",
+      "import": "./dist/service/index.js",
+      "default": "./dist/service/index.js"
+    },
+    "./playwright": {
+      "@entifix/source": "./src/playwright/index.ts",
+      "types": "./dist/playwright/index.d.ts",
+      "import": "./dist/playwright/index.js",
+      "default": "./dist/playwright/index.js"
+    }
+  },
+  "nx": {
+    "tags": [
+      "layer:entifix",
+      "scope:shared",
+      "type:testing",
+      "tier:5"
+    ],
+    "sourceRoot": "packages/ts/testing-e2e/src",
+    "targets": {
+      "build": {
+        "executor": "@nx/js:swc",
+        "outputs": [
+          "{options.outputPath}"
+        ],
+        "options": {
+          "outputPath": "packages/ts/testing-e2e/dist",
+          "main": "packages/ts/testing-e2e/src/index.ts",
+          "tsConfig": "packages/ts/testing-e2e/tsconfig.lib.json",
+          "skipTypeCheck": true,
+          "stripLeadingPaths": true
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "@entifix/business": "workspace:*",
+    "@entifix/core": "workspace:*",
+    "@entifix/testing-unit": "workspace:*",
+    "@swc/helpers": "0.5.23"
+  },
+  "peerDependencies": {
+    "@nx/devkit": ">=23 <24",
+    "@nx/playwright": ">=23 <24",
+    "@playwright/test": "*",
+    "@entifix/amqp": "workspace:*",
+    "@entifix/mongo": "workspace:*",
+    "@entifix/redis": "workspace:*",
+    "axios": "*",
+    "effect": ">=3.22 <4",
+    "msw": "*",
+    "vitest": "*"
+  },
+  "peerDependenciesMeta": {
+    "@msw/playwright": {
+      "optional": true
+    },
+    "@nx/devkit": {
+      "optional": true
+    },
+    "@nx/playwright": {
+      "optional": true
+    },
+    "@playwright/test": {
+      "optional": true
+    },
+    "@entifix/amqp": {
+      "optional": true
+    },
+    "@entifix/mongo": {
+      "optional": true
+    },
+    "@entifix/redis": {
+      "optional": true
+    },
+    "axios": {
+      "optional": true
+    },
+    "msw": {
+      "optional": true
+    },
+    "vitest": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@nx/devkit": "23.0.1",
+    "@nx/playwright": "23.0.1",
+    "@entifix/amqp": "workspace:*",
+    "@entifix/mongo": "workspace:*",
+    "@entifix/redis": "workspace:*",
+    "effect": "3.22.1"
+  }
+}

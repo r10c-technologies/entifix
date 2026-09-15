@@ -1,0 +1,63 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      first-release:
+        description: 'Cut the first version (skips changelog inference)'
+        type: boolean
+        default: false
+      dry-run:
+        description: 'Resolve versions and print the plan, publish nothing'
+        type: boolean
+        default: true
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      # npm provenance is an OIDC attestation signed by this workflow run. It is
+      # the only thing that makes `@entifix/*` published out of an org named
+      # `r10c-technologies` legible to a stranger rather than typosquat-shaped,
+      # and it is free — but it cannot be added to a version after the fact.
+      id-token: write
+    env:
+      # The documented switch for `npm publish --provenance`, set here so it
+      # applies to every package Nx publishes without threading a flag through.
+      NPM_CONFIG_PROVENANCE: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11.9'
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+
+      - name: Prove it before publishing it
+        run: |
+          pnpm nx run-many -t lint
+          pnpm nx run-many -t build
+          pnpm nx run-many -t typecheck
+          pnpm nx run-many -t test --coverage
+
+      - name: Version
+        run: |
+          pnpm nx release ${{ inputs.first-release && '--first-release' || '' }} \
+            --skip-publish ${{ inputs.dry-run && '--dry-run' || '' }}
+
+      - name: Publish
+        if: ${{ !inputs.dry-run }}
+        run: pnpm nx release publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

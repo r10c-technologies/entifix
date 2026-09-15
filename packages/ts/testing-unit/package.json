@@ -1,0 +1,122 @@
+{
+  "name": "@entifix/testing-unit",
+  "version": "0.1.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/r10c-technologies/entifix.git",
+    "directory": "packages/ts/testing-unit"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo",
+    "LICENSE"
+  ],
+  "type": "module",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@entifix/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./drivers": {
+      "@entifix/source": "./src/drivers/index.ts",
+      "types": "./dist/drivers/index.d.ts",
+      "import": "./dist/drivers/index.js",
+      "default": "./dist/drivers/index.js"
+    },
+    "./http": {
+      "@entifix/source": "./src/http/index.ts",
+      "types": "./dist/http/index.d.ts",
+      "import": "./dist/http/index.js",
+      "default": "./dist/http/index.js"
+    },
+    "./contracts": {
+      "@entifix/source": "./src/contracts/index.ts",
+      "types": "./dist/contracts/index.d.ts",
+      "import": "./dist/contracts/index.js",
+      "default": "./dist/contracts/index.js"
+    },
+    "./react": {
+      "@entifix/source": "./src/react/index.tsx",
+      "types": "./dist/react/index.d.ts",
+      "import": "./dist/react/index.js",
+      "default": "./dist/react/index.js"
+    }
+  },
+  "nx": {
+    "tags": [
+      "layer:entifix",
+      "scope:shared",
+      "type:testing",
+      "tier:5"
+    ],
+    "sourceRoot": "packages/ts/testing-unit/src",
+    "targets": {
+      "build": {
+        "executor": "@nx/js:swc",
+        "outputs": [
+          "{options.outputPath}"
+        ],
+        "options": {
+          "outputPath": "packages/ts/testing-unit/dist",
+          "main": "packages/ts/testing-unit/src/index.ts",
+          "tsConfig": "packages/ts/testing-unit/tsconfig.lib.json",
+          "skipTypeCheck": true,
+          "stripLeadingPaths": true
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "@effect/sql": "0.52.1",
+    "@entifix/transactions": "workspace:*",
+    "@entifix/business": "workspace:*",
+    "@entifix/core": "workspace:*",
+    "@swc/helpers": "0.5.23"
+  },
+  "peerDependencies": {
+    "@effect/vitest": ">=0.30 <1",
+    "@entifix/react-controls": "workspace:*",
+    "@testing-library/react": "*",
+    "effect": ">=3.22 <4",
+    "msw": "*",
+    "react": "*",
+    "vitest": "*"
+  },
+  "peerDependenciesMeta": {
+    "@effect/vitest": {
+      "optional": true
+    },
+    "@entifix/react-controls": {
+      "optional": true
+    },
+    "@testing-library/react": {
+      "optional": true
+    },
+    "@testing-library/user-event": {
+      "optional": true
+    },
+    "msw": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    },
+    "vitest": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@effect/vitest": "^0.30.0",
+    "effect": "3.22.1"
+  }
+}
