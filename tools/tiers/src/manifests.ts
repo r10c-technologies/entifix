@@ -6,10 +6,18 @@ export const REPO_ROOT = join(import.meta.dirname, '..', '..', '..');
 /** The subset of a `package.json` this register reasons about. */
 export interface Manifest {
   readonly name?: string;
+  readonly version?: string;
+  readonly private?: boolean;
   readonly dependencies?: Record<string, string>;
   readonly peerDependencies?: Record<string, string>;
   readonly peerDependenciesMeta?: Record<string, { optional?: boolean }>;
   readonly exports?: Record<string, unknown>;
+  readonly main?: string;
+  readonly module?: string;
+  readonly types?: string;
+  readonly files?: readonly string[];
+  readonly publishConfig?: { access?: string };
+  readonly repository?: { url?: string; directory?: string };
   readonly nx?: { tags?: readonly string[] };
 }
 
