@@ -56,3 +56,46 @@ jobs:
 
       - name: Formatting
         run: pnpm exec prettier --check .
+
+  # A separate job so it reports as its own required check. The version a
+  # release cuts is inferred from these messages, so a commit that slips past
+  # `.husky/commit-msg` — with `--no-verify`, from a clone where `pnpm install`
+  # never ran, or through the GitHub web editor — does not merely look untidy,
+  # it changes which version ships.
+  commits:
+    name: Commit conventions
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11.9'
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Every commit in the range
+        run: |
+          pnpm exec commitlint \
+            --from ${{ github.event.pull_request.base.sha }} \
+            --to ${{ github.event.pull_request.head.sha }} \
+            --verbose
+
+      # Under a squash merge the pull request title becomes the commit message
+      # on `main`, which is the text version inference then reads. Linting the
+      # commits without linting the title would check something that never lands.
+      - name: The pull request title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: printf '%s\n' "$PR_TITLE" | pnpm exec commitlint --verbose
+
+      # The one surface no git hook can see.
+      - name: The pull request body
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: printf '%s\n' "$PR_BODY" | node tools/conventions/check-pr-body.mjs

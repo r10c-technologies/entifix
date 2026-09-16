@@ -1,0 +1,132 @@
+name: Release Prepare
+
+# Proposes the next release rather than cutting it. Every push to `main` asks
+# "what version would these commits produce?" and, when the answer differs from
+# what is already released, opens a pull request carrying the bumped manifests
+# and the changelog. Merging that pull request is what releases.
+#
+# The version is therefore derived from the commit messages and reviewed as a
+# diff before anything reaches npm, where a published version cannot be taken
+# back after 72 hours.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: release-prepare
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Propose the next version
+    runs-on: ubuntu-latest
+    steps:
+      # A GitHub App token, not GITHUB_TOKEN. A pull request opened with the
+      # built-in token does not trigger `pull_request` workflows, so the release
+      # pull request would never run the check that `main` requires and could
+      # never be merged. The app can write to this repository and nothing else —
+      # it cannot publish to npm, which is reachable only through the trusted
+      # publisher claim on the release workflow.
+      - uses: actions/create-github-app-token@v1
+        id: app-token
+        with:
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
+      - uses: actions/checkout@v4
+        with:
+          # Conventional-commit inference reads the history back to the last
+          # release tag. A shallow clone silently resolves the wrong version.
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11.9'
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: What is already released
+        id: before
+        run: echo "version=$(node -p "require('./packages/ts/core/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      # Writes the new version into every manifest. It commits, tags and pushes
+      # nothing: `release.version.git` sets all three to false, because those
+      # steps belong to the release workflow and happen after a human approves.
+      - name: Resolve the next version
+        run: pnpm nx release version
+
+      - name: What the commits ask for
+        id: after
+        run: echo "version=$(node -p "require('./packages/ts/core/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      # The loop guard, and it is a version comparison rather than a check on
+      # the head commit's message. Merging a release pull request pushes to
+      # `main` and re-runs this workflow; under a merge commit the head message
+      # is "Merge pull request #N…", so a message check would miss it and open a
+      # second release pull request. Comparing versions is correct under squash,
+      # merge and rebase alike.
+      - name: Stop unless the version moved
+        id: changed
+        run: |
+          if [ "${{ steps.before.outputs.version }}" = "${{ steps.after.outputs.version }}" ]; then
+            echo "No releasable commits since ${{ steps.before.outputs.version }}."
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "proceed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Write the changelog
+        if: steps.changed.outputs.proceed == 'true'
+        run: |
+          pnpm nx release changelog "${{ steps.after.outputs.version }}" \
+            --git-commit=false --git-tag=false
+          # Nx writes the changelog unformatted, and the release workflow runs
+          # `prettier --check .` before publishing. Without this, every release
+          # would fail its own gate on a file the release itself just wrote.
+          pnpm exec prettier --write CHANGELOG.md
+
+      - name: Open or update the release pull request
+        if: steps.changed.outputs.proceed == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          VERSION: ${{ steps.after.outputs.version }}
+        run: |
+          set -euo pipefail
+          BRANCH="release/v${VERSION}"
+
+          git config user.name  "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+
+          git checkout -b "$BRANCH"
+          git add -A
+          git commit -m "chore(release): ${VERSION}"
+          git push --force origin "$BRANCH"
+
+          # The body is generated from the changelog rather than written here,
+          # so what the reviewer reads is what the GitHub Release will say.
+          {
+            echo "Merging this pull request tags \`v${VERSION}\`, publishes all"
+            echo "packages to npm and creates the GitHub Release."
+            echo
+            echo "The publish waits for an approval on the \`npm-publish\`"
+            echo "environment, so merging is not yet shipping."
+            echo
+            echo "---"
+            echo
+            node tools/release/changelog-section.mjs "${VERSION}"
+          } > /tmp/release-pr-body.md
+
+          if gh pr view "$BRANCH" --json number >/dev/null 2>&1; then
+            gh pr edit "$BRANCH" \
+              --title "chore(release): ${VERSION}" \
+              --body-file /tmp/release-pr-body.md
+          else
+            gh pr create --base main --head "$BRANCH" \
+              --title "chore(release): ${VERSION}" \
+              --body-file /tmp/release-pr-body.md
+          fi

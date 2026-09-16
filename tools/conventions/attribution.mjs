@@ -148,6 +148,7 @@ export function formatAttributionFindings(findings, subject) {
     `${subject} carries AI attribution, which this repository does not use:`,
     ...lines,
     '',
-    'Remove those lines. See docs/adr/0046-conventions-are-checked-not-stated.md.',
+    'Remove those lines. Commits, pull requests and documents in this',
+    'repository carry no AI or tool attribution.',
   ].join('\n');
 }

@@ -1,74 +1,131 @@
 name: Release
 
+# Publishes the version that a merged release pull request already decided.
+#
+# This file's name is load-bearing: the npm trusted publisher claim on all 23
+# packages names `release.yml` on this repository. Renaming it revokes this
+# workflow's ability to publish, silently, and the packages would have to be
+# re-trusted one at a time.
 on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+  # Kept so a release can be finished by hand when the merge path fails —
+  # a publish that half-succeeded, say. It publishes whatever version is in the
+  # manifests on `main`.
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Explicit version to cut (e.g. 0.1.0). Blank infers it from the conventional commits.'
-        type: string
-        default: ''
-      first-release:
-        description: 'Cut the first version (skips changelog inference)'
-        type: boolean
-        default: false
-      publish-only:
-        description: 'Publish the version already committed and tagged; cut nothing'
-        type: boolean
-        default: false
-      dry-run:
-        description: 'Resolve versions and print the plan, publish nothing'
-        type: boolean
-        default: true
 
 concurrency:
   group: release
   cancel-in-progress: false
 
 jobs:
-  release:
+  # Detection is on the branch name, deliberately not on the head commit's
+  # message: a merge-commit merge leaves "Merge pull request #N…" as the
+  # message, and the release would silently never fire. The branch name is the
+  # same under squash, merge and rebase.
+  verify:
+    name: Prove it before publishing it
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+       startsWith(github.event.pull_request.head.ref, 'release/'))
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      # `github.sha` on a pull_request event is the ephemeral merge ref, which
+      # is not what was merged. `main` is.
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11.9'
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+          cache: pnpm
+      # Deliberately no `registry-url`: it writes an `~/.npmrc` line pointing at
+      # NODE_AUTH_TOKEN, and there is no token to point it at.
+      - run: pnpm install --frozen-lockfile
+
+      - name: The same gate every pull request passes
+        run: |
+          pnpm nx run-many -t lint
+          pnpm nx run-many -t build --skipTypeCheck=false
+          pnpm nx run-many -t typecheck
+          pnpm nx run-many -t test --coverage
+
+      - name: The repository's own assertions
+        run: |
+          pnpm nx test @entifix/tiers
+          pnpm nx test @entifix/docs-check
+
+      - name: Formatting
+        run: pnpm exec prettier --check .
+
+      - id: version
+        run: echo "version=$(node -p "require('./packages/ts/core/package.json').version")" >> "$GITHUB_OUTPUT"
+
+  publish:
+    name: Tag, publish, announce
+    needs: verify
+    runs-on: ubuntu-latest
+    # The approval gate. GitHub holds this job until a reviewer on the
+    # `npm-publish` environment approves it, and the npm trust claim names the
+    # same environment — so a job that did not declare it cannot mint a
+    # publish-capable token even if this file were edited.
+    environment: npm-publish
     permissions:
       contents: write
-      # This is the whole credential. npm trusted publishing exchanges the token
-      # minted here for a short-lived, package-scoped registry token, so nothing
-      # in this repository or its secrets can publish `@entifix/*` — only this
-      # workflow file, on this repository, can. It is also what signs the
-      # provenance attestation `.npmrc` requires.
+      # The entire publish credential. npm exchanges this OIDC token for a
+      # short-lived, package-scoped registry token, and signs the provenance
+      # attestation `.npmrc` requires. No npm token exists in this repository.
       id-token: write
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: main
           fetch-depth: 0
+
       - uses: pnpm/action-setup@v4
         with:
           version: '11.9'
-      # Deliberately no `registry-url`: it writes an `~/.npmrc` line pointing at
-      # `NODE_AUTH_TOKEN`, and there is no token to point it at.
       - uses: actions/setup-node@v4
         with:
           node-version-file: package.json
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm nx run-many -t build
 
-      - name: Prove it before publishing it
+      # Ordering below is deliberate, and the reason is asymmetry: npm is the
+      # only irreversible step. The tag is pushed first because a tag with no
+      # package is a `git push --delete` away from gone, and the GitHub Release
+      # is written last because a Release announcing a version npm never
+      # received is a lie that consumers read.
+      - name: Tag the release
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
         run: |
-          pnpm nx run-many -t lint
-          pnpm nx run-many -t build
-          pnpm nx run-many -t typecheck
-          pnpm nx run-many -t test --coverage
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "v${VERSION}" -m "v${VERSION}"
+          git push origin "v${VERSION}"
 
-      # Skipped when the version was cut locally and only needs publishing.
-      # Pass `version` to pin it: left to inference, a release whose commits are
-      # all `fix:` resolves to a patch bump rather than the version intended.
-      - name: Version
-        if: ${{ !inputs.publish-only }}
-        run: |
-          pnpm nx release ${{ inputs.version }} \
-            ${{ inputs.first-release && '--first-release' || '' }} \
-            --skip-publish ${{ inputs.dry-run && '--dry-run' || '' }}
+      - name: Publish to npm
+        run: pnpm nx release publish
 
-      - name: Publish
-        if: ${{ !inputs.dry-run }}
+      - name: Create the GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.verify.outputs.version }}
         run: |
-          pnpm nx release publish \
-            ${{ inputs.first-release && '--first-release' || '' }}
+          set -euo pipefail
+          node tools/release/changelog-section.mjs "${VERSION}" > /tmp/release-notes.md
+          gh release create "v${VERSION}" \
+            --title "v${VERSION}" \
+            --notes-file /tmp/release-notes.md
