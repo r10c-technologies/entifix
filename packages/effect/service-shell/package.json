@@ -31,9 +31,6 @@
   },
   "nx": {
     "tags": [
-      "layer:shell",
-      "scope:shared",
-      "shell:base",
       "tier:4"
     ],
     "sourceRoot": "packages/effect/service-shell/src",

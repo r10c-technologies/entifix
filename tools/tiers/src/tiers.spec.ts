@@ -12,6 +12,7 @@ import {
   OPTIONAL_CAPABILITIES,
   PACKAGES,
   SCANNED_ROOTS,
+  SIDEWAYS_EDGES,
   TIERS,
 } from './registry.js';
 
@@ -79,7 +80,7 @@ describe('Every package carries its tier', () => {
   });
 });
 
-describe('Dependencies point down, or sideways within a tier', () => {
+describe('Dependencies point down, or sideways where declared', () => {
   it('has no package depending on one above it', () => {
     const upward: string[] = [];
 
@@ -100,6 +101,54 @@ describe('Dependencies point down, or sideways within a tier', () => {
       'a tier may depend on its own or below, never above — an upward edge ' +
         'means the lower tier cannot be taken on its own:\n  ' +
         upward.join('\n  '),
+    ).toEqual([]);
+  });
+
+  it('takes a same-tier edge only where the register declares it', () => {
+    const undeclared: string[] = [];
+
+    for (const pkg of PACKAGES) {
+      const manifest = readManifest(pkg.dir);
+      for (const dep of [
+        ...Object.keys(manifest.dependencies ?? {}),
+        ...Object.keys(manifest.peerDependencies ?? {}),
+      ]) {
+        const target = byName.get(dep);
+        if (target === undefined || target.tier !== pkg.tier) continue;
+        if (SIDEWAYS_EDGES.some(e => e.from === pkg.name && e.to === dep)) {
+          continue;
+        }
+        undeclared.push(`${pkg.name} → ${dep} (both ${label(pkg.tier)})`);
+      }
+    }
+
+    expect(
+      undeclared,
+      'a sideways edge is legal by tier order and still usually wrong — ' +
+        'declare it in SIDEWAYS_EDGES with its reason, or move the shared ' +
+        'part down a tier:\n  ' +
+        undeclared.join('\n  '),
+    ).toEqual([]);
+  });
+
+  it('declares no sideways edge that is not taken, or not sideways', () => {
+    const stale = SIDEWAYS_EDGES.filter(edge => {
+      const from = byName.get(edge.from);
+      const to = byName.get(edge.to);
+      if (from === undefined || to === undefined) return true;
+      if (from.tier !== to.tier) return true;
+      const manifest = readManifest(from.dir);
+      return !(
+        edge.to in (manifest.dependencies ?? {}) ||
+        edge.to in (manifest.peerDependencies ?? {})
+      );
+    }).map(edge => `${edge.from} → ${edge.to}`);
+
+    expect(
+      stale,
+      'these declarations protect nothing — a package was renamed or ' +
+        'retiered, or the edge was removed. Delete them:\n  ' +
+        stale.join('\n  '),
     ).toEqual([]);
   });
 

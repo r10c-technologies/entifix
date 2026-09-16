@@ -2,9 +2,6 @@
   "name": "@entifix/react-integration",
   "nx": {
     "tags": [
-      "layer:entifix",
-      "scope:shared",
-      "entifix:react",
       "tier:3"
     ],
     "sourceRoot": "packages/react/integration/src",

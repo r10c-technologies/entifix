@@ -15,8 +15,8 @@ import {
  *
  * Defined in `@entifix/core` and aliased here, not duplicated: a UI
  * reads the same triple off a served `EntityMetadataDocument` to decide whether
- * to render Save and Delete, and `entifix:react` may not import the business
- * layer. Aliasing keeps one definition and leaves every call site below
+ * to render Save and Delete, and a T3 package may not import this one, which
+ * is T4. Aliasing keeps one definition and leaves every call site below
  * unchanged.
  */
 export const Actions = ENTITY_ACTIONS;

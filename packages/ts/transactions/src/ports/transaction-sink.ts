@@ -51,7 +51,7 @@ export type PendingEntry = PendingTransaction & {
  * takes it from there.
  *
  * Framework-free and synchronous on purpose: the implementation is a React store
- * action, and keeping that behind a port is what stops `entifix:transactions`
+ * action, and keeping that behind a port is what stops `@entifix/transactions`
  * knowing anything about React or about where the pending set is persisted.
  */
 export interface TransactionSink {
@@ -95,7 +95,7 @@ export const NoopTransactionSink: TransactionSink = {
  * It extends {@link TransactionSink} because one store is behind both: the
  * adapter needs only `began`, and the settlement side needs to read entries and
  * retire them. Two interfaces rather than one because they are consumed from
- * opposite sides of a layer boundary — `entifix:react` may not import a shell,
+ * opposite sides of a tier boundary — a T3 package may not import a T4 shell,
  * so the store is handed in as a prop, the way `EntityDraftStore` already is for
  * autosave (ADR 0032).
  */

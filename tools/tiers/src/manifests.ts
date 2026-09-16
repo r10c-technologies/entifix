@@ -64,7 +64,7 @@ export const packageDirs = (root: string): string[] => {
   return found.sort();
 };
 
-/** `['layer:entifix', 'tier:2']` → `2`, or `undefined` when unta1gged. */
+/** `['type:testing', 'tier:5']` → `5`, or `undefined` when untagged. */
 export const tierTagOf = (manifest: Manifest): number | undefined => {
   const tags = (manifest.nx?.tags ?? []).filter(tag => tag.startsWith('tier:'));
   if (tags.length !== 1) return undefined;

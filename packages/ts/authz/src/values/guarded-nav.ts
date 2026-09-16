@@ -9,8 +9,8 @@ import type { ScreenType } from './screen-type.js';
  * behind it must be expressed in the same terms `requirePermission` enforces, and
  * `can` — the filter every layer applies — is declared right next to it.
  *
- * It is also the only layer both a `layer:shell` package and a `layer:app` can
- * depend on. That matters because a `scope:shared` shell contributes its own nav
+ * It is also the one package both a shell and the host application depend on.
+ * That matters because a shell contributes its own nav
  * fragment to whichever host mounts it, and shells may not depend on each other.
  *
  * `label`/`title` are **namespace-qualified catalog keys**, not copy. Whoever
@@ -66,7 +66,7 @@ export interface GuardedNavSection {
    * domain ([ADR 0033](../../../../../../docs/adr/0033-the-screen-taxonomy.md)).
    *
    * Every contributing shell declares its own, because this interface is the
-   * only thing a `layer:shell` package and a `layer:app` both reach: adding the
+   * only thing a shell and the host application both reach: adding the
    * tier is not an edit in the host.
    *
    * **Optional, and narrowly so.** A section with no type is not a fifth

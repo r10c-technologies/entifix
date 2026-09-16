@@ -31,10 +31,6 @@
   ],
   "nx": {
     "tags": [
-      "layer:entifix",
-      "scope:shared",
-      "entifix:client",
-      "runtime:datastore",
       "tier:2"
     ],
     "sourceRoot": "packages/ts/zitadel-client/src",

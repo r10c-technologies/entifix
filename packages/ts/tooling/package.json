@@ -43,9 +43,6 @@
   ],
   "nx": {
     "tags": [
-      "layer:entifix",
-      "scope:shared",
-      "entifix:tooling",
       "tier:0"
     ],
     "sourceRoot": "packages/ts/tooling/src",

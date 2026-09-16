@@ -66,8 +66,9 @@ test can see it.
 
 ## The tiers, and what you are allowed to install
 
-Six tiers. A package depends only on its own tier or below, and — the rule that
-actually matters — never hard-depends on a capability its tier is supposed to be
+Six tiers. A package depends only on its own tier or below — on its own tier only
+through an edge the register declares — and, the rule that actually matters,
+never hard-depends on a capability its tier is supposed to be
 adoptable without.
 
 | Tier |               | Packages                                                                                              |

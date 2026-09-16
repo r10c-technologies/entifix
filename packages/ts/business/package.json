@@ -31,9 +31,6 @@
   ],
   "nx": {
     "tags": [
-      "layer:entifix",
-      "scope:shared",
-      "entifix:contract",
       "tier:1"
     ],
     "sourceRoot": "packages/ts/business/src",

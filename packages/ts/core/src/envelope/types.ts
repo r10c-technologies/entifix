@@ -140,7 +140,7 @@ export interface DomainEvent<TData = unknown> extends EntifixEventMeta {
  *
  * It lives in core rather than beside the React `ReactiveChannel` that consumes
  * it because both ends need it: the service maps a `TransactionEvent` onto it,
- * and `entifix:react` sits above every layer that does the mapping.
+ * and the React packages sit above every tier that does the mapping.
  *
  * Deliberately **no** `transactionId`, timestamp or sequence: all three already
  * exist one level up as `meta.event.correlationId`, `.at` and `.id`, and

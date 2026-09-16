@@ -96,12 +96,12 @@ export function useEntityForm<TEntity extends Entity>({
   // Supplied by the caller, and that is the seam.
   //
   // ⚠️ This used to reach into react-i18next and `@entifix/i18n` directly,
-  // because both React packages are `entifix:react` and the boundary rule
-  // forbids a sideways import of the controls package that owns the `controls`
+  // because both React packages are T3 and the tier register declares no
+  // sideways import of the controls package that owns the `controls`
   // catalog. The effect was that anyone taking the integration hooks also took
   // i18next and a Spanish catalog — the composition defect the tier register
   // was written to catch. The one real caller, `entity-crud-form.tsx`, sits a
-  // layer up where `useT('controls')` is reachable, so it resolves the four
+  // tier up where `useT('controls')` is reachable, so it resolves the four
   // sentences and hands them over.
   const messages = useMemo(
     () => validationMessages ?? DEFAULT_VALIDATION_MESSAGES,

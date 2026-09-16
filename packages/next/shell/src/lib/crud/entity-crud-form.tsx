@@ -88,8 +88,8 @@ export function EntityCrudForm<TEntity extends Entity>({
 
   // `controls` copy, resolved here and handed down. The integration package
   // owns the validation *rules* and this shell owns the sentences, because a
-  // sideways import between the two `entifix:react` packages is what the
-  // boundary rule forbids.
+  // sideways import between the two T3 packages is an edge the tier register
+  // does not declare.
   const validationMessages = useMemo(() => {
     const say =
       (failure: 'required' | 'number' | 'date' | 'option') => (field: string) =>

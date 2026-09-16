@@ -49,7 +49,7 @@ vi.mock('next/navigation', () => ({
 
 /**
  * Entities declared here rather than imported from a domain package: the factory
- * is `scope:shared` and must not learn any domain, and a local class is the only
+ * is framework code and must not learn any domain, and a local class is the only
  * way to exercise the shapes that matter — a member the create transaction
  * assigns, and a scalar foreign key with no typed link behind it.
  *
@@ -617,7 +617,7 @@ describe('the generated form', () => {
    * The i18n seam, end to end.
    *
    * ⚠️ **This shell resolves the `controls` copy and the integration package
-   * renders it.** The two are both `entifix:react`, so `useEntityForm` cannot
+   * renders it.** The two are both T3 with no declared edge between them, so `useEntityForm` cannot
    * import the catalog that owns these sentences — it takes them as an option,
    * and this is the only place the wiring is proven. Before the split the hook
    * reached into react-i18next itself, which is what made taking the hooks mean

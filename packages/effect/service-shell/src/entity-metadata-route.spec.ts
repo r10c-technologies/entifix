@@ -15,8 +15,8 @@ import { entityMetadataRoute } from './entity-metadata-route.js';
 import { serveTestService } from './serve-test-service.js';
 
 /**
- * Declared locally rather than imported: this package is `scope:shared`, so it
- * may not reach `business-ts-authn`. The `domain`/`key` pair is what matters —
+ * Declared locally rather than imported: framework code may not reach a host's
+ * own domain package (r10c's `business-ts-authn`). The `domain`/`key` pair is what matters —
  * it is what the real `ROLE_PERMISSIONS` grants against, so the spec exercises
  * the shipped grant table rather than a stub of it.
  */

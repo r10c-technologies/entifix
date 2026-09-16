@@ -4,9 +4,8 @@ import { Context, Effect, Layer, Ref } from 'effect';
  * The queue shapes a subscriber may ask for (ADR 0030).
  *
  * Duplicated from `SubscriptionMode` in `@entifix/transactions` rather than
- * imported: that package sits at `entifix:transactions`, **above** this one at
- * `entifix:contract`, so the edge would point upward and the boundary rule fails
- * the build on it. The same duplication exists in `tools/slices/src/types.ts`
+ * imported: that package is T2, **above** this one at T1, so the edge would
+ * point upward and the tier rule fails the build on it. The same duplication exists in `tools/slices/src/types.ts`
  * for the same reason, and both lists are pinned by a spec.
  */
 export const BOUND_SUBSCRIPTION_MODES = ['work', 'broadcast'] as const;

@@ -11,8 +11,8 @@ import type { EntityDraftStore } from '../use-entity-form/use-entity-form.types.
  * Where a wizard's state is persisted, as the hook sees it.
  *
  * A **port**, and for exactly the reason `EntityDraftStore` is one: `useDraft`
- * and the zustand store behind it are `layer:shell`, this package is
- * `layer:entifix`, and `@nx/enforce-module-boundaries` fails the build on the
+ * and the zustand store behind it are in `@entifix/next-shell` (T4), this
+ * package is T3, and `@nx/enforce-module-boundaries` fails the build on the
  * upward edge. `useWizardDraft` in `@entifix/next-shell` is the one adapter.
  *
  * It is a second port rather than a reuse of `EntityDraftStore` because the two

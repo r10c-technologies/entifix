@@ -100,7 +100,7 @@ export interface SagaDefinition {
    * does — and checkout writes an order.
    *
    * It is a plain string here rather than authz's `Permission`: this package is
-   * `layer:entifix`, and `@entifix/authz` sits above it. The service that
+   * T2, and `@entifix/authz` sits above it at T4. The service that
    * mounts the route resolves the string against
    * `SERVICE_CROSSING_PERMISSIONS`, which is where the closed list belongs.
    */
