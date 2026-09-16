@@ -6,15 +6,36 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      test_chunk_size:
+        description: 'Projects per test worker'
+        required: false
+        default: '8'
+      build_chunk_size:
+        description: 'Projects per build worker'
+        required: false
+        default: '8'
 
 concurrency:
   group: pr-checks-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+env:
+  TEST_CHUNK_SIZE: ${{ github.event.inputs.test_chunk_size || '8' }}
+  BUILD_CHUNK_SIZE: ${{ github.event.inputs.build_chunk_size || '8' }}
+
 jobs:
-  check:
-    name: Lint, build, typecheck, test
+  # Installs once and saves the result, so every job below restores
+  # `node_modules` instead of spending its first half-minute on `pnpm install`.
+  initialize:
+    name: Initialize
     runs-on: ubuntu-latest
+    outputs:
+      base: ${{ steps.shas.outputs.base }}
+      head: ${{ steps.shas.outputs.head }}
+      lint-projects: ${{ steps.chunks.outputs.lint-projects }}
+      build-chunks: ${{ steps.chunks.outputs.build-chunks }}
+      test-chunks: ${{ steps.chunks.outputs.test-chunks }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -26,12 +47,133 @@ jobs:
         with:
           node-version-file: package.json
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
 
-      # Deliberately `run-many`, not `affected`. Twenty-three small packages
-      # build in about a minute; the sharding r10c needs is for a twelve-service
-      # fleet, and a matrix here would cost more to maintain than it saves.
-      - run: pnpm nx run-many -t lint
+      # The key must change whenever what `pnpm install` would produce changes:
+      # the lockfile, the workspace member globs, and the Node version native
+      # modules were resolved for. Every job below spells the same key.
+      #
+      # The paths are the root `node_modules`, which holds pnpm's virtual store
+      # in `.pnpm`, plus each workspace member's own `node_modules` of symlinks
+      # into it. A restore without the member directories resolves nothing.
+      - name: Restore dependencies
+        id: deps
+        uses: actions/cache/restore@v4
+        with:
+          key: deps-${{ runner.os }}-node26.4-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml', 'package.json') }}
+          path: |
+            node_modules
+            packages/*/*/node_modules
+            packages/style/node_modules
+            tools/*/node_modules
+            examples/*/node_modules
+      - name: Install dependencies
+        if: steps.deps.outputs.cache-hit != 'true'
+        run: pnpm install --frozen-lockfile
+      - name: Save dependencies
+        if: steps.deps.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          key: ${{ steps.deps.outputs.cache-primary-key }}
+          path: |
+            node_modules
+            packages/*/*/node_modules
+            packages/style/node_modules
+            tools/*/node_modules
+            examples/*/node_modules
+
+      - name: Resolve affected base/head
+        id: shas
+        uses: nrwl/nx-set-shas@v4
+
+      # A pull request runs what it affects. `main` runs everything: it is what
+      # a release is cut from. And `release.yml` re-runs the whole gate serially
+      # before anything reaches npm, so affected-only here never lets an
+      # unproven package publish.
+      - name: Compute chunks
+        id: chunks
+        run: |
+          # `tail -n1` is load-bearing: pnpm prints its warnings to STDOUT, so
+          # anything it has to say lands in front of the JSON and `jq` dies on
+          # it — `Invalid numeric literal at line 1, column 6`, which is `[WARN`.
+          # nx prints the array as a single last line.
+          projects() {
+            if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+              pnpm nx show projects --affected \
+                --base=${{ steps.shas.outputs.base }} \
+                --head=${{ steps.shas.outputs.head }} \
+                --withTarget "$1" --json | tail -n1
+            else
+              pnpm nx show projects --withTarget "$1" --json | tail -n1
+            fi
+          }
+          chunk() {
+            jq -c --argjson n "$2" '[range(0; length; $n) as $i | .[$i:$i+$n] | join(",")]' <<<"$1"
+          }
+
+          echo "lint-projects=$(projects lint | jq -r 'join(",")')" >> "$GITHUB_OUTPUT"
+          echo "build-chunks=$(chunk "$(projects build)" "$BUILD_CHUNK_SIZE")" >> "$GITHUB_OUTPUT"
+          echo "test-chunks=$(chunk "$(projects test)" "$TEST_CHUNK_SIZE")" >> "$GITHUB_OUTPUT"
+
+  # One job, not a matrix: lint takes about as long as a runner takes to start.
+  lint:
+    name: Lint
+    needs: initialize
+    if: needs.initialize.outputs.lint-projects != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11.9'
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+      # A miss fails the job rather than falling back to an install. Initialize
+      # saved this exact key moments ago, so a miss means the key expression
+      # drifted between jobs, and a silent reinstall would hide that.
+      - uses: actions/cache/restore@v4
+        with:
+          key: deps-${{ runner.os }}-node26.4-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml', 'package.json') }}
+          fail-on-cache-miss: true
+          path: |
+            node_modules
+            packages/*/*/node_modules
+            packages/style/node_modules
+            tools/*/node_modules
+            examples/*/node_modules
+      - run: pnpm nx run-many -t lint --projects="${{ needs.initialize.outputs.lint-projects }}"
+
+  build:
+    name: Build & typecheck (${{ matrix.chunk }})
+    needs: initialize
+    if: needs.initialize.outputs.build-chunks != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        chunk: ${{ fromJson(needs.initialize.outputs.build-chunks) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11.9'
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+      - uses: actions/cache/restore@v4
+        with:
+          key: deps-${{ runner.os }}-node26.4-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml', 'package.json') }}
+          fail-on-cache-miss: true
+          path: |
+            node_modules
+            packages/*/*/node_modules
+            packages/style/node_modules
+            tools/*/node_modules
+            examples/*/node_modules
       # ⚠️ `--skipTypeCheck=false` is load-bearing, not thoroughness. The build's
       # declaration pass is what writes the `.d.ts`, and with the default
       # `skipTypeCheck: true` its diagnostics are **suppressed**: a package whose
@@ -39,33 +181,27 @@ jobs:
       # behind, exits 0 — and `typecheck` then reads that file, concludes the
       # project is up to date and no-ops. The first symptom is `TS6305` in nine
       # unrelated consumers naming an import that is perfectly fine.
-      - run: pnpm nx run-many -t build --skipTypeCheck=false
+      #
+      # Two commands rather than `-t build,typecheck`: an override applies to
+      # every target in the invocation, and `typecheck` is `tsc --build`, which
+      # has no such option.
+      - run: pnpm nx run-many -t build --projects="${{ matrix.chunk }}" --skipTypeCheck=false
+      # Still separate from the build: this is the pass that checks the spec
+      # files, which the library build excludes entirely.
+      - run: pnpm nx run-many -t typecheck --projects="${{ matrix.chunk }}"
 
-      # Still separate, and not merged into the line above: this is the pass that
-      # checks the spec files, which the library build excludes entirely.
-      - run: pnpm nx run-many -t typecheck
-
-      # Coverage is gated at 100% for `packages/*`; the plain `test` target does
-      # not collect it, so CI asks for it explicitly.
-      - run: pnpm nx run-many -t test --coverage
-
-      - name: The repository's own assertions
-        run: |
-          pnpm nx test @entifix/tiers
-          pnpm nx test @entifix/docs-check
-
-      - name: Formatting
-        run: pnpm exec prettier --check .
-
-  # A separate job so it reports as its own required check. The version a
-  # release cuts is inferred from these messages, so a commit that slips past
-  # `.husky/commit-msg` — with `--no-verify`, from a clone where `pnpm install`
-  # never ran, or through the GitHub web editor — does not merely look untidy,
-  # it changes which version ships.
-  commits:
-    name: Commit conventions
+  # No `needs: build`. Vitest resolves the `@entifix/source` condition to each
+  # package's `src/index.ts` (`vitest.shared.mts`), so a test never reads a
+  # `dist` and the two matrices run side by side.
+  test:
+    name: Test (${{ matrix.chunk }})
+    needs: initialize
+    if: needs.initialize.outputs.test-chunks != '[]'
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    strategy:
+      fail-fast: false
+      matrix:
+        chunk: ${{ fromJson(needs.initialize.outputs.test-chunks) }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -76,8 +212,89 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version-file: package.json
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - uses: actions/cache/restore@v4
+        with:
+          key: deps-${{ runner.os }}-node26.4-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml', 'package.json') }}
+          fail-on-cache-miss: true
+          path: |
+            node_modules
+            packages/*/*/node_modules
+            packages/style/node_modules
+            tools/*/node_modules
+            examples/*/node_modules
+      # Coverage is gated at 100% for `packages/*`; the plain `test` target does
+      # not collect it, so CI asks for it explicitly.
+      - run: pnpm nx run-many -t test --projects="${{ matrix.chunk }}" --coverage
+
+  # NOTE: this job must stay unconditional, and its commands must not become
+  # affected-scoped. A tier claim and a documentation claim are about the whole
+  # framework, and the pull request that breaks one usually adds a dependency to
+  # a single package — which would never make `tools/tiers` affected.
+  assertions:
+    name: Repository assertions
+    needs: initialize
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11.9'
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+      - uses: actions/cache/restore@v4
+        with:
+          key: deps-${{ runner.os }}-node26.4-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml', 'package.json') }}
+          fail-on-cache-miss: true
+          path: |
+            node_modules
+            packages/*/*/node_modules
+            packages/style/node_modules
+            tools/*/node_modules
+            examples/*/node_modules
+      # `always()` on every step, so one failure does not hide the next. The
+      # job still fails if any step does.
+      - name: The tier register
+        if: always()
+        run: pnpm nx test @entifix/tiers
+      - name: The documentation claims
+        if: always()
+        run: pnpm nx test @entifix/docs-check
+      - name: Formatting
+        if: always()
+        run: pnpm exec prettier --check .
+
+  # The version a release cuts is inferred from these messages, so a commit that
+  # slips past `.husky/commit-msg` — with `--no-verify`, from a clone where
+  # `pnpm install` never ran, or through the GitHub web editor — does not merely
+  # look untidy, it changes which version ships.
+  commits:
+    name: Commit conventions
+    needs: initialize
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11.9'
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+      - uses: actions/cache/restore@v4
+        with:
+          key: deps-${{ runner.os }}-node26.4-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml', 'package.json') }}
+          fail-on-cache-miss: true
+          path: |
+            node_modules
+            packages/*/*/node_modules
+            packages/style/node_modules
+            tools/*/node_modules
+            examples/*/node_modules
 
       - name: Every commit in the range
         run: |
@@ -99,3 +316,24 @@ jobs:
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
         run: printf '%s\n' "$PR_BODY" | node tools/conventions/check-pr-body.mjs
+
+  # The single required check. A job absent from `needs` still reports its own
+  # status on the pull request but cannot block a merge, so every new job
+  # belongs here.
+  #
+  # `initialize` is listed although every other job already needs it: when it
+  # fails the rest are `skipped`, not `failed`, and a gate that only looked for
+  # failures would pass a run in which nothing ran. `skipped` is otherwise fine:
+  # it is what `commits` reports on a push, and what a matrix with no chunks does.
+  done:
+    name: Done
+    needs: [initialize, lint, build, test, assertions, commits]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every required job succeeded or was skipped
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" || "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "One or more required jobs failed or were cancelled."
+            exit 1
+          fi
