@@ -113,12 +113,24 @@
     "releaseTag": {
       "pattern": "v{version}"
     },
-    "git": {
-      "commitMessage": "chore(release): {version}"
-    },
     "version": {
       "conventionalCommits": true,
-      "preVersionCommand": "pnpm nx run-many -t build"
+      "adjustSemverBumpsForZeroMajorVersion": true,
+      "preVersionCommand": "pnpm nx run-many -t build",
+      "git": {
+        "commitMessage": "chore(release): {version}",
+        "commit": false,
+        "tag": false,
+        "push": false
+      }
+    },
+    "changelog": {
+      "git": {
+        "commitMessage": "chore(release): {version}",
+        "commit": false,
+        "tag": false,
+        "push": false
+      }
     }
   },
   "analytics": true
