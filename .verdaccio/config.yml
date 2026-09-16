@@ -1,0 +1,34 @@
+# The pre-publish rehearsal: `pnpm nx local-registry` serves this, every
+# package is published into it, and a scratch consumer installs them the way
+# an adopter would. It is the only check that exercises the tarball rather
+# than the manifest.
+storage: ../tmp/local-registry/storage
+
+uplinks:
+  npmjs:
+    url: https://registry.npmjs.org/
+    maxage: 60m
+
+packages:
+  # No `proxy` here, deliberately. Once these names exist on npmjs, proxying
+  # would let a package that failed to publish locally resolve from the real
+  # registry instead — silently turning the rehearsal green against the last
+  # release. A missing package must 404.
+  '@entifix/*':
+    access: $all
+    publish: $all
+    unpublish: $all
+
+  '**':
+    access: $all
+    publish: $all
+    unpublish: $all
+    proxy: npmjs
+
+log:
+  type: stdout
+  format: pretty
+  level: warn
+
+publish:
+  allow_offline: true
