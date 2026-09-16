@@ -11,7 +11,8 @@ import { useTranslateKey } from './i18n-context.js';
  *
  * Done here rather than in `describeEntityColumns` because the same descriptors
  * are the server-side filter allowlist, where a translated label would be
- * meaningless — and because `entifix:core` cannot reach the i18n layer.
+ * meaningless — and because `@entifix/core` (T1) cannot reach
+ * `@entifix/i18n` (T2).
  */
 export function useLocalizedDescriptors<
   TDescriptor extends EntityFieldDescriptor,

@@ -31,9 +31,6 @@
   ],
   "nx": {
     "tags": [
-      "layer:entifix",
-      "scope:shared",
-      "entifix:core",
       "tier:1"
     ],
     "sourceRoot": "packages/ts/core/src",

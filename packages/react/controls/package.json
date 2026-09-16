@@ -61,9 +61,6 @@
   },
   "nx": {
     "tags": [
-      "layer:entifix",
-      "scope:shared",
-      "entifix:react",
       "tier:3"
     ],
     "sourceRoot": "packages/react/controls/src",

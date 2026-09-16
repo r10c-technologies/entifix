@@ -1,8 +1,8 @@
 /**
  * Copy owned by `@entifix/react-controls` — the agnostic entity UI. It lives
  * here rather than next to the components because the typed-key augmentation has
- * to see every namespace from one module, and `entifix:tooling` may not import
- * `entifix:react`.
+ * to see every namespace from one module, and `@entifix/tooling` (T0) may not
+ * import a T3 package.
  */
 export const controls = {
   table: {

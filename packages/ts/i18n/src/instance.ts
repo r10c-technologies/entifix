@@ -105,8 +105,8 @@ export function createI18n(
  * request-reading counterpart is `getServerT` in `@entifix/next-i18n`,
  * which re-exports this one for symmetry at app call sites.
  *
- * It lives here rather than in the Next i18n shell because a `layer:shell`
- * package may not depend on another `layer:shell` package — and the storefront
+ * It lives here rather than in the Next i18n shell because the shells share
+ * T4 and the tier register declares no edge between them — and the storefront
  * shell, which has a real `[locale]` segment and therefore never reads a
  * request, is exactly the caller that needs it.
  */

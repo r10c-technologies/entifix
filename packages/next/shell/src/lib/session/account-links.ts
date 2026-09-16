@@ -30,8 +30,8 @@ export interface AccountDestination {
  * a screen is a one-line change here.
  *
  * It lives in the shared shell rather than in the auth shell because the menu
- * is rendered by `BackOfficeShell`, which any host mounts — a `shell:base`
- * package cannot reach up into a `shell:domain` one.
+ * is rendered by `BackOfficeShell`, which any host mounts — a framework
+ * shell cannot reach up into a host's own one.
  */
 export const ACCOUNT_DESTINATIONS: readonly AccountDestination[] = [
   { labelKey: 'account.profile', path: '/account' },

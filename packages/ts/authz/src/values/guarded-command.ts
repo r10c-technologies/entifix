@@ -4,8 +4,8 @@ import type { Permission } from './permission.js';
  * A deterministic command plus the permission it requires, if any.
  *
  * The sibling of {@link GuardedNavItem}, and here for the identical reason: this
- * package is the only vocabulary a `layer:shell` package and a `layer:app` both
- * reach, so a `scope:shared` shell can contribute commands to whichever host
+ * package is the only vocabulary a shell and the host application both reach,
+ * so a framework shell can contribute commands to whichever host
  * mounts it without either of them importing the other.
  *
  * It is a *separate* type rather than a nav item with a flag because the two

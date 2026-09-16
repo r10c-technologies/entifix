@@ -76,7 +76,7 @@ export const shell = {
     },
   },
   /**
-   * System management — the operator surface. Lives in a `scope:shared` shell so
+   * System management — the operator surface. Lives in the framework shell so
    * a dedicated management app can mount the same screens later, which is why the
    * copy is here rather than in an app catalog.
    */

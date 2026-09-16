@@ -166,6 +166,62 @@ export const PACKAGES: readonly PackageDeclaration[] = [
   },
 ];
 
+export interface SidewaysEdge {
+  readonly from: string;
+  readonly to: string;
+  readonly because: string;
+}
+
+/**
+ * The dependencies allowed between two packages **in the same tier**. Every
+ * other same-tier edge fails the build.
+ *
+ * Tier order alone permits any sideways edge, and most of them would be wrong:
+ * a Mongo adapter reaching into the SQL one, `react-controls` and
+ * `react-integration` importing each other, one shell mounting another. The
+ * tag ordering this repository inherited from r10c used to forbid those, and
+ * issue #6 retired it in favour of this list — which names the handful of
+ * sideways edges the framework actually takes, each with its reason, so a new
+ * one is a decision somebody wrote down.
+ *
+ * Checked against `dependencies` and `peerDependencies`. An import without a
+ * manifest entry is already refused by `@nx/dependency-checks`.
+ */
+export const SIDEWAYS_EDGES: readonly SidewaysEdge[] = [
+  {
+    from: '@entifix/business',
+    to: '@entifix/core',
+    because:
+      'a use case is written against entities, and T1 is the pair of them',
+  },
+  ...['@entifix/mongo', '@entifix/redis', '@entifix/amqp'].map(from => ({
+    from,
+    to: '@entifix/transactions',
+    because:
+      'the outbox binding for this driver, behind the `/transactions` ' +
+      'subpath and an optional peer',
+  })),
+  {
+    from: '@entifix/rest',
+    to: '@entifix/transactions',
+    because:
+      'a save over REST is a command envelope; see the exemption in ' +
+      'OPTIONAL_CAPABILITIES',
+  },
+  ...['@entifix/service-shell', '@entifix/next-shell'].map(from => ({
+    from,
+    to: '@entifix/authz',
+    because:
+      'a shell guards its routes and filters its navigation with the ' +
+      'authorization vocabulary',
+  })),
+  {
+    from: '@entifix/testing-e2e',
+    to: '@entifix/testing-unit',
+    because: 'the e2e fixtures reuse the unit doubles rather than forking them',
+  },
+];
+
 export interface CapabilityException {
   readonly name: string;
   readonly because: string;

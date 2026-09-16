@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-09-15
+- Revised: 2026-09-16 by [#6](https://github.com/r10c-technologies/entifix/issues/6) — r10c's tag dimensions retired, and a same-tier edge must now be declared
 - Area: platform
 - Read when: adding a package, adding a dependency between two, deciding whether something is public API, or about to bake a host's value into framework code — a downward edge can still be illegal, and the seam takes values rather than paths
 
@@ -54,8 +55,8 @@ T4  app framework  authz · service-shell · next-shell · next-i18n
 T5  testing        testing-unit · testing-e2e · testing-auth
 ```
 
-A package may hard-depend only on its own tier or below. Someone who wants entity
-metadata takes T1. Someone who wants a table takes T3, and must not thereby
+A package may hard-depend only on its own tier or below — and **a same-tier edge
+only where the register declares it**. Someone who wants entity metadata takes T1. Someone who wants a table takes T3, and must not thereby
 install i18next, a Spanish catalog, a Mongo driver and a saga engine.
 
 Two placements are worth stating because both look wrong at a glance:
@@ -69,6 +70,31 @@ Two placements are worth stating because both look wrong at a glance:
   `PolicyDecisionTag` with a service that trusts every token, which is why it is
   `type:testing` and why the alternative — an unauthenticated branch in
   `entity-metadata-route.ts` for demos — was refused.
+
+### Sideways is declared, one edge at a time
+
+Tier order alone would let any package reach any other in its tier: a Mongo
+adapter into the SQL one, `react-controls` and `react-integration` into each
+other, one shell into another. The packages arrived from r10c carrying a second,
+finer ordering — `entifix:core ‹ contract ‹ {tooling, style} ‹ transactions ‹
+client ‹ react`, plus `layer:*`, `scope:*`, `shell:*` and `runtime:datastore` —
+and in this repository nothing enforced any of it except that ordering, which
+forbade 133 edges the tiers permit. Almost all of them were sideways.
+
+> **2026-09-16 ([#6](https://github.com/r10c-technologies/entifix/issues/6)).**
+> The tags are gone. Two orderings over one graph meant two answers to "may this
+> edge exist", and the finer one was named for a layering whose other layers
+> stayed in r10c. What it protected is kept as `SIDEWAYS_EDGES` in the register:
+> the seven same-tier edges the framework takes — `business`→`core`, the three
+> datastore adapters and `rest` →`transactions`, both service and Next shells
+> →`authz`, `testing-e2e`→`testing-unit` — each with its reason. Any other
+> same-tier edge fails `@entifix/tiers`, and so does a declaration no manifest
+> takes any more.
+>
+> Deliberately not kept: the handful of _downward_ edges the old ordering also
+> forbade, such as `core`→`tooling`. Nothing takes one, and a downward edge that
+> hands an adopter an unwanted capability is what the optional-capability rule
+> below exists for.
 
 ### The invariant is not about direction
 
@@ -96,7 +122,7 @@ fallback catalog — with `@entifix/i18n`, `i18next` and `react-i18next` as
 attached, and a host that wants the binding asks for it by importing the subpath.
 
 The register is `tools/tiers/src/registry.ts` and `tiers.spec.ts` checks it in
-both directions: a package under `packages/entifix` missing from the register
+both directions: a package under `packages/` missing from the register
 fails, and a register entry naming a directory that does not exist fails. A
 package carrying no `tier:` tag, or a tag disagreeing with the register, fails.
 

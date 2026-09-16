@@ -35,8 +35,8 @@ export async function getRequestLocale(): Promise<Locale> {
  *
  * Re-exported rather than defined here so it sits next to `getServerT` at an
  * app's call sites while still being reachable from packages that may not
- * depend on this one: `layer:shell` forbids same-layer edges, and the
- * storefront shell is precisely the caller that needs it. The implementation
+ * depend on this one: the shells share T4, the tier register declares no edge
+ * between them, and the storefront shell is precisely the caller that needs it. The implementation
  * lives in `@entifix/i18n`.
  */
 export { getServerTFor } from '@entifix/i18n';

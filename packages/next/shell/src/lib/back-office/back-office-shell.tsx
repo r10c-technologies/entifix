@@ -47,7 +47,7 @@ export interface BackOfficeShellProps {
    * sources carry entity constructors and handler functions, neither of which
    * survives the server→client boundary, so it cannot be built from serializable
    * props here. The host composes it in a client module of its own and hands it
-   * over — which also keeps this `shell:base` package from naming any domain's
+   * over — which also keeps this framework package from naming any domain's
    * entities.
    */
   commandPalette?: ReactNode;

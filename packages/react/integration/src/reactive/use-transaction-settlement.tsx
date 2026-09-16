@@ -21,7 +21,7 @@ export interface UseTransactionSettlementOptions {
    * The writes being watched.
    *
    * Passed in rather than imported: the store is a shell concern
-   * (`layer:shell`) and this hook is `layer:entifix`, which may not depend
+   * (`@entifix/next-shell`, T4) and this hook is T3, which may not depend
    * upward. Same seam, and the same reason, as `EntityDraftStore` for autosave.
    */
   pending: PendingTransactionStore;

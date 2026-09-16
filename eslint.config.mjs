@@ -15,7 +15,8 @@ import simpleImportSort from 'eslint-plugin-simple-import-sort';
 // on a capability its tier is meant to be adoptable without — is not expressible
 // as a tag constraint, because the edge it forbids points downward and is legal
 // here. `pnpm nx test @entifix/tiers` is what fails the build on those, reading
-// `tools/tiers/src/registry.ts`. Neither check replaces the other.
+// `tools/tiers/src/registry.ts` — and on a same-tier edge the register does not
+// declare, which this rule also cannot see. Neither check replaces the other.
 // ---------------------------------------------------------------------------
 
 const TIERS = [0, 1, 2, 3, 4, 5];

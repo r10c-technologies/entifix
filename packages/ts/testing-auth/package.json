@@ -31,8 +31,6 @@
   },
   "nx": {
     "tags": [
-      "layer:entifix",
-      "scope:shared",
       "type:testing",
       "tier:5"
     ],

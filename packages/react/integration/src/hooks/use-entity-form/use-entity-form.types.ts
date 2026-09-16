@@ -13,16 +13,16 @@ import type { EntityDraftMessages } from './use-entity-form.helpers.js';
  * Where an autosaved draft is persisted, as the form sees it.
  *
  * A **port**, because the store cannot be imported: `useDraft` and the zustand
- * store behind it are `layer:shell`, this package is `layer:entifix`, and
- * `@nx/enforce-module-boundaries` fails the build on the upward edge. Retagging
- * to make it legal would put an IndexedDB store under the framework layer, so
+ * store behind it are in `@entifix/next-shell` (T4), this package is T3, and
+ * `@nx/enforce-module-boundaries` fails the build on the upward edge. Moving
+ * the store down would put IndexedDB into the agnostic UI tier, so
  * the shell implements this instead — `useEntityDraft` in `@entifix/next-shell`
  * is the one adapter today.
  *
  * It lives here rather than in `@entifix/core`, and the asymmetry with
  * `EntityLinkSource` is deliberate: that port sits in core because
  * `@entifix/react-controls` and `@entifix/react-integration` are both
- * `entifix:react` and may not import each other, so they *had* to meet below
+ * T3 with no declared edge between them, so they *had* to meet below
  * both. Nothing forces that here — `@entifix/next-shell` already imports this
  * hook — so the port stays beside the options it joins.
  *

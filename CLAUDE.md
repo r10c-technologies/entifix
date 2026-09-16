@@ -72,10 +72,13 @@ tests need no build. A consumer resolves `dist`.
   silently. Releasing is merging the `chore(release): X.Y.Z` pull request that
   `release_prepare.yml` opens.
 - **A downward dependency can still be illegal.** Six tiers, and a package may
-  depend on its own tier or below — but it must also never hard-depend on a
+  depend on its own tier or below — on its own tier only through an edge
+  `SIDEWAYS_EDGES` declares — but it must also never hard-depend on a
   capability its tier is meant to be adoptable without. Such an edge is an
   optional peer behind a subpath export (`@entifix/mongo/transactions`). The
   register is `tools/tiers/src/registry.ts`, and `@entifix/tiers` fails the build.
+  `tier:N` and `type:testing` are the only tags: r10c's `layer:`, `scope:` and
+  `entifix:` dimensions were retired here, so do not add them back.
   [ADR 0001](docs/adr/0001-the-tier-contract-and-the-host-seam.md).
 - **The framework takes values from a host, never paths or host names.**
   Catalogs, grant tables, token Layers and copy cross the seam as values; an

@@ -61,7 +61,7 @@ function assertSearchable<TTarget extends Entity>(
  *
  * This is the data half of the link mechanism. It exists as a hook — rather than
  * inside the input — because `@entifix/react-controls` may not import this package
- * (both are `entifix:react`, and the boundary rule forbids the sideways edge), so
+ * (both are T3, and the tier register declares no sideways edge between them), so
  * the two meet at the framework-free port declared in `@entifix/core`. A form
  * wrapper calls it once per relation and hands the results to `EntityForm`'s
  * `linkSources`.

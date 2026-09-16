@@ -2,9 +2,6 @@
   "name": "@entifix/next-shell",
   "nx": {
     "tags": [
-      "layer:shell",
-      "scope:shared",
-      "shell:base",
       "tier:4"
     ],
     "sourceRoot": "packages/next/shell/src",

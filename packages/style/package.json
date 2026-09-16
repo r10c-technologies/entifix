@@ -2,9 +2,6 @@
   "name": "@entifix/style",
   "nx": {
     "tags": [
-      "layer:entifix",
-      "scope:shared",
-      "entifix:style",
       "tier:0"
     ]
   },
