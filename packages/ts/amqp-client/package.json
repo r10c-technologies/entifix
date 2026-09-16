@@ -1,6 +1,6 @@
 {
   "name": "@entifix/amqp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "RabbitMQ connection and health probe, and an optional event bus for @entifix/transactions with retry and quarantine.",
   "license": "MIT",
   "repository": {

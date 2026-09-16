@@ -1,3 +1,13 @@
+## 0.1.1 (2026-09-16)
+
+### 🚀 Features
+
+- describe every published package ([42314a7](https://github.com/r10c-technologies/entifix/commit/42314a7))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.1.0 (2026-09-16)
 
 ### 🩹 Fixes
