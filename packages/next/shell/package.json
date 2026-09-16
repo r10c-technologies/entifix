@@ -74,6 +74,8 @@
     "idb": "^8.0.3"
   },
   "files": [
+    "dist",
+    "!**/*.tsbuildinfo",
     "LICENSE"
   ],
   "peerDependencies": {
