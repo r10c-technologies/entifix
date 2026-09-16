@@ -27,6 +27,8 @@ pnpm nx test @entifix/docs-check               # links, ADR headers, supersessio
 pnpm exec prettier --check .
 pnpm nx sync                                   # tsconfig project references after adding deps
 
+pnpm nx e2e @entifix/example-workspace-e2e     # hermetic journeys, a required check
+
 # Work against a consumer checkout (README → "Developing against a consumer")
 ENTIFIX_CONSUMERS=$PWD/../r10c pnpm nx run @entifix/source:dev-sync
 ENTIFIX_CONSUMERS=$PWD/../r10c pnpm nx run @entifix/source:dev-sync-reset
@@ -43,6 +45,7 @@ tools/docs           documentation assertions
 tools/dev            the consumer sync
 tools/conventions    the attribution predicate
 tools/release        release helpers
+examples/*           the examples and their e2e (ADR 0004); outside the coverage gate
 ```
 
 Inside the workspace, imports resolve to each package's `src/index.ts` through
@@ -108,6 +111,7 @@ tests need no build. A consumer resolves `dist`.
 - [0001](docs/adr/0001-the-tier-contract-and-the-host-seam.md) **The tier contract, and the seam a host configures across** — read when adding a package, adding a dependency between two, deciding whether something is public API, or about to bake a host's value into framework code.
 - [0002](docs/adr/0002-entifix-is-mit.md) **entifix is MIT** — read when publishing a package, accepting an outside contribution, or wondering whether the licence can still be changed.
 - [0003](docs/adr/0003-releasing-without-a-credential.md) **Releasing without a credential** — read when cutting a release, wondering why the release workflow cannot be renamed, or why a merge did not publish anything.
+- [0004](docs/adr/0004-the-examples-are-the-composability-proof.md) **The examples are the composability proof** — read when adding an example or an e2e journey, putting an entity class inside a Next application, or a `@useCase()` verb never appears on screen.
 
 A source comment citing a higher number (`ADR 0030`) means an r10c record; the
 appendix of ADR 0001 maps each one.

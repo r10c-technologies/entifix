@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-09-15
 - Revised: 2026-09-16 by [#6](https://github.com/r10c-technologies/entifix/issues/6) — r10c's tag dimensions retired, and a same-tier edge must now be declared
+- Revised: 2026-09-16 by [ADR 0004](0004-the-examples-are-the-composability-proof.md) — the examples are decided there
 - Area: platform
 - Read when: adding a package, adding a dependency between two, deciding whether something is public API, or about to bake a host's value into framework code — a downward edge can still be illegal, and the seam takes values rather than paths
 
@@ -294,7 +295,8 @@ reference to a repository a reader cannot open.
 
 The publishing mechanism (npm provenance, the release workflow), the local
 development loop between this repository and its consumers, and the three example
-applications. Each is its own decision in this collection.
+applications. Each is its own decision in this collection — the examples are
+[ADR 0004](0004-the-examples-are-the-composability-proof.md).
 
 ## Appendix — the r10c records entifix source cites
 

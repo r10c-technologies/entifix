@@ -1,0 +1,20 @@
+{
+  "name": "@entifix/example-workspace-e2e",
+  "version": "0.0.0",
+  "private": true,
+  "nx": {
+    "implicitDependencies": [
+      "@entifix/example-workspace"
+    ],
+    "targets": {
+      "e2e": {
+        "dependsOn": [
+          "@entifix/example-workspace:build"
+        ]
+      }
+    }
+  },
+  "devDependencies": {
+    "@entifix/testing-e2e": "workspace:*"
+  }
+}

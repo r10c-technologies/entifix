@@ -37,7 +37,9 @@ import type {} from 'i18next';
 
 declare module 'i18next' {
   interface CustomTypeOptions {
-    defaultNS: 'app';
+    // `controls`, not your own namespace: the framework's components call
+    // `useT()` without one, and any other default renders `form.save` as-is.
+    defaultNS: 'controls';
     resources: Resources;
   }
 }
@@ -48,7 +50,7 @@ defineCatalogs({
     en: { ...controlsCatalogs.en, ...shellCatalogs.en, ...appCatalogs.en },
   },
   namespaces: ['controls', 'shell', 'app'],
-  defaultNS: 'app',
+  defaultNS: 'controls',
 });
 ```
 
@@ -95,6 +97,35 @@ of them **values** rather than paths: your catalogs, your grant table, the Layer
 that verify a real token, and your own copy. TypeScript by default — a
 `Record<Role, readonly Permission[]>` makes a typo a compile error — with JSON
 accepted through Standard Schema for a host that must configure at runtime.
+
+## Examples
+
+Each example is a different cut through the tiers, so together they are the
+proof that a tier can be taken without the ones above it
+([ADR 0004](docs/adr/0004-the-examples-are-the-composability-proof.md)).
+
+| Example                                   | Tiers                            | Shows                                                                                                                                                   |
+| ----------------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`example-workspace`](examples/workspace) | T0 + T1 + T3, and the Next shell | workspace tabs, the generated table and form, master-detail, a wizard, the command palette, autosaved drafts, theme, density and i18n — with no backend |
+
+```sh
+pnpm nx dev @entifix/example-workspace          # http://localhost:3200
+pnpm nx e2e @entifix/example-workspace-e2e      # the journeys, against a production build
+```
+
+`example-workspace` runs entirely in the page over an in-memory repository, so
+its journeys need no infrastructure and gate every pull request. Two things it
+had to learn, which apply to any Next application:
+
+- ⚠️ **Entity classes cannot live in a Next app's own source.** Turbopack panics
+  on a decorated `#field` and webpack does not parse the decorator at all. Put
+  them in a package built by SWC with `decoratorVersion: '2022-03'` — the example's
+  is [`examples/workspace-domain`](examples/workspace-domain).
+- ⚠️ **That package must be `sideEffects: true`.** A `@useCase()` class is never
+  imported by name, so a bundler drops it and every declared verb silently
+  vanishes from the screens.
+
+`example-service` and `example-minimal`, which need a database, are still to come.
 
 ## Three packages ship unexercised
 

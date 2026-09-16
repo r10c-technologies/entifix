@@ -1,0 +1,51 @@
+{
+  "name": "@entifix/example-workspace",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The UI half of entifix standing alone: workspace tabs, generated table and form, master-detail, a wizard, the command palette and autosaved drafts \u2014 in the browser, over an in-memory repository, with no backend.",
+  "dependencies": {
+    "@entifix/authz": "workspace:*",
+    "@entifix/business": "workspace:*",
+    "@entifix/core": "workspace:*",
+    "@entifix/example-workspace-domain": "workspace:*",
+    "@entifix/i18n": "workspace:*",
+    "@entifix/next-i18n": "workspace:*",
+    "@entifix/next-shell": "workspace:*",
+    "@entifix/react-controls": "workspace:*",
+    "@entifix/react-integration": "workspace:*",
+    "@entifix/style": "workspace:*",
+    "@entifix/testing-unit": "workspace:*",
+    "@tanstack/react-query": "5.102.8",
+    "effect": "3.22.1",
+    "i18next": "26.3.6",
+    "next": "16.2.10",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "react-i18next": "17.0.11",
+    "zustand": "^5.0.15"
+  },
+  "nx": {
+    "targets": {
+      "build": {
+        "options": {
+          "forwardAllArgs": false
+        }
+      },
+      "dev": {
+        "executor": "nx:run-commands",
+        "continuous": true,
+        "options": {
+          "command": "next dev -p 3200",
+          "cwd": "examples/workspace"
+        }
+      },
+      "start": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "next start -p 3200",
+          "cwd": "examples/workspace"
+        }
+      }
+    }
+  }
+}

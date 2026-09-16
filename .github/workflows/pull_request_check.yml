@@ -36,6 +36,7 @@ jobs:
       lint-projects: ${{ steps.chunks.outputs.lint-projects }}
       build-chunks: ${{ steps.chunks.outputs.build-chunks }}
       test-chunks: ${{ steps.chunks.outputs.test-chunks }}
+      e2e-projects: ${{ steps.chunks.outputs.e2e-projects }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -113,6 +114,7 @@ jobs:
           echo "lint-projects=$(projects lint | jq -r 'join(",")')" >> "$GITHUB_OUTPUT"
           echo "build-chunks=$(chunk "$(projects build)" "$BUILD_CHUNK_SIZE")" >> "$GITHUB_OUTPUT"
           echo "test-chunks=$(chunk "$(projects test)" "$TEST_CHUNK_SIZE")" >> "$GITHUB_OUTPUT"
+          echo "e2e-projects=$(projects e2e | jq -r 'join(",")')" >> "$GITHUB_OUTPUT"
 
   # One job, not a matrix: lint takes about as long as a runner takes to start.
   lint:
@@ -226,6 +228,49 @@ jobs:
       # not collect it, so CI asks for it explicitly.
       - run: pnpm nx run-many -t test --projects="${{ matrix.chunk }}" --coverage
 
+  # The examples' journeys. Only the hermetic ones run here — they need no
+  # infrastructure, so a pull request that breaks the UI tier fails on its own
+  # check rather than on a nightly run somebody reads the next morning.
+  #
+  # Affected-scoped like build and test: an example depends on the packages it
+  # composes, so a change to any of them makes its e2e project affected.
+  e2e:
+    name: E2E (${{ needs.initialize.outputs.e2e-projects }})
+    needs: initialize
+    if: needs.initialize.outputs.e2e-projects != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11.9'
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+      - uses: actions/cache/restore@v4
+        with:
+          key: deps-${{ runner.os }}-node26.4-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml', 'package.json') }}
+          fail-on-cache-miss: true
+          path: |
+            node_modules
+            packages/*/*/node_modules
+            packages/style/node_modules
+            tools/*/node_modules
+            examples/*/node_modules
+      - name: Install the browser
+        run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm nx run-many -t e2e --projects="${{ needs.initialize.outputs.e2e-projects }}"
+      - name: Keep the report of a failed run
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            examples/*/test-output
+          retention-days: 7
+
   # NOTE: this job must stay unconditional, and its commands must not become
   # affected-scoped. A tier claim and a documentation claim are about the whole
   # framework, and the pull request that breaks one usually adds a dependency to
@@ -327,7 +372,7 @@ jobs:
   # it is what `commits` reports on a push, and what a matrix with no chunks does.
   done:
     name: Done
-    needs: [initialize, lint, build, test, assertions, commits]
+    needs: [initialize, lint, build, test, e2e, assertions, commits]
     if: always()
     runs-on: ubuntu-latest
     steps:

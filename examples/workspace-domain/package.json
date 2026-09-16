@@ -1,0 +1,42 @@
+{
+  "name": "@entifix/example-workspace-domain",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The example's entities, compiled by SWC with 2022-03 decorators \u2014 which Next's own compiler cannot do.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@entifix/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "sideEffects": true,
+  "nx": {
+    "sourceRoot": "examples/workspace-domain/src",
+    "targets": {
+      "build": {
+        "executor": "@nx/js:swc",
+        "outputs": [
+          "{options.outputPath}"
+        ],
+        "options": {
+          "outputPath": "examples/workspace-domain/dist",
+          "main": "examples/workspace-domain/src/index.ts",
+          "tsConfig": "examples/workspace-domain/tsconfig.lib.json",
+          "skipTypeCheck": true,
+          "stripLeadingPaths": true
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "@entifix/core": "workspace:*",
+    "@swc/helpers": "0.5.23"
+  }
+}
