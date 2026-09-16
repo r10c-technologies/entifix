@@ -104,7 +104,12 @@
     }
   },
   "release": {
-    "projects": ["@entifix/*"],
+    "projects": [
+      "@entifix/*",
+      "!@entifix/source",
+      "!@entifix/tiers",
+      "!@entifix/docs-check"
+    ],
     "releaseTag": {
       "pattern": "v{version}"
     },
