@@ -27,6 +27,10 @@
 # string, which the outer shell would expand first, into nothing.
 #
 # `nx watch` needs the Nx daemon, so never `NX_DAEMON=false` for this.
+#
+# The target is deliberately not `continuous`: Nx reports a continuous task as
+# successful whatever it exits with, so a sync that failed on its first pass
+# read green.
 set -euo pipefail
 
 cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"

@@ -1,10 +1,11 @@
 import {
-  cpSync,
   existsSync,
+  mkdirSync,
   readdirSync,
   readFileSync,
   renameSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
 import { basename, join } from 'node:path';
@@ -31,6 +32,7 @@ export interface Manifest {
   private?: boolean;
   dependencies?: Record<string, string>;
   peerDependencies?: Record<string, string>;
+  files?: string[];
   entifixDevSync?: { source: string; at: string };
   [key: string]: unknown;
 }
@@ -128,9 +130,11 @@ export const installedCopies = (consumer: string, name: string): string[] => {
 /**
  * `0.1.1` or `0.1.1-dev.<earlier>` → `0.1.1-dev.<now>`.
  *
- * The version has to move. A bundler treats `node_modules` as managed — webpack
- * snapshots a package by the version in its manifest — so a copy that leaves
- * the version alone is a rebuild that never happens.
+ * Marks the copy as not the release. It is not what makes a watcher rebuild — a
+ * running webpack watch rebuilds on the file writes alone, measured — but
+ * webpack's persistent cache snapshots a `node_modules` package by its version,
+ * so an unchanged version would let a restarted build reuse the release's
+ * modules.
  */
 export const devVersion = (installed: string, now: Date): string =>
   `${installed.replace(/-dev\.\d+$/, '')}-dev.${now.getTime()}`;
@@ -153,40 +157,77 @@ export const missingDependencies = (
   });
 
 /**
- * Swap `from` in at `to` without writing into any file pnpm put there.
+ * Replaces one file by writing a sibling and renaming it over the original.
  *
  * pnpm imports a package by hard link or clone from its content-addressed
  * store. Writing through one of those files in place would rewrite the store's
- * copy, and with it every other project on the machine that links it. Renames
- * only ever replace directory entries.
+ * copy, and with it every other project on the machine that links it. A rename
+ * only ever replaces the directory entry.
  */
-const replaceDirectory = (from: string, to: string) => {
-  const staged = `${to}.sync-new`;
-  const retired = `${to}.sync-old`;
-  rmSync(staged, { recursive: true, force: true });
-  rmSync(retired, { recursive: true, force: true });
-  cpSync(from, staged, { recursive: true });
-  if (existsSync(to)) renameSync(to, retired);
-  renameSync(staged, to);
-  rmSync(retired, { recursive: true, force: true });
-};
-
-const replaceFile = (path: string, contents: string) => {
+const replaceFile = (path: string, contents: Buffer | string) => {
   const staged = `${path}.sync-new`;
   writeFileSync(staged, contents);
   renameSync(staged, path);
 };
+
+/**
+ * Makes `to` hold exactly what `from` holds, file by file.
+ *
+ * ⚠️ The directories themselves are kept, never swapped. Renaming a fresh `dist`
+ * in over the old one was the first version of this, and a running webpack watch
+ * never noticed: its watcher stays attached to the directory that was renamed
+ * away. Replacing each file inside the directory it watches is what it sees.
+ * Unchanged files are left alone, so a rebuild touching one module does not
+ * announce every module as changed.
+ */
+const mirrorDirectory = (from: string, to: string) => {
+  mkdirSync(to, { recursive: true });
+  const wanted = new Set<string>();
+  for (const entry of readdirSync(from, { withFileTypes: true })) {
+    // Build bookkeeping the tarball leaves out (`!**/*.tsbuildinfo`).
+    if (entry.name.endsWith('.tsbuildinfo')) continue;
+    wanted.add(entry.name);
+    const source = join(from, entry.name);
+    const target = join(to, entry.name);
+    if (entry.isDirectory()) {
+      mirrorDirectory(source, target);
+      continue;
+    }
+    const contents = readFileSync(source);
+    if (existsSync(target) && readFileSync(target).equals(contents)) continue;
+    replaceFile(target, contents);
+  }
+  for (const name of readdirSync(to)) {
+    if (!wanted.has(name))
+      rmSync(join(to, name), { recursive: true, force: true });
+  }
+};
+
+/**
+ * The directories a package publishes, from its manifest's `files`.
+ *
+ * Read rather than assumed to be `dist`: `@entifix/style` has no build and
+ * ships its CSS from `src`. Negations and plain files (`LICENSE`) are not
+ * directories a build changes, so only the directories are mirrored.
+ */
+export const shippedDirectories = (manifest: Manifest): string[] =>
+  (manifest.files ?? ['dist']).filter(entry => !entry.startsWith('!'));
 
 /** Syncs one built package into every consumer. Returns the copies written. */
 export const syncPackage = (
   pkg: SourcePackage,
   context: SyncContext,
 ): number => {
-  const dist = join(pkg.dir, 'dist');
-  if (!existsSync(dist)) {
-    throw new SyncError(`${pkg.name} has no dist — build it first.`);
-  }
   const built = readManifest(pkg.dir);
+  const shipped = shippedDirectories(built).filter(entry => {
+    const path = join(pkg.dir, entry);
+    return existsSync(path) && statSync(path).isDirectory();
+  });
+  if (shipped.length === 0) {
+    throw new SyncError(
+      `${pkg.name} has none of ${shippedDirectories(built).join(', ')} — build it first.`,
+    );
+  }
   let written = 0;
 
   for (const consumer of context.consumers) {
@@ -207,7 +248,9 @@ export const syncPackage = (
         );
       }
       version = devVersion(String(installed.version), context.now);
-      replaceDirectory(dist, join(copy, 'dist'));
+      for (const entry of shipped) {
+        mirrorDirectory(join(pkg.dir, entry), join(copy, entry));
+      }
       const manifest: Manifest = {
         ...built,
         version,
@@ -255,4 +298,61 @@ export const sync = (
           return pkg;
         });
   return selected.reduce((total, pkg) => total + syncPackage(pkg, context), 0);
+};
+
+/**
+ * The virtual-store entries in `consumer` that hold a synced copy.
+ *
+ * The entry, not the package directory inside it: removing the whole
+ * `.pnpm/@entifix+core@…` directory is what lets `pnpm install` put it back.
+ */
+export const syncedEntries = (consumer: string): string[] => {
+  const store = join(consumer, 'node_modules', '.pnpm');
+  return readdirSync(store)
+    .filter(entry => entry.startsWith('@entifix+'))
+    .filter(entry => {
+      // `@entifix+core@0.1.1_effect@3.22.1` holds `@entifix/core` itself and,
+      // beside it, links to the entifix packages core depends on. Only the
+      // entry's own package decides: a link to a synced dependency does not make
+      // this entry synced.
+      const name = entry.slice('@entifix+'.length).split('@')[0];
+      const dir = join(store, entry, 'node_modules', '@entifix', name);
+      return (
+        existsSync(join(dir, 'package.json')) &&
+        'entifixDevSync' in readManifest(dir)
+      );
+    })
+    .map(entry => join(store, entry))
+    .sort();
+};
+
+/**
+ * Puts every consumer back on the release it installs.
+ *
+ * ⚠️ `pnpm install --force` does not do this. pnpm 11's optimistic repeat
+ * install sees unchanged manifests and a matching lockfile, answers "Already up
+ * to date" in a fraction of a second, and leaves every synced copy in place. So
+ * the synced entries are deleted, and the install that re-links them is told
+ * not to be optimistic — about a second and a half, against four minutes for a
+ * forced refetch of the whole tree.
+ */
+export const reset = (
+  consumers: readonly string[],
+  install: (consumer: string) => void,
+  log: (line: string) => void,
+): number => {
+  let removed = 0;
+  for (const consumer of consumers) {
+    const entries = syncedEntries(consumer);
+    if (entries.length === 0) {
+      log(`nothing synced in ${basename(consumer)}`);
+      continue;
+    }
+    for (const entry of entries)
+      rmSync(entry, { recursive: true, force: true });
+    install(consumer);
+    log(`restored ${entries.length} synced entries in ${basename(consumer)}`);
+    removed += entries.length;
+  }
+  return removed;
 };

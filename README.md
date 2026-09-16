@@ -123,23 +123,38 @@ ENTIFIX_CONSUMERS=$PWD/../r10c pnpm nx run @entifix/source:dev-sync
 ```
 
 It builds every package once, then rebuilds each package as you save and copies
-its `dist` and `package.json` into the consumer's installed copy under
-`node_modules/.pnpm`. The consumer keeps installing the published version; its
-manifests and lockfile never change. `ENTIFIX_CONSUMERS` takes several paths,
-separated by `:`.
+what it publishes — the directories in its `files`, `dist` for all but
+`@entifix/style`, which ships `src` — plus its `package.json` into the consumer's
+installed copies under `node_modules/.pnpm`. A change reaches a running webpack
+service or a Next dev server about five seconds after the save. The consumer
+keeps installing the published version; its manifests and lockfile never
+change. `ENTIFIX_CONSUMERS` takes several paths, separated by `:`.
 
 - **A copy, never a link.** A symlinked package resolves its own dependencies
   from this repository's `node_modules`, which hands the consumer a second
   `effect` and breaks `Context.Tag` identity silently. A copy resolves its peers
   from the consumer, exactly as the tarball does.
-- **The version moves.** Each copy is stamped `<release>-dev.<timestamp>`,
-  because a bundler treats `node_modules` as managed and rebuilds a package only
-  when its version changes. The manifest also carries an `entifixDevSync` marker
-  naming the commit, which a consumer can check for before it commits.
+- **File by file, into the directories already there.** Each changed file is
+  written beside its target and renamed over it, and unchanged files are left
+  alone. Swapping in a whole new `dist` looked equivalent and was not: a running
+  webpack watch stays attached to the directory renamed away and never rebuilds.
+  And a write in place would go through pnpm's hard link or clone into its
+  content-addressed store, changing the package for every project on the
+  machine.
+- **Every copy is marked.** Its version becomes `<release>-dev.<timestamp>` and
+  its manifest carries an `entifixDevSync` marker naming the commit, so a
+  consumer can refuse to commit on top of it. The version is also what webpack's
+  persistent cache snapshots a `node_modules` package by, so a restarted build
+  does not reuse the release's modules.
 - **A new dependency stops the sync.** A copy cannot install anything, so a
   package that gained a dependency the consumer never installed fails loudly.
   Release it, and run `pnpm install` in the consumer.
-- **Putting the release back:** `pnpm install --force` in the consumer.
+- **Putting the release back:**
+  `ENTIFIX_CONSUMERS=$PWD/../r10c pnpm nx run @entifix/source:dev-sync-reset`.
+  It deletes the synced entries and reinstalls without pnpm's optimistic
+  shortcut, in a couple of seconds. ⚠️ `pnpm install --force` is **not** a reset:
+  with the manifests and lockfile unchanged it answers "Already up to date" and
+  leaves every synced copy in place.
 
 ⚠️ The consumer's CI tests the version it pins, never the sync. A change that
 works locally only because of synced code is unreleased work, not a green build.

@@ -1,10 +1,12 @@
 import {
+  cpSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -16,8 +18,10 @@ import {
   type Manifest,
   missingDependencies,
   parseConsumers,
+  reset,
   sourcePackages,
   sync,
+  syncedEntries,
   SyncError,
   syncPackage,
 } from './sync.ts';
@@ -175,7 +179,12 @@ describe('syncPackage', () => {
   });
 
   it('refuses a package that was never built', () => {
-    expect(() => syncPackage(core(), context())).toThrow(/has no dist/);
+    built('packages/ts/core', { name: '@entifix/core', version: '0.1.1' });
+    rmSync(join(entifix, 'packages/ts/core/dist'), { recursive: true });
+
+    expect(() => syncPackage(core(), context())).toThrow(
+      /has none of dist — build it first/,
+    );
   });
 
   it('replaces dist and stamps the manifest in every copy', () => {
@@ -214,6 +223,56 @@ describe('syncPackage', () => {
     expect(lines).toEqual([
       expect.stringMatching(/synced @entifix\/core → r10c \(2 copies/),
     ]);
+  });
+
+  it('mirrors a rebuild file by file: new, changed, removed and unchanged', () => {
+    built('packages/ts/core', { name: '@entifix/core', version: '0.1.1' });
+    const source = join(entifix, 'packages/ts/core/dist');
+    mkdirSync(join(source, 'nested'), { recursive: true });
+    writeFileSync(join(source, 'nested', 'kept.js'), 'same');
+    writeFileSync(join(source, 'tsconfig.lib.tsbuildinfo'), '{}');
+    const copy = installed('@entifix+core@0.1.1', '@entifix/core', {
+      version: '0.1.1',
+    });
+    mkdirSync(join(copy, 'dist', 'nested'), { recursive: true });
+    writeFileSync(join(copy, 'dist', 'nested', 'kept.js'), 'same');
+    writeFileSync(join(copy, 'dist', 'stale.js'), 'gone in the rebuild');
+    const kept = statSync(join(copy, 'dist', 'nested', 'kept.js')).ino;
+
+    syncPackage(core(), context());
+
+    expect(readdirSync(join(copy, 'dist')).sort()).toEqual([
+      'index.js',
+      'nested',
+    ]);
+    expect(readFileSync(join(copy, 'dist', 'index.js'), 'utf8')).toBe(
+      'export const built = true;',
+    );
+    // Untouched rather than rewritten, so a watcher hears only what changed.
+    expect(statSync(join(copy, 'dist', 'nested', 'kept.js')).ino).toBe(kept);
+  });
+
+  it('syncs what the manifest ships, not only dist', () => {
+    writeJson(join(entifix, 'packages/style/package.json'), {
+      name: '@entifix/style',
+      version: '0.1.1',
+      files: ['src', '!**/*.map', 'LICENSE'],
+    });
+    mkdirSync(join(entifix, 'packages/style/src'), { recursive: true });
+    writeFileSync(join(entifix, 'packages/style/src/tokens.css'), ':root{}');
+    writeFileSync(join(entifix, 'packages/style/LICENSE'), 'MIT');
+    const copy = installed('@entifix+style@0.1.1', '@entifix/style', {
+      version: '0.1.1',
+    });
+
+    syncPackage(
+      { name: '@entifix/style', dir: join(entifix, 'packages/style') },
+      context(),
+    );
+
+    expect(readFileSync(join(copy, 'src', 'tokens.css'), 'utf8')).toBe(
+      ':root{}',
+    );
   });
 
   it('writes dist into a copy that had none', () => {
@@ -276,5 +335,74 @@ describe('sync', () => {
     expect(() => sync(entifix, ['@entifix/docs-check'], context())).toThrow(
       /@entifix\/docs-check is not a publishable package/,
     );
+  });
+});
+
+describe('reset', () => {
+  it('removes only synced entries, then reinstalls each consumer that had any', () => {
+    built('packages/ts/core', { name: '@entifix/core', version: '0.1.1' });
+    installed('@entifix+core@0.1.1', '@entifix/core', { version: '0.1.1' });
+    installed('@entifix+core@0.1.1_x', '@entifix/core', { version: '0.1.1' });
+    installed('@entifix+rest@0.1.1', '@entifix/rest', { version: '0.1.1' });
+    mkdirSync(join(consumer, 'node_modules/.pnpm/@entifix+sql@0.1.1'), {
+      recursive: true,
+    });
+    mkdirSync(
+      join(
+        consumer,
+        'node_modules/.pnpm/@entifix+jwt@0.1.1/node_modules/@entifix/jwt',
+      ),
+      {
+        recursive: true,
+      },
+    );
+    mkdirSync(join(consumer, 'node_modules/.pnpm/effect@3.22.1'), {
+      recursive: true,
+    });
+    sync(entifix, ['@entifix/core'], context());
+    // An entry whose own package is a release, beside a link to synced core.
+    cpSync(
+      join(
+        consumer,
+        'node_modules/.pnpm/@entifix+core@0.1.1/node_modules/@entifix/core',
+      ),
+      join(
+        consumer,
+        'node_modules/.pnpm/@entifix+rest@0.1.1/node_modules/@entifix/core',
+      ),
+      { recursive: true },
+    );
+
+    const store = join(consumer, 'node_modules/.pnpm');
+    expect(syncedEntries(consumer)).toEqual([
+      join(store, '@entifix+core@0.1.1'),
+      join(store, '@entifix+core@0.1.1_x'),
+    ]);
+
+    const installs: string[] = [];
+    expect(
+      reset(
+        [consumer],
+        dir => installs.push(dir),
+        line => lines.push(line),
+      ),
+    ).toBe(2);
+    expect(installs).toEqual([consumer]);
+    expect(existsSync(join(store, '@entifix+core@0.1.1'))).toBe(false);
+    expect(existsSync(join(store, '@entifix+rest@0.1.1'))).toBe(true);
+    expect(lines.at(-1)).toBe('restored 2 synced entries in r10c');
+  });
+
+  it('leaves a consumer with nothing synced alone', () => {
+    const installs: string[] = [];
+    expect(
+      reset(
+        [consumer],
+        dir => installs.push(dir),
+        line => lines.push(line),
+      ),
+    ).toBe(0);
+    expect(installs).toEqual([]);
+    expect(lines).toEqual(['nothing synced in r10c']);
   });
 });
