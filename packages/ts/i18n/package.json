@@ -1,6 +1,7 @@
 {
   "name": "@entifix/i18n",
   "version": "0.1.0",
+  "description": "i18next binding: install each package's catalogs once, translate with typed keys, and negotiate a locale.",
   "license": "MIT",
   "repository": {
     "type": "git",

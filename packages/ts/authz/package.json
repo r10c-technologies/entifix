@@ -1,6 +1,7 @@
 {
   "name": "@entifix/authz",
   "version": "0.1.0",
+  "description": "Authorization vocabulary: permissions derived from entities, roles, a grant table, and a PolicyDecision port.",
   "license": "MIT",
   "repository": {
     "type": "git",

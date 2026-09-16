@@ -1,6 +1,7 @@
 {
   "name": "@entifix/rest",
   "version": "0.1.0",
+  "description": "HTTP entity adapter for the browser: get, load, save and delete against an entifix service, plus served metadata and transaction status.",
   "license": "MIT",
   "repository": {
     "type": "git",

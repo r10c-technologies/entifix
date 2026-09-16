@@ -1,8 +1,8 @@
 # @entifix/testing-unit
 
 Shared test doubles, port contract suites, and HTTP stubbing for the workspace.
-Test-only: it is private, has no build target, and resolves straight to source
-through the `@r10c/source` condition. Depend on it as a `devDependency`.
+Test-only. Depend on it as a `devDependency`; React, msw and Vitest are optional
+peers, reached only through the entry points that need them.
 
 ## Vocabulary
 
