@@ -1,0 +1,4 @@
+# Every file in the repository. GitHub requests a review from the owner on each
+# pull request; whether that review is required is the `main` ruleset's
+# "Require review from Code Owners" setting, not this file.
+* @Herber230
