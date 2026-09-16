@@ -1,6 +1,7 @@
 {
   "name": "@entifix/testing-e2e",
   "version": "0.1.0",
+  "description": "End-to-end testing with one set of journeys and two profiles: mocked backends by default, real infrastructure on demand.",
   "license": "MIT",
   "repository": {
     "type": "git",

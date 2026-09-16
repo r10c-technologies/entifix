@@ -1,6 +1,7 @@
 {
   "name": "@entifix/jwt",
   "version": "0.1.0",
+  "description": "RS256 access tokens on jose: sign, verify with the algorithm pinned, and publish the JWKS.",
   "license": "MIT",
   "repository": {
     "type": "git",

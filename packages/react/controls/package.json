@@ -1,6 +1,7 @@
 {
   "name": "@entifix/react-controls",
   "version": "0.1.0",
+  "description": "Entity-agnostic React UI — table, form, filters, wizard, command palette — rendered from entity metadata, plus layout primitives.",
   "license": "MIT",
   "repository": {
     "type": "git",

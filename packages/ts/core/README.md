@@ -1,11 +1,21 @@
-# core
+# @entifix/core
 
-This library was generated with [Nx](https://nx.dev).
+The entity system. A class decorated with `@entity()` and `@accessor()` describes itself — its members, their types and labels, which of them are sortable or filterable — and everything else in entifix reads that description instead of being told it again.
 
-## Building
+It also owns what crosses the wire: entity serialization and reconstruction, the envelopes a service answers with, and the RSQL filter and sort protocol a query is written in. Nothing here performs I/O.
 
-Run `nx build core` to build the library.
+## Install
 
-## Running unit tests
+```sh
+pnpm add @entifix/core effect
+```
 
-Run `nx test core` to execute the unit tests via [Jest](https://jestjs.io).
+## Entry points
+
+| Import          | What it holds                                                                                                                                                        |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@entifix/core` | Decorators (`entity`, `accessor`, `method`, `useCase`), metadata readers, serialization, envelopes, the RSQL parser and serializer, locales, wizard state, selection |
+
+---
+
+Tier 1 (entity) of entifix — a package depends only on its own tier or below. See [the tiers](https://github.com/r10c-technologies/entifix#the-tiers-and-what-you-are-allowed-to-install). MIT licensed.

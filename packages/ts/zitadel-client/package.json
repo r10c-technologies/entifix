@@ -1,6 +1,7 @@
 {
   "name": "@entifix/zitadel",
   "version": "0.1.0",
+  "description": "Zitadel client: OIDC sign-in with PKCE, back-channel logout, the management API, and signed Actions webhooks.",
   "license": "MIT",
   "repository": {
     "type": "git",

@@ -1,6 +1,7 @@
 {
   "name": "@entifix/next-i18n",
   "version": "0.1.0",
+  "description": "Next.js locale routing and server-side translation for @entifix/i18n, with the locale carried in the URL prefix.",
   "license": "MIT",
   "repository": {
     "type": "git",
