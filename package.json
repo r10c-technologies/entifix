@@ -112,6 +112,20 @@
           "config": ".verdaccio/config.yml",
           "storage": "tmp/local-registry/storage"
         }
+      },
+      "dev-sync": {
+        "executor": "nx:run-commands",
+        "cache": false,
+        "options": {
+          "command": "bash tools/dev/watch-sync.sh"
+        }
+      },
+      "dev-sync-reset": {
+        "executor": "nx:run-commands",
+        "cache": false,
+        "options": {
+          "command": "node tools/dev/src/main.ts --reset"
+        }
       }
     }
   }
