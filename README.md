@@ -113,6 +113,37 @@ pnpm nx test @entifix/tiers        # the tier contract, against the tree
 pnpm nx test @entifix/docs-check   # links, record headers, supersession
 ```
 
+### Developing against a consumer
+
+To see a change in an application that installs entifix before it is released,
+run the sync against that application's checkout:
+
+```sh
+ENTIFIX_CONSUMERS=$PWD/../r10c pnpm nx run @entifix/source:dev-sync
+```
+
+It builds every package once, then rebuilds each package as you save and copies
+its `dist` and `package.json` into the consumer's installed copy under
+`node_modules/.pnpm`. The consumer keeps installing the published version; its
+manifests and lockfile never change. `ENTIFIX_CONSUMERS` takes several paths,
+separated by `:`.
+
+- **A copy, never a link.** A symlinked package resolves its own dependencies
+  from this repository's `node_modules`, which hands the consumer a second
+  `effect` and breaks `Context.Tag` identity silently. A copy resolves its peers
+  from the consumer, exactly as the tarball does.
+- **The version moves.** Each copy is stamped `<release>-dev.<timestamp>`,
+  because a bundler treats `node_modules` as managed and rebuilds a package only
+  when its version changes. The manifest also carries an `entifixDevSync` marker
+  naming the commit, which a consumer can check for before it commits.
+- **A new dependency stops the sync.** A copy cannot install anything, so a
+  package that gained a dependency the consumer never installed fails loudly.
+  Release it, and run `pnpm install` in the consumer.
+- **Putting the release back:** `pnpm install --force` in the consumer.
+
+⚠️ The consumer's CI tests the version it pins, never the sync. A change that
+works locally only because of synced code is unreleased work, not a green build.
+
 ## Licence
 
 MIT — see [LICENSE](LICENSE), and

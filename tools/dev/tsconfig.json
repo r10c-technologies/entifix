@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "out-tsc/@entifix/dev-sync",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    // `main.ts` runs under Node's own type stripping, which does not rewrite
+    // specifiers, so it imports `./sync.ts` by its real name.
+    "rewriteRelativeImportExtensions": true,
+    "erasableSyntaxOnly": true,
+    "forceConsistentCasingInFileNames": true,
+    "types": ["node", "vitest/globals", "vitest/importMeta"]
+  },
+  "include": ["src/**/*.ts"],
+  "references": []
+}

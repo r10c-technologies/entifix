@@ -12,6 +12,8 @@ packages:
   # Not shipped code: the check that asserts the tier contract against the tree.
   - 'tools/tiers'
   - 'tools/docs'
+  # Not shipped either: the local loop that copies a build into a consumer.
+  - 'tools/dev'
 allowBuilds:
   '@parcel/watcher': false
   less: false
