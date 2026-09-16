@@ -3,7 +3,7 @@
 // so a caller cannot escape the Utopia spacing scale. Not part of the public
 // barrel — primitives import from here, consumers import the primitives.
 
-import type { SpacingToken } from '../molecules/stack/stack';
+import type { SpacingToken } from '../molecules/stack/stack.js';
 
 export type { SpacingToken };
 

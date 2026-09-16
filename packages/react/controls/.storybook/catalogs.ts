@@ -1,6 +1,6 @@
 import { defineCatalogs } from '@entifix/i18n';
 
-import { controlsCatalogs } from '../src/i18n/catalog';
+import { controlsCatalogs } from '../src/i18n/catalog/index.js';
 
 /**
  * Storybook renders the controls on their own, so the only catalog it needs is

@@ -1,3 +1,3 @@
-export * from './configuration-client-singleton';
-export * from './read-configuration-from-process';
-export * from './types';
+export * from './configuration-client-singleton.js';
+export * from './read-configuration-from-process.js';
+export * from './types.js';

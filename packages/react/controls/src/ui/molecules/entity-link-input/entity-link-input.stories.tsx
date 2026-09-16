@@ -9,7 +9,7 @@ import {
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
 
-import { EntityLinkInput } from './entity-link-input';
+import { EntityLinkInput } from './entity-link-input.js';
 
 @entity({ key: 'story-brand' })
 class StoryBrand implements Entity {

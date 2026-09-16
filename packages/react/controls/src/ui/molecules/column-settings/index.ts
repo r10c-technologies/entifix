@@ -1,1 +1,1 @@
-export * from './column-settings';
+export * from './column-settings.js';

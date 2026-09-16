@@ -1,6 +1,6 @@
 import { accessor, type Entity, entity, type EntityId } from '@entifix/core';
 
-import { type BackendRow, makeEntityBackend } from './entity-backend';
+import { type BackendRow, makeEntityBackend } from './entity-backend.js';
 
 /**
  * `id` is deliberately not filterable and `description` is not sortable —

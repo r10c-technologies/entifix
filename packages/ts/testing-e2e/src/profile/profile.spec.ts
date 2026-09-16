@@ -4,7 +4,7 @@ import {
   isMockProfile,
   requireLiveUrl,
   resolveE2eProfile,
-} from './profile';
+} from './profile.js';
 
 describe('resolveE2eProfile', () => {
   it('defaults to mock so a run needs no infrastructure', () => {

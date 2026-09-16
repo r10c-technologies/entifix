@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 
-import { Skeleton, SkeletonText } from '../../atoms/skeleton';
-import { cn } from '../../utils/cn';
+import { Skeleton, SkeletonText } from '../../atoms/skeleton/index.js';
+import { cn } from '../../utils/cn.js';
 
 export interface LoadingBoundaryProps {
   isLoading: boolean;

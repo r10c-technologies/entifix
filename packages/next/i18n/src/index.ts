@@ -1,1 +1,1 @@
-export * from './with-locale';
+export * from './with-locale.js';

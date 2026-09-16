@@ -7,8 +7,8 @@ import {
 } from '@entifix/core';
 import { Context, Effect } from 'effect';
 
-import { ConfigurationRepositoryTag } from './config.repository';
-import { EntityRepositoryTag } from './entity.repository';
+import { ConfigurationRepositoryTag } from './config.repository.js';
+import { EntityRepositoryTag } from './entity.repository.js';
 
 /**
  * DI tag for the {@link EntityLinkResolver} an environment provides so entity

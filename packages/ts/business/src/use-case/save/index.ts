@@ -1,1 +1,1 @@
-export * from './save.uc';
+export * from './save.uc.js';

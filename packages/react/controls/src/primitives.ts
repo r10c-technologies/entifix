@@ -23,34 +23,34 @@
 // backed by Effect `Layer`s, so re-exporting it drags the whole Effect runtime
 // into the browser — and what it remembers (column visibility, table density)
 // only exists in the back-office. A storefront has no preferences to store.
-export * from './i18n';
-export * from './theme';
+export * from './i18n/index.js';
+export * from './theme/index.js';
 
 // Atoms — text, buttons, fields, tables, loading placeholders.
-export * from './ui/atoms/button';
-export * from './ui/atoms/field';
-export * from './ui/atoms/skeleton';
-export * from './ui/atoms/table';
-export * from './ui/atoms/text';
+export * from './ui/atoms/button/index.js';
+export * from './ui/atoms/field/index.js';
+export * from './ui/atoms/skeleton/index.js';
+export * from './ui/atoms/table/index.js';
+export * from './ui/atoms/text/index.js';
 
 // Layout primitives (Every Layout): flex-first, with `Grid` the one CSS-Grid
 // escape hatch.
-export * from './ui/layout/box';
-export * from './ui/layout/center';
-export * from './ui/layout/cluster';
-export * from './ui/layout/cover';
-export * from './ui/layout/grid';
-export * from './ui/layout/sidebar';
-export * from './ui/layout/switcher';
+export * from './ui/layout/box/index.js';
+export * from './ui/layout/center/index.js';
+export * from './ui/layout/cluster/index.js';
+export * from './ui/layout/cover/index.js';
+export * from './ui/layout/grid/index.js';
+export * from './ui/layout/sidebar/index.js';
+export * from './ui/layout/switcher/index.js';
 
 // Molecules that compose the above and nothing else.
-export * from './ui/molecules/breadcrumbs';
-export * from './ui/molecules/card';
-export * from './ui/molecules/confirm-dialog';
-export * from './ui/molecules/loading-boundary';
-export * from './ui/molecules/menu';
-export * from './ui/molecules/pagination';
-export * from './ui/molecules/stack';
-export * from './ui/molecules/tab-strip';
-export * from './ui/molecules/theme-switcher';
-export * from './ui/utils/cn';
+export * from './ui/molecules/breadcrumbs/index.js';
+export * from './ui/molecules/card/index.js';
+export * from './ui/molecules/confirm-dialog/index.js';
+export * from './ui/molecules/loading-boundary/index.js';
+export * from './ui/molecules/menu/index.js';
+export * from './ui/molecules/pagination/index.js';
+export * from './ui/molecules/stack/index.js';
+export * from './ui/molecules/tab-strip/index.js';
+export * from './ui/molecules/theme-switcher/index.js';
+export * from './ui/utils/cn.js';

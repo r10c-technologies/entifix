@@ -3,11 +3,11 @@ import { Effect, Exit } from 'effect';
 import {
   LocalStorageUiPreferencesLayer,
   makeLocalStorageUiPreferencesState,
-} from './local-storage-ui-preferences-state';
+} from './local-storage-ui-preferences-state.js';
 import {
   type UiPreferencesState,
   UiPreferencesStateTag,
-} from './ui-preferences-state';
+} from './ui-preferences-state.js';
 
 describe('makeLocalStorageUiPreferencesState', () => {
   const store = makeLocalStorageUiPreferencesState('test-ns');

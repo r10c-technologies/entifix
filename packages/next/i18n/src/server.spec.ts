@@ -7,7 +7,7 @@ import {
   getServerT,
   getServerTFor,
   getServerTranslateKey,
-} from './server';
+} from './server.js';
 
 /**
  * Catalogs of this spec's own.

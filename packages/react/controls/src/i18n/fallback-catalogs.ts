@@ -1,4 +1,4 @@
-import { controlsCatalogs } from './catalog';
+import { controlsCatalogs } from './catalog/index.js';
 
 /**
  * Catalogs the no-provider fallback can resolve against, by namespace.

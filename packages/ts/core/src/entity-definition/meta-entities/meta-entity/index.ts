@@ -1,1 +1,1 @@
-export * from './meta-entity';
+export * from './meta-entity.js';

@@ -1,6 +1,6 @@
-import type { Entity } from './Entity';
-import type { EntityFiltering } from './EntityFiltering';
-import type { EntitySorting } from './EntitySorting';
+import type { Entity } from './Entity.js';
+import type { EntityFiltering } from './EntityFiltering.js';
+import type { EntitySorting } from './EntitySorting.js';
 
 export interface EntityLoadRequest<TEntity extends Entity = Entity> {
   filtering?: EntityFiltering<TEntity>[];

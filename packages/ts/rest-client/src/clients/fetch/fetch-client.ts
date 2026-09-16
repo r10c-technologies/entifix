@@ -1,7 +1,7 @@
 import { EntifixConnError } from '@entifix/core';
 import { Effect } from 'effect';
 
-import { HttpRequest, HttpResponse } from '../types';
+import { HttpRequest, HttpResponse } from '../types.js';
 
 export const performHttpRequestThroughFetch = <TResponseBody>(
   request: HttpRequest<unknown>,

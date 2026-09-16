@@ -4,7 +4,7 @@ import type {
   ElementType,
 } from 'react';
 
-import { cn } from '../../utils/cn';
+import { cn } from '../../utils/cn.js';
 
 export interface CenterProps extends ComponentPropsWithoutRef<'div'> {
   /** Max line-length. Defaults to the --measure token; a string overrides it. */

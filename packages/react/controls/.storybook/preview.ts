@@ -1,12 +1,12 @@
 import './preview.css';
-import './catalogs';
+import './catalogs.js';
 
 import { type Locale, LOCALES } from '@entifix/core';
 import { withThemeByDataAttribute } from '@storybook/addon-themes';
 import type { Preview } from '@storybook/react-vite';
 import { createElement } from 'react';
 
-import { I18nProvider } from '../src/i18next';
+import { I18nProvider } from '../src/i18next/index.js';
 
 const preview: Preview = {
   parameters: {

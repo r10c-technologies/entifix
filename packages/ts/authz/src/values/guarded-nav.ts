@@ -1,5 +1,5 @@
-import type { Permission } from './permission';
-import type { ScreenType } from './screen-type';
+import type { Permission } from './permission.js';
+import type { ScreenType } from './screen-type.js';
 
 /**
  * A navigation destination plus the permission it requires, if any.

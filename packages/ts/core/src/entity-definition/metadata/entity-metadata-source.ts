@@ -1,5 +1,5 @@
-import type { Entity, EntityConstructor } from '../../types/Entity';
-import type { EntityMetadataDocument } from './entity-metadata-document';
+import type { Entity, EntityConstructor } from '../../types/Entity.js';
+import type { EntityMetadataDocument } from './entity-metadata-document.js';
 
 /**
  * Where a UI gets an entity's {@link EntityMetadataDocument} from.

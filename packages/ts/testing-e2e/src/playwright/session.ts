@@ -1,6 +1,6 @@
 import type { BrowserContext, Page } from '@playwright/test';
 
-import { isMockProfile } from '../profile/profile';
+import { isMockProfile } from '../profile/profile.js';
 
 /**
  * The cookies a signed-in session travels in — the same names

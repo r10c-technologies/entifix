@@ -15,8 +15,8 @@ import {
 } from '@entifix/core';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import type { EntityDraftStore } from '../use-entity-form/use-entity-form.types';
-import type { UseWizardOptions, UseWizardResult } from './use-wizard.types';
+import type { EntityDraftStore } from '../use-entity-form/use-entity-form.types.js';
+import type { UseWizardOptions, UseWizardResult } from './use-wizard.types.js';
 
 /**
  * Drives one wizard: where the operator is, what they have answered, and the

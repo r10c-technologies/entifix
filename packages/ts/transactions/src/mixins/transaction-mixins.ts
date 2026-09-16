@@ -1,8 +1,8 @@
 import { Context } from 'effect';
 
-import type { TransactionCommand } from '../contracts/command';
-import type { LockHandle } from '../ports/lock-service';
-import type { TransactionOutcome } from '../ports/transaction-handler';
+import type { TransactionCommand } from '../contracts/command.js';
+import type { LockHandle } from '../ports/lock-service.js';
+import type { TransactionOutcome } from '../ports/transaction-handler.js';
 
 /**
  * The runtime inputs the facade use-cases yield — the transaction analogue of

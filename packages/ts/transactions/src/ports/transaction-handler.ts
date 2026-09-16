@@ -1,7 +1,7 @@
 import type { EntifixError, EntityId } from '@entifix/core';
 import { Context, type Effect } from 'effect';
 
-import type { TransactionCommand } from '../contracts/command';
+import type { TransactionCommand } from '../contracts/command.js';
 
 /** What a successful `execute` produced — echoed into the completed event. */
 export interface TransactionOutcome {

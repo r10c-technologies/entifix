@@ -1,10 +1,10 @@
-import { EntifixBuildError } from '../../base-entities/entifix-error';
-import { ROW_KEY } from '../../types/EntityRowDraft';
-import type { ChildConstructor } from '../meta-entities/meta-accessor';
+import { EntifixBuildError } from '../../base-entities/entifix-error/index.js';
+import { ROW_KEY } from '../../types/EntityRowDraft.js';
+import type { ChildConstructor } from '../meta-entities/meta-accessor/index.js';
 import {
   describeEntityColumns,
   type EntityFieldDescriptor,
-} from './describe-entity-columns';
+} from './describe-entity-columns.js';
 
 /**
  * The columns of one row of an owned collection.

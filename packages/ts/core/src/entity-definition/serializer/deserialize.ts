@@ -1,10 +1,10 @@
 import { Effect } from 'effect';
 
-import { EntifixBuildError } from '../../base-entities/entifix-error';
-import { Entity, EntityConstructor, EntityId } from '../../types/Entity';
-import { extractMetaAccessors } from '../helpers';
-import { EntityCollectionLink } from '../links/entity-collection-link';
-import { EntityLink } from '../links/entity-link';
+import { EntifixBuildError } from '../../base-entities/entifix-error/index.js';
+import { Entity, EntityConstructor, EntityId } from '../../types/Entity.js';
+import { extractMetaAccessors } from '../helpers/index.js';
+import { EntityCollectionLink } from '../links/entity-collection-link/index.js';
+import { EntityLink } from '../links/entity-link/index.js';
 
 /**
  * Result of deserializing a value against an entity constructor. A value can be

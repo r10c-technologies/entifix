@@ -1,1 +1,1 @@
-export * from './entity-collection-link';
+export * from './entity-collection-link.js';

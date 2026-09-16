@@ -1,6 +1,6 @@
 import type { ComponentPropsWithoutRef } from 'react';
 
-import { cn } from '../../utils/cn';
+import { cn } from '../../utils/cn.js';
 
 export interface TableProps extends ComponentPropsWithoutRef<'table'> {
   /** Class names for the scroll container wrapping the `<table>`. */

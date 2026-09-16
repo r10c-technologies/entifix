@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
-import { Card } from '../card';
-import { Stack } from './stack';
+import { Card } from '../card/index.js';
+import { Stack } from './stack.js';
 
 const meta = {
   title: 'Molecules/Stack',

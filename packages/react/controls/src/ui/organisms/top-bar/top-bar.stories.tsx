@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
-import { Menu } from '../../molecules/menu';
-import { TopBar } from './top-bar';
+import { Menu } from '../../molecules/menu/index.js';
+import { TopBar } from './top-bar.js';
 
 const meta = {
   title: 'Organisms/TopBar',

@@ -13,7 +13,7 @@ import {
   useMemo,
 } from 'react';
 
-import { fallbackCatalogFor } from './fallback-catalogs';
+import { fallbackCatalogFor } from './fallback-catalogs.js';
 
 /**
  * Resolving a key to a sentence. The whole of what a control needs from an i18n

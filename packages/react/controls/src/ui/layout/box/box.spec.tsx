@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import type { SpacingToken } from '../_shared';
+import type { SpacingToken } from '../_shared.js';
 import { Box } from './box.js';
 
 const classesOf = () => screen.getByTestId('box').className.split(/\s+/);

@@ -2,8 +2,8 @@
 
 import type { ComponentPropsWithoutRef } from 'react';
 
-import { useT } from '../../../i18n';
-import { cn } from '../../utils/cn';
+import { useT } from '../../../i18n/index.js';
+import { cn } from '../../utils/cn.js';
 
 export type TabStripProps = ComponentPropsWithoutRef<'div'>;
 

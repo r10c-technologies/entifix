@@ -2,7 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
-import { Drawer } from './drawer';
+import { Drawer } from './drawer.js';
 
 const renderDrawer = (props: Partial<Parameters<typeof Drawer>[0]> = {}) => {
   const onClose = vi.fn();

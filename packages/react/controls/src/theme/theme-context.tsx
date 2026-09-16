@@ -10,7 +10,7 @@ import {
   useState,
 } from 'react';
 
-import type { ThemeContextValue, ThemeOption, ThemePalette } from './types';
+import type { ThemeContextValue, ThemeOption, ThemePalette } from './types.js';
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 

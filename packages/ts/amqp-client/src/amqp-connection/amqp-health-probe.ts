@@ -1,7 +1,7 @@
 import { HealthRegistryTag } from '@entifix/business';
 import { Effect, Layer } from 'effect';
 
-import { AmqpChannelTag, EVENTS_EXCHANGE } from './amqp-connection';
+import { AmqpChannelTag, EVENTS_EXCHANGE } from './amqp-connection.js';
 
 /** Probe name reported by `/api/health/ready` when RabbitMQ is unreachable. */
 export const AMQP_PROBE_NAME = 'amqp';

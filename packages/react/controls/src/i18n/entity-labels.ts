@@ -3,7 +3,7 @@
 import type { EntityFieldDescriptor } from '@entifix/core';
 import { useCallback, useMemo } from 'react';
 
-import { useTranslateKey } from './i18n-context';
+import { useTranslateKey } from './i18n-context.js';
 
 /**
  * Resolves each descriptor's `labelKey` against the active catalog, leaving the

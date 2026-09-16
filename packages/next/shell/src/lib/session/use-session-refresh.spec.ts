@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { useSessionRefresh } from './use-session-refresh';
+import { useSessionRefresh } from './use-session-refresh.js';
 
 /** `tokenTtlSeconds: 10` → an 8s period, so a tick is one short hop. */
 const ACTIVE_TTL = 10;

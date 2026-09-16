@@ -1,1 +1,1 @@
-export * from './entity-link-source';
+export * from './entity-link-source.js';

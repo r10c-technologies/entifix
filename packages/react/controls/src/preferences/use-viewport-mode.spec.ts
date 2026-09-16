@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { useViewportMode, viewportModeFor } from './use-viewport-mode';
+import { useViewportMode, viewportModeFor } from './use-viewport-mode.js';
 
 type Listener = () => void;
 

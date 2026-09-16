@@ -1,3 +1,3 @@
-export * from './format';
-export * from './locales';
-export * from './negotiate';
+export * from './format.js';
+export * from './locales.js';
+export * from './negotiate.js';

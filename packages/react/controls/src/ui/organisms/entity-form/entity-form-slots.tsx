@@ -1,7 +1,7 @@
 import type { Entity } from '@entifix/core';
 import { Children, isValidElement, type ReactNode } from 'react';
 
-import type { EntityFieldRenderContext } from './entity-form.types';
+import type { EntityFieldRenderContext } from './entity-form.types.js';
 
 /**
  * The declarative customization API, mirroring `entity-table`'s slots: an

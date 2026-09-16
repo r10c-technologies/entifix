@@ -1,1 +1,1 @@
-export * from './entity-link-picker';
+export * from './entity-link-picker.js';

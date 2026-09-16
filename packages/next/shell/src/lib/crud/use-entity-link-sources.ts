@@ -9,7 +9,7 @@ import {
 } from '@entifix/core';
 import { useEntityLinkSource } from '@entifix/react-integration';
 
-import type { EntityCrudLinkSource } from './make-entity-crud.types';
+import type { EntityCrudLinkSource } from './make-entity-crud.types.js';
 
 export interface UseEntityLinkSourcesOptions {
   /** The form's current draft — ids are the truth. */

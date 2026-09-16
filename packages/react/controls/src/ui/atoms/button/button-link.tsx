@@ -1,7 +1,7 @@
 import type { ComponentPropsWithoutRef, ReactNode } from 'react';
 
-import { cn } from '../../utils/cn';
-import { button, type ButtonVariantProps } from './button-recipe';
+import { cn } from '../../utils/cn.js';
+import { button, type ButtonVariantProps } from './button-recipe.js';
 
 /**
  * An anchor wearing {@link Button}'s clothes — and, unlike `Button`, a

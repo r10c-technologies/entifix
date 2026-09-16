@@ -7,9 +7,9 @@ import {
 } from '@entifix/core';
 import { Effect } from 'effect';
 
-import { performHttpRequestThroughFetch } from '../../../clients/fetch';
-import { buildEntityRestAdapterMixins as adapterMixins } from '../build-entity-rest-adapter-mixins';
-import { BuildEntityRestOptions } from '../types';
+import { performHttpRequestThroughFetch } from '../../../clients/fetch/index.js';
+import { buildEntityRestAdapterMixins as adapterMixins } from '../build-entity-rest-adapter-mixins/index.js';
+import { BuildEntityRestOptions } from '../types.js';
 
 export const buildEntityRestAdapterGet =
   <TEntity extends Entity>(

@@ -10,7 +10,7 @@ import {
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
 
-import { EntityTable } from './entity-table';
+import { EntityTable } from './entity-table.js';
 
 /**
  * A decorated fixture, because the table builds itself from metadata — there is

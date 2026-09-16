@@ -1,2 +1,2 @@
-export * from './entity-detail-grid';
-export * from './entity-detail-grid.types';
+export * from './entity-detail-grid.js';
+export * from './entity-detail-grid.types.js';

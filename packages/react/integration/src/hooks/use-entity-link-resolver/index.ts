@@ -1,1 +1,1 @@
-export * from './use-entity-link-resolver';
+export * from './use-entity-link-resolver.js';

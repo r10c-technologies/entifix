@@ -9,42 +9,42 @@
 // React server components
 
 // Probe route handlers (liveness/readiness) shared by every Next app.
-export * from './lib/health/health-routes';
+export * from './lib/health/health-routes.js';
 
 // The `GET /api/config` handler + the same-origin domain rewrite it applies.
-export * from './lib/config/config-route';
+export * from './lib/config/config-route.js';
 
 // The shared fleet token, and the header config-service reads it from. Exported
 // because a server component that reads config-service directly — rather than
 // through its own app's `/api/config` route — has to carry it itself. It never
 // reaches the browser: this is the server entry.
-export * from './lib/config/service-token';
+export * from './lib/config/service-token.js';
 
 // The same-origin proxy each host mounts per backend it talks to.
-export * from './lib/config/service-proxy-route';
+export * from './lib/config/service-proxy-route.js';
 
 // Session cookies + the shared refresh route handler
-export * from './lib/session/cookies';
-export * from './lib/session/refresh-route';
+export * from './lib/session/cookies.js';
+export * from './lib/session/refresh-route.js';
 
 // The `[slug]` value that means "create". A pure constant, exported from both
 // entries because both need it: the generated pages read it in the browser, and
 // a shell's palette commands compose the create route with it on the server.
-export * from './lib/crud/slug';
+export * from './lib/crud/slug.js';
 
 // The cross-domain record search: the aggregating route, and the declarations a
 // host fans out over (ADR 0040).
-export * from './lib/search/record-search-route';
-export * from './lib/search/record-search-source';
+export * from './lib/search/record-search-route.js';
+export * from './lib/search/record-search-source.js';
 
 // The access cookie, read once and forwarded as a bearer. Three server surfaces
 // carry it the same way — the per-backend proxy, the auth shell's hand-written
 // handlers, and the record search fan-out — and none of them grants anything.
-export * from './lib/session/bearer';
+export * from './lib/session/bearer.js';
 
 // Account-link builders. Pure functions, but server layouts call them directly,
 // and anything exported from the client entry becomes a client function.
-export * from './lib/session/account-links';
+export * from './lib/session/account-links.js';
 
 // Device identity — read from the request, written onto the response.
-export * from './lib/session/device';
+export * from './lib/session/device.js';

@@ -6,5 +6,5 @@
  * which knows anything about a saga — can be taken on its own. What keeps it
  * optional is the `peerDependenciesMeta.optional` entry in the manifest.
  */
-export * from '../adapters/redis-lock-service';
-export * from '../adapters/redis-sequence-service';
+export * from '../adapters/redis-lock-service.js';
+export * from '../adapters/redis-sequence-service.js';

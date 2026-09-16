@@ -10,8 +10,8 @@ import {
 import {
   DEFAULT_UI_PREFERENCES_NAMESPACE,
   makeLocalStorageUiPreferencesState,
-} from './local-storage-ui-preferences-state';
-import type { UiPreferencesState } from './ui-preferences-state';
+} from './local-storage-ui-preferences-state.js';
+import type { UiPreferencesState } from './ui-preferences-state.js';
 
 const UiPreferencesContext = createContext<UiPreferencesState | null>(null);
 

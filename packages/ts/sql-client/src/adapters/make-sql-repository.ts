@@ -17,7 +17,10 @@ import {
 } from '@entifix/core';
 import { Effect } from 'effect';
 
-import { translateFiltering, translateSorting } from './sql-filter-translator';
+import {
+  translateFiltering,
+  translateSorting,
+} from './sql-filter-translator.js';
 
 /** A row as the driver returns it: column names, untransformed. */
 type SqlRow = Record<string, unknown>;

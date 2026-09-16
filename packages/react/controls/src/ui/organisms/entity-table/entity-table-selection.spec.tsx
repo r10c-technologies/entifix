@@ -12,7 +12,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { EntityTable } from './entity-table';
+import { EntityTable } from './entity-table.js';
 
 @entity({ key: 'gizmo' })
 class Gizmo implements Entity {

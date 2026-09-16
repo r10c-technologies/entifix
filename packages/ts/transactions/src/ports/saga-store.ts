@@ -1,7 +1,10 @@
 import type { EntifixConnError } from '@entifix/core';
 import { Context, type Effect } from 'effect';
 
-import type { SagaInputs, SagaStepOutcome } from '../contracts/saga-definition';
+import type {
+  SagaInputs,
+  SagaStepOutcome,
+} from '../contracts/saga-definition.js';
 
 /**
  * Where a saga instance is.

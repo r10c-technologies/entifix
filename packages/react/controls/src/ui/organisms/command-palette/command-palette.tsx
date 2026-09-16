@@ -17,8 +17,8 @@ import {
 } from '@headlessui/react';
 import type { KeyboardEvent } from 'react';
 
-import { SkeletonText } from '../../atoms/skeleton';
-import { cn } from '../../utils/cn';
+import { SkeletonText } from '../../atoms/skeleton/index.js';
+import { cn } from '../../utils/cn.js';
 
 /** Every string the palette renders. Resolved — this control does not translate. */
 export interface CommandPaletteLabels {

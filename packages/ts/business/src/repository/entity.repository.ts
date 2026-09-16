@@ -8,7 +8,7 @@ import type {
 import { Context } from 'effect';
 import { Effect } from 'effect/Effect';
 
-import { ConfigurationRepositoryTag } from './config.repository';
+import { ConfigurationRepositoryTag } from './config.repository.js';
 
 export interface EntityRepository {
   get<TEntity extends Entity>(

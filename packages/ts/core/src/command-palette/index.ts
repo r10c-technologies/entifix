@@ -1,2 +1,2 @@
-export * from './command-matching';
-export * from './command-source';
+export * from './command-matching.js';
+export * from './command-source.js';

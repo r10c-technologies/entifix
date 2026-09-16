@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
-import { Tab, TabAddButton, TabStrip } from './tab-strip';
+import { Tab, TabAddButton, TabStrip } from './tab-strip.js';
 
 const meta = {
   title: 'Molecules/TabStrip',

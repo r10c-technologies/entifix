@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { bearerHeader, sessionToken } from './bearer';
+import { bearerHeader, sessionToken } from './bearer.js';
 
 const cookieValue = vi.fn<() => string | undefined>(() => 'the-token');
 

@@ -6,7 +6,7 @@ import {
 import { Effect, Layer } from 'effect';
 import type { Redis } from 'ioredis';
 
-import { RedisTag } from '../redis-connection/redis-connection';
+import { RedisTag } from '../redis-connection/redis-connection.js';
 
 /** Namespace so sequence keys never collide with lock keys. */
 const SEQ_PREFIX = 'seq:';

@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
-import { DemoBox } from '../_demo';
-import { Cover } from './cover';
+import { DemoBox } from '../_demo.js';
+import { Cover } from './cover.js';
 
 const meta = {
   title: 'Layout/Cover',

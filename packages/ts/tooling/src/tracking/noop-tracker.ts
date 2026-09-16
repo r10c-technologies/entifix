@@ -1,4 +1,4 @@
-import type { Tracker } from './types';
+import type { Tracker } from './types.js';
 
 /**
  * A {@link Tracker} that discards everything and resolves every flag to `false`.

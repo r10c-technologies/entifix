@@ -3,15 +3,15 @@
 import type { WizardStepStatus } from '@entifix/core';
 import { type ReactNode, useEffect, useRef } from 'react';
 
-import { useT } from '../../../i18n';
-import { Button } from '../../atoms/button';
-import { Skeleton } from '../../atoms/skeleton';
-import { Text } from '../../atoms/text';
-import { Cluster } from '../../layout/cluster';
-import { Card } from '../../molecules/card';
-import { Stack } from '../../molecules/stack';
-import { cn } from '../../utils/cn';
-import type { WizardProps, WizardStepView } from './wizard.types';
+import { useT } from '../../../i18n/index.js';
+import { Button } from '../../atoms/button/index.js';
+import { Skeleton } from '../../atoms/skeleton/index.js';
+import { Text } from '../../atoms/text/index.js';
+import { Cluster } from '../../layout/cluster/index.js';
+import { Card } from '../../molecules/card/index.js';
+import { Stack } from '../../molecules/stack/index.js';
+import { cn } from '../../utils/cn.js';
+import type { WizardProps, WizardStepView } from './wizard.types.js';
 
 /** How many placeholder steps stand in when the caller has none yet. */
 const SKELETON_STEP_COUNT = 4;

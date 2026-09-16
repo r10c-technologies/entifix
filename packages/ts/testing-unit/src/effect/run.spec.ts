@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import {
   stubConfigurationLayer,
   stubUriConfigurationLayer,
-} from '../doubles/configuration';
+} from '../doubles/configuration.js';
 import {
   expectFailure,
   run,
@@ -14,7 +14,7 @@ import {
   runRepository,
   runRepositoryExit,
   runUC,
-} from './run';
+} from './run.js';
 
 const failure = new EntifixConnError('unreachable');
 

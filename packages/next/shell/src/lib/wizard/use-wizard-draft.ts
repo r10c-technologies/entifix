@@ -4,7 +4,7 @@ import { readWizardState, type WizardState } from '@entifix/core';
 import type { WizardDraftStore } from '@entifix/react-integration';
 import { useMemo } from 'react';
 
-import { useDraft } from '../workspace/drafts-state';
+import { useDraft } from '../workspace/drafts-state.js';
 
 /**
  * The workspace's implementation of `useWizard`'s draft port: binds a wizard to

@@ -1,1 +1,1 @@
-export * from './use-entity-use-cases';
+export * from './use-entity-use-cases.js';

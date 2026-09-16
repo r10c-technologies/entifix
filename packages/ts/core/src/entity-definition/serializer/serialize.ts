@@ -1,8 +1,8 @@
-import { Entity, EntityConstructor } from '../../types/Entity';
-import { extractMetaAccessors } from '../helpers';
-import { EntityCollectionLink } from '../links/entity-collection-link';
-import { EntityLink } from '../links/entity-link';
-import type { ChildConstructor } from '../meta-entities/meta-accessor';
+import { Entity, EntityConstructor } from '../../types/Entity.js';
+import { extractMetaAccessors } from '../helpers/index.js';
+import { EntityCollectionLink } from '../links/entity-collection-link/index.js';
+import { EntityLink } from '../links/entity-link/index.js';
+import type { ChildConstructor } from '../meta-entities/meta-accessor/index.js';
 
 /**
  * A plain, JSON-safe representation of an entity — the inverse of

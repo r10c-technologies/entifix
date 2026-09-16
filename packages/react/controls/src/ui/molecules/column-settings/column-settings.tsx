@@ -2,10 +2,10 @@
 
 import { Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
 
-import { useT } from '../../../i18n';
-import { Button } from '../../atoms/button';
-import { Checkbox } from '../../atoms/field';
-import { Text } from '../../atoms/text';
+import { useT } from '../../../i18n/index.js';
+import { Button } from '../../atoms/button/index.js';
+import { Checkbox } from '../../atoms/field/index.js';
+import { Text } from '../../atoms/text/index.js';
 
 /**
  * The user's column layout for one table. Stored through the UI-preferences

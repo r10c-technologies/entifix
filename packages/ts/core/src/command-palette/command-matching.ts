@@ -1,5 +1,5 @@
-import { EntifixLogicError } from '../base-entities/entifix-error';
-import type { CommandOption } from './command-source';
+import { EntifixLogicError } from '../base-entities/entifix-error/index.js';
+import type { CommandOption } from './command-source.js';
 
 /**
  * Normalize a string for matching: case-folded, and with accents removed.

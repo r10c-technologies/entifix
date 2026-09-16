@@ -1,1 +1,1 @@
-export * from './build-entity-rest-adapter-save';
+export * from './build-entity-rest-adapter-save.js';

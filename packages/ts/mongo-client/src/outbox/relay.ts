@@ -7,9 +7,9 @@ import {
 } from '@entifix/transactions';
 import { Context, Duration, Effect, Either, Fiber } from 'effect';
 
-import { MongoDatabaseTag } from '../mongo-database/mongo-database';
-import { recordOutboxStats } from './metrics';
-import { ensureOutboxIndexes, makeMongoOutbox } from './store';
+import { MongoDatabaseTag } from '../mongo-database/mongo-database.js';
+import { recordOutboxStats } from './metrics.js';
+import { ensureOutboxIndexes, makeMongoOutbox } from './store.js';
 
 /** How often the sweep looks for entries the fast path did not carry. */
 export const SWEEP_INTERVAL = Duration.seconds(15);

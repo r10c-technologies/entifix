@@ -20,7 +20,7 @@ import {
   type AmqpConnector,
   EVENTS_DLX,
   EVENTS_EXCHANGE,
-} from '../amqp-connection/amqp-connection';
+} from '../amqp-connection/amqp-connection.js';
 import {
   recordConsumed,
   recordFailed,

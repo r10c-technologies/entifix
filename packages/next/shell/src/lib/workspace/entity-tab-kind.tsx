@@ -3,7 +3,7 @@
 import { parseScreenPayload, type ScreenType } from '@entifix/authz';
 import type { ReactNode } from 'react';
 
-import type { TabKind } from './tab-kind';
+import type { TabKind } from './tab-kind.js';
 
 /** One list a workspace may open — the collection half of a screen. */
 export interface EntityTabList {

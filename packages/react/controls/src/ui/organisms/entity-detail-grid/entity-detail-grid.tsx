@@ -12,10 +12,10 @@ import {
 } from '@entifix/core';
 import { type KeyboardEvent, useId, useMemo } from 'react';
 
-import { useLocalizedDescriptors, useT } from '../../../i18n';
-import { Button } from '../../atoms/button';
-import { FieldControl } from '../../atoms/field-control';
-import { Skeleton } from '../../atoms/skeleton';
+import { useLocalizedDescriptors, useT } from '../../../i18n/index.js';
+import { Button } from '../../atoms/button/index.js';
+import { FieldControl } from '../../atoms/field-control/index.js';
+import { Skeleton } from '../../atoms/skeleton/index.js';
 import {
   Table,
   TableBody,
@@ -24,10 +24,10 @@ import {
   TableHeaderCell,
   TableMessageRow,
   TableRow,
-} from '../../atoms/table';
-import { Stack } from '../../molecules/stack';
-import { cn } from '../../utils/cn';
-import type { EntityDetailGridProps } from './entity-detail-grid.types';
+} from '../../atoms/table/index.js';
+import { Stack } from '../../molecules/stack/index.js';
+import { cn } from '../../utils/cn.js';
+import type { EntityDetailGridProps } from './entity-detail-grid.types.js';
 
 /** Rows the placeholder stands in for. Enough to read as a grid, not a page. */
 const SKELETON_ROW_COUNT = 3;

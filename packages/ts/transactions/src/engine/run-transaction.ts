@@ -1,21 +1,21 @@
 import { Effect } from 'effect';
 
-import { acceptedEvent, failedEvent } from '../contracts/event';
-import { TransactionOutboxTag } from '../contracts/outbox';
+import { acceptedEvent, failedEvent } from '../contracts/event.js';
+import { TransactionOutboxTag } from '../contracts/outbox.js';
 import {
   CommandTag,
   LockHandlesTag,
   OutcomeTag,
-} from '../mixins/transaction-mixins';
-import { EventSourceTag } from '../ports/event-source';
-import type { LockHandle } from '../ports/lock-service';
+} from '../mixins/transaction-mixins.js';
+import { EventSourceTag } from '../ports/event-source.js';
+import type { LockHandle } from '../ports/lock-service.js';
 import {
   executeUCFactory,
   freeUCFactory,
   lockUCFactory,
   rollbackUCFactory,
   validateUCFactory,
-} from '../use-case/facade.uc';
+} from '../use-case/facade.uc.js';
 
 /**
  * The saga engine, split at the 202 boundary so validation/lock failures are

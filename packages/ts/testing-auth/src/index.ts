@@ -1,2 +1,2 @@
-export * from './stub-layers';
-export * from './stub-principal';
+export * from './stub-layers.js';
+export * from './stub-principal.js';

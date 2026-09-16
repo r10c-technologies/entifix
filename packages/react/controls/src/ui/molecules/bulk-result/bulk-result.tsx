@@ -7,9 +7,9 @@ import {
   succeededCount,
 } from '@entifix/core';
 
-import { useT, useTranslateKey } from '../../../i18n';
-import { Button } from '../../atoms/button';
-import { cn } from '../../utils/cn';
+import { useT, useTranslateKey } from '../../../i18n/index.js';
+import { Button } from '../../atoms/button/index.js';
+import { cn } from '../../utils/cn.js';
 
 export interface BulkResultProps {
   outcomes: readonly BulkOutcome[];

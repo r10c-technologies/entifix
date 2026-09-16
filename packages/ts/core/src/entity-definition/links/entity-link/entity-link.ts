@@ -1,7 +1,7 @@
 import { Effect } from 'effect';
 
-import { EntifixError } from '../../../base-entities/entifix-error';
-import { Entity, EntityConstructor, EntityId } from '../../../types/Entity';
+import { EntifixError } from '../../../base-entities/entifix-error/index.js';
+import { Entity, EntityConstructor, EntityId } from '../../../types/Entity.js';
 
 /**
  * Framework-free seam a link uses to materialize its target entity. The concrete

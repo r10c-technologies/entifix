@@ -1,9 +1,9 @@
-import { appendMetaAccessor } from '../../helpers';
+import { appendMetaAccessor } from '../../helpers/index.js';
 import {
   MetaAccessor,
   MetaAccessorKind,
   MetaAccessorOptions,
-} from '../../meta-entities/meta-accessor';
+} from '../../meta-entities/meta-accessor/index.js';
 
 export function accessor(options?: MetaAccessorOptions) {
   return (

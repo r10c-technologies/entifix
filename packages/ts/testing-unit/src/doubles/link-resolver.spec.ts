@@ -8,7 +8,7 @@ import {
 import { Effect, Exit } from 'effect';
 import { describe, expect, it } from 'vitest';
 
-import { makeInMemoryEntityLinkResolver } from './link-resolver';
+import { makeInMemoryEntityLinkResolver } from './link-resolver.js';
 
 @entity({ key: 'brand' })
 class Brand implements Entity {

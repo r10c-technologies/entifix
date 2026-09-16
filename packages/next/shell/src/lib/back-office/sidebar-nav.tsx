@@ -5,9 +5,9 @@ import { cn, useT, useTranslateKey } from '@entifix/react-controls';
 import { usePathname } from 'next/navigation';
 import { useMemo } from 'react';
 
-import { LocaleLink, useLocaleHref } from '../i18n';
-import { groupByScreenType } from './group-by-screen-type';
-import type { NavItem, NavSection } from './nav';
+import { LocaleLink, useLocaleHref } from '../i18n/index.js';
+import { groupByScreenType } from './group-by-screen-type.js';
+import type { NavItem, NavSection } from './nav.js';
 
 export interface SidebarNavProps {
   sections: NavSection[];

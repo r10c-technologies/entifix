@@ -1,4 +1,4 @@
-import type { LogRecord, LogSink } from '../types';
+import type { LogRecord, LogSink } from '../types.js';
 
 /** Options for {@link makeStdoutJsonSink}. */
 export interface StdoutJsonSinkOptions {

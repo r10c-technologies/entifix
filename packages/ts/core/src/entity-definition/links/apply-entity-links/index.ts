@@ -1,1 +1,1 @@
-export * from './apply-entity-links';
+export * from './apply-entity-links.js';

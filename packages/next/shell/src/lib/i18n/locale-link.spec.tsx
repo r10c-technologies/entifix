@@ -3,7 +3,7 @@ import { render, renderHook, screen } from '@testing-library/react';
 import type { ComponentProps } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { LocaleLink, useLocaleHref, usePathLocale } from './locale-link';
+import { LocaleLink, useLocaleHref, usePathLocale } from './locale-link.js';
 
 const pathname = vi.hoisted(() => ({ value: '/es/catalog' as string | null }));
 

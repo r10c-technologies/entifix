@@ -1,7 +1,7 @@
-import type { EntityMetadataDocument } from '../entity-definition/metadata';
-import type { SerializedEntity } from '../entity-definition/serializer';
-import type { Entity, EntityId } from '../types/Entity';
-import type { EntityLoadRequest } from '../types/EntityLoadRequest';
+import type { EntityMetadataDocument } from '../entity-definition/metadata/index.js';
+import type { SerializedEntity } from '../entity-definition/serializer/index.js';
+import type { Entity, EntityId } from '../types/Entity.js';
+import type { EntityLoadRequest } from '../types/EntityLoadRequest.js';
 
 /**
  * Discriminates what {@link EntifixEnvelope.data} carries.

@@ -10,16 +10,16 @@ import type {
 } from '@entifix/core';
 import { useCallback, useId, useState } from 'react';
 
-import { useEnumLabel, useT } from '../../../i18n';
-import { Button } from '../../atoms/button';
-import { Select, TextInput } from '../../atoms/field';
-import { Text } from '../../atoms/text';
+import { useEnumLabel, useT } from '../../../i18n/index.js';
+import { Button } from '../../atoms/button/index.js';
+import { Select, TextInput } from '../../atoms/field/index.js';
+import { Text } from '../../atoms/text/index.js';
 import {
   type EntityFilterOperator,
   operatorArity,
   operatorLabelKey,
   operatorsForType,
-} from './filter-operators';
+} from './filter-operators.js';
 
 /**
  * One in-progress filter row. Values are held as strings because that is what

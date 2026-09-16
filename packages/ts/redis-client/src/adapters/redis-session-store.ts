@@ -15,7 +15,7 @@ import {
 import { Effect, Layer } from 'effect';
 import type { Redis } from 'ioredis';
 
-import { RedisTag } from '../redis-connection/redis-connection';
+import { RedisTag } from '../redis-connection/redis-connection.js';
 
 /** Default key prefix; every key this adapter writes lives under it. */
 export const DEFAULT_SESSION_NAMESPACE = 'session';

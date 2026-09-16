@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
-import { LoadingBoundary } from './loading-boundary';
+import { LoadingBoundary } from './loading-boundary.js';
 
 const meta = {
   title: 'Molecules/LoadingBoundary',

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { groupByScreenType } from './group-by-screen-type';
-import type { NavSection } from './nav';
+import { groupByScreenType } from './group-by-screen-type.js';
+import type { NavSection } from './nav.js';
 
 const section = (title: string, type?: NavSection['type']): NavSection => ({
   title,

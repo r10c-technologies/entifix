@@ -1,4 +1,4 @@
-import type { EntityId } from './Entity';
+import type { EntityId } from './Entity.js';
 
 /**
  * What happened to **one** row of a bulk action.

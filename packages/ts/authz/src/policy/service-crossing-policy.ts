@@ -1,6 +1,6 @@
 import { Context } from 'effect';
 
-import { type Permission, permissionMatches } from '../values/permission';
+import { type Permission, permissionMatches } from '../values/permission.js';
 
 /**
  * What a **service** may do when it crosses into another party's tenant storage.

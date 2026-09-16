@@ -2,9 +2,9 @@
 
 import { Radio, RadioGroup } from '@headlessui/react';
 
-import { useT } from '../../../i18n';
-import { useTheme } from '../../../theme';
-import { cn } from '../../utils/cn';
+import { useT } from '../../../i18n/index.js';
+import { useTheme } from '../../../theme/index.js';
+import { cn } from '../../utils/cn.js';
 
 /** Headless UI RadioGroup bound to the ThemeProvider. Options + labels come
  *  from the provider's registry, so it adapts to each app's theme set. */

@@ -17,9 +17,9 @@ import { useEffect, useMemo } from 'react';
 import type {
   EntityCatalogKey,
   EntityCrudLinkSource,
-} from './make-entity-crud.types';
-import { useEntityAffordances } from './use-entity-affordances';
-import { useEntityLinkSources } from './use-entity-link-sources';
+} from './make-entity-crud.types.js';
+import { useEntityAffordances } from './use-entity-affordances.js';
+import { useEntityLinkSources } from './use-entity-link-sources.js';
 
 export interface EntityCrudFormProps<TEntity extends Entity> {
   readonly entityConstructor: EntityConstructor<TEntity>;

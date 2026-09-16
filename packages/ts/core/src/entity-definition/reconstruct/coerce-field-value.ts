@@ -1,4 +1,4 @@
-import type { EntityFieldDescriptor } from '../describe';
+import type { EntityFieldDescriptor } from '../describe/index.js';
 
 /**
  * The typed value a draft string stands for.

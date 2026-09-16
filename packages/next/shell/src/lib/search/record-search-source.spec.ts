@@ -8,8 +8,8 @@ import {
 } from '@entifix/core';
 import { describe, expect, it } from 'vitest';
 
-import type { RecordSearchOption } from './record-search.types';
-import { defineRecordSearchSource } from './record-search-source';
+import type { RecordSearchOption } from './record-search.types.js';
+import { defineRecordSearchSource } from './record-search-source.js';
 
 /**
  * A local fixture rather than a business entity, so this spec is a test of the

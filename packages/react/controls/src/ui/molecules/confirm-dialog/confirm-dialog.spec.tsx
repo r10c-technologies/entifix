@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
-import { ConfirmDialog } from './confirm-dialog';
+import { ConfirmDialog } from './confirm-dialog.js';
 
 const props = {
   open: true,

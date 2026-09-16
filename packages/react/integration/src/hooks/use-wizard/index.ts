@@ -1,2 +1,2 @@
-export * from './use-wizard';
-export * from './use-wizard.types';
+export * from './use-wizard.js';
+export * from './use-wizard.types.js';

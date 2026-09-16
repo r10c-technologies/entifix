@@ -1,4 +1,4 @@
-import type { LogLevel } from './types';
+import type { LogLevel } from './types.js';
 
 /**
  * OpenTelemetry `SeverityNumber` for each level (DEBUG=5, INFO=9, WARN=13,

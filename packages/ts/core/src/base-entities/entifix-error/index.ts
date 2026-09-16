@@ -1,1 +1,1 @@
-export * from './entifix-error';
+export * from './entifix-error.js';

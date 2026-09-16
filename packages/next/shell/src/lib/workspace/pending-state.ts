@@ -4,8 +4,8 @@ import type { PendingEntry, PendingTransaction } from '@entifix/transactions';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
-import { makeIndexedDbStateStorage } from './idb-state-storage';
-import { WORKSPACE_DB } from './tabs-state';
+import { makeIndexedDbStateStorage } from './idb-state-storage.js';
+import { WORKSPACE_DB } from './tabs-state.js';
 
 /**
  * Writes the browser started and the server has not finished, keyed by

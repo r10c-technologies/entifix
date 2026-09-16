@@ -1,21 +1,21 @@
 import { Effect } from 'effect';
 
-import { EntifixBuildError } from '../base-entities/entifix-error';
-import type { EntityMetadataDocument } from '../entity-definition/metadata';
+import { EntifixBuildError } from '../base-entities/entifix-error/index.js';
+import type { EntityMetadataDocument } from '../entity-definition/metadata/index.js';
 import {
   deserializeEntityCollection,
   deserializeSingleEntity,
-} from '../entity-definition/serializer';
-import type { Entity, EntityConstructor } from '../types/Entity';
-import type { EntityPage } from '../types/EntityPage';
-import { envelopeEntityName } from './make-envelope';
+} from '../entity-definition/serializer/index.js';
+import type { Entity, EntityConstructor } from '../types/Entity.js';
+import type { EntityPage } from '../types/EntityPage.js';
+import { envelopeEntityName } from './make-envelope.js';
 import type {
   DomainEvent,
   EntifixEnvelope,
   EntifixEnvelopeType,
   EntifixEventMeta,
   SerializedEntityPage,
-} from './types';
+} from './types.js';
 
 /**
  * Structural check only — `meta.type` is validated separately so a mismatch

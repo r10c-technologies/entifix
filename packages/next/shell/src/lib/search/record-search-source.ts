@@ -11,7 +11,7 @@ import {
 } from '@entifix/core';
 import { Effect, Exit } from 'effect';
 
-import type { RecordSearchOption } from './record-search.types';
+import type { RecordSearchOption } from './record-search.types.js';
 
 /**
  * What a host declares in order to make one entity searchable from the palette

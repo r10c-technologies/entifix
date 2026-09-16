@@ -4,8 +4,8 @@ import type {
   ElementType,
 } from 'react';
 
-import { cn } from '../../utils/cn';
-import { GAP, type SpacingToken } from '../_shared';
+import { cn } from '../../utils/cn.js';
+import { GAP, type SpacingToken } from '../_shared.js';
 
 export interface GridProps extends ComponentPropsWithoutRef<'div'> {
   /** Minimum column width before wrapping (defaults to the --grid-min token). */

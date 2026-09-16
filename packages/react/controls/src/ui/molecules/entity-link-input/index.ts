@@ -1,1 +1,1 @@
-export * from './entity-link-input';
+export * from './entity-link-input.js';

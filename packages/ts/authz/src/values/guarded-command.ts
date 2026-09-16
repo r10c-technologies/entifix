@@ -1,4 +1,4 @@
-import type { Permission } from './permission';
+import type { Permission } from './permission.js';
 
 /**
  * A deterministic command plus the permission it requires, if any.

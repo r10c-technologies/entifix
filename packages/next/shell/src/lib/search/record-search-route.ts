@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
 
-import { bearerHeader, sessionToken } from '../session/bearer';
+import { bearerHeader, sessionToken } from '../session/bearer.js';
 import type {
   RecordSearchGroup,
   RecordSearchResponse,
   RecordSearchUnavailable,
   RecordSearchUnavailableReason,
-} from './record-search.types';
-import type { RecordSearchSource } from './record-search-source';
+} from './record-search.types.js';
+import type { RecordSearchSource } from './record-search-source.js';
 
 export const SEARCH_TERM_PARAM = 'q';
 export const SEARCH_SOURCES_PARAM = 'sources';

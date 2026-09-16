@@ -2,7 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { AccountMenu } from './account-menu';
+import { AccountMenu } from './account-menu.js';
 
 // The host supplies only URLs — the copy is the menu's own, resolved out of
 // `shell:account.*`, so an item carries a catalog key and not a label.

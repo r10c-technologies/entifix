@@ -2,11 +2,11 @@ import type { EntityFieldDescriptor, MetaAccessorType } from '@entifix/core';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
 
-import { Stack } from '../../molecules/stack';
-import { Button } from '../button';
-import { CellValue } from '../cell-value';
-import { Text } from '../text';
-import { FieldControl } from './field-control';
+import { Stack } from '../../molecules/stack/index.js';
+import { Button } from '../button/index.js';
+import { CellValue } from '../cell-value/index.js';
+import { Text } from '../text/index.js';
+import { FieldControl } from './field-control.js';
 
 /** A hand-built descriptor, so the story never instantiates a real entity. */
 const descriptor = (

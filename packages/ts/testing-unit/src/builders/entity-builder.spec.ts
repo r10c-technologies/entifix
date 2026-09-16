@@ -7,7 +7,7 @@ import {
 } from '@entifix/core';
 import { describe, expect, it } from 'vitest';
 
-import { defineEntityBuilder } from './entity-builder';
+import { defineEntityBuilder } from './entity-builder.js';
 
 @entity({ key: 'widget' })
 class Widget implements Entity {

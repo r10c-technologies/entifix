@@ -1,18 +1,18 @@
-import type { Entity } from '../types/Entity';
+import type { Entity } from '../types/Entity.js';
 import type {
   EntityFilter,
   EntityFiltering,
   FilterGroup,
   LogicOperator,
-} from '../types/EntityFiltering';
+} from '../types/EntityFiltering.js';
 import {
   RSQL_AND,
   RSQL_OR,
   RSQL_TOKENS,
   rsqlArity,
   type RsqlOperator,
-} from './rsql-operators';
-import { encodeRsqlValue } from './rsql-values';
+} from './rsql-operators.js';
+import { encodeRsqlValue } from './rsql-values.js';
 
 /**
  * A group carries `values` + a logic operator and, unlike the array filter, has

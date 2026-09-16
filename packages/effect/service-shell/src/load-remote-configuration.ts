@@ -5,7 +5,7 @@ import {
 } from '@entifix/core';
 import { Context, Effect, Schedule } from 'effect';
 
-import { SERVICE_TOKEN_HEADER, serviceToken } from './auth/service-token';
+import { SERVICE_TOKEN_HEADER, serviceToken } from './auth/service-token.js';
 
 /**
  * DI tag carrying the raw {@link ConfigurationPlain} a service loaded at boot,

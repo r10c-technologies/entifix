@@ -1,3 +1,3 @@
-export * from './use-entity-form';
-export * from './use-entity-form.helpers';
-export * from './use-entity-form.types';
+export * from './use-entity-form.helpers.js';
+export * from './use-entity-form.js';
+export * from './use-entity-form.types.js';

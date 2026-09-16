@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import { SERVICE_TOKEN_HEADER, serviceToken } from './service-token';
+import { SERVICE_TOKEN_HEADER, serviceToken } from './service-token.js';
 
 /** A group of parameters as `ConfigurationPlain` carries them. */
 type PlainConfiguration = Record<

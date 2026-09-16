@@ -10,7 +10,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
-import { EntityForm } from './entity-form';
+import { EntityForm } from './entity-form.js';
 
 class OrderLine {
   #sku = '';

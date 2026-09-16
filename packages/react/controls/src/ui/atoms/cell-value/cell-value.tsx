@@ -9,7 +9,7 @@ import {
   type MetaAccessorType,
 } from '@entifix/core';
 
-import { useEnumLabel, useFormatters, useT } from '../../../i18n';
+import { useEnumLabel, useFormatters, useT } from '../../../i18n/index.js';
 
 /** Stand-in for an absent value, so an empty cell still reads as intentional. */
 const EMPTY = '—';

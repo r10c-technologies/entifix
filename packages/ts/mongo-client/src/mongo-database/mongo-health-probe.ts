@@ -1,7 +1,7 @@
 import { HealthRegistryTag } from '@entifix/business';
 import { Effect, Layer } from 'effect';
 
-import { MongoClientTag } from './mongo-database';
+import { MongoClientTag } from './mongo-database.js';
 
 /** Probe name reported by `/api/health/ready` when Mongo is unreachable. */
 export const MONGO_PROBE_NAME = 'mongo';

@@ -9,7 +9,7 @@ import {
 import { Context, Effect } from 'effect';
 import type { Db } from 'mongodb';
 
-import { makeMongoRepository } from './make-mongo-repository';
+import { makeMongoRepository } from './make-mongo-repository.js';
 
 /**
  * Builds an {@link EntityLinkResolverTag} context backed by Mongo repositories,

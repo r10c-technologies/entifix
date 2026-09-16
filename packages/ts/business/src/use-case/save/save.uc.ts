@@ -1,8 +1,8 @@
 import { Entity } from '@entifix/core';
 import { Effect } from 'effect';
 
-import { EntityRepositoryTag } from '../../repository/entity.repository';
-import { EntityTag } from '../../repository/entity-mixins.repository';
+import { EntityRepositoryTag } from '../../repository/entity.repository.js';
+import { EntityTag } from '../../repository/entity-mixins.repository.js';
 
 /**
  * Persists an entity and returns whatever the repository considers the stored

@@ -1,4 +1,4 @@
-import type { RecordSearchResponse } from './record-search.types';
+import type { RecordSearchResponse } from './record-search.types.js';
 
 /** Where the aggregating route is mounted. Same-origin, so the cookie rides along. */
 export const RECORD_SEARCH_PATH = '/api/search';

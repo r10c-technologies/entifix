@@ -10,14 +10,14 @@ import {
   type SagaStep,
   type SagaStepInput,
   type SagaStepOutcome,
-} from '../contracts/saga-definition';
-import { SagaDispatcherTag } from '../ports/saga-dispatcher';
+} from '../contracts/saga-definition.js';
+import { SagaDispatcherTag } from '../ports/saga-dispatcher.js';
 import {
   type SagaInstance,
   type SagaStore,
   SagaStoreTag,
-} from '../ports/saga-store';
-import { resolveBodyTemplate, resolveTemplate } from './resolve-template';
+} from '../ports/saga-store.js';
+import { resolveBodyTemplate, resolveTemplate } from './resolve-template.js';
 
 export type { SagaInputs, SagaStepInput };
 

@@ -16,12 +16,12 @@ import {
 } from '@entifix/core';
 import { Fragment, type ReactNode, useRef, useState } from 'react';
 
-import { useErrorMessage, useT, useTranslateKey } from '../../../i18n';
-import { OVERFLOW_GLYPH, useCasesForSurface } from '../../actions';
-import { Button } from '../../atoms/button';
-import { CellValue } from '../../atoms/cell-value';
-import { Checkbox } from '../../atoms/field';
-import { Skeleton } from '../../atoms/skeleton';
+import { useErrorMessage, useT, useTranslateKey } from '../../../i18n/index.js';
+import { OVERFLOW_GLYPH, useCasesForSurface } from '../../actions/index.js';
+import { Button } from '../../atoms/button/index.js';
+import { CellValue } from '../../atoms/cell-value/index.js';
+import { Checkbox } from '../../atoms/field/index.js';
+import { Skeleton } from '../../atoms/skeleton/index.js';
 import {
   Table,
   TableBody,
@@ -30,26 +30,26 @@ import {
   TableHeaderCell,
   TableMessageRow,
   TableRow,
-} from '../../atoms/table';
-import { Link } from '../../atoms/text';
-import { BulkActionBar } from '../../molecules/bulk-action-bar';
-import { BulkResult } from '../../molecules/bulk-result';
-import { ColumnSettings } from '../../molecules/column-settings';
-import { ConfirmDialog } from '../../molecules/confirm-dialog';
-import { EntityRecordCard } from '../../molecules/entity-record-card';
-import { FilterBuilder } from '../../molecules/filter-builder';
-import { LoadingBoundary } from '../../molecules/loading-boundary';
-import { Menu } from '../../molecules/menu';
-import { Pagination } from '../../molecules/pagination';
-import { SortBuilder } from '../../molecules/sort-builder';
-import { TableToolbar } from '../../molecules/table-toolbar';
+} from '../../atoms/table/index.js';
+import { Link } from '../../atoms/text/index.js';
+import { BulkActionBar } from '../../molecules/bulk-action-bar/index.js';
+import { BulkResult } from '../../molecules/bulk-result/index.js';
+import { ColumnSettings } from '../../molecules/column-settings/index.js';
+import { ConfirmDialog } from '../../molecules/confirm-dialog/index.js';
+import { EntityRecordCard } from '../../molecules/entity-record-card/index.js';
+import { FilterBuilder } from '../../molecules/filter-builder/index.js';
+import { LoadingBoundary } from '../../molecules/loading-boundary/index.js';
+import { Menu } from '../../molecules/menu/index.js';
+import { Pagination } from '../../molecules/pagination/index.js';
+import { SortBuilder } from '../../molecules/sort-builder/index.js';
+import { TableToolbar } from '../../molecules/table-toolbar/index.js';
 import type {
   EntityTableColumn,
   EntityTablePivotBreakpoint,
   EntityTableProps,
-} from './entity-table.types';
-import { readEntityTableSlots } from './entity-table-slots';
-import { useEntityTableColumns } from './use-entity-table-columns';
+} from './entity-table.types.js';
+import { readEntityTableSlots } from './entity-table-slots.js';
+import { useEntityTableColumns } from './use-entity-table-columns.js';
 
 /**
  * The grid and the card list are both rendered, and CSS picks one. A JS

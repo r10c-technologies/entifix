@@ -4,9 +4,9 @@ import {
   CommandTag,
   LockHandlesTag,
   OutcomeTag,
-} from '../mixins/transaction-mixins';
-import { type LockHandle, LockServiceTag } from '../ports/lock-service';
-import { TransactionHandlerTag } from '../ports/transaction-handler';
+} from '../mixins/transaction-mixins.js';
+import { type LockHandle, LockServiceTag } from '../ports/lock-service.js';
+import { TransactionHandlerTag } from '../ports/transaction-handler.js';
 
 /**
  * The five-step transaction facade, each step a use-case in the same

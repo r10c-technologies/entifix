@@ -6,15 +6,15 @@ import {
   type EntityId,
 } from '@entifix/core';
 
-import type { EntityTableColumn } from './entity-table.types';
+import type { EntityTableColumn } from './entity-table.types.js';
 import {
   EntityColumn,
   EntityTableHeader,
   EntityTableRow,
   EntityTableToolbar,
   readEntityTableSlots,
-} from './entity-table-slots';
-import { resolveEntityTableColumns } from './use-entity-table-columns';
+} from './entity-table-slots.js';
+import { resolveEntityTableColumns } from './use-entity-table-columns.js';
 
 @entity({ key: 'gadget' })
 class Gadget implements Entity {

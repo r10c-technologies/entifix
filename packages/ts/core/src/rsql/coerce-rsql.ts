@@ -1,12 +1,16 @@
-import { EntifixBuildError } from '../base-entities/entifix-error';
+import { EntifixBuildError } from '../base-entities/entifix-error/index.js';
 import {
   describeEntityColumns,
   type EntityFieldDescriptor,
-} from '../entity-definition/describe';
-import type { MetaAccessorType } from '../entity-definition/meta-entities/meta-accessor';
-import type { Entity, EntityConstructor } from '../types/Entity';
-import type { EntityFilter, FilterGroup } from '../types/EntityFiltering';
-import { isRawFilter, type RawFilter, type RawFilterGroup } from './parse-rsql';
+} from '../entity-definition/describe/index.js';
+import type { MetaAccessorType } from '../entity-definition/meta-entities/meta-accessor/index.js';
+import type { Entity, EntityConstructor } from '../types/Entity.js';
+import type { EntityFilter, FilterGroup } from '../types/EntityFiltering.js';
+import {
+  isRawFilter,
+  type RawFilter,
+  type RawFilterGroup,
+} from './parse-rsql.js';
 
 /**
  * Resolves the members a client is allowed to name, keyed by both the accessor

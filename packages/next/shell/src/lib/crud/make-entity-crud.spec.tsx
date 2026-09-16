@@ -34,8 +34,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { usePendingState } from '../workspace/pending-state.js';
 import { PendingTransactionsProvider } from '../workspace/pending-transactions.js';
-import { makeEntityCrud } from './make-entity-crud';
-import { CATALOG_NEW_SLUG } from './slug';
+import { makeEntityCrud } from './make-entity-crud.js';
+import { CATALOG_NEW_SLUG } from './slug.js';
 
 // The pages read the route through `next/navigation`, which only exists inside
 // a running Next app; the slug is the one input a test needs to vary.

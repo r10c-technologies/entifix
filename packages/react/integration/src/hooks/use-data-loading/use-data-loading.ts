@@ -20,8 +20,8 @@ import {
   useRef,
 } from 'react';
 
-import { combineFilterGroups } from '../../query/combine-filtering';
-import type { UseDataLoadingOptions } from './use-data-loading.types';
+import { combineFilterGroups } from '../../query/combine-filtering.js';
+import type { UseDataLoadingOptions } from './use-data-loading.types.js';
 
 const DEFAULT_PAGE_SIZE = 10;
 

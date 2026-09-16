@@ -2,8 +2,8 @@ import { EntifixConnError, EntifixLogicError } from '@entifix/core';
 import { Context, Effect, Layer } from 'effect';
 import { createRemoteJWKSet, type JWTPayload, jwtVerify } from 'jose';
 
-import { discover, type OidcDiscovery } from '../oidc/discovery';
-import { CODE_CHALLENGE_METHOD } from '../oidc/pkce';
+import { discover, type OidcDiscovery } from '../oidc/discovery.js';
+import { CODE_CHALLENGE_METHOD } from '../oidc/pkce.js';
 
 /** How this client is pointed at an instance. Resolved from config-service at boot. */
 export interface ZitadelOidcConfig {

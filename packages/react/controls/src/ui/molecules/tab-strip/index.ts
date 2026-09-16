@@ -1,1 +1,1 @@
-export * from './tab-strip';
+export * from './tab-strip.js';

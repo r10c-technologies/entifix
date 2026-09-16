@@ -3,8 +3,8 @@
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import type { ReactNode } from 'react';
 
-import { Button } from '../../atoms/button';
-import { cn } from '../../utils/cn';
+import { Button } from '../../atoms/button/index.js';
+import { cn } from '../../utils/cn.js';
 
 export interface DrawerProps {
   open: boolean;

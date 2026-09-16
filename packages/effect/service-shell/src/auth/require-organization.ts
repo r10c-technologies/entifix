@@ -2,7 +2,10 @@ import { HttpServerResponse } from '@effect/platform';
 import type { Permission } from '@entifix/authz';
 import { Effect } from 'effect';
 
-import { type RequestPrincipal, requirePermission } from './require-principal';
+import {
+  type RequestPrincipal,
+  requirePermission,
+} from './require-principal.js';
 
 /**
  * `409` rather than `403`: the caller is authenticated and permitted, but the

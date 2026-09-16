@@ -11,7 +11,7 @@ import {
   surfaceFor,
   surfacesFor,
   useCasesForSurface,
-} from './action-surfaces';
+} from './action-surfaces.js';
 
 const BINDINGS: UseCaseBinding[] = ['entity', 'collection', 'unbound'];
 const PLACEMENTS: UseCasePlacement[] = [

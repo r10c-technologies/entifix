@@ -1,7 +1,10 @@
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
-import { defineServiceE2e, type ServiceE2eContext } from './define-service-e2e';
+import {
+  defineServiceE2e,
+  type ServiceE2eContext,
+} from './define-service-e2e.js';
 
 /**
  * A stand-in for the service under test: answers `/api/health`, echoes the

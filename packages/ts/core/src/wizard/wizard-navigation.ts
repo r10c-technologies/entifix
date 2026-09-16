@@ -1,6 +1,6 @@
-import { EntifixLogicError } from '../base-entities/entifix-error';
-import { findStep, type WizardDefinition } from './wizard-definition';
-import type { WizardState } from './wizard-state';
+import { EntifixLogicError } from '../base-entities/entifix-error/index.js';
+import { findStep, type WizardDefinition } from './wizard-definition.js';
+import type { WizardState } from './wizard-state.js';
 
 /** How a step reads in the stepper. */
 export const WizardStepStatuses = [

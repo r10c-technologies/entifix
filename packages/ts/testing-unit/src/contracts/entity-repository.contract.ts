@@ -3,7 +3,7 @@ import { accessor, type Entity, entity, type EntityId } from '@entifix/core';
 import { Exit } from 'effect';
 import { describe, expect, it } from 'vitest';
 
-import { runRepository, runRepositoryExit } from '../effect/run';
+import { runRepository, runRepositoryExit } from '../effect/run.js';
 
 /**
  * The entity every implementation of the contract is exercised against. It is

@@ -1,13 +1,13 @@
 import { Effect } from 'effect';
 
-import { EntifixBuildError } from '../entifix-error';
+import { EntifixBuildError } from '../entifix-error/index.js';
 import {
   ConfigurationClient,
   ConfigurationClientGroup,
   ConfigurationExtractMode,
   ConfigurationItem,
   ConfigurationPlain,
-} from './types';
+} from './types.js';
 
 /**
  * Joins a base URL with extra path segments, normalizing slashes so neither

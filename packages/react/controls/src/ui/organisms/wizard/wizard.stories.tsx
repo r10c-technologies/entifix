@@ -12,11 +12,11 @@ import {
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
 
-import { Button } from '../../atoms/button';
-import { Text } from '../../atoms/text';
-import { Cluster } from '../../layout/cluster';
-import { Stack } from '../../molecules/stack';
-import { Wizard } from './wizard';
+import { Button } from '../../atoms/button/index.js';
+import { Text } from '../../atoms/text/index.js';
+import { Cluster } from '../../layout/cluster/index.js';
+import { Stack } from '../../molecules/stack/index.js';
+import { Wizard } from './wizard.js';
 
 /**
  * The shape the first real wizard takes: a branch point whose answer decides

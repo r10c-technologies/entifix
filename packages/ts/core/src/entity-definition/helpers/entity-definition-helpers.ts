@@ -1,18 +1,18 @@
 (Symbol as { metadata?: symbol }).metadata ??= Symbol.for('Symbol.metadata');
 
-import { EntifixBuildError } from '../../base-entities/entifix-error';
-import { Entity, EntityConstructor } from '../../types/Entity';
-import { UseCaseConstructor } from '../../types/UseCase';
+import { EntifixBuildError } from '../../base-entities/entifix-error/index.js';
+import { Entity, EntityConstructor } from '../../types/Entity.js';
+import { UseCaseConstructor } from '../../types/UseCase.js';
 import {
   type ChildConstructor,
   MetaAccessor,
-} from '../meta-entities/meta-accessor';
-import { MetaEntity } from '../meta-entities/meta-entity';
-import { MetaMethod } from '../meta-entities/meta-method';
+} from '../meta-entities/meta-accessor/index.js';
+import { MetaEntity } from '../meta-entities/meta-entity/index.js';
+import { MetaMethod } from '../meta-entities/meta-method/index.js';
 import {
   MetaUseCase,
   MetaUseCaseBinding,
-} from '../meta-entities/meta-use-case';
+} from '../meta-entities/meta-use-case/index.js';
 
 declare global {
   interface SymbolConstructor {

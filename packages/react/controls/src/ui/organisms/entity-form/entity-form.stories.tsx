@@ -8,7 +8,7 @@ import {
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
 
-import { EntityForm } from './entity-form';
+import { EntityForm } from './entity-form.js';
 
 /**
  * A decorated fixture, because the form builds its rows from metadata. The

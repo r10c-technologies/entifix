@@ -13,10 +13,10 @@ import {
   ComboboxOptions,
 } from '@headlessui/react';
 
-import { useErrorMessage, useT } from '../../../i18n';
-import { Button } from '../../atoms/button';
-import { EntityLinkPicker } from '../entity-link-picker';
-import { LoadingBoundary } from '../loading-boundary';
+import { useErrorMessage, useT } from '../../../i18n/index.js';
+import { Button } from '../../atoms/button/index.js';
+import { EntityLinkPicker } from '../entity-link-picker/index.js';
+import { LoadingBoundary } from '../loading-boundary/index.js';
 
 export interface EntityLinkInputProps<TTarget extends Entity> {
   /** The relation being edited. Its label names the controls. */

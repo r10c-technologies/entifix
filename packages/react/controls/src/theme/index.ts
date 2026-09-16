@@ -1,2 +1,2 @@
-export * from './theme-context';
-export * from './types';
+export * from './theme-context.js';
+export * from './types.js';

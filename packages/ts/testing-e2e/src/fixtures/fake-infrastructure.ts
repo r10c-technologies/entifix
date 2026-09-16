@@ -19,7 +19,7 @@ import {
 } from '@entifix/testing-unit/drivers';
 import { Effect, Layer } from 'effect';
 
-import type { BackendRow } from './entity-backend';
+import type { BackendRow } from './entity-backend.js';
 
 /**
  * The driver fakes, wired as the Layers a service's composition root provides.

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import { bearerHeader, sessionToken } from '../session/bearer';
+import { bearerHeader, sessionToken } from '../session/bearer.js';
 
 type Params = { params: Promise<{ path: string[] }> };
 

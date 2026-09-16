@@ -16,11 +16,11 @@ import {
   readFieldErrors,
   restoreEntityDraft,
   seedEntityDraft,
-} from './use-entity-form.helpers';
+} from './use-entity-form.helpers.js';
 import type {
   UseEntityFormOptions,
   UseEntityFormResult,
-} from './use-entity-form.types';
+} from './use-entity-form.types.js';
 
 /**
  * The write half of an entity form: holds the string draft and reports

@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
-import { DemoBox } from '../_demo';
-import { Switcher } from './switcher';
+import { DemoBox } from '../_demo.js';
+import { Switcher } from './switcher.js';
 
 const meta = {
   title: 'Layout/Switcher',

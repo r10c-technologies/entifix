@@ -1,1 +1,1 @@
-export * from './make-entity-metadata-source';
+export * from './make-entity-metadata-source.js';

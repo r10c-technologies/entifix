@@ -1,4 +1,4 @@
-import { type Permission, permissionMatches } from '../values/permission';
+import { type Permission, permissionMatches } from '../values/permission.js';
 
 /**
  * Which permissions each role grants.

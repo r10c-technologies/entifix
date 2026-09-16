@@ -1,3 +1,3 @@
-export * from './button';
-export * from './button-link';
-export * from './button-recipe';
+export * from './button.js';
+export * from './button-link.js';
+export * from './button-recipe.js';

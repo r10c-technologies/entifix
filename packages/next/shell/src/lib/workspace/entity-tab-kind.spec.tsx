@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { entityTabKind, type EntityTabScreens } from './entity-tab-kind';
+import { entityTabKind, type EntityTabScreens } from './entity-tab-kind.js';
 
 const screens: EntityTabScreens = {
   lists: { widget: { titleKey: 'entity:widget.plural', render: () => 'list' } },

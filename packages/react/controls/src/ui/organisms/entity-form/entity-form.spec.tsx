@@ -16,10 +16,10 @@ import userEvent from '@testing-library/user-event';
 import { type ReactNode, useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { EntityForm } from './entity-form';
-import type { EntityFormField, EntityFormProps } from './entity-form.types';
-import { EntityActions, EntityField } from './entity-form-slots';
-import { resolveEntityFormFields } from './use-entity-form-fields';
+import { EntityForm } from './entity-form.js';
+import type { EntityFormField, EntityFormProps } from './entity-form.types.js';
+import { EntityActions, EntityField } from './entity-form-slots.js';
+import { resolveEntityFormFields } from './use-entity-form-fields.js';
 
 @entity({ key: 'gadget-brand' })
 class GadgetBrand implements Entity {

@@ -7,9 +7,9 @@ import {
 } from '@entifix/transactions';
 import { Effect } from 'effect';
 
-import { performHttpRequestThroughFetch } from '../../../clients/fetch';
-import { buildEntityRestAdapterMixins as adapterMixins } from '../../entity-rest/build-entity-rest-adapter-mixins';
-import type { BuildEntityRestOptions } from '../../entity-rest/types';
+import { performHttpRequestThroughFetch } from '../../../clients/fetch/index.js';
+import { buildEntityRestAdapterMixins as adapterMixins } from '../../entity-rest/build-entity-rest-adapter-mixins/index.js';
+import type { BuildEntityRestOptions } from '../../entity-rest/types.js';
 
 /**
  * The tracker's own path segment. It is not an entity — nothing decorates a

@@ -1,8 +1,8 @@
 import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { SessionKeepalive } from './session-keepalive';
-import type { SessionRefreshState } from './use-session-refresh';
+import { SessionKeepalive } from './session-keepalive.js';
+import type { SessionRefreshState } from './use-session-refresh.js';
 
 const useSessionRefresh = vi.hoisted(() => vi.fn());
 

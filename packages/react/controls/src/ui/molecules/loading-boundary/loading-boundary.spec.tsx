@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { LoadingBoundary } from './loading-boundary';
+import { LoadingBoundary } from './loading-boundary.js';
 
 describe('LoadingBoundary', () => {
   it('renders its children once loading is done', () => {

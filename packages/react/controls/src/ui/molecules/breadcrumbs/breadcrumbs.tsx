@@ -2,8 +2,8 @@
 
 import type { ComponentPropsWithoutRef, ReactNode } from 'react';
 
-import { useT } from '../../../i18n';
-import { cn } from '../../utils/cn';
+import { useT } from '../../../i18n/index.js';
+import { cn } from '../../utils/cn.js';
 
 export interface BreadcrumbItem {
   label: string;

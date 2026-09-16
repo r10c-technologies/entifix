@@ -11,9 +11,9 @@ import {
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { type ReactNode, useEffect, useState } from 'react';
 
-import { useDraftsState } from './drafts-state';
-import type { TabRegistry } from './tab-kind';
-import { useTabsState } from './tabs-state';
+import { useDraftsState } from './drafts-state.js';
+import type { TabRegistry } from './tab-kind.js';
+import { useTabsState } from './tabs-state.js';
 
 export interface WorkspaceShellProps {
   /**

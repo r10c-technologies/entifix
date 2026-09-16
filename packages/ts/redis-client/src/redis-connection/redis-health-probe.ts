@@ -1,7 +1,7 @@
 import { HealthRegistryTag } from '@entifix/business';
 import { Effect, Layer } from 'effect';
 
-import { RedisTag } from './redis-connection';
+import { RedisTag } from './redis-connection.js';
 
 /** Probe name reported by `/api/health/ready` when Redis is unreachable. */
 export const REDIS_PROBE_NAME = 'redis';

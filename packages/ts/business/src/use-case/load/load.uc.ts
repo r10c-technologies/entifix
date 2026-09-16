@@ -1,8 +1,8 @@
 import { Entity, EntityLoadRequest } from '@entifix/core';
 import { Effect } from 'effect';
 
-import { EntityRepositoryTag } from '../../repository/entity.repository';
-import { EntityLoadRequestTag } from '../../repository/entity-mixins.repository';
+import { EntityRepositoryTag } from '../../repository/entity.repository.js';
+import { EntityLoadRequestTag } from '../../repository/entity-mixins.repository.js';
 
 export function loadUCFactory<TEntity extends Entity>() {
   return Effect.gen(function* () {

@@ -1,7 +1,7 @@
 import { registerFallbackCatalog } from '@entifix/react-controls';
 
-import { shell as enShell } from './en';
-import { shell as esShell } from './es';
+import { shell as enShell } from './en.js';
+import { shell as esShell } from './es.js';
 
 /**
  * The one namespace `@entifix/next-shell` owns — the chrome an entity

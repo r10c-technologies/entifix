@@ -1,10 +1,10 @@
-import { EntifixBuildError } from '../base-entities/entifix-error';
-import type { Entity, EntityConstructor } from '../types/Entity';
-import type { EntityLoadRequest } from '../types/EntityLoadRequest';
-import { coerceFiltering } from './coerce-rsql';
-import { parseRsql } from './parse-rsql';
-import { serializeRsql } from './serialize-rsql';
-import { parseSort, serializeSort } from './sort-param';
+import { EntifixBuildError } from '../base-entities/entifix-error/index.js';
+import type { Entity, EntityConstructor } from '../types/Entity.js';
+import type { EntityLoadRequest } from '../types/EntityLoadRequest.js';
+import { coerceFiltering } from './coerce-rsql.js';
+import { parseRsql } from './parse-rsql.js';
+import { serializeRsql } from './serialize-rsql.js';
+import { parseSort, serializeSort } from './sort-param.js';
 
 /** The query parameters a load request is expressed in. */
 export const RSQL_PARAM = 'rsql';

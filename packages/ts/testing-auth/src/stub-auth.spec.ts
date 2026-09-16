@@ -9,12 +9,12 @@ import {
   AllowAllPolicyLayer,
   FixedTokenServiceLayer,
   makeFixedTokenService,
-} from './stub-layers';
+} from './stub-layers.js';
 import {
   STUB_CLAIMS,
   stubAccessToken,
   stubSessionCookie,
-} from './stub-principal';
+} from './stub-principal.js';
 
 const payloadOf = (token: string): Record<string, unknown> =>
   JSON.parse(

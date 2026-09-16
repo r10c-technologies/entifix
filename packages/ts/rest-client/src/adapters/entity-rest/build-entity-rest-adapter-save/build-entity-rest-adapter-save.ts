@@ -15,9 +15,9 @@ import {
 } from '@entifix/transactions';
 import { Effect, Option } from 'effect';
 
-import { performHttpRequestThroughFetch } from '../../../clients/fetch';
-import { buildEntityRestAdapterMixins as adapterMixins } from '../build-entity-rest-adapter-mixins';
-import { BuildEntityRestOptions } from '../types';
+import { performHttpRequestThroughFetch } from '../../../clients/fetch/index.js';
+import { buildEntityRestAdapterMixins as adapterMixins } from '../build-entity-rest-adapter-mixins/index.js';
+import { BuildEntityRestOptions } from '../types.js';
 
 /**
  * Persists an entity over HTTP.

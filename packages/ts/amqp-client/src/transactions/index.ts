@@ -7,5 +7,5 @@
  * What keeps it optional is the `peerDependenciesMeta.optional` entry in the
  * manifest.
  */
-export * from '../adapters/amqp-event-bus';
-export * from '../adapters/bus-metrics';
+export * from '../adapters/amqp-event-bus.js';
+export * from '../adapters/bus-metrics.js';

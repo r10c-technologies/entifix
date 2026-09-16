@@ -4,8 +4,8 @@ import type {
   ElementType,
 } from 'react';
 
-import { cn } from '../../utils/cn';
-import { GAP, type SpacingToken } from '../_shared';
+import { cn } from '../../utils/cn.js';
+import { GAP, type SpacingToken } from '../_shared.js';
 
 export interface SidebarProps extends ComponentPropsWithoutRef<'div'> {
   /** Which edge the fixed panel sits on. */

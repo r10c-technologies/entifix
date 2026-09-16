@@ -1,4 +1,4 @@
-import type { AttributeValue, LogRecord, LogSink } from '../types';
+import type { AttributeValue, LogRecord, LogSink } from '../types.js';
 
 /**
  * The dev sink: batches records and POSTs them as OTLP/HTTP JSON to a Collector

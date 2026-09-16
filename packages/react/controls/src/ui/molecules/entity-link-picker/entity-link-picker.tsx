@@ -7,9 +7,9 @@ import type {
 } from '@entifix/core';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 
-import { useT } from '../../../i18n';
-import { Button } from '../../atoms/button';
-import { EntityTable } from '../../organisms/entity-table';
+import { useT } from '../../../i18n/index.js';
+import { Button } from '../../atoms/button/index.js';
+import { EntityTable } from '../../organisms/entity-table/index.js';
 
 export interface EntityLinkPickerProps<TTarget extends Entity> {
   /** The relation being set — its label names the dialog. */

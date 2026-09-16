@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { createServiceProxyRoute } from './service-proxy-route';
+import { createServiceProxyRoute } from './service-proxy-route.js';
 
 const SERVICE_URL = 'http://marketplace-service.test';
 

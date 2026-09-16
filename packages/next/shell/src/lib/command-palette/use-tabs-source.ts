@@ -8,8 +8,8 @@ import {
 import { useT } from '@entifix/react-controls';
 import { useMemo } from 'react';
 
-import { useLocaleHref } from '../i18n';
-import { useTabsState } from '../workspace/tabs-state';
+import { useLocaleHref } from '../i18n/index.js';
+import { useTabsState } from '../workspace/tabs-state.js';
 
 /**
  * The workspace's open tabs, as one group.

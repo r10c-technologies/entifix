@@ -1,4 +1,4 @@
-import type { Entity, EntityConstructor } from '../../../types/Entity';
+import type { Entity, EntityConstructor } from '../../../types/Entity.js';
 
 /** What a use case acts on: one record, a selection, or nothing. */
 export type UseCaseBinding = 'entity' | 'collection' | 'unbound';

@@ -1,4 +1,4 @@
-import { EntifixBuildError } from '../base-entities/entifix-error';
+import { EntifixBuildError } from '../base-entities/entifix-error/index.js';
 
 /**
  * What a step holds, which decides how its value is stored and edited.

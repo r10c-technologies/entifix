@@ -1,2 +1,2 @@
-export * from './entity-repository.contract';
-export * from './transaction-ports.contract';
+export * from './entity-repository.contract.js';
+export * from './transaction-ports.contract.js';

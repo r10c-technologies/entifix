@@ -2,8 +2,8 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
-import { Wizard } from './wizard';
-import type { WizardProps, WizardStepView } from './wizard.types';
+import { Wizard } from './wizard.js';
+import type { WizardProps, WizardStepView } from './wizard.types.js';
 
 const steps: WizardStepView[] = [
   { id: 'start', label: 'Origen', status: 'complete' },

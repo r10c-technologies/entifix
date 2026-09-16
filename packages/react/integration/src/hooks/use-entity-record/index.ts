@@ -1,2 +1,2 @@
-export * from './use-entity-record';
-export * from './use-entity-record.types';
+export * from './use-entity-record.js';
+export * from './use-entity-record.types.js';

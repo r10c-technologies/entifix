@@ -11,9 +11,9 @@ import {
 import { usePathname } from 'next/navigation';
 import { type ReactNode, useState } from 'react';
 
-import { BackOfficeBreadcrumbs } from './breadcrumbs';
-import type { NavSection } from './nav';
-import { SidebarNav } from './sidebar-nav';
+import { BackOfficeBreadcrumbs } from './breadcrumbs.js';
+import type { NavSection } from './nav.js';
+import { SidebarNav } from './sidebar-nav.js';
 
 /** `namespace:` is prepended by the store → `entifix-ui:back-office:sidebar-collapsed`. */
 const SIDEBAR_PREF_KEY = 'back-office:sidebar-collapsed';

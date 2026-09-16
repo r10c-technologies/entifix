@@ -1,13 +1,13 @@
-import { EntifixBuildError } from '../../base-entities/entifix-error';
-import { extractMetaAccessors } from '../helpers';
-import { EntityCollectionLink } from '../links/entity-collection-link';
-import { EntityLink } from '../links/entity-link';
+import { EntifixBuildError } from '../../base-entities/entifix-error/index.js';
+import { extractMetaAccessors } from '../helpers/index.js';
+import { EntityCollectionLink } from '../links/entity-collection-link/index.js';
+import { EntityLink } from '../links/entity-link/index.js';
 import {
   type ChildConstructor,
   type EntityLinkSerialization,
   MetaAccessor,
   MetaAccessorType,
-} from '../meta-entities/meta-accessor';
+} from '../meta-entities/meta-accessor/index.js';
 
 /**
  * A displayable member of an entity, resolved from its accessor metadata. This

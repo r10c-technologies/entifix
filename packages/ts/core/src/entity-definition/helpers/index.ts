@@ -1,1 +1,1 @@
-export * from './entity-definition-helpers';
+export * from './entity-definition-helpers.js';

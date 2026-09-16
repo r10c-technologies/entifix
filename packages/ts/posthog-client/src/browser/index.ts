@@ -1,1 +1,1 @@
-export * from './make-browser-tracker';
+export * from './make-browser-tracker.js';

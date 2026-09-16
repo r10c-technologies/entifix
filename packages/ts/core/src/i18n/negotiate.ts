@@ -1,4 +1,4 @@
-import { DEFAULT_LOCALE, isLocale, type Locale } from './locales';
+import { DEFAULT_LOCALE, isLocale, type Locale } from './locales.js';
 
 export interface LocalePath {
   /** The locale carried by the path's first segment, if it names one. */

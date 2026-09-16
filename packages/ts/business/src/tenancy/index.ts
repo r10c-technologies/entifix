@@ -1,1 +1,1 @@
-export * from './tenant-database-resolver';
+export * from './tenant-database-resolver.js';

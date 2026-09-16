@@ -1,5 +1,5 @@
-import type { EntityAction } from '../../types/EntityAction';
-import type { UseCaseDescriptor } from '../describe/describe-entity-use-cases';
+import type { EntityAction } from '../../types/EntityAction.js';
+import type { UseCaseDescriptor } from '../describe/describe-entity-use-cases.js';
 
 /**
  * What a caller may do with one entity, as answered by

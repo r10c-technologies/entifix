@@ -32,24 +32,24 @@ import { Context } from 'effect';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-import { useLocaleHref } from '../i18n';
+import { useLocaleHref } from '../i18n/index.js';
 import {
   pendingFor,
   pendingRecordsFor,
   usePendingTransactions,
-} from '../workspace/pending-transactions';
-import { EntityCrudForm } from './entity-crud-form';
-import { handOffWrite } from './hand-off-write';
+} from '../workspace/pending-transactions.js';
+import { EntityCrudForm } from './entity-crud-form.js';
+import { handOffWrite } from './hand-off-write.js';
 import type {
   EntityCrud,
   EntityCrudLinkSource,
   EntityCrudOptions,
   EntityCrudSingleViewProps,
-} from './make-entity-crud.types';
-import { PendingNotice } from './pending-notice';
-import { CATALOG_NEW_SLUG, slugToEntityId } from './slug';
-import { useEntityAffordances } from './use-entity-affordances';
-import { useEntityBulk } from './use-entity-bulk';
+} from './make-entity-crud.types.js';
+import { PendingNotice } from './pending-notice.js';
+import { CATALOG_NEW_SLUG, slugToEntityId } from './slug.js';
+import { useEntityAffordances } from './use-entity-affordances.js';
+import { useEntityBulk } from './use-entity-bulk.js';
 
 /** What a picker defaults to reading off its target. */
 const TARGET_NAME_PROPERTY = 'name';

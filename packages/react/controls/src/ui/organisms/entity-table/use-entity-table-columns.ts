@@ -7,11 +7,11 @@ import {
 } from '@entifix/core';
 import { useMemo } from 'react';
 
-import { useLocalizedDescriptors } from '../../../i18n';
-import { useUiPreference } from '../../../preferences';
-import type { ColumnPersonalization } from '../../molecules/column-settings';
-import type { EntityTableColumn } from './entity-table.types';
-import type { EntityColumnProps } from './entity-table-slots';
+import { useLocalizedDescriptors } from '../../../i18n/index.js';
+import { useUiPreference } from '../../../preferences/index.js';
+import type { ColumnPersonalization } from '../../molecules/column-settings/index.js';
+import type { EntityTableColumn } from './entity-table.types.js';
+import type { EntityColumnProps } from './entity-table-slots.js';
 
 const EMPTY_PERSONALIZATION: ColumnPersonalization = {};
 

@@ -13,7 +13,7 @@ import {
   useMemo,
 } from 'react';
 
-import { usePendingState } from './pending-state';
+import { usePendingState } from './pending-state.js';
 
 /**
  * What a caller outside a mounted provider gets: a store that watches nothing.

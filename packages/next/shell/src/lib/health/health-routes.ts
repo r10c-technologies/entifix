@@ -6,7 +6,7 @@
  * not come from the `"use client"` bundle.
  */
 
-import { SERVICE_TOKEN_HEADER, serviceToken } from '../config/service-token';
+import { SERVICE_TOKEN_HEADER, serviceToken } from '../config/service-token.js';
 
 /** How long a readiness result is reused, so probes cannot hammer config-service. */
 const READY_CACHE_MS = 1_000;

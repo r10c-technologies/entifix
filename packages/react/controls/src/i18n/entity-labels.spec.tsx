@@ -2,13 +2,13 @@ import type { EntityFieldDescriptor } from '@entifix/core';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { I18nProvider } from '../i18next';
+import { I18nProvider } from '../i18next/index.js';
 import {
   useEnumLabel,
   useErrorMessage,
   useLocalizedDescriptors,
-} from './entity-labels';
-import { installSpecCatalogs } from './spec-support/catalogs';
+} from './entity-labels.js';
+import { installSpecCatalogs } from './spec-support/catalogs.js';
 
 installSpecCatalogs();
 

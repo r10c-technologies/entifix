@@ -1,5 +1,5 @@
-import type { Entity } from './Entity';
-import type { EntityLoadRequest } from './EntityLoadRequest';
+import type { Entity } from './Entity.js';
+import type { EntityLoadRequest } from './EntityLoadRequest.js';
 
 export interface EntityPage<TEntity extends Entity> {
   items: TEntity[];

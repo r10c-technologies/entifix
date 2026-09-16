@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
-import { DemoBox } from '../_demo';
-import { Sidebar } from './sidebar';
+import { DemoBox } from '../_demo.js';
+import { Sidebar } from './sidebar.js';
 
 const meta = {
   title: 'Layout/Sidebar',

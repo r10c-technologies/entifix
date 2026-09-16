@@ -1,1 +1,1 @@
-export * from './locale-link';
+export * from './locale-link.js';

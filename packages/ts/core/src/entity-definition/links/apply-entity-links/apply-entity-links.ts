@@ -1,8 +1,8 @@
-import { EntifixLogicError } from '../../../base-entities/entifix-error';
-import { Entity, EntityId } from '../../../types/Entity';
-import { EntityDraft, readDraftString } from '../../../types/EntityDraft';
-import { EntityFieldDescriptor } from '../../describe';
-import { EntityLink } from '../entity-link';
+import { EntifixLogicError } from '../../../base-entities/entifix-error/index.js';
+import { Entity, EntityId } from '../../../types/Entity.js';
+import { EntityDraft, readDraftString } from '../../../types/EntityDraft.js';
+import { EntityFieldDescriptor } from '../../describe/index.js';
+import { EntityLink } from '../entity-link/index.js';
 
 /**
  * The instances a user picked, keyed by accessor name — the sidecar to a form's

@@ -1,2 +1,2 @@
-export * from './use-entity-mutation';
-export * from './use-entity-mutation.types';
+export * from './use-entity-mutation.js';
+export * from './use-entity-mutation.types.js';

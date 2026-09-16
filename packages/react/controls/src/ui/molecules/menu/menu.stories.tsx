@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
-import { Menu } from './menu';
+import { Menu } from './menu.js';
 
 const meta = {
   title: 'Molecules/Menu',

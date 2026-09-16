@@ -1,10 +1,10 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { I18nProvider } from '../i18next';
-import { registerFallbackCatalog } from './fallback-catalogs';
-import { useFormatters, useLocale, useT } from './i18n-context';
-import { installSpecCatalogs } from './spec-support/catalogs';
+import { I18nProvider } from '../i18next/index.js';
+import { registerFallbackCatalog } from './fallback-catalogs.js';
+import { useFormatters, useLocale, useT } from './i18n-context.js';
+import { installSpecCatalogs } from './spec-support/catalogs.js';
 
 function Probe({ ns }: { ns?: 'controls' | 'entity' }) {
   const t = useT(ns);

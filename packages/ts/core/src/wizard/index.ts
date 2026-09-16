@@ -1,3 +1,3 @@
-export * from './wizard-definition';
-export * from './wizard-navigation';
-export * from './wizard-state';
+export * from './wizard-definition.js';
+export * from './wizard-navigation.js';
+export * from './wizard-state.js';

@@ -3,8 +3,8 @@ import { Effect } from 'effect';
 import { createContext, useContext } from 'react';
 import { describe, expect, it } from 'vitest';
 
-import { renderWithAdapters, screen, waitFor } from './render';
-import { makeInMemoryUiPreferencesState } from './ui-preferences';
+import { renderWithAdapters, screen, waitFor } from './render.js';
+import { makeInMemoryUiPreferencesState } from './ui-preferences.js';
 
 describe('makeInMemoryUiPreferencesState', () => {
   it('round-trips a value', async () => {

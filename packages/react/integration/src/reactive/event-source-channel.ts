@@ -1,7 +1,10 @@
 import { type EntityChangeEvent, readEventEnvelope } from '@entifix/core';
 import { Effect, Either } from 'effect';
 
-import type { EntityChangeListener, ReactiveChannel } from './reactive-channel';
+import type {
+  EntityChangeListener,
+  ReactiveChannel,
+} from './reactive-channel.js';
 
 /**
  * The reactive stream's browser end: one `EventSource` over a same-origin URL.

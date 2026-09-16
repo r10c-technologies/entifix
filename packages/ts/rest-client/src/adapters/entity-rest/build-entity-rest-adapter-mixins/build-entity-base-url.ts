@@ -1,7 +1,7 @@
 import { ConfigurationClient } from '@entifix/core';
 import { Effect } from 'effect';
 
-import { BuildEntityRestOptions } from '../types';
+import { BuildEntityRestOptions } from '../types.js';
 
 const DEFAULT_URI_GROUP = 'restUri';
 

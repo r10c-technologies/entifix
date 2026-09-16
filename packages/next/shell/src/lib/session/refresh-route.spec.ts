@@ -2,7 +2,7 @@ import { ACCESS_COOKIE, SESSION_COOKIE } from '@entifix/core';
 import type { NextRequest } from 'next/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { createRefreshRoute } from './refresh-route';
+import { createRefreshRoute } from './refresh-route.js';
 
 const AUTH_URL = 'http://auth.test';
 

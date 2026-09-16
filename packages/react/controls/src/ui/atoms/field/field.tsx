@@ -1,6 +1,6 @@
 import type { ComponentPropsWithoutRef } from 'react';
 
-import { cn } from '../../utils/cn';
+import { cn } from '../../utils/cn.js';
 
 /** Shared shell for the interactive form controls below. */
 const CONTROL_CLASS = [

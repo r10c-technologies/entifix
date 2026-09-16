@@ -8,10 +8,10 @@ import type {
 } from '@entifix/core';
 import { useCallback, useState } from 'react';
 
-import { useT } from '../../../i18n';
-import { Button } from '../../atoms/button';
-import { Select } from '../../atoms/field';
-import { Text } from '../../atoms/text';
+import { useT } from '../../../i18n/index.js';
+import { Button } from '../../atoms/button/index.js';
+import { Select } from '../../atoms/field/index.js';
+import { Text } from '../../atoms/text/index.js';
 
 interface SortDraft {
   property: string;

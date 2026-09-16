@@ -1,7 +1,7 @@
-import type { EntityRowDraft } from '../../types/EntityRowDraft';
-import { describeChildColumns } from '../describe';
-import type { ChildConstructor } from '../meta-entities/meta-accessor';
-import { coerceFieldValue } from './coerce-field-value';
+import type { EntityRowDraft } from '../../types/EntityRowDraft.js';
+import { describeChildColumns } from '../describe/index.js';
+import type { ChildConstructor } from '../meta-entities/meta-accessor/index.js';
+import { coerceFieldValue } from './coerce-field-value.js';
 
 /**
  * Rebuilds one owned row from its draft.

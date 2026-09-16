@@ -1,8 +1,8 @@
 import { Effect } from 'effect';
 
-import { EntifixError } from '../../../base-entities/entifix-error';
-import { Entity, EntityConstructor, EntityId } from '../../../types/Entity';
-import { EntityLinkResolver } from '../entity-link';
+import { EntifixError } from '../../../base-entities/entifix-error/index.js';
+import { Entity, EntityConstructor, EntityId } from '../../../types/Entity.js';
+import { EntityLinkResolver } from '../entity-link/index.js';
 
 export interface EntityCollectionLinkInit<TEntity extends Entity> {
   ids?: EntityId[];

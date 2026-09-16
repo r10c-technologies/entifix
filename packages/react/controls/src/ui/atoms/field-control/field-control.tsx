@@ -2,8 +2,8 @@
 
 import type { EntityFieldDescriptor, MetaAccessorType } from '@entifix/core';
 
-import { useEnumLabel } from '../../../i18n';
-import { Checkbox, Select, TextInput } from '../field';
+import { useEnumLabel } from '../../../i18n/index.js';
+import { Checkbox, Select, TextInput } from '../field/index.js';
 
 export interface FieldControlProps {
   descriptor: EntityFieldDescriptor;

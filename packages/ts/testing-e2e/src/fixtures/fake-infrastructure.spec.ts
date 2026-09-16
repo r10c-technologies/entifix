@@ -12,7 +12,7 @@ import {
   fakeConfigurationLayer,
   fakeMongoLayer,
   fakeRedisLayer,
-} from './fake-infrastructure';
+} from './fake-infrastructure.js';
 
 describe('the fake infrastructure layers', () => {
   it('provides a mongo database seeded per collection', async () => {

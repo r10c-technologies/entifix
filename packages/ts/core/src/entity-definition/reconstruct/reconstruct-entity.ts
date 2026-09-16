@@ -1,15 +1,18 @@
-import { Entity, EntityConstructor } from '../../types/Entity';
-import { EntityDraft, readDraftString } from '../../types/EntityDraft';
-import { isRowDraftArray } from '../../types/EntityRowDraft';
-import { describeEntityColumns, EntityFieldDescriptor } from '../describe';
+import { Entity, EntityConstructor } from '../../types/Entity.js';
+import { EntityDraft, readDraftString } from '../../types/EntityDraft.js';
+import { isRowDraftArray } from '../../types/EntityRowDraft.js';
+import {
+  describeEntityColumns,
+  EntityFieldDescriptor,
+} from '../describe/index.js';
 import {
   applyEntityLinks,
   type EntityLinkSelection,
-} from '../links/apply-entity-links';
-import { EntityCollectionLink } from '../links/entity-collection-link';
-import { EntityLink } from '../links/entity-link';
-import { coerceFieldValue } from './coerce-field-value';
-import { reconstructChild } from './reconstruct-child';
+} from '../links/apply-entity-links/index.js';
+import { EntityCollectionLink } from '../links/entity-collection-link/index.js';
+import { EntityLink } from '../links/entity-link/index.js';
+import { coerceFieldValue } from './coerce-field-value.js';
+import { reconstructChild } from './reconstruct-child.js';
 
 /** Everything {@link reconstructEntity} needs beyond the draft itself. */
 export interface ReconstructEntityOptions<TEntity extends Entity> {

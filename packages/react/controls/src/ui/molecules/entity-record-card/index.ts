@@ -1,1 +1,1 @@
-export * from './entity-record-card';
+export * from './entity-record-card.js';

@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
-import { DemoBox } from '../_demo';
-import { Cluster } from './cluster';
+import { DemoBox } from '../_demo.js';
+import { Cluster } from './cluster.js';
 
 const meta = {
   title: 'Layout/Cluster',

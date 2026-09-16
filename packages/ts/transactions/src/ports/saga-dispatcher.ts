@@ -1,7 +1,7 @@
 import type { EntifixConnError } from '@entifix/core';
 import { Context, type Effect } from 'effect';
 
-import type { SagaCall } from '../contracts/saga-definition';
+import type { SagaCall } from '../contracts/saga-definition.js';
 
 /** One call the engine wants made, fully resolved. */
 export interface SagaDispatch {

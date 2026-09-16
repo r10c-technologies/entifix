@@ -10,7 +10,7 @@ import {
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
 
-import { EntityDetailGrid } from './entity-detail-grid';
+import { EntityDetailGrid } from './entity-detail-grid.js';
 
 /**
  * A composition child: `@accessor()` and nothing else. No `@entity()`, no id —

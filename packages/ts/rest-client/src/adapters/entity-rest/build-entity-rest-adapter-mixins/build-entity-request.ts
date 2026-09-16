@@ -1,6 +1,6 @@
 import type { EntifixEnvelope } from '@entifix/core';
 
-import { HttpMethod, HttpRequest } from '../../../clients/types';
+import { HttpMethod, HttpRequest } from '../../../clients/types.js';
 
 export interface BuildEntityRequestOptions {
   method: HttpMethod;

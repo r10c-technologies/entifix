@@ -1,2 +1,2 @@
-export * from './use-data-loading';
-export * from './use-data-loading.types';
+export * from './use-data-loading.js';
+export * from './use-data-loading.types.js';

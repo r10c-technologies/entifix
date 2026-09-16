@@ -1,1 +1,1 @@
-export * from './delete.uc';
+export * from './delete.uc.js';

@@ -9,7 +9,7 @@ import {
 } from '@testing-library/react';
 import type { Context, PropsWithChildren, ReactElement } from 'react';
 
-import { makeInMemoryUiPreferencesState } from './ui-preferences';
+import { makeInMemoryUiPreferencesState } from './ui-preferences.js';
 
 export interface RenderWithAdaptersOptions<TAdapters> extends Omit<
   RenderOptions,

@@ -6,7 +6,7 @@ import {
 } from '@entifix/core';
 import { Context, Effect } from 'effect';
 
-import type { TransactionEvent, TransactionState } from './event';
+import type { TransactionEvent, TransactionState } from './event.js';
 
 /**
  * The the saga tracker's persisted view of a transaction, folded from the

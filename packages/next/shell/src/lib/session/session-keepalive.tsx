@@ -3,7 +3,7 @@
 import { useT } from '@entifix/react-controls';
 import { useCallback } from 'react';
 
-import { useSessionRefresh } from './use-session-refresh';
+import { useSessionRefresh } from './use-session-refresh.js';
 
 export interface SessionKeepaliveProps {
   /** Where this app mounts the shared refresh handler. */

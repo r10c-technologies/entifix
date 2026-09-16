@@ -1,1 +1,1 @@
-export * from './configuration-client-rest-client';
+export * from './configuration-client-rest-client.js';

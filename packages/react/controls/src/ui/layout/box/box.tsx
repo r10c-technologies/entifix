@@ -1,7 +1,7 @@
 import type { ComponentPropsWithoutRef, ElementType } from 'react';
 
-import { cn } from '../../utils/cn';
-import type { SpacingToken } from '../_shared';
+import { cn } from '../../utils/cn.js';
+import type { SpacingToken } from '../_shared.js';
 
 // Static strings so Tailwind's scanner keeps them.
 const PADDING: Record<SpacingToken, string> = {

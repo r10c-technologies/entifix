@@ -1,1 +1,1 @@
-export * from './build-entity-rest-adapter-delete';
+export * from './build-entity-rest-adapter-delete.js';

@@ -7,7 +7,7 @@ import type {
   UseEntityRecordAction,
   UseEntityRecordOptions,
   UseEntityRecordState,
-} from './use-entity-record.types';
+} from './use-entity-record.types.js';
 
 function getInitialState<
   TEntity extends Entity,

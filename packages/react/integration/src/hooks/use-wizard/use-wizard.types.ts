@@ -5,7 +5,7 @@ import type {
   WizardStepValue,
 } from '@entifix/core';
 
-import type { EntityDraftStore } from '../use-entity-form/use-entity-form.types';
+import type { EntityDraftStore } from '../use-entity-form/use-entity-form.types.js';
 
 /**
  * Where a wizard's state is persisted, as the hook sees it.

@@ -3,10 +3,10 @@
 import { Button as HeadlessButton } from '@headlessui/react';
 import type { ComponentPropsWithoutRef } from 'react';
 
-import { cn } from '../../utils/cn';
-import { button, type ButtonVariantProps } from './button-recipe';
+import { cn } from '../../utils/cn.js';
+import { button, type ButtonVariantProps } from './button-recipe.js';
 
-export type { ButtonSize, ButtonVariant } from './button-recipe';
+export type { ButtonSize, ButtonVariant } from './button-recipe.js';
 
 export interface ButtonProps
   extends ComponentPropsWithoutRef<'button'>, ButtonVariantProps {}

@@ -7,7 +7,7 @@ import {
   type EntityBackend,
   type EntityBackendOptions,
   makeEntityBackend,
-} from './entity-backend';
+} from './entity-backend.js';
 
 export interface EntityBackendHandlerOptions extends EntityBackendOptions {
   /** The collection endpoint, e.g. `http://localhost:3101/api/product-brand`. */

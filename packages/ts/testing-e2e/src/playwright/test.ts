@@ -2,8 +2,8 @@ import { defineNetworkFixture, type NetworkFixture } from '@msw/playwright';
 import { test as base } from '@playwright/test';
 import type { AnyHandler } from 'msw';
 
-import { isMockProfile } from '../profile/profile';
-import { assertExpectedServerOnce } from './assert-expected-server';
+import { isMockProfile } from '../profile/profile.js';
+import { assertExpectedServerOnce } from './assert-expected-server.js';
 
 export interface EntifixE2eFixtures {
   /** The handlers the mock profile starts from. Overridable per project. */

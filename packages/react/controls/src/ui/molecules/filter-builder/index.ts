@@ -1,2 +1,2 @@
-export * from './filter-builder';
-export * from './filter-operators';
+export * from './filter-builder.js';
+export * from './filter-operators.js';

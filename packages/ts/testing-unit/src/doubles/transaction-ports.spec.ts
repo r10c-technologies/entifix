@@ -8,14 +8,14 @@ import {
   describeLockServiceContract,
   describeSequenceServiceContract,
   describeTransactionInboxContract,
-} from '../contracts/transaction-ports.contract';
-import { runFailure } from '../effect/run';
+} from '../contracts/transaction-ports.contract.js';
+import { runFailure } from '../effect/run.js';
 import {
   makeInMemoryInboxes,
   makeInMemoryLockService,
   makeInMemorySequenceService,
   makeRecordingEventBus,
-} from './transaction-ports';
+} from './transaction-ports.js';
 
 describeLockServiceContract('in-memory fake', makeInMemoryLockService);
 describeSequenceServiceContract('in-memory fake', makeInMemorySequenceService);

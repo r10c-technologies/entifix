@@ -1,7 +1,7 @@
 import type { DomainEvent, EntityChangeEvent } from '@entifix/core';
 import { Context, Effect, PubSub, Stream } from 'effect';
 
-import type { TransactionEvent, TransactionState } from '../contracts/event';
+import type { TransactionEvent, TransactionState } from '../contracts/event.js';
 
 /**
  * How many undelivered events one hub holds before the oldest are dropped.

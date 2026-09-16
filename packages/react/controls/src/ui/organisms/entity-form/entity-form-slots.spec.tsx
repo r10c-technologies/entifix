@@ -5,7 +5,7 @@ import {
   EntityActions,
   EntityField,
   readEntityFormFields,
-} from './entity-form-slots';
+} from './entity-form-slots.js';
 
 describe('entity-form slots', () => {
   it('EntityField renders nothing itself — it only carries configuration', () => {

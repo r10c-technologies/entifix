@@ -1,6 +1,6 @@
 import type { ComponentPropsWithoutRef, ElementType } from 'react';
 
-import { cn } from '../../utils/cn';
+import { cn } from '../../utils/cn.js';
 
 /** Fluid type step (Utopia). Negatives taper below body for fine print. */
 type Step = -2 | -1 | 0 | 1 | 2 | 3;

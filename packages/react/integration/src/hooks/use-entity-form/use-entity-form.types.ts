@@ -7,7 +7,7 @@ import type {
   StandardSchemaV1,
 } from '@entifix/core';
 
-import type { EntityDraftMessages } from './use-entity-form.helpers';
+import type { EntityDraftMessages } from './use-entity-form.helpers.js';
 
 /**
  * Where an autosaved draft is persisted, as the form sees it.

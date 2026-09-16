@@ -1,7 +1,11 @@
-import { Entity, EntityConstructor } from '../../types/Entity';
-import { EntityDraft, type EntityDraftValue } from '../../types/EntityDraft';
-import { newRowKey, readRowDrafts, ROW_KEY } from '../../types/EntityRowDraft';
-import { describeEntityColumns } from '../describe';
+import { Entity, EntityConstructor } from '../../types/Entity.js';
+import { EntityDraft, type EntityDraftValue } from '../../types/EntityDraft.js';
+import {
+  newRowKey,
+  readRowDrafts,
+  ROW_KEY,
+} from '../../types/EntityRowDraft.js';
+import { describeEntityColumns } from '../describe/index.js';
 
 /** The member `Entity` requires every record to carry. */
 const ID_MEMBER = 'id';

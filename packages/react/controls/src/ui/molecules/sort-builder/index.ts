@@ -1,1 +1,1 @@
-export * from './sort-builder';
+export * from './sort-builder.js';

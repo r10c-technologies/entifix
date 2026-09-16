@@ -1,6 +1,6 @@
 import type { ComponentPropsWithoutRef, ElementType } from 'react';
 
-import { cn } from '../../utils/cn';
+import { cn } from '../../utils/cn.js';
 import {
   ALIGN,
   type Align,
@@ -8,7 +8,7 @@ import {
   JUSTIFY,
   type Justify,
   type SpacingToken,
-} from '../_shared';
+} from '../_shared.js';
 
 export interface ClusterProps extends ComponentPropsWithoutRef<'div'> {
   gap?: SpacingToken;

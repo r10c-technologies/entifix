@@ -1,1 +1,1 @@
-export * from './cover';
+export * from './cover.js';

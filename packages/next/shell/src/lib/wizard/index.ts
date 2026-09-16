@@ -1,3 +1,3 @@
-export * from './use-wizard-draft';
-export * from './use-wizard-step-param';
-export * from './wizard-tab-kind';
+export * from './use-wizard-draft.js';
+export * from './use-wizard-step-param.js';
+export * from './wizard-tab-kind.js';

@@ -4,8 +4,8 @@ import {
   type EntityId,
 } from '@entifix/core';
 
-import type { TransactionOutcome } from '../ports/transaction-handler';
-import type { TransactionCommand } from './command';
+import type { TransactionOutcome } from '../ports/transaction-handler.js';
+import type { TransactionCommand } from './command.js';
 
 /**
  * The lifecycle states a transaction record settles into.

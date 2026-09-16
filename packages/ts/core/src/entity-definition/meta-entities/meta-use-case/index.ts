@@ -1,1 +1,1 @@
-export * from './meta-use-case';
+export * from './meta-use-case.js';

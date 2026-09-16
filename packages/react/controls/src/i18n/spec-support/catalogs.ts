@@ -1,6 +1,6 @@
 import { defineCatalogs } from '@entifix/i18n';
 
-import { controlsCatalogs } from '../catalog';
+import { controlsCatalogs } from '../catalog/index.js';
 
 /**
  * Catalogs for this package's own specs.

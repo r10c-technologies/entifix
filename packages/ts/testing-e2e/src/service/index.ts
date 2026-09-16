@@ -1,1 +1,1 @@
-export * from './define-service-e2e';
+export * from './define-service-e2e.js';

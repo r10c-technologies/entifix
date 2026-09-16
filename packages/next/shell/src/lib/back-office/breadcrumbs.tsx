@@ -8,7 +8,7 @@ import {
 } from '@entifix/react-controls';
 import { usePathname } from 'next/navigation';
 
-import { LocaleLink } from '../i18n';
+import { LocaleLink } from '../i18n/index.js';
 
 export interface BackOfficeBreadcrumbsProps {
   /** Map a path segment to an already-translated label; unmapped segments are

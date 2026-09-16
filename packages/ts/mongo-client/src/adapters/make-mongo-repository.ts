@@ -17,7 +17,7 @@ import {
 import { Effect } from 'effect';
 import type { Db } from 'mongodb';
 
-import { translateFiltering, translateSorting } from './filter-translator';
+import { translateFiltering, translateSorting } from './filter-translator.js';
 
 /** Projection that drops Mongo's internal `_id` from read results. */
 const WITHOUT_MONGO_ID = { projection: { _id: 0 } } as const;

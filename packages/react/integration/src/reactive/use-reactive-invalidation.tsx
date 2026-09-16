@@ -3,7 +3,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 
-import type { ReactiveChannel } from './reactive-channel';
+import type { ReactiveChannel } from './reactive-channel.js';
 
 /**
  * Subscribe the query cache to a {@link ReactiveChannel}: when the server

@@ -18,7 +18,7 @@ import {
   seedEntityDraft,
   seedFieldValue,
   validateEntityDraft,
-} from './use-entity-form.helpers';
+} from './use-entity-form.helpers.js';
 import { useEntityForm } from './use-entity-form.js';
 
 @entity({ key: 'gadget-brand' })

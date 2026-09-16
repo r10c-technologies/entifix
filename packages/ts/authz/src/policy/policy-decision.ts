@@ -4,8 +4,8 @@ import {
   type PermissionAction,
   permissionOf,
   type Resource,
-} from '../values/permission';
-import { can, type GrantTable } from './can';
+} from '../values/permission.js';
+import { can, type GrantTable } from './can.js';
 
 /** The subject half of a policy request — a `Principal` structurally satisfies it. */
 export interface PolicySubject {

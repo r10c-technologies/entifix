@@ -1,7 +1,7 @@
-import { EntifixBuildError } from '../base-entities/entifix-error';
-import type { Entity, EntityConstructor } from '../types/Entity';
-import type { EntitySorting, EntitySortType } from '../types/EntitySorting';
-import { allowedDescriptors } from './coerce-rsql';
+import { EntifixBuildError } from '../base-entities/entifix-error/index.js';
+import type { Entity, EntityConstructor } from '../types/Entity.js';
+import type { EntitySorting, EntitySortType } from '../types/EntitySorting.js';
+import { allowedDescriptors } from './coerce-rsql.js';
 
 /**
  * RSQL standardizes filtering only, so sorting travels in its own `sort`

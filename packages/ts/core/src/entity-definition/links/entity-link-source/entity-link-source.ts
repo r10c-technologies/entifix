@@ -1,7 +1,7 @@
-import { EntifixError } from '../../../base-entities/entifix-error';
-import { Entity, EntityConstructor } from '../../../types/Entity';
-import { FilterGroup } from '../../../types/EntityFiltering';
-import { EntitySorting } from '../../../types/EntitySorting';
+import { EntifixError } from '../../../base-entities/entifix-error/index.js';
+import { Entity, EntityConstructor } from '../../../types/Entity.js';
+import { FilterGroup } from '../../../types/EntityFiltering.js';
+import { EntitySorting } from '../../../types/EntitySorting.js';
 
 /**
  * A paged, filterable list of link targets, expressed as state plus the commands

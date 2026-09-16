@@ -3,7 +3,7 @@ import {
   EntityFilterNullOperators,
   EntityFilterRangeOperators,
   EntityFilterStringOperators,
-} from '../types/EntityFiltering';
+} from '../types/EntityFiltering.js';
 
 /** Every operator an `EntityFilter` can carry, flattened across its variants. */
 export type RsqlOperator =

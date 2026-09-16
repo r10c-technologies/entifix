@@ -1,1 +1,1 @@
-export * from './make-posthog-tracker';
+export * from './make-posthog-tracker.js';

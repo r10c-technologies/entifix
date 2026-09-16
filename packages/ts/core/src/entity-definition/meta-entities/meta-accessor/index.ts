@@ -1,1 +1,1 @@
-export * from './meta-accessor';
+export * from './meta-accessor.js';

@@ -4,7 +4,7 @@ import { Effect, Layer } from 'effect';
 import {
   type UiPreferencesState,
   UiPreferencesStateTag,
-} from './ui-preferences-state';
+} from './ui-preferences-state.js';
 
 export const DEFAULT_UI_PREFERENCES_NAMESPACE = 'entifix-ui';
 

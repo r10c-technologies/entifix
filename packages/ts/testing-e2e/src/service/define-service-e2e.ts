@@ -5,7 +5,7 @@ import {
   type E2eProfile,
   requireLiveUrl,
   resolveE2eProfile,
-} from '../profile/profile';
+} from '../profile/profile.js';
 
 /** A service booted for the run, whichever profile started it. */
 export interface RunningService {

@@ -1,10 +1,10 @@
 'use client';
 
-import { useT } from '../../../i18n';
-import { Button } from '../../atoms/button';
-import { Select } from '../../atoms/field';
-import { Text } from '../../atoms/text';
-import { cn } from '../../utils/cn';
+import { useT } from '../../../i18n/index.js';
+import { Button } from '../../atoms/button/index.js';
+import { Select } from '../../atoms/field/index.js';
+import { Text } from '../../atoms/text/index.js';
+import { cn } from '../../utils/cn.js';
 
 export const DEFAULT_PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
 

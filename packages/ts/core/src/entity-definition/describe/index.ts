@@ -1,3 +1,3 @@
-export * from './describe-child-columns';
-export * from './describe-entity-columns';
-export * from './describe-entity-use-cases';
+export * from './describe-child-columns.js';
+export * from './describe-entity-columns.js';
+export * from './describe-entity-use-cases.js';

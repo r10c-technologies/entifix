@@ -1,1 +1,1 @@
-export * from './loading-boundary';
+export * from './loading-boundary.js';

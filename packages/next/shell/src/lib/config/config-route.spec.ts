@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { createConfigRoute, rewriteServiceDomains } from './config-route';
+import { createConfigRoute, rewriteServiceDomains } from './config-route.js';
 
 const CONFIG_URL = 'http://config.test';
 

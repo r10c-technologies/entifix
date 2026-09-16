@@ -3,8 +3,8 @@ import type { AddressInfo } from 'node:net';
 
 import { Effect, Fiber, Layer } from 'effect';
 
-import { makeServerLayer, type ServiceDefinition } from './make-service';
-import { waitForHttp, type WaitForHttpOptions } from './wait-for-http';
+import { makeServerLayer, type ServiceDefinition } from './make-service.js';
+import { waitForHttp, type WaitForHttpOptions } from './wait-for-http.js';
 
 /** A service booted in-process, and the handle that shuts it down. */
 export interface RunningTestService {

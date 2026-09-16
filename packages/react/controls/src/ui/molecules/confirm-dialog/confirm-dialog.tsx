@@ -2,8 +2,8 @@
 
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 
-import { useT } from '../../../i18n';
-import { Button } from '../../atoms/button';
+import { useT } from '../../../i18n/index.js';
+import { Button } from '../../atoms/button/index.js';
 
 export type ConfirmTone = 'destructive' | 'neutral';
 

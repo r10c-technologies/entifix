@@ -19,17 +19,17 @@ import {
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-import type { NavSection } from '../back-office/nav';
-import type { PaletteCommand } from './palette-command';
-import { useCommandRecency } from './use-command-recency';
-import { useCommandSource } from './use-command-source';
-import { useNavSource } from './use-nav-source';
-import { useRecordsSource } from './use-records-source';
-import { useTabsSource } from './use-tabs-source';
+import type { NavSection } from '../back-office/nav.js';
+import type { PaletteCommand } from './palette-command.js';
+import { useCommandRecency } from './use-command-recency.js';
+import { useCommandSource } from './use-command-source.js';
+import { useNavSource } from './use-nav-source.js';
+import { useRecordsSource } from './use-records-source.js';
+import { useTabsSource } from './use-tabs-source.js';
 import {
   type UseCaseCommandEntity,
   useUseCaseSources,
-} from './use-use-cases-source';
+} from './use-use-cases-source.js';
 
 /**
  * ⌘K **and** ⌘⇧P, and neither is load-bearing.

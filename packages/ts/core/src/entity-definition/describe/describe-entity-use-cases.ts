@@ -1,11 +1,11 @@
-import { Entity, EntityConstructor } from '../../types/Entity';
-import { extractMetaUseCases } from '../helpers';
+import { Entity, EntityConstructor } from '../../types/Entity.js';
+import { extractMetaUseCases } from '../helpers/index.js';
 import type {
   UseCaseBinding,
   UseCaseCell,
   UseCaseConfirm,
   UseCasePlacement,
-} from '../meta-entities/meta-use-case';
+} from '../meta-entities/meta-use-case/index.js';
 
 /**
  * An action a caller may take on an entity, resolved from its use-case

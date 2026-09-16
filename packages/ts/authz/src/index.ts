@@ -1,2 +1,2 @@
-export * from './policy';
-export * from './values';
+export * from './policy/index.js';
+export * from './values/index.js';

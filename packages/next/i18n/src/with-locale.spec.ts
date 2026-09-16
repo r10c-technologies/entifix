@@ -6,7 +6,11 @@ import { LOCALE_COOKIE, LOCALE_HEADER } from '@entifix/core';
 import { NextRequest, NextResponse } from 'next/server';
 import { describe, expect, it } from 'vitest';
 
-import { rememberLocale, resolveLocale, rewriteToLocale } from './with-locale';
+import {
+  rememberLocale,
+  resolveLocale,
+  rewriteToLocale,
+} from './with-locale.js';
 
 function request(
   url: string,

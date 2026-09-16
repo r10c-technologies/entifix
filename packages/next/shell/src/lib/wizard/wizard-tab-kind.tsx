@@ -3,7 +3,7 @@
 import { parseScreenPayload } from '@entifix/authz';
 import type { ReactNode } from 'react';
 
-import type { TabKind } from '../workspace/tab-kind';
+import type { TabKind } from '../workspace/tab-kind.js';
 
 /** One wizard a workspace may open, as the registry needs it. */
 export interface WizardTabScreen {

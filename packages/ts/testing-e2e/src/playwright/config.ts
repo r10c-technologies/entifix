@@ -12,7 +12,7 @@ import {
   isMockProfile,
   requireLiveUrl,
   resolveE2eProfile,
-} from '../profile/profile';
+} from '../profile/profile.js';
 
 export interface EntifixE2eConfigOptions {
   /** The playwright config file — pass `__filename`, as the Nx preset wants. */

@@ -1,5 +1,5 @@
-import { controls as enControls } from './en';
-import { controls as esControls } from './es';
+import { controls as enControls } from './en.js';
+import { controls as esControls } from './es.js';
 
 /**
  * The one namespace `@entifix/react-controls` owns — copy for the agnostic

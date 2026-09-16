@@ -3,7 +3,7 @@
 import { Effect } from 'effect';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { useUiPreferencesState } from './ui-preferences-context';
+import { useUiPreferencesState } from './ui-preferences-context.js';
 
 export interface UseUiPreferenceResult<TValue> {
   value: TValue;

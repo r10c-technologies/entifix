@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { ACCOUNT_DESTINATIONS, accountPaths } from './account-links';
+import { ACCOUNT_DESTINATIONS, accountPaths } from './account-links.js';
 
 describe('account links', () => {
   // The keys are `shell`-namespaced (`account.*`), not `app:auth.*`: this list

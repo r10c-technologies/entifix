@@ -1,5 +1,5 @@
-import type { Entity, EntityId } from './Entity';
-import type { FilterGroup } from './EntityFiltering';
+import type { Entity, EntityId } from './Entity.js';
+import type { FilterGroup } from './EntityFiltering.js';
 
 /**
  * What a collection-bound action acts on.

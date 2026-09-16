@@ -1,1 +1,1 @@
-export * from './bulk-result';
+export * from './bulk-result.js';

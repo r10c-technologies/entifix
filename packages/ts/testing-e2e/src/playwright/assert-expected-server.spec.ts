@@ -4,7 +4,7 @@ import {
   ALLOW_DEV_SERVER_VAR,
   assertExpectedServer,
   assertExpectedServerOnce,
-} from './assert-expected-server';
+} from './assert-expected-server.js';
 
 const BASE_URL = 'http://localhost:3001';
 

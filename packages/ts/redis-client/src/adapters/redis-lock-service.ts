@@ -5,7 +5,7 @@ import { type LockService, LockServiceTag } from '@entifix/transactions';
 import { Duration, Effect, Layer } from 'effect';
 import type { Redis } from 'ioredis';
 
-import { RedisTag } from '../redis-connection/redis-connection';
+import { RedisTag } from '../redis-connection/redis-connection.js';
 
 /** How long a held lock survives without renewal — bounds a crashed holder. */
 export const LOCK_TTL_MS = 5_000;

@@ -9,8 +9,8 @@ import {
 import { useT } from '@entifix/react-controls';
 import { useMemo } from 'react';
 
-import { useLocaleHref } from '../i18n';
-import type { PaletteCommand } from './palette-command';
+import { useLocaleHref } from '../i18n/index.js';
+import type { PaletteCommand } from './palette-command.js';
 
 /**
  * The deterministic commands — "Nuevo producto", "Nuevo usuario" — as one group.

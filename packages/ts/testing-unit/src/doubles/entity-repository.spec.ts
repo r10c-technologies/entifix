@@ -6,9 +6,9 @@ import {
   ContractWidget,
   describeEntityRepositoryContract,
   makeContractWidget,
-} from '../contracts/entity-repository.contract';
-import { runRepository, runRepositoryExit } from '../effect/run';
-import { makeInMemoryEntityRepository } from './entity-repository';
+} from '../contracts/entity-repository.contract.js';
+import { runRepository, runRepositoryExit } from '../effect/run.js';
+import { makeInMemoryEntityRepository } from './entity-repository.js';
 
 describeEntityRepositoryContract('in-memory fake', {
   makeRepository: seed => makeInMemoryEntityRepository(seed),

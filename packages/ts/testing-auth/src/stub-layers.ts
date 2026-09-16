@@ -4,7 +4,7 @@ import type { TokenClaims, TokenService } from '@entifix/business';
 import { TokenServiceTag } from '@entifix/business';
 import { Effect, Layer } from 'effect';
 
-import { STUB_CLAIMS, stubAccessToken } from './stub-principal';
+import { STUB_CLAIMS, stubAccessToken } from './stub-principal.js';
 
 /**
  * A `TokenService` that trusts every token and answers with fixed claims.

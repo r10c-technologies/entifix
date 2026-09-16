@@ -4,7 +4,7 @@ import { screenAddress } from '@entifix/authz';
 import { useRouter } from 'next/navigation';
 import { createContext, type ReactNode, useContext, useMemo } from 'react';
 
-import { useTabsState } from './tabs-state';
+import { useTabsState } from './tabs-state.js';
 
 /**
  * Navigation intent, decoupled from the host. A page says "go to this list" or

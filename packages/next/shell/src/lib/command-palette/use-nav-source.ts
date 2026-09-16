@@ -9,8 +9,8 @@ import {
 import { useT, useTranslateKey } from '@entifix/react-controls';
 import { useMemo } from 'react';
 
-import type { NavSection } from '../back-office/nav';
-import { useLocaleHref } from '../i18n';
+import type { NavSection } from '../back-office/nav.js';
+import { useLocaleHref } from '../i18n/index.js';
 
 /** The workspace deep link a nav item's `workspace` address resolves to. */
 const workspaceHref = (workspace: string) =>

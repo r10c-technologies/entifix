@@ -9,8 +9,8 @@ import {
   respondWithMalformedEnvelope,
   respondWithNetworkError,
   respondWithNonJson,
-} from './entity-handlers';
-import { setupEntifixServer } from './server';
+} from './entity-handlers.js';
+import { setupEntifixServer } from './server.js';
 
 @entity({ key: 'widget' })
 class Widget implements Entity {

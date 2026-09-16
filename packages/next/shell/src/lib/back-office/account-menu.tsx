@@ -3,7 +3,7 @@
 import { Menu, useT } from '@entifix/react-controls';
 import { useState } from 'react';
 
-import type { AccountLink } from '../session/account-links';
+import type { AccountLink } from '../session/account-links.js';
 
 export interface AccountMenuProps {
   /** Trigger text — typically the signed-in subject. */

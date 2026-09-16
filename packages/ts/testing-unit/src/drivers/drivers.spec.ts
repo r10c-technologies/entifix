@@ -3,10 +3,10 @@ import * as Statement from '@effect/sql/Statement';
 import { Effect, Exit, Stream } from 'effect';
 import { describe, expect, it } from 'vitest';
 
-import { makeFakeAmqpChannel } from './fake-amqp';
-import { makeFakeMongoDb } from './fake-mongo';
-import { makeFakeRedis } from './fake-redis';
-import { makeFakeSqlClient } from './fake-sql';
+import { makeFakeAmqpChannel } from './fake-amqp.js';
+import { makeFakeMongoDb } from './fake-mongo.js';
+import { makeFakeRedis } from './fake-redis.js';
+import { makeFakeSqlClient } from './fake-sql.js';
 
 /**
  * The driver fakes sit one level below the adapters, so the adapters' own code

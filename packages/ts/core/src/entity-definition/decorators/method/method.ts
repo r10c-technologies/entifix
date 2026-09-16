@@ -1,5 +1,8 @@
-import { appendMetaMethod } from '../../helpers';
-import { MetaMethod, MetaMethodOptions } from '../../meta-entities/meta-method';
+import { appendMetaMethod } from '../../helpers/index.js';
+import {
+  MetaMethod,
+  MetaMethodOptions,
+} from '../../meta-entities/meta-method/index.js';
 
 export function method(options?: MetaMethodOptions) {
   return (

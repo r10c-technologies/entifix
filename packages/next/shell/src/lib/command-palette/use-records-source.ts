@@ -8,16 +8,16 @@ import type {
 import { useT, useTranslateKey } from '@entifix/react-controls';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { useLocaleHref } from '../i18n';
+import { useLocaleHref } from '../i18n/index.js';
 import type {
   RecordSearchResponse,
   RecordSearchUnavailableReason,
-} from '../search/record-search.types';
-import { searchRecords } from '../search/search-records';
+} from '../search/record-search.types.js';
+import { searchRecords } from '../search/search-records.js';
 import {
   RECORD_SEARCH_DEBOUNCE_MS,
   RECORD_SEARCH_MIN_TERM,
-} from './palette-command';
+} from './palette-command.js';
 
 /**
  * Which reasons are the caller's ordinary state, and which mean something broke.

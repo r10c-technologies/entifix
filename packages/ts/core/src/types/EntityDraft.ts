@@ -1,4 +1,4 @@
-import type { EntityRowDraft } from './EntityRowDraft';
+import type { EntityRowDraft } from './EntityRowDraft.js';
 
 /**
  * A form's in-progress values, keyed by accessor name.

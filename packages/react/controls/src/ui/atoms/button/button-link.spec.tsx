@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { ButtonLink } from './button-link';
+import { ButtonLink } from './button-link.js';
 
 describe('ButtonLink', () => {
   it('renders an anchor, not a button', () => {

@@ -19,7 +19,7 @@ import {
 } from '@entifix/core';
 import { Effect } from 'effect';
 
-import { requirePrincipal } from './auth';
+import { requirePrincipal } from './auth/index.js';
 
 /**
  * `GET /api/<entity>/$metadata` — what this caller may do with one entity.

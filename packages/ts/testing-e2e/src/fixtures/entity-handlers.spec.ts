@@ -1,7 +1,10 @@
 import { accessor, type Entity, entity, type EntityId } from '@entifix/core';
 import { setupEntifixServer } from '@entifix/testing-unit/http';
 
-import { configurationHandler, entityBackendHandlers } from './entity-handlers';
+import {
+  configurationHandler,
+  entityBackendHandlers,
+} from './entity-handlers.js';
 
 @entity({ key: 'widget' })
 class Widget implements Entity {

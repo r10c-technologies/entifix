@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { RecordSearchResponse } from './record-search.types';
-import { createRecordSearchRoute } from './record-search-route';
-import type { RecordSearchSource } from './record-search-source';
+import type { RecordSearchResponse } from './record-search.types.js';
+import { createRecordSearchRoute } from './record-search-route.js';
+import type { RecordSearchSource } from './record-search-source.js';
 
 const cookieValue = vi.fn<() => string | undefined>(() => 'the-token');
 

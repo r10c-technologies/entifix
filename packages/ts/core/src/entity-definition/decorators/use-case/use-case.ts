@@ -1,9 +1,12 @@
-import type { Entity } from '../../../types/Entity';
-import { appendMetaUseCase, setMetaUseCaseBinding } from '../../helpers';
+import type { Entity } from '../../../types/Entity.js';
+import {
+  appendMetaUseCase,
+  setMetaUseCaseBinding,
+} from '../../helpers/index.js';
 import {
   MetaUseCase,
   MetaUseCaseOptions,
-} from '../../meta-entities/meta-use-case';
+} from '../../meta-entities/meta-use-case/index.js';
 
 /**
  * Declares a use case: a verb on an entity beyond the `read`/`write`/`delete`

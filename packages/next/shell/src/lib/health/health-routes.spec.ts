@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { createHealthRoutes } from './health-routes';
+import { createHealthRoutes } from './health-routes.js';
 
 const OPTIONS = {
   app: '@r10c/some-app',

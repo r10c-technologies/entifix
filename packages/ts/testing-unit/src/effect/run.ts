@@ -1,7 +1,7 @@
 import type { ConfigurationRepositoryTag } from '@entifix/business';
 import { Effect, Exit, type Layer } from 'effect';
 
-import { stubConfigurationLayer } from '../doubles/configuration';
+import { stubConfigurationLayer } from '../doubles/configuration.js';
 
 /**
  * Runs an Effect that still requires `TContext`, providing it from `layer`.

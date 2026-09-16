@@ -7,7 +7,7 @@ import type {
   UseEntityMutationAction,
   UseEntityMutationOptions,
   UseEntityMutationState,
-} from './use-entity-mutation.types';
+} from './use-entity-mutation.types.js';
 
 const initialState: UseEntityMutationState = {
   isSaving: false,

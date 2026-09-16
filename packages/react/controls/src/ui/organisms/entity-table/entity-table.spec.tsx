@@ -13,15 +13,15 @@ import { Effect } from 'effect';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { UiPreferencesProvider } from '../../../preferences/ui-preferences-context';
-import type { UiPreferencesState } from '../../../preferences/ui-preferences-state';
-import { EntityTable } from './entity-table';
+import { UiPreferencesProvider } from '../../../preferences/ui-preferences-context.js';
+import type { UiPreferencesState } from '../../../preferences/ui-preferences-state.js';
+import { EntityTable } from './entity-table.js';
 import {
   EntityColumn,
   EntityTableHeader,
   EntityTableRow,
   EntityTableToolbar,
-} from './entity-table-slots';
+} from './entity-table-slots.js';
 
 @entity({ key: 'widget-brand' })
 class WidgetBrand implements Entity {

@@ -8,8 +8,8 @@ import type {
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef } from 'react';
 
-import { entityQueryScopeFor } from '../query/entity-query-key';
-import type { ReactiveChannel } from './reactive-channel';
+import { entityQueryScopeFor } from '../query/entity-query-key.js';
+import type { ReactiveChannel } from './reactive-channel.js';
 
 /** How often to re-ask while anything is pending. */
 const DEFAULT_POLL_MS = 30_000;

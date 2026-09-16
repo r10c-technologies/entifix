@@ -2,7 +2,7 @@ import { ACCESS_COOKIE, SESSION_COOKIE } from '@entifix/core';
 import { NextResponse } from 'next/server';
 import { describe, expect, it } from 'vitest';
 
-import { applySessionCookies, clearSessionCookies } from './cookies';
+import { applySessionCookies, clearSessionCookies } from './cookies.js';
 
 describe('applySessionCookies', () => {
   it('sizes the access cookie to the SESSION, not to the token', () => {

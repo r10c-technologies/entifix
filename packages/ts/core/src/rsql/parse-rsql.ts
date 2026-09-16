@@ -1,4 +1,4 @@
-import { EntifixBuildError } from '../base-entities/entifix-error';
+import { EntifixBuildError } from '../base-entities/entifix-error/index.js';
 import {
   RSQL_AND,
   RSQL_COMPARISON_TOKENS,
@@ -7,7 +7,7 @@ import {
   RSQL_OR,
   rsqlArity,
   type RsqlOperator,
-} from './rsql-operators';
+} from './rsql-operators.js';
 
 /**
  * A parsed filter before coercion: identical to an {@link EntityFilter} except

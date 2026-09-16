@@ -14,13 +14,16 @@ import { useQuery } from '@tanstack/react-query';
 import { Context, Effect } from 'effect';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { combineFilterGroups } from '../../query/combine-filtering';
-import { entityQueryKey, entityQueryScope } from '../../query/entity-query-key';
-import { useDataLoading } from '../use-data-loading';
+import { combineFilterGroups } from '../../query/combine-filtering.js';
+import {
+  entityQueryKey,
+  entityQueryScope,
+} from '../../query/entity-query-key.js';
+import { useDataLoading } from '../use-data-loading/index.js';
 import type {
   EntityLinkSourceConfig,
   UseEntityLinkSourceOptions,
-} from './use-entity-link-source.types';
+} from './use-entity-link-source.types.js';
 
 const DEFAULT_QUICK_PAGE_SIZE = 10;
 const DEFAULT_DEBOUNCE_MS = 250;

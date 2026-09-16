@@ -1,11 +1,11 @@
-import { extractMetaEntity } from '../entity-definition/helpers';
-import type { EntityMetadataDocument } from '../entity-definition/metadata';
+import { extractMetaEntity } from '../entity-definition/helpers/index.js';
+import type { EntityMetadataDocument } from '../entity-definition/metadata/index.js';
 import {
   serializeEntity,
   serializeEntityCollection,
-} from '../entity-definition/serializer';
-import type { Entity, EntityConstructor } from '../types/Entity';
-import type { EntityPage } from '../types/EntityPage';
+} from '../entity-definition/serializer/index.js';
+import type { Entity, EntityConstructor } from '../types/Entity.js';
+import type { EntityPage } from '../types/EntityPage.js';
 import type {
   DomainEvent,
   EntifixEnvelope,
@@ -16,7 +16,7 @@ import type {
   EntityMetadataEnvelope,
   EntityPageEnvelope,
   EventEnvelope,
-} from './types';
+} from './types.js';
 
 /**
  * The transport-free envelope builder for payloads that are not serialized

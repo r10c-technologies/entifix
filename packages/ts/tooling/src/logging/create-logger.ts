@@ -1,7 +1,7 @@
 import { trace } from '@opentelemetry/api';
 
-import { SEVERITY_NUMBER, shouldLog } from './level';
-import { redactRecord } from './redact';
+import { SEVERITY_NUMBER, shouldLog } from './level.js';
+import { redactRecord } from './redact.js';
 import type {
   Attributes,
   Logger,
@@ -9,7 +9,7 @@ import type {
   LogRecord,
   LogSink,
   SerializedError,
-} from './types';
+} from './types.js';
 
 /** Options for {@link createLogger}. */
 export interface CreateLoggerOptions {

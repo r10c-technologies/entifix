@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { searchRecords } from './search-records';
+import { searchRecords } from './search-records.js';
 
 const empty = { term: 'acme', groups: [], unavailable: [] };
 

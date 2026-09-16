@@ -8,7 +8,7 @@ import {
 } from '@headlessui/react';
 import type { ComponentPropsWithoutRef, ReactNode } from 'react';
 
-import { cn } from '../../utils/cn';
+import { cn } from '../../utils/cn.js';
 
 export interface MenuProps {
   children: ReactNode;

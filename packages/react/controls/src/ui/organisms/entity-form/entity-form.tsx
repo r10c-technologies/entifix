@@ -21,27 +21,27 @@ import {
   useLocalizedDescriptors,
   useT,
   useTranslateKey,
-} from '../../../i18n';
-import { OVERFLOW_GLYPH, useCasesForSurface } from '../../actions';
-import { Button } from '../../atoms/button';
-import { CellValue } from '../../atoms/cell-value';
-import { FieldControl } from '../../atoms/field-control';
-import { Skeleton } from '../../atoms/skeleton';
-import { Text } from '../../atoms/text';
-import { Card } from '../../molecules/card';
-import { ConfirmDialog } from '../../molecules/confirm-dialog';
-import { EntityLinkInput } from '../../molecules/entity-link-input';
-import { LoadingBoundary } from '../../molecules/loading-boundary';
-import { Menu } from '../../molecules/menu';
-import { Stack } from '../../molecules/stack';
-import { EntityDetailGrid } from '../entity-detail-grid';
+} from '../../../i18n/index.js';
+import { OVERFLOW_GLYPH, useCasesForSurface } from '../../actions/index.js';
+import { Button } from '../../atoms/button/index.js';
+import { CellValue } from '../../atoms/cell-value/index.js';
+import { FieldControl } from '../../atoms/field-control/index.js';
+import { Skeleton } from '../../atoms/skeleton/index.js';
+import { Text } from '../../atoms/text/index.js';
+import { Card } from '../../molecules/card/index.js';
+import { ConfirmDialog } from '../../molecules/confirm-dialog/index.js';
+import { EntityLinkInput } from '../../molecules/entity-link-input/index.js';
+import { LoadingBoundary } from '../../molecules/loading-boundary/index.js';
+import { Menu } from '../../molecules/menu/index.js';
+import { Stack } from '../../molecules/stack/index.js';
+import { EntityDetailGrid } from '../entity-detail-grid/index.js';
 import type {
   EntityFormField,
   EntityFormMode,
   EntityFormProps,
-} from './entity-form.types';
-import { readEntityFormFields } from './entity-form-slots';
-import { resolveEntityFormFields } from './use-entity-form-fields';
+} from './entity-form.types.js';
+import { readEntityFormFields } from './entity-form-slots.js';
+import { resolveEntityFormFields } from './use-entity-form-fields.js';
 
 /**
  * The member types a `linkSources` entry can actually produce an editor for.

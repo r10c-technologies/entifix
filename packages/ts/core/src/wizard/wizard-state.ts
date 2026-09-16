@@ -1,4 +1,4 @@
-import type { EntityDraft } from '../types/EntityDraft';
+import type { EntityDraft } from '../types/EntityDraft.js';
 
 /**
  * What one step holds.

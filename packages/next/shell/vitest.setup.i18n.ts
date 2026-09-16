@@ -8,16 +8,16 @@
  * `account-menu.tsx` directly never reaches it, and would assert against raw
  * keys and pass for the wrong reason.
  */
-import './src/lib/i18n/catalog';
+import './src/lib/i18n/catalog/index.js';
 // And an `entity` fixture, because that namespace is the host's.
-import './src/lib/i18n/spec-catalog';
+import './src/lib/i18n/spec-catalog.js';
 
 // And the i18next binding's own catalogs, for the specs that mount the real
 // `I18nProvider` rather than relying on the no-provider fallback.
 import { defineCatalogs } from '@entifix/i18n';
 import { controlsCatalogs } from '@entifix/react-controls';
 
-import { shellCatalogs } from './src/lib/i18n/catalog';
+import { shellCatalogs } from './src/lib/i18n/catalog/index.js';
 
 defineCatalogs({
   resources: {

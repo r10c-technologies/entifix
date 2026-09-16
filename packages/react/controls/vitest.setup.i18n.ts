@@ -6,6 +6,6 @@
  * build an i18next instance — so a spec that renders a table without this would
  * assert against raw keys and pass for the wrong reason.
  */
-import { installSpecCatalogs } from './src/i18n/spec-support/catalogs';
+import { installSpecCatalogs } from './src/i18n/spec-support/catalogs.js';
 
 installSpecCatalogs();

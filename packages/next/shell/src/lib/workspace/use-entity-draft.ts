@@ -4,7 +4,7 @@ import type { EntityDraft } from '@entifix/core';
 import type { EntityDraftStore } from '@entifix/react-integration';
 import { useMemo } from 'react';
 
-import { useDraft } from './drafts-state';
+import { useDraft } from './drafts-state.js';
 
 /**
  * The workspace's implementation of `useEntityForm`'s draft port: binds a form

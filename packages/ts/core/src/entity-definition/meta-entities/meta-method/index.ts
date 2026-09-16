@@ -1,1 +1,1 @@
-export * from './meta-method';
+export * from './meta-method.js';

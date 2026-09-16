@@ -1,4 +1,4 @@
-import { ConfigurationItem, ConfigurationPlain } from './types';
+import { ConfigurationItem, ConfigurationPlain } from './types.js';
 
 /**
  * Groups a flat record of `GROUP__KEY=value` entries into `ConfigurationPlain`.

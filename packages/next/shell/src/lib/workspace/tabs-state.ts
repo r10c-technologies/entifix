@@ -3,7 +3,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
-import { makeIndexedDbStateStorage } from './idb-state-storage';
+import { makeIndexedDbStateStorage } from './idb-state-storage.js';
 import {
   closeTab,
   emptyTabs,
@@ -11,7 +11,7 @@ import {
   setActive,
   type TabRecord,
   type TabsSnapshot,
-} from './tab-state';
+} from './tab-state.js';
 
 export interface TabsState extends TabsSnapshot {
   open(tab: TabRecord): void;

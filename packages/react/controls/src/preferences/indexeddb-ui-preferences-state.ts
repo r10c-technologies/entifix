@@ -2,11 +2,11 @@ import { EntifixConnError, type EntifixError } from '@entifix/core';
 import { Effect, Layer } from 'effect';
 import { type IDBPDatabase, openDB } from 'idb';
 
-import { DEFAULT_UI_PREFERENCES_NAMESPACE } from './local-storage-ui-preferences-state';
+import { DEFAULT_UI_PREFERENCES_NAMESPACE } from './local-storage-ui-preferences-state.js';
 import {
   type UiPreferencesState,
   UiPreferencesStateTag,
-} from './ui-preferences-state';
+} from './ui-preferences-state.js';
 
 const DB_NAME = 'entifix-ui-preferences';
 const STORE_NAME = 'preferences';

@@ -1,4 +1,4 @@
-import type { Attributes, LogRecord } from './types';
+import type { Attributes, LogRecord } from './types.js';
 
 /**
  * The canonical scrub list — the same keys the `/api/telemetry` proxy and the

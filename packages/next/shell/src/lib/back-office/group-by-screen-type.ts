@@ -1,6 +1,6 @@
 import { screenTypeRank } from '@entifix/authz';
 
-import type { NavSection, NavTier } from './nav';
+import type { NavSection, NavTier } from './nav.js';
 
 /**
  * Group sections into the sidebar's top tier — the screen type — preserving the

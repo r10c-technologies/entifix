@@ -1,7 +1,7 @@
 import type { Entity, MetaAccessorType } from '@entifix/core';
 import { Children, isValidElement, type ReactNode } from 'react';
 
-import type { EntityTableColumn } from './entity-table.types';
+import type { EntityTableColumn } from './entity-table.types.js';
 
 /**
  * The declarative customization API. Slots are configuration expressed as JSX:

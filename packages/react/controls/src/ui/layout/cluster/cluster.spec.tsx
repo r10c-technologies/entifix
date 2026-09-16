@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import type { Align, Justify, SpacingToken } from '../_shared';
+import type { Align, Justify, SpacingToken } from '../_shared.js';
 import { Cluster } from './cluster.js';
 
 const classesOf = () => screen.getByTestId('cluster').className.split(/\s+/);

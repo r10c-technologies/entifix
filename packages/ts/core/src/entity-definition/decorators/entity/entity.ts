@@ -1,6 +1,9 @@
-import type { Entity, EntityConstructor } from '../../../types/Entity';
-import { setMetaEntity } from '../../helpers';
-import { MetaEntity, MetaEntityOptions } from '../../meta-entities/meta-entity';
+import type { Entity, EntityConstructor } from '../../../types/Entity.js';
+import { setMetaEntity } from '../../helpers/index.js';
+import {
+  MetaEntity,
+  MetaEntityOptions,
+} from '../../meta-entities/meta-entity/index.js';
 
 export function entity<TEntity extends Entity>(options?: MetaEntityOptions) {
   return (

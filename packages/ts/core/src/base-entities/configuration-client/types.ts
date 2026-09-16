@@ -1,6 +1,6 @@
 import { Effect } from 'effect/Effect';
 
-import { EntifixBuildError } from '../entifix-error';
+import { EntifixBuildError } from '../entifix-error/index.js';
 
 export type ConfigurationExtractMode = 'exact' | 'match' | 'compose';
 

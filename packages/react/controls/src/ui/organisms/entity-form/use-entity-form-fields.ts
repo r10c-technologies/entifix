@@ -1,7 +1,7 @@
 import type { Entity } from '@entifix/core';
 
-import type { EntityFormField } from './entity-form.types';
-import type { EntityFieldSlotProps } from './entity-form-slots';
+import type { EntityFormField } from './entity-form.types.js';
+import type { EntityFieldSlotProps } from './entity-form-slots.js';
 
 /**
  * The field pipeline as a pure function — metadata descriptors, then
