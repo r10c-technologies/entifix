@@ -1,8 +1,31 @@
+import { readdirSync, readFileSync } from 'node:fs';
+import { join, relative } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
-import { readManifest } from './manifests.js';
-import { ALWAYS_SHIPPED, exportTargets, shipsFile } from './packaging.js';
+import { readManifest, REPO_ROOT } from './manifests.js';
+import {
+  ALWAYS_SHIPPED,
+  exportTargets,
+  shipsFile,
+  unresolvableSpecifiers,
+} from './packaging.js';
 import { PACKAGES } from './registry.js';
+
+/** Every TypeScript source file under a package, repo-relative. */
+const sourceFiles = (dir: string): string[] => {
+  const found: string[] = [];
+  const walk = (absolute: string) => {
+    for (const entry of readdirSync(absolute, { withFileTypes: true })) {
+      const path = join(absolute, entry.name);
+      if (entry.isDirectory()) walk(path);
+      else if (/\.tsx?$/.test(entry.name))
+        found.push(relative(REPO_ROOT, path));
+    }
+  };
+  walk(join(REPO_ROOT, dir, 'src'));
+  return found;
+};
 
 const REPOSITORY_URL = 'git+https://github.com/r10c-technologies/entifix.git';
 
@@ -118,5 +141,28 @@ describe('A package can be published at all', () => {
           '\n  ',
         )}`,
     ).toHaveLength(1);
+  });
+});
+
+describe('A published module resolves outside a bundler', () => {
+  it('names a file in every relative import', () => {
+    const offenders = PACKAGES.flatMap(pkg =>
+      sourceFiles(pkg.dir).flatMap(file =>
+        unresolvableSpecifiers(readFileSync(join(REPO_ROOT, file), 'utf8')).map(
+          specifier => `${file}: '${specifier}'`,
+        ),
+      ),
+    );
+
+    expect(
+      offenders,
+      'these specifiers name neither a file nor an index, and swc copies ' +
+        'them into the tarball verbatim. A bundler resolves them and Node ' +
+        'does not, so the package installs and then fails two ways: `import` ' +
+        'throws ERR_UNSUPPORTED_DIR_IMPORT, and a consumer on ' +
+        "moduleResolution 'node16'/'nodenext' is told the package exports " +
+        `nothing.\n  ${offenders.slice(0, 20).join('\n  ')}` +
+        (offenders.length > 20 ? `\n  …and ${offenders.length - 20} more` : ''),
+    ).toEqual([]);
   });
 });

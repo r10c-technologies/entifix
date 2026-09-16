@@ -82,3 +82,39 @@ export const exportTargets = (exports: unknown): string[] => {
       condition === SOURCE_CONDITION ? [] : exportTargets(value),
   );
 };
+
+/**
+ * Relative import and export specifiers, as written.
+ *
+ * `@nx/js:swc` compiles per file and copies a specifier through verbatim, so
+ * what source writes is what the tarball ships.
+ */
+export const relativeSpecifiers = (source: string): string[] =>
+  [
+    ...source.matchAll(
+      /(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)['"](\.[^'"]*)['"]/g,
+    ),
+  ].map(match => match[1] as string);
+
+/**
+ * Extensions a specifier may carry. `.js` is the only one a module resolves
+ * through; `.css` is a bundler asset import, which never reaches Node.
+ */
+export const RESOLVABLE_EXTENSIONS = ['.js', '.css'];
+
+/**
+ * Relative specifiers naming neither a file nor an index — `./foo` and
+ * `./foo/`, rather than `./foo.js` and `./foo/index.js`.
+ *
+ * ⚠️ A bundler resolves both; Node's ESM loader resolves neither. A package
+ * shipping them installs, and then fails two ways at once: `import` throws
+ * `ERR_UNSUPPORTED_DIR_IMPORT` at the first directory specifier, and a
+ * consumer on `moduleResolution: node16`/`nodenext` is told the package has no
+ * exported members — an error that points at their code rather than at ours,
+ * and that `skipLibCheck` hides the real cause of.
+ */
+export const unresolvableSpecifiers = (source: string): string[] =>
+  relativeSpecifiers(source).filter(
+    specifier =>
+      !RESOLVABLE_EXTENSIONS.some(extension => specifier.endsWith(extension)),
+  );
