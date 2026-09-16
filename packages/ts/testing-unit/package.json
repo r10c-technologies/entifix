@@ -1,6 +1,6 @@
 {
   "name": "@entifix/testing-unit",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Test doubles for entifix: in-memory ports, driver fakes for Mongo, Redis, RabbitMQ and SQL, MSW handlers and port contract suites.",
   "license": "MIT",
   "repository": {
