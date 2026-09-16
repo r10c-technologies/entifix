@@ -1,5 +1,3 @@
-import { randomUUID } from 'node:crypto';
-
 import type { EntityRepository } from '@entifix/business';
 import {
   EntifixConnError,
@@ -201,8 +199,10 @@ export const makeInMemoryEntityRepository = (
   const save = <TEntity extends Entity>(entity: TEntity) =>
     guard(() => {
       // A create arrives without an id, so the store mints one — same rule the
-      // Mongo adapter follows.
-      entity.id = entity.id ?? randomUUID();
+      // Mongo adapter follows. The Web Crypto global rather than `node:crypto`,
+      // because a browser bundle cannot resolve a `node:` import and an example
+      // with no backend runs this repository in the page.
+      entity.id = entity.id ?? globalThis.crypto.randomUUID();
       const index = items.findIndex(item => item.id === entity.id);
       if (index === -1) {
         items.push(entity);
