@@ -1,0 +1,23 @@
+{
+  "name": "@entifix/example-workspace-e2e",
+  "version": "0.0.0",
+  "private": true,
+  "nx": {
+    "implicitDependencies": [
+      "@entifix/example-workspace"
+    ],
+    "targets": {
+      "e2e": {
+        "dependsOn": [
+          "@entifix/example-workspace:build"
+        ]
+      }
+    }
+  },
+  "devDependencies": {
+    "@entifix/testing-e2e": "workspace:*",
+    "@nx/devkit": "23.0.1",
+    "@nx/playwright": "23.0.1",
+    "@playwright/test": "1.61.1"
+  }
+}

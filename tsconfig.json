@@ -77,6 +77,12 @@
     },
     {
       "path": "./tools/dev"
+    },
+    {
+      "path": "./examples/workspace-domain"
+    },
+    {
+      "path": "./examples/workspace-e2e"
     }
   ]
 }

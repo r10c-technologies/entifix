@@ -6,3 +6,6 @@
 /pnpm-lock.yaml
 /packages/*/*/dist
 /test-output
+
+# Written by Next on every build, in its own style.
+next-env.d.ts
