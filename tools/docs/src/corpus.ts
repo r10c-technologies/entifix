@@ -26,6 +26,9 @@ export const adrFiles = (): string[] =>
 /** Every markdown file these checks read, as repo-relative paths. */
 export const allDocs = (): string[] => [
   'README.md',
+  // The assistant router. Its links are what send a reader to a record, so a
+  // stale one is exactly the drift this check exists for.
+  'CLAUDE.md',
   join('docs', 'adr', 'README.md'),
   ...adrFiles().map(name => join('docs', 'adr', name)),
 ];
