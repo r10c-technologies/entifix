@@ -97,6 +97,9 @@ jobs:
           # anything it has to say lands in front of the JSON and `jq` dies on
           # it — `Invalid numeric literal at line 1, column 6`, which is `[WARN`.
           # nx prints the array as a single last line.
+          # A step's default shell is `bash -e`, without `pipefail`, so a failing
+          # `nx show projects` piped into `tail` would report `tail`'s success.
+          set -o pipefail
           projects() {
             if [[ "${{ github.event_name }}" == "pull_request" ]]; then
               pnpm nx show projects --affected \
@@ -111,10 +114,20 @@ jobs:
             jq -c --argjson n "$2" '[range(0; length; $n) as $i | .[$i:$i+$n] | join(",")]' <<<"$1"
           }
 
-          echo "lint-projects=$(projects lint | jq -r 'join(",")')" >> "$GITHUB_OUTPUT"
-          echo "build-chunks=$(chunk "$(projects build)" "$BUILD_CHUNK_SIZE")" >> "$GITHUB_OUTPUT"
-          echo "test-chunks=$(chunk "$(projects test)" "$TEST_CHUNK_SIZE")" >> "$GITHUB_OUTPUT"
-          echo "e2e-projects=$(projects e2e | jq -r 'join(",")')" >> "$GITHUB_OUTPUT"
+          # Assigned before they are echoed, and that is load-bearing: a failure
+          # inside `$(…)` in an `echo` argument does not stop the step, so a
+          # project graph that fails to build left every list empty, every
+          # matrix `skipped`, and `Done` free to pass a run in which nothing ran.
+          # An assignment's exit status is its substitution's, so `-e` stops here.
+          lint=$(projects lint)
+          build=$(projects build)
+          test=$(projects test)
+          e2e=$(projects e2e)
+
+          echo "lint-projects=$(jq -r 'join(",")' <<<"$lint")" >> "$GITHUB_OUTPUT"
+          echo "build-chunks=$(chunk "$build" "$BUILD_CHUNK_SIZE")" >> "$GITHUB_OUTPUT"
+          echo "test-chunks=$(chunk "$test" "$TEST_CHUNK_SIZE")" >> "$GITHUB_OUTPUT"
+          echo "e2e-projects=$(jq -r 'join(",")' <<<"$e2e")" >> "$GITHUB_OUTPUT"
 
   # One job, not a matrix: lint takes about as long as a runner takes to start.
   lint:

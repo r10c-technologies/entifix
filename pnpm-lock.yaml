@@ -363,6 +363,15 @@ importers:
       '@entifix/testing-e2e':
         specifier: workspace:*
         version: link:../../packages/ts/testing-e2e
+      '@nx/devkit':
+        specifier: 23.0.1
+        version: 23.0.1(nx@23.0.1(@swc-node/register@1.11.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@6.0.3))(@swc/core@1.16.2(@swc/helpers@0.5.23)))
+      '@nx/playwright':
+        specifier: 23.0.1
+        version: 23.0.1(6129180997365a69715500d79aea7e88)
+      '@playwright/test':
+        specifier: 1.61.1
+        version: 1.61.1
 
   packages/effect/service-shell:
     dependencies:

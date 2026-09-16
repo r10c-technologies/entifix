@@ -90,6 +90,19 @@ a side effect, and the manifest must say so.
 - The example's `build` target is Next's, which rejects the CI build step's
   `--skipTypeCheck=false`. Its target sets `forwardAllArgs: false`. `next build`
   type-checks on its own.
+- **An example's `playwright.config.ts` imports nothing from this workspace.**
+  Nx loads every Playwright config in plain Node to build its project graph,
+  before anything is built, so `defineEntifixE2eConfig` resolves to a `dist` a
+  clean checkout does not have and the graph fails for every command. The
+  example writes its config on `@playwright/test` and `nxE2EPreset` directly; the
+  specs, loaded later with the `@entifix/source` condition, import
+  `@entifix/testing-e2e` freely. An adopter installing from npm has the `dist` and
+  can use the preset.
+- That graph failure also showed the pull request check computing **empty**
+  project lists rather than failing — a `bash -e` step without `pipefail`, and a
+  substitution inside an `echo` — so every matrix was `skipped` and `Done` was
+  one green assertion job away from passing a run in which nothing ran. The
+  lists are now assigned under `pipefail` first.
 - Two framework behaviours surfaced that a server-backed host never sees, and
   the example works around rather than fixes them:
   - A generated list's "open" control is a plain link, so following it is a
