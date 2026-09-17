@@ -1,6 +1,6 @@
 {
   "name": "@entifix/business",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "The ports every adapter implements — repository, session, token, health — and the generic get, load, save and delete use-cases.",
   "license": "MIT",
   "repository": {

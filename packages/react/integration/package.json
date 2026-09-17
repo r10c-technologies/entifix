@@ -21,7 +21,7 @@
       }
     }
   },
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "React hooks that bind entities to data: TanStack Query and Form over the entity adapters, drafts, mutations and live invalidation.",
   "license": "MIT",
   "repository": {

@@ -21,7 +21,7 @@
       }
     }
   },
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Next.js application shell: back-office chrome, workspace tabs, CRUD screens derived from entity metadata, and session and proxy routes.",
   "license": "MIT",
   "repository": {
