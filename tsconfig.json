@@ -83,6 +83,15 @@
     },
     {
       "path": "./examples/workspace-e2e"
+    },
+    {
+      "path": "./examples/service-domain"
+    },
+    {
+      "path": "./examples/service"
+    },
+    {
+      "path": "./examples/service-e2e"
     }
   ]
 }

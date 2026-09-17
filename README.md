@@ -104,9 +104,10 @@ Each example is a different cut through the tiers, so together they are the
 proof that a tier can be taken without the ones above it
 ([ADR 0004](docs/adr/0004-the-examples-are-the-composability-proof.md)).
 
-| Example                                   | Tiers                            | Shows                                                                                                                                                   |
-| ----------------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`example-workspace`](examples/workspace) | T0 + T1 + T3, and the Next shell | workspace tabs, the generated table and form, master-detail, a wizard, the command palette, autosaved drafts, theme, density and i18n — with no backend |
+| Example                                   | Tiers                            | Shows                                                                                                                                                                          |
+| ----------------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [`example-workspace`](examples/workspace) | T0 + T1 + T3, and the Next shell | workspace tabs, the generated table and form, master-detail, a wizard, the command palette, autosaved drafts, theme, density and i18n — with no backend                        |
+| [`example-service`](examples/service)     | T0 + T1 + T2 + the service shell | CRUD over Mongo, a saga whose participants all live in one service, a transactional outbox relayed to RabbitMQ, a consumer, readiness probes and OpenTelemetry — with no React |
 
 ```sh
 pnpm nx dev @entifix/example-workspace          # http://localhost:3200
@@ -125,7 +126,25 @@ had to learn, which apply to any Next application:
   imported by name, so a bundler drops it and every declared verb silently
   vanishes from the screens.
 
-`example-service` and `example-minimal`, which need a database, are still to come.
+`example-service` runs its journeys twice. The **mock** profile boots the real
+routes and domain layer over the Mongo and AMQP drivers' fakes and joins the pull
+request check; the **live** profile points the same journeys at a running service
+over real infrastructure:
+
+```sh
+docker compose -f examples/compose.yaml up -d --wait   # Mongo (replica set), RabbitMQ, Postgres
+pnpm nx serve @entifix/example-service                 # http://localhost:3300
+E2E_PROFILE=live EXAMPLE_SERVICE_URL=http://localhost:3300 \
+  pnpm nx e2e @entifix/example-service-e2e
+```
+
+The service runs on Node's own type stripping — no bundler — and needs no
+configuration service: every setting is an environment variable with a local
+default. ⚠️ It guards its routes with `@entifix/testing-auth`, which trusts any
+bearer token; a real service provides its own `TokenServiceTag` and
+`PolicyDecisionTag` in the same place.
+
+`example-minimal`, the full stack on Postgres, is still to come.
 
 ## Three packages ship unexercised
 

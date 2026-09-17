@@ -1,0 +1,42 @@
+{
+  "name": "@entifix/example-service",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The backend tier standing alone: CRUD over Mongo, a saga whose participants all live in one service, a transactional outbox relayed to RabbitMQ, a consumer, readiness probes and OpenTelemetry. No React.",
+  "type": "module",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": "./src/index.ts"
+  },
+  "nx": {
+    "sourceRoot": "examples/service/src",
+    "targets": {
+      "serve": {
+        "executor": "nx:run-commands",
+        "continuous": true,
+        "dependsOn": [
+          "^build"
+        ],
+        "options": {
+          "command": "node src/main.ts",
+          "cwd": "examples/service"
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "@effect/platform": "0.97.1",
+    "@entifix/amqp": "workspace:*",
+    "@entifix/authz": "workspace:*",
+    "@entifix/business": "workspace:*",
+    "@entifix/core": "workspace:*",
+    "@entifix/example-service-domain": "workspace:*",
+    "@entifix/mongo": "workspace:*",
+    "@entifix/service-shell": "workspace:*",
+    "@entifix/testing-auth": "workspace:*",
+    "@entifix/transactions": "workspace:*",
+    "amqplib": "2.0.1",
+    "effect": "3.22.1",
+    "mongodb": "7.5.0"
+  }
+}

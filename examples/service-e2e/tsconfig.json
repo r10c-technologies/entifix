@@ -1,0 +1,28 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "out-tsc/example-service-e2e",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "rewriteRelativeImportExtensions": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "emitDeclarationOnly": false,
+    "types": ["node", "vitest/globals"]
+  },
+  "include": ["src/**/*.ts", "vitest.config.mts"],
+  "references": [
+    {
+      "path": "../../packages/ts/testing-unit"
+    },
+    {
+      "path": "../../packages/ts/testing-e2e"
+    },
+    {
+      "path": "../../packages/effect/service-shell"
+    },
+    {
+      "path": "../service"
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "name": "@entifix/example-service-e2e",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "nx": {
+    "implicitDependencies": [
+      "@entifix/example-service"
+    ],
+    "targets": {
+      "e2e": {
+        "executor": "nx:run-commands",
+        "outputs": [
+          "{projectRoot}/test-output/vitest"
+        ],
+        "options": {
+          "command": "vitest run --config vitest.config.mts",
+          "cwd": "examples/service-e2e"
+        }
+      }
+    }
+  },
+  "devDependencies": {
+    "@entifix/example-service": "workspace:*",
+    "@entifix/service-shell": "workspace:*",
+    "@entifix/testing-e2e": "workspace:*",
+    "@entifix/testing-unit": "workspace:*",
+    "effect": "3.22.1"
+  }
+}

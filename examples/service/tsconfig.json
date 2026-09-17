@@ -1,0 +1,44 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "out-tsc/example-service",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    // `node src/main.ts` runs under Node's own type stripping, which rewrites
+    // no specifier, so relative imports name their real `.ts` file.
+    "rewriteRelativeImportExtensions": true,
+    "erasableSyntaxOnly": true,
+    "forceConsistentCasingInFileNames": true,
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts"],
+  "references": [
+    {
+      "path": "../../packages/ts/transactions"
+    },
+    {
+      "path": "../../packages/ts/testing-auth"
+    },
+    {
+      "path": "../../packages/effect/service-shell"
+    },
+    {
+      "path": "../../packages/ts/mongo-client"
+    },
+    {
+      "path": "../service-domain"
+    },
+    {
+      "path": "../../packages/ts/core"
+    },
+    {
+      "path": "../../packages/ts/business"
+    },
+    {
+      "path": "../../packages/ts/authz"
+    },
+    {
+      "path": "../../packages/ts/amqp-client"
+    }
+  ]
+}
