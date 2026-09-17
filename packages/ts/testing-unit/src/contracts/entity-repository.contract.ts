@@ -91,6 +91,40 @@ export const describeEntityRepositoryContract = (
       await use(await makeRepository(seed));
     };
 
+    it('keeps a record unchanged when a read instance is mutated without a save', async () => {
+      await withRepository(async repository => {
+        const read = await runRepository(repository.get<ContractWidget>('w-1'));
+        read.name = 'Mutated';
+
+        const again = await runRepository(
+          repository.get<ContractWidget>('w-1'),
+        );
+        expect(again.name).toBe('Alpha');
+
+        const page = await runRepository(repository.load<ContractWidget>({}));
+        page.items[0]!.name = 'Mutated';
+        const reloaded = await runRepository(
+          repository.load<ContractWidget>({}),
+        );
+        expect(reloaded.items[0]!.name).toBe('Alpha');
+      });
+    });
+
+    it('keeps a saved record unchanged when the saved instance is mutated afterwards', async () => {
+      await withRepository(async repository => {
+        const widget = makeContractWidget('w-9', 'Delta', 40);
+        const returned = await runRepository(repository.save(widget));
+
+        widget.name = 'Mutated';
+        returned.name = 'Mutated too';
+
+        const stored = await runRepository(
+          repository.get<ContractWidget>('w-9'),
+        );
+        expect(stored.name).toBe('Delta');
+      });
+    });
+
     it('loads every stored entity with its total', async () => {
       await withRepository(async repository => {
         const page = await runRepository(repository.load<ContractWidget>({}));

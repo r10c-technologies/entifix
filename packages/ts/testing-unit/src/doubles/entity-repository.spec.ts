@@ -34,6 +34,25 @@ describe('makeInMemoryEntityRepository', () => {
     expect(repository.items.map(item => item.id)).toEqual(['w-9']);
   });
 
+  it('copies a record whose class declares no accessors member by member', async () => {
+    class Plain {
+      id = 'p-1';
+      label = 'original';
+    }
+    const repository = makeInMemoryEntityRepository([new Plain() as never]);
+
+    const read = await runRepository(
+      repository.get<Plain & { id: string }>('p-1'),
+    );
+    read.label = 'mutated';
+
+    expect(read).toBeInstanceOf(Plain);
+    const again = await runRepository(
+      repository.get<Plain & { id: string }>('p-1'),
+    );
+    expect(again.label).toBe('original');
+  });
+
   it('arms a single failure so error branches are reachable', async () => {
     const repository = makeInMemoryEntityRepository(seeded());
     const failure = new EntifixConnError('backend down');

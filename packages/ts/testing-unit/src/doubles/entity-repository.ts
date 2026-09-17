@@ -1,15 +1,19 @@
 import type { EntityRepository } from '@entifix/business';
 import {
+  deserializeSingleEntity,
   EntifixConnError,
   type EntifixError,
   type Entity,
+  type EntityConstructor,
   type EntityFilter,
   type EntityFiltering,
   type EntityId,
   type EntityLoadRequest,
   type EntityPage,
   type EntitySorting,
+  extractMetaAccessors,
   type FilterGroup,
+  serializeEntity,
 } from '@entifix/core';
 import { Effect } from 'effect';
 
@@ -130,6 +134,36 @@ const applySorting = <TEntity extends Entity>(
   });
 };
 
+/**
+ * A copy of `entity` that shares no state with it.
+ *
+ * Through the entity's own mapping — serialize, then deserialize — because that
+ * is what a real adapter does to every record on the way in and out: a caller
+ * can never hold the instance the store keeps, and a member the mapping drops
+ * (`hidden`, `readonly`) does not survive a save here either. A class that
+ * declares no accessors has no mapping to go through, so it is copied member by
+ * member instead; plain spec fixtures are the case this keeps working.
+ */
+const copyOf = <TEntity extends Entity>(
+  entity: TEntity,
+): Effect.Effect<TEntity, EntifixError> => {
+  const entityConstructor = entity.constructor as EntityConstructor<TEntity>;
+  if (extractMetaAccessors(entityConstructor).length === 0) {
+    return Effect.succeed(
+      Object.assign(
+        Object.create(Object.getPrototypeOf(entity) as object) as TEntity,
+        entity,
+      ),
+    );
+  }
+  // `undefined` only comes back for `null`/`undefined` input, and
+  // `serializeEntity` always hands over an object.
+  return deserializeSingleEntity(
+    entityConstructor,
+    serializeEntity(entityConstructor, entity),
+  ) as Effect.Effect<TEntity, EntifixError>;
+};
+
 export interface InMemoryEntityRepository extends EntityRepository {
   /** Everything currently stored, in insertion order. */
   readonly items: Entity[];
@@ -179,11 +213,19 @@ export const makeInMemoryEntityRepository = (
       const pageSize = request.pageSize ?? 10;
       const start = (page - 1) * pageSize;
 
-      return Effect.succeed({
-        items: matched.slice(start, start + pageSize),
-        total: matched.length,
-        request,
-      } satisfies EntityPage<TEntity>);
+      return Effect.forEach(
+        matched.slice(start, start + pageSize),
+        copyOf,
+      ).pipe(
+        Effect.map(
+          copies =>
+            ({
+              items: copies,
+              total: matched.length,
+              request,
+            }) satisfies EntityPage<TEntity>,
+        ),
+      );
     });
 
   const get = <TEntity extends Entity>(id: EntityId) =>
@@ -193,7 +235,7 @@ export const makeInMemoryEntityRepository = (
         ? Effect.fail(
             new EntifixConnError('Entity not found', undefined, { id }),
           )
-        : Effect.succeed(found as TEntity);
+        : copyOf(found as TEntity);
     });
 
   const save = <TEntity extends Entity>(entity: TEntity) =>
@@ -203,13 +245,20 @@ export const makeInMemoryEntityRepository = (
       // because a browser bundle cannot resolve a `node:` import and an example
       // with no backend runs this repository in the page.
       entity.id = entity.id ?? globalThis.crypto.randomUUID();
-      const index = items.findIndex(item => item.id === entity.id);
-      if (index === -1) {
-        items.push(entity);
-      } else {
-        items[index] = entity;
-      }
-      return Effect.succeed(entity);
+      // The store keeps its own copy and hands back another, so neither the
+      // caller's instance nor the returned one can change the record without a
+      // second save — which a real adapter guarantees by construction.
+      return copyOf(entity).pipe(
+        Effect.tap(stored => {
+          const index = items.findIndex(item => item.id === stored.id);
+          if (index === -1) {
+            items.push(stored);
+          } else {
+            items[index] = stored;
+          }
+        }),
+        Effect.flatMap(copyOf),
+      );
     });
 
   const remove = <TEntity extends Entity>(entityOrId: EntityId | TEntity) =>
