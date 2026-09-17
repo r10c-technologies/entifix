@@ -104,10 +104,11 @@ Each example is a different cut through the tiers, so together they are the
 proof that a tier can be taken without the ones above it
 ([ADR 0004](docs/adr/0004-the-examples-are-the-composability-proof.md)).
 
-| Example                                   | Tiers                            | Shows                                                                                                                                                                          |
-| ----------------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [`example-workspace`](examples/workspace) | T0 + T1 + T3, and the Next shell | workspace tabs, the generated table and form, master-detail, a wizard, the command palette, autosaved drafts, theme, density and i18n — with no backend                        |
-| [`example-service`](examples/service)     | T0 + T1 + T2 + the service shell | CRUD over Mongo, a saga whose participants all live in one service, a transactional outbox relayed to RabbitMQ, a consumer, readiness probes and OpenTelemetry — with no React |
+| Example                                   | Tiers                            | Shows                                                                                                                                                                                  |
+| ----------------------------------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`example-workspace`](examples/workspace) | T0 + T1 + T3, and the Next shell | workspace tabs, the generated table and form, master-detail, a wizard, the command palette, autosaved drafts, theme, density and i18n — with no backend                                |
+| [`example-service`](examples/service)     | T0 + T1 + T2 + the service shell | CRUD over Mongo, a saga whose participants all live in one service, a transactional outbox relayed to RabbitMQ, a consumer, readiness probes and OpenTelemetry — with no React         |
+| [`example-minimal`](examples/minimal)     | all                              | one entity end to end: a Postgres table through `@entifix/sql`, an Effect service with a served metadata document, a same-origin proxy, and the generated table and form in a Next app |
 
 ```sh
 pnpm nx dev @entifix/example-workspace          # http://localhost:3200
@@ -144,7 +145,13 @@ default. ⚠️ It guards its routes with `@entifix/testing-auth`, which trusts 
 bearer token; a real service provides its own `TokenServiceTag` and
 `PolicyDecisionTag` in the same place.
 
-`example-minimal`, the full stack on Postgres, is still to come.
+`example-minimal` is the full stack on Postgres. Its journeys need the database,
+so they run live only — nightly, and by hand:
+
+```sh
+docker compose -f examples/compose.yaml up -d --wait
+pnpm nx run @entifix/example-minimal-e2e:e2e-live   # starts the service and the app itself
+```
 
 ## Three packages ship unexercised
 

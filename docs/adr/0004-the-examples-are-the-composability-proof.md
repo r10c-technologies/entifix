@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-09-16
+- Revised: 2026-09-16 by [#2](https://github.com/r10c-technologies/entifix/issues/2) — all three examples built; the engines swapped, compose chosen, mock profiles joined the pull request check
 - Area: testing
 - Read when: adding an example, adding an e2e journey, putting an entity class inside a Next application, or wondering why a verb declared with `@useCase()` never appears on screen — entity classes need SWC's 2022-03 decorators, which Next's own compiler cannot provide
 
@@ -22,7 +23,7 @@ Issue #2 asked for three examples, each a different cut through the tiers:
 | `example-service`   | T0 + T1 + T2 + service-shell     | the backend stands alone: no React          |
 | `example-minimal`   | all                              | the full stack composes                     |
 
-The first is built. The other two are infrastructure-bound and follow.
+All three are built.
 
 ## Decision
 
@@ -35,15 +36,44 @@ Playwright suite runs in `pull_request_check.yml` as the `e2e` job, which is in
 `Done`'s `needs`: a change that breaks the UI tier fails the pull request that
 made it.
 
-An example that needs a database runs on a schedule instead. A required check
-that depends on a container starting is a check that fails for reasons nobody
-changed.
+An example that needs a database runs **live** on a schedule instead —
+`examples_nightly.yml`, daily and on demand. A required check that depends on a
+container starting is a check that fails for reasons nobody changed.
+
+> **2026-09-16.** That turned out to be a split within an example rather than
+> between examples. `example-service`'s journeys run under two profiles: `mock`
+> boots its real routes and domain layer over the Mongo and AMQP drivers' fakes
+> and joins the required `e2e` job, and `live` runs the same journeys nightly.
+> `example-minimal` has no fake for Postgres to run over, so its only target is
+> `e2e-live` — a name the pull request check does not collect, from a config
+> file the Playwright plugin infers no `e2e` target from.
+
+### The engines are swapped from what #2 asked for
+
+The issue put `example-service` on Postgres, with an outbox, a bus and a saga,
+and `example-minimal` on Mongo. Measured against what the packages ship, that
+was backwards: `@entifix/sql` has a repository and a readiness probe and
+nothing else — no outbox, inbox or saga store — while `@entifix/mongo/transactions`
+had the outbox, its relay and the inbox. So `example-service` is Mongo +
+RabbitMQ and `example-minimal` is Postgres, where one flat entity's CRUD is
+exactly what the SQL adapter does. Postgres is still proven end to end; it is
+proven where it is sufficient.
+
+Building the saga half surfaced that **no engine** had a saga store and the only
+dispatcher anyone had written was HTTP. Both went into the framework rather than
+the example — `makeMongoSagaStore`, `makeLocalSagaDispatcher` and
+`startSagaResume` (#27) — because an example that must write its own adapters
+demonstrates what an adopter is missing, not what entifix gives them.
 
 ### No port of r10c's health ladder
 
 r10c walks a twelve-rung ladder because it runs a twelve-service fleet on
-minikube. Two examples need three containers. docker-compose or testcontainers,
-decided by the first example that needs one.
+minikube. Two examples need three containers, and they are one
+`examples/compose.yaml`: a single-node Mongo replica set (transactions need one;
+the healthcheck initiates it and waits for a writable primary), RabbitMQ and
+Postgres. Compose rather than testcontainers because the same file serves a
+developer's machine and the nightly job, and a live profile points at a service
+that is already running rather than one each suite starts.
 
 ### No coverage gate on `examples/*`
 
@@ -124,5 +154,6 @@ a side effect, and the manifest must say so.
 
 ## What this record does not decide
 
-How `example-service` and `example-minimal` get their infrastructure, or whether
-a verb bound to no entity belongs in the palette of an example with no backend.
+Whether a verb bound to no entity belongs in the palette of an example with no
+backend, or a Postgres outbox, inbox and saga store for `@entifix/sql` — which
+the engine swap above avoided needing rather than decided against.

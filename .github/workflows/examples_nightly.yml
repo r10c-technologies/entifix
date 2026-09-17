@@ -1,0 +1,70 @@
+name: Examples (live)
+
+# The examples that need infrastructure, against real Mongo, RabbitMQ and
+# Postgres. Not part of the pull request check, and deliberately so: a required
+# check that depends on containers starting fails for reasons nobody changed
+# (ADR 0004). Their mock profiles already run on every pull request; this is the
+# other half, once a day and on demand.
+on:
+  schedule:
+    - cron: '17 5 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: examples-nightly-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  live:
+    name: example-service and example-minimal, live
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11.9'
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Start the infrastructure
+        run: docker compose -f examples/compose.yaml up -d --wait
+
+      - name: Install the browser
+        run: pnpm exec playwright install --with-deps chromium
+
+      # Started through its `serve` target, which builds every package it
+      # imports first: the service runs on Node's type stripping and reads the
+      # packages' `dist`.
+      - name: Start example-service
+        run: |
+          pnpm nx run @entifix/example-service:serve > example-service.log 2>&1 &
+          for attempt in $(seq 1 120); do
+            curl -sf http://localhost:3300/api/health/ready && exit 0
+            sleep 2
+          done
+          cat example-service.log
+          exit 1
+
+      - name: example-service journeys, live
+        env:
+          E2E_PROFILE: live
+          EXAMPLE_SERVICE_URL: http://localhost:3300
+        run: pnpm nx e2e @entifix/example-service-e2e
+
+      # Starts its own service and Next app as Playwright web servers.
+      - name: example-minimal journeys, live
+        run: pnpm nx run @entifix/example-minimal-e2e:e2e-live
+
+      - name: Keep the logs of a failed run
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: examples-live
+          path: |
+            example-service.log
+            examples/*/test-output
+          retention-days: 7

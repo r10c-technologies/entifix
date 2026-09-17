@@ -1,0 +1,36 @@
+{
+  "name": "@entifix/example-minimal-service",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The service half of example-minimal: one entity's CRUD over Postgres through @entifix/sql, with its metadata document and a readiness probe.",
+  "type": "module",
+  "nx": {
+    "sourceRoot": "examples/minimal-service/src",
+    "targets": {
+      "serve": {
+        "executor": "nx:run-commands",
+        "continuous": true,
+        "dependsOn": [
+          "^build"
+        ],
+        "options": {
+          "command": "node src/main.ts",
+          "cwd": "examples/minimal-service"
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "@effect/platform": "0.97.1",
+    "@effect/sql": "0.52.1",
+    "@effect/sql-pg": "0.53.0",
+    "@entifix/authz": "workspace:*",
+    "@entifix/business": "workspace:*",
+    "@entifix/core": "workspace:*",
+    "@entifix/example-minimal-domain": "workspace:*",
+    "@entifix/service-shell": "workspace:*",
+    "@entifix/sql": "workspace:*",
+    "@entifix/testing-auth": "workspace:*",
+    "effect": "3.22.1"
+  }
+}

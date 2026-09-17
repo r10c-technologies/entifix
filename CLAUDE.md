@@ -29,6 +29,7 @@ pnpm nx sync                                   # tsconfig project references aft
 
 pnpm nx e2e @entifix/example-workspace-e2e     # hermetic journeys, a required check
 pnpm nx e2e @entifix/example-service-e2e       # mock profile; E2E_PROFILE=live needs examples/compose.yaml up
+pnpm nx run @entifix/example-minimal-e2e:e2e-live  # Postgres full stack; needs examples/compose.yaml up
 
 # Work against a consumer checkout (README → "Developing against a consumer")
 ENTIFIX_CONSUMERS=$PWD/../r10c pnpm nx run @entifix/source:dev-sync
@@ -66,8 +67,10 @@ tests need no build. A consumer resolves `dist`.
   so a breaking change rides the **minor** and `0.1.x` is patches only. Say
   which one a change is.
 - **A commit message is a release decision.** The next version is derived from
-  conventional commit types on `main`: `feat` bumps the minor, `fix` the patch,
-  and `build`/`ci`/`chore`/`docs`/`test` release nothing. Pick the type for what
+  conventional commit types on `main`. While entifix is `0.x`, `feat` and `fix`
+  both bump the **patch**, and only a breaking change (`feat!:` or a
+  `BREAKING CHANGE:` footer) bumps the minor — `adjustSemverBumpsForZeroMajorVersion`
+  in `nx.json`. `build`/`ci`/`chore`/`docs`/`test` release nothing. Pick the type for what
   it does to an adopter, not for how the diff feels.
   [ADR 0003](docs/adr/0003-releasing-without-a-credential.md).
 - **Never rename `.github/workflows/release.yml`, and never add an npm
