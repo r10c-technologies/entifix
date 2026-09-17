@@ -73,7 +73,8 @@ tests need no build. A consumer resolves `dist`.
   credential.** Every package's npm trusted-publisher claim names that file and
   the `npm-publish` environment; renaming it breaks publishing for all 23
   silently. Releasing is merging the `chore(release): X.Y.Z` pull request that
-  `release_prepare.yml` opens.
+  `release_prepare.yml` opens — it is rebuilt from `main` on every push, and a
+  version change closes the old one in favour of the new.
 - **A downward dependency can still be illegal.** Six tiers, and a package may
   depend on its own tier or below — on its own tier only through an edge
   `SIDEWAYS_EDGES` declares — but it must also never hard-depend on a
