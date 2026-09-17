@@ -7,7 +7,12 @@ import {
   type EntityMetadataSource,
   reconstructEntity,
 } from '@entifix/core';
-import { EntityField, EntityForm, useT } from '@entifix/react-controls';
+import {
+  EntityField,
+  EntityForm,
+  useT,
+  useTranslateKey,
+} from '@entifix/react-controls';
 import {
   type EntityDraftStore,
   useEntityForm,
@@ -102,10 +107,16 @@ export function EntityCrudForm<TEntity extends Entity>({
     };
   }, [ct]);
 
+  // A runtime-key translator, so a message names the field by its catalog word
+  // (`labelKey`) and a schema's keyed message resolves at all. Without it both
+  // fell back to untranslated text inside an otherwise Spanish sentence.
+  const translateKey = useTranslateKey();
+
   const form = useEntityForm<TEntity>({
     entityConstructor,
     entity,
     validationMessages,
+    translateKey,
     draft,
     onSubmit: values =>
       onSave(

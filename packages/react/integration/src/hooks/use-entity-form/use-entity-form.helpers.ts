@@ -233,6 +233,16 @@ export function readFieldErrors(
  * sentence cannot be assembled from a label plus a hardcoded suffix: word order
  * differs between locales.
  */
+/**
+ * How a message names a field. The default is the descriptor's `label`, which is
+ * the accessor's `label` option or its humanized member name — never translated.
+ * A host with a catalog resolves `labelKey` instead, so the message names the
+ * field in the words its input and column header already use.
+ */
+export type EntityFieldLabeler = (descriptor: EntityFieldDescriptor) => string;
+
+const labelOf: EntityFieldLabeler = descriptor => descriptor.label;
+
 export interface EntityDraftMessages {
   required(field: string): string;
   number(field: string): string;
@@ -253,6 +263,7 @@ export function validateEntityDraft(
   descriptors: readonly EntityFieldDescriptor[],
   values: EntityDraft,
   messages: EntityDraftMessages,
+  labelFor: EntityFieldLabeler = labelOf,
 ): Record<string, string> {
   const errors: Record<string, string> = {};
 
@@ -260,19 +271,22 @@ export function validateEntityDraft(
     if (isNeverEdited(descriptor)) continue;
 
     if (descriptor.type === 'composition') {
-      Object.assign(errors, validateComposition(descriptor, values, messages));
+      Object.assign(
+        errors,
+        validateComposition(descriptor, values, messages, labelFor),
+      );
       continue;
     }
 
     const raw = readDraftString(values, descriptor.name);
 
     if (descriptor.required && raw.trim() === '') {
-      errors[descriptor.name] = messages.required(descriptor.label);
+      errors[descriptor.name] = messages.required(labelFor(descriptor));
       continue;
     }
     if (raw === '' || !hasCheckableFormat(descriptor)) continue;
 
-    const message = formatMessage(descriptor, raw, messages);
+    const message = formatMessage(descriptor, raw, messages, labelFor);
     if (message !== undefined) errors[descriptor.name] = message;
   }
 
@@ -291,19 +305,20 @@ function formatMessage(
   descriptor: EntityFieldDescriptor,
   raw: string,
   messages: EntityDraftMessages,
+  labelFor: EntityFieldLabeler,
 ): string | undefined {
   if (descriptor.type === 'number' && Number.isNaN(Number(raw))) {
-    return messages.number(descriptor.label);
+    return messages.number(labelFor(descriptor));
   }
   if (descriptor.type === 'date' && Number.isNaN(new Date(raw).getTime())) {
-    return messages.date(descriptor.label);
+    return messages.date(labelFor(descriptor));
   }
   if (
     descriptor.type === 'enum' &&
     descriptor.enumValues &&
     !descriptor.enumValues.includes(raw)
   ) {
-    return messages.option(descriptor.label);
+    return messages.option(labelFor(descriptor));
   }
   return undefined;
 }
@@ -326,12 +341,13 @@ function validateComposition(
   descriptor: EntityFieldDescriptor,
   values: EntityDraft,
   messages: EntityDraftMessages,
+  labelFor: EntityFieldLabeler,
 ): Record<string, string> {
   const errors: Record<string, string> = {};
   const rows = readRowDrafts(values[descriptor.name]);
 
   if (descriptor.required && rows.length === 0) {
-    errors[descriptor.name] = messages.required(descriptor.label);
+    errors[descriptor.name] = messages.required(labelFor(descriptor));
     return errors;
   }
   if (descriptor.childType === undefined) return errors;
@@ -348,12 +364,12 @@ function validateComposition(
       const path = rowFieldPath(descriptor.name, index, column.name);
 
       if (column.required && raw.trim() === '') {
-        errors[path] = messages.required(column.label);
+        errors[path] = messages.required(labelFor(column));
         continue;
       }
       if (raw === '') continue;
 
-      const message = formatMessage(column, raw, messages);
+      const message = formatMessage(column, raw, messages, labelFor);
       if (message !== undefined) errors[path] = message;
     }
   });
@@ -438,6 +454,8 @@ export interface ComposeEntityFormErrorsOptions {
   descriptors: readonly EntityFieldDescriptor[];
   values: EntityDraft;
   messages: EntityDraftMessages;
+  /** How a metadata message names its field. Defaults to the untranslated `label`. */
+  labelFor?: EntityFieldLabeler;
   schema?: StandardSchemaV1;
   translateIssue: (message: string, field: string | undefined) => string;
   validate?: (values: EntityDraft) => Record<string, string>;
@@ -452,6 +470,7 @@ export function composeEntityFormErrors({
   descriptors,
   values,
   messages,
+  labelFor,
   schema,
   translateIssue,
   validate,
@@ -459,7 +478,7 @@ export function composeEntityFormErrors({
   fields: Record<string, string>;
   form?: string;
 } {
-  const metadata = validateEntityDraft(descriptors, values, messages);
+  const metadata = validateEntityDraft(descriptors, values, messages, labelFor);
   const schemaIssues = schema
     ? readSchemaIssues(schema, values, translateIssue)
     : { fields: {}, form: undefined };
