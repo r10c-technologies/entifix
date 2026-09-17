@@ -9,6 +9,8 @@ import type {
   EventBus,
   LockHandle,
   LockService,
+  SagaInstance,
+  SagaStore,
   SequenceService,
   TransactionInbox,
 } from '@entifix/transactions';
@@ -190,6 +192,91 @@ export const makeInMemoryInboxes = () => {
         const [consumer, eventId] = JSON.parse(key) as [string, string];
         return { consumer, eventId };
       });
+    },
+  };
+};
+
+export interface InMemorySagaStore extends SagaStore {
+  /** Every instance, as stored — for a spec to assert on state, not calls. */
+  readonly instances: readonly SagaInstance[];
+}
+
+/**
+ * In-memory {@link SagaStore}, with the Mongo adapter's semantics: `start`
+ * never overwrites, outcomes append, and a resume claim only takes an
+ * unfinished instance whose `updatedAt` is past the deadline — counting the
+ * attempt and re-stamping it, so the next sweep does not find it again.
+ */
+export const makeInMemorySagaStore = (): InMemorySagaStore => {
+  const instances = new Map<string, SagaInstance>();
+  const stamp = () => new Date().toISOString();
+  const unfinished = (entry: SagaInstance) =>
+    entry.state === 'RUNNING' || entry.state === 'COMPENSATING';
+  const pastDeadline = (entry: SagaInstance, olderThanMs: number) =>
+    entry.updatedAt < new Date(Date.now() - olderThanMs).toISOString();
+  const update = (
+    sagaId: string,
+    change: (entry: SagaInstance) => SagaInstance,
+  ) =>
+    Effect.sync(() => {
+      const current = instances.get(sagaId);
+      if (current !== undefined) {
+        instances.set(sagaId, { ...change(current), updatedAt: stamp() });
+      }
+    });
+
+  return {
+    start: started =>
+      Effect.sync(() => {
+        if (!instances.has(started.sagaId)) {
+          instances.set(started.sagaId, { ...started, updatedAt: stamp() });
+        }
+      }),
+    beginStep: (sagaId, stepIndex) =>
+      update(sagaId, entry => ({ ...entry, stepIndex })),
+    recordOutcome: (sagaId, outcome) =>
+      update(sagaId, entry => ({
+        ...entry,
+        outcomes: [...entry.outcomes, outcome],
+      })),
+    settle: (sagaId, state, error) =>
+      update(sagaId, entry => ({ ...entry, state, error })),
+    markCompensated: (sagaId, stepId) =>
+      update(sagaId, entry => ({
+        ...entry,
+        outcomes: entry.outcomes.map(outcome =>
+          outcome.stepId === stepId
+            ? { ...outcome, compensated: true }
+            : outcome,
+        ),
+      })),
+    get: sagaId => Effect.sync(() => instances.get(sagaId)),
+    findStale: olderThanMs =>
+      Effect.sync(() =>
+        [...instances.values()].filter(
+          entry => unfinished(entry) && pastDeadline(entry, olderThanMs),
+        ),
+      ),
+    claimForResume: (sagaId, olderThanMs) =>
+      Effect.sync(() => {
+        const current = instances.get(sagaId);
+        if (
+          current === undefined ||
+          !unfinished(current) ||
+          !pastDeadline(current, olderThanMs)
+        ) {
+          return undefined;
+        }
+        const claimed = {
+          ...current,
+          resumeAttempts: current.resumeAttempts + 1,
+          updatedAt: stamp(),
+        };
+        instances.set(sagaId, claimed);
+        return claimed;
+      }),
+    get instances() {
+      return [...instances.values()];
     },
   };
 };

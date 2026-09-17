@@ -897,6 +897,9 @@ importers:
 
   packages/ts/transactions:
     dependencies:
+      '@entifix/business':
+        specifier: workspace:*
+        version: link:../business
       '@entifix/core':
         specifier: workspace:*
         version: link:../core

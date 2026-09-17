@@ -12,10 +12,10 @@ pnpm add @entifix/mongo effect
 
 ## Entry points
 
-| Import                        | What it holds                                                                                           |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `@entifix/mongo`              | Repository, link resolver, query translation, client and database Layers, tenant resolver, health probe |
-| `@entifix/mongo/transactions` | Transactional outbox and inbox for `@entifix/transactions`, with the relay that drains the outbox       |
+| Import                        | What it holds                                                                                                                                                  |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@entifix/mongo`              | Repository, link resolver, query translation, client and database Layers, tenant resolver, health probe                                                        |
+| `@entifix/mongo/transactions` | Transactional outbox and inbox for `@entifix/transactions`, the relay that drains the outbox, and the saga store (`makeMongoSagaStore`, `MongoSagaStoreLayer`) |
 
 ## Optional peers
 
