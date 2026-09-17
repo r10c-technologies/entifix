@@ -323,6 +323,22 @@ describe('validateEntityDraft', () => {
     });
   });
 
+  it('names the field through the labeler when one is given', () => {
+    const labelFor = (descriptor: { name: string }) => `«${descriptor.name}»`;
+
+    expect(
+      validateEntityDraft(
+        descriptors,
+        { ...base, code: ' ', stock: 'abc' },
+        MESSAGES,
+        labelFor,
+      ),
+    ).toEqual({
+      code: '«code» is required',
+      stock: '«stock» must be a number',
+    });
+  });
+
   it('flags a malformed number', () => {
     expect(
       validateEntityDraft(descriptors, { ...base, stock: 'abc' }, MESSAGES),
@@ -1061,6 +1077,92 @@ describe('useEntityForm', () => {
 
   // The whole point of the message-as-key convention: a schema written once
   // renders in the user's language, with the field's own label interpolated.
+  /**
+   * #22: the message named the field by its untranslated `label` — or, with
+   * none declared, its humanized member name — so a Spanish form said
+   * "Quantity es obligatorio" under a column headed "Cantidad".
+   */
+  it('names the field by its catalog label when a translator is supplied', async () => {
+    @entity({ key: 'labelled' })
+    class Labelled implements Entity {
+      #id?: EntityId;
+      #quantity?: number;
+      #code?: string;
+
+      @accessor({ type: 'id', hidden: true })
+      get id(): EntityId {
+        return this.#id;
+      }
+      set id(value: EntityId) {
+        this.#id = value;
+      }
+
+      // A key and no label: the humanized fallback must never reach the user.
+      @accessor({
+        type: 'number',
+        labelKey: 'entity:labelled.fields.quantity',
+        required: true,
+      })
+      get quantity(): number | undefined {
+        return this.#quantity;
+      }
+      set quantity(value: number | undefined) {
+        this.#quantity = value;
+      }
+
+      // Both: the key wins, the label is only its default.
+      @accessor({
+        type: 'string',
+        label: 'Code',
+        labelKey: 'entity:labelled.fields.code',
+        required: true,
+      })
+      get code(): string | undefined {
+        return this.#code;
+      }
+      set code(value: string | undefined) {
+        this.#code = value;
+      }
+    }
+
+    const catalog: Record<string, string> = {
+      'entity:labelled.fields.quantity': 'Cantidad',
+      'entity:labelled.fields.code': 'Código',
+    };
+    const translate = (key: string, params?: Record<string, unknown>) =>
+      catalog[key] ?? translateKey(key, params);
+
+    const { result } = renderHook(() =>
+      useEntityForm({
+        entityConstructor: Labelled,
+        validationMessages: SPANISH,
+        translateKey: translate,
+        onSubmit: vi.fn(),
+      }),
+    );
+
+    await act(async () => result.current.submit());
+
+    expect(result.current.errors.quantity).toBe('Cantidad es obligatorio');
+    expect(result.current.errors.code).toBe('Código es obligatorio');
+  });
+
+  it('keeps the declared label when no translator is supplied', async () => {
+    const { result } = renderHook(() =>
+      useEntityForm({
+        entityConstructor: Gadget,
+        entity: makeGadget(),
+        validationMessages: SPANISH,
+        onSubmit: vi.fn(),
+      }),
+    );
+
+    act(() => result.current.setField('code', ' '));
+    await act(async () => result.current.submit());
+
+    expect(result.current.errors.code).toBe('Code es obligatorio');
+  });
+
   it('resolves a schema message through the catalog', async () => {
     const { result } = renderHook(() =>
       useEntityForm({

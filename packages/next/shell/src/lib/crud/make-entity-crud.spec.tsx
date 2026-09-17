@@ -629,8 +629,10 @@ describe('the generated form', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /guardar/i }));
 
+    // The field by its catalog word — `Nombre`, from `labelKey` — not the
+    // accessor's English `label` inside a Spanish sentence (#22).
     await waitFor(() =>
-      expect(screen.getByText(/es obligatorio/i)).toBeVisible(),
+      expect(screen.getByText('Nombre es obligatorio')).toBeVisible(),
     );
   });
 

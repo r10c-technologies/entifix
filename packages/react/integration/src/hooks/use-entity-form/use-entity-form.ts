@@ -4,6 +4,7 @@ import {
   describeEntityColumns,
   type Entity,
   type EntityDraft,
+  type EntityFieldDescriptor,
   type EntityLinkSelection,
   seedEntityLinkSelection,
 } from '@entifix/core';
@@ -117,16 +118,29 @@ export function useEntityForm<TEntity extends Entity>({
   // and this one is `useTranslateKey`'s job rather than `useT`'s, because a
   // schema's message is a key only known at runtime. With nothing supplied the
   // message renders as authored, which is what `defaultValue` always did.
+  // How a message names its field: the catalog's word when the member has a
+  // `labelKey` and a translator was supplied, so "Cantidad es obligatorio" rather
+  // than the accessor's untranslated `label` inside a Spanish sentence. The same
+  // resolver reaches a composition's cells, which are described from the child
+  // type inside the validator rather than from these descriptors.
+  const labelFor = useCallback(
+    (descriptor: EntityFieldDescriptor) =>
+      descriptor.labelKey !== undefined && translateKey !== undefined
+        ? translateKey(descriptor.labelKey, { defaultValue: descriptor.label })
+        : descriptor.label,
+    [translateKey],
+  );
+
   const translateIssue = useCallback(
-    (message: string, field: string | undefined) =>
-      translateKey === undefined
-        ? message
-        : translateKey(message, {
-            defaultValue: message,
-            field:
-              descriptors.find(entry => entry.name === field)?.label ?? field,
-          }),
-    [translateKey, descriptors],
+    (message: string, field: string | undefined) => {
+      if (translateKey === undefined) return message;
+      const descriptor = descriptors.find(entry => entry.name === field);
+      return translateKey(message, {
+        defaultValue: message,
+        field: descriptor === undefined ? field : labelFor(descriptor),
+      });
+    },
+    [translateKey, descriptors, labelFor],
   );
 
   /**
@@ -149,6 +163,7 @@ export function useEntityForm<TEntity extends Entity>({
           descriptors,
           values: value,
           messages,
+          labelFor,
           schema,
           translateIssue,
           validate,

@@ -152,6 +152,28 @@ describe('validateEntityDraft — owned collections', () => {
     });
   });
 
+  // The labeler reaches the cells too, which are described from the child type
+  // inside the validator rather than from the descriptors a caller passes.
+  it('names every field — record, collection and cell — through the labeler', () => {
+    const labelFor = (descriptor: EntityFieldDescriptor) =>
+      `«${descriptor.name}»`;
+
+    expect(
+      validateEntityDraft(
+        descriptors,
+        { lines: [row({ quantity: 'many', sku: ' ' })] },
+        messages,
+        labelFor,
+      ),
+    ).toEqual({
+      'lines[0].quantity': '«quantity» debe ser un número',
+      'lines[0].sku': '«sku» es obligatorio',
+    });
+    expect(
+      validateEntityDraft(descriptors, { lines: [] }, messages, labelFor),
+    ).toEqual({ lines: '«lines» es obligatorio' });
+  });
+
   it('reads required on the collection as “at least one row”', () => {
     // A genuinely different fact from `required` on a child member, which is
     // per row: an order with three lines, one blank, is not an order with none.
