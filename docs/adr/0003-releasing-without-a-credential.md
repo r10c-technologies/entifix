@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-09-16
+- Revised: 2026-09-16 by [#2](https://github.com/r10c-technologies/entifix/issues/2) — a release pull request superseded by a new version is closed
 - Area: platform
 - Read when: cutting a release, wondering why the release workflow cannot be renamed, or why a merge did not publish anything — the version is derived from commit messages and nothing in this repository can publish to npm
 
@@ -49,6 +50,16 @@ pull request opened with the built-in token does not trigger `pull_request`
 workflows, so the release pull request would never run the check that `main`
 requires and could never be merged. The app can write to this repository and
 nothing else; it cannot publish.
+
+⚠️ **The branch is named for the version, so a version change opens a second pull
+request.** A `feat:` landing while `release/v0.1.2` is open proposes
+`release/v0.2.0` beside it, and the older one is never rebuilt again — merging it
+would tag and publish the current `main` under the number it was opened for. The
+workflow therefore closes every other open `release/v*` pull request, and deletes
+its branch, whenever it opens or updates one, with a comment naming the
+replacement. It looks up only **open** pull requests for the current branch, so a
+version asked for a second time opens a fresh one rather than editing the closed
+one.
 
 **Publishing waits for a person.** The publish job declares the `npm-publish`
 environment, which holds it until a reviewer approves, and the npm trust claim

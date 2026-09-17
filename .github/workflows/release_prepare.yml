@@ -121,12 +121,29 @@ jobs:
             node tools/release/changelog-section.mjs "${VERSION}"
           } > /tmp/release-pr-body.md
 
-          if gh pr view "$BRANCH" --json number >/dev/null 2>&1; then
-            gh pr edit "$BRANCH" \
+          # Open pull requests only. `gh pr view <branch>` also matches a
+          # closed one, so a version proposed, superseded and then asked for
+          # again (a reverted `feat:`) would edit a closed pull request nobody
+          # sees instead of opening a new one.
+          CURRENT=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number // empty')
+          if [ -n "$CURRENT" ]; then
+            gh pr edit "$CURRENT" \
               --title "chore(release): ${VERSION}" \
               --body-file /tmp/release-pr-body.md
           else
-            gh pr create --base main --head "$BRANCH" \
+            CURRENT=$(gh pr create --base main --head "$BRANCH" \
               --title "chore(release): ${VERSION}" \
-              --body-file /tmp/release-pr-body.md
+              --body-file /tmp/release-pr-body.md | sed 's#.*/##')
           fi
+
+          # The branch is named for the version, so a `feat:` that moves 0.1.2
+          # to 0.2.0 opens a second pull request rather than retitling the first.
+          # The first stops being rebuilt the moment that happens, and merging
+          # it would publish today's `main` under the old number. Close every
+          # other release pull request, and its branch, pointing at this one.
+          gh pr list --state open --json number,headRefName \
+            --jq ".[] | select(.headRefName | startswith(\"release/v\")) | select(.headRefName != \"$BRANCH\") | .number" |
+            while read -r STALE; do
+              gh pr close "$STALE" --delete-branch \
+                --comment "Superseded by #${CURRENT} (\`chore(release): ${VERSION}\`): the commits on \`main\` now ask for ${VERSION}."
+            done
