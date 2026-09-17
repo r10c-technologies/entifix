@@ -1,6 +1,6 @@
 {
   "name": "@entifix/posthog",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "PostHog adapter for the @entifix/tooling Tracker port, over posthog-node on the server and posthog-js in the browser.",
   "license": "MIT",
   "repository": {

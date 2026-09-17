@@ -1,6 +1,6 @@
 {
   "name": "@entifix/transactions",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Commands, transactions and sagas: inbox and outbox ports, an event bus, locks, and a declarative saga runner.",
   "license": "MIT",
   "repository": {
