@@ -92,6 +92,15 @@
     },
     {
       "path": "./examples/service-e2e"
+    },
+    {
+      "path": "./examples/minimal-service"
+    },
+    {
+      "path": "./examples/minimal-domain"
+    },
+    {
+      "path": "./examples/minimal-e2e"
     }
   ]
 }

@@ -1,0 +1,51 @@
+{
+  "name": "@entifix/example-minimal",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The full stack composing: a Next app whose generated table and form edit one entity served by an Effect service over Postgres.",
+  "dependencies": {
+    "@entifix/business": "workspace:*",
+    "@entifix/core": "workspace:*",
+    "@entifix/example-minimal-domain": "workspace:*",
+    "@entifix/i18n": "workspace:*",
+    "@entifix/next-i18n": "workspace:*",
+    "@entifix/next-shell": "workspace:*",
+    "@entifix/react-controls": "workspace:*",
+    "@entifix/react-integration": "workspace:*",
+    "@entifix/rest": "workspace:*",
+    "@entifix/style": "workspace:*",
+    "@entifix/testing-auth": "workspace:*",
+    "@tanstack/react-query": "5.102.8",
+    "effect": "3.22.1",
+    "i18next": "26.3.6",
+    "next": "16.2.10",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "react-i18next": "17.0.11",
+    "zustand": "^5.0.15"
+  },
+  "nx": {
+    "targets": {
+      "build": {
+        "options": {
+          "forwardAllArgs": false
+        }
+      },
+      "dev": {
+        "executor": "nx:run-commands",
+        "continuous": true,
+        "options": {
+          "command": "next dev -p 3201",
+          "cwd": "examples/minimal"
+        }
+      },
+      "start": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "next start -p 3201",
+          "cwd": "examples/minimal"
+        }
+      }
+    }
+  }
+}
