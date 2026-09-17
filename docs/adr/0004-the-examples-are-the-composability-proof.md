@@ -104,13 +104,16 @@ a side effect, and the manifest must say so.
   one green assertion job away from passing a run in which nothing ran. The
   lists are now assigned under `pipefail` first.
 - Two framework behaviours surfaced that a server-backed host never sees, and
-  the example works around rather than fixes them:
+  the example first worked around rather than fixed them:
   - A generated list's "open" control is a plain link, so following it is a
     document load. With data in the page, that load starts the repository over.
     The journeys move between records through the workspace tab strip.
-  - `@entifix/testing-unit`'s repository hands back the instance it stores. A
-    verb that mutates that instance changes the record under the query cache
-    without the cache seeing a new value, so the example's verb saves a copy.
+  - `@entifix/testing-unit`'s repository handed back the instance it stored. A
+    verb that mutated that instance changed the record under the query cache
+    without the cache seeing a new value. Fixed in
+    [#21](https://github.com/r10c-technologies/entifix/issues/21): the double
+    now hands out copies, as a real adapter does, and the contract suite holds
+    every repository to it.
 - The README's i18n snippet declared `defaultNS: 'app'`. The framework's own
   components call `useT()` without a namespace and render raw keys —
   `form.save`, `detail.addRow` — unless the default is `'controls'`. The example

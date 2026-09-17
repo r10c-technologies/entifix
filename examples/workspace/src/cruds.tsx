@@ -41,20 +41,10 @@ export const customerCrud = makeEntityCrud<Customer, ExampleAdapters>(
  */
 const issueInvoice = async (id: EntityId): Promise<void> => {
   const program = repositories.invoices.get<Invoice>(id).pipe(
-    // A copy, never the stored instance: the in-memory repository hands back
-    // the very object it holds, and mutating it would change the record under
-    // the query cache without the cache ever seeing a new value.
-    Effect.flatMap(invoice =>
-      repositories.invoices.save(
-        Object.assign(new Invoice(), {
-          id: invoice.id,
-          number: invoice.number,
-          customerId: invoice.customerId,
-          lines: invoice.lines,
-          status: 'issued',
-        }),
-      ),
-    ),
+    Effect.flatMap(invoice => {
+      invoice.status = 'issued';
+      return repositories.invoices.save(invoice);
+    }),
   );
   await Effect.runPromise(
     program.pipe(
