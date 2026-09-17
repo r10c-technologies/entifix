@@ -1,6 +1,6 @@
 {
   "name": "@entifix/sql",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "SQL adapter over @effect/sql: an entity repository with RSQL filter and sort translation, and a health probe.",
   "license": "MIT",
   "repository": {

@@ -1,6 +1,6 @@
 {
   "name": "@entifix/testing-auth",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Authentication stubs for tests: a fixed token service, an allow-all policy, and ready-made session cookies.",
   "license": "MIT",
   "repository": {

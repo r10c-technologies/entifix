@@ -1,6 +1,6 @@
 {
   "name": "@entifix/mongo",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "MongoDB adapter: an entity repository, RSQL-to-Mongo query translation, per-tenant databases, and an optional transactional outbox.",
   "license": "MIT",
   "repository": {

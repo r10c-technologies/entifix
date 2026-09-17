@@ -1,6 +1,6 @@
 {
   "name": "@entifix/service-shell",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Effect HTTP service skeleton: server layer, health and metadata routes, permission guards, remote configuration and OpenTelemetry.",
   "license": "MIT",
   "repository": {

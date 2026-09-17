@@ -5,7 +5,7 @@
       "tier:0"
     ]
   },
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Tailwind v4 design tokens and a semantic color contract, with a fluid and a fixed spacing scale and three palette presets.",
   "license": "MIT",
   "repository": {

@@ -1,6 +1,6 @@
 {
   "name": "@entifix/core",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "The entity system: decorators that make a class describe itself, entity serialization, the RSQL query protocol and the wire envelopes.",
   "license": "MIT",
   "repository": {
