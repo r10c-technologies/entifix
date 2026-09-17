@@ -104,10 +104,13 @@ a side effect, and the manifest must say so.
   one green assertion job away from passing a run in which nothing ran. The
   lists are now assigned under `pipefail` first.
 - Two framework behaviours surfaced that a server-backed host never sees, and
-  the example first worked around rather than fixed them:
-  - A generated list's "open" control is a plain link, so following it is a
-    document load. With data in the page, that load starts the repository over.
-    The journeys move between records through the workspace tab strip.
+  the example first worked around and later fixed:
+  - A generated list's "open" control was a plain link, so following it was a
+    document load — and inside a workspace tab it left the workspace. Fixed in
+    [#20](https://github.com/r10c-technologies/entifix/issues/20): the table
+    and form take a `renderLink`, the Next shell passes one on `next/link`, and
+    a tab host answers Open, New and Back by opening a tab of its own kind. A
+    journey plants a marker on `window` to prove nothing reloads.
   - `@entifix/testing-unit`'s repository handed back the instance it stored. A
     verb that mutated that instance changed the record under the query cache
     without the cache seeing a new value. Fixed in

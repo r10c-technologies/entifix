@@ -22,8 +22,12 @@ import {
   useT,
   useTranslateKey,
 } from '../../../i18n/index.js';
-import { OVERFLOW_GLYPH, useCasesForSurface } from '../../actions/index.js';
-import { Button } from '../../atoms/button/index.js';
+import {
+  OVERFLOW_GLYPH,
+  renderAnchor,
+  useCasesForSurface,
+} from '../../actions/index.js';
+import { Button, button } from '../../atoms/button/index.js';
 import { CellValue } from '../../atoms/cell-value/index.js';
 import { FieldControl } from '../../atoms/field-control/index.js';
 import { Skeleton } from '../../atoms/skeleton/index.js';
@@ -34,6 +38,7 @@ import { EntityLinkInput } from '../../molecules/entity-link-input/index.js';
 import { LoadingBoundary } from '../../molecules/loading-boundary/index.js';
 import { Menu } from '../../molecules/menu/index.js';
 import { Stack } from '../../molecules/stack/index.js';
+import { cn } from '../../utils/cn.js';
 import { EntityDetailGrid } from '../entity-detail-grid/index.js';
 import type {
   EntityFormField,
@@ -121,6 +126,7 @@ export function EntityForm<TEntity extends Entity>({
   isDeleting = false,
   error,
   backHref,
+  renderLink = renderAnchor,
   title,
   metadata,
   isMetadataLoading = false,
@@ -456,13 +462,20 @@ export function EntityForm<TEntity extends Entity>({
               </Button>
             )}
             {slots.footerActions}
-            {backHref && (
-              <a href={backHref}>
-                <Button type="button" variant="ghost" disabled={busy}>
-                  {t('form.back')}
-                </Button>
-              </a>
-            )}
+            {/* A link styled as a button, not a button inside a link: the old
+                nesting was two interactive elements for one action, and its
+                `disabled` stopped nothing, because the anchor around it still
+                navigated. While busy the link is inert instead. */}
+            {backHref &&
+              renderLink({
+                href: backHref,
+                className: cn(
+                  button({ variant: 'ghost' }),
+                  busy && 'pointer-events-none opacity-50',
+                ),
+                children: t('form.back'),
+                intent: { kind: 'back' },
+              })}
           </Stack>
         )}
 

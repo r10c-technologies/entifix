@@ -33,6 +33,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { useLocaleHref } from '../i18n/index.js';
+import { useEntityNavHost } from '../workspace/entity-nav.js';
 import {
   pendingFor,
   pendingRecordsFor,
@@ -48,6 +49,7 @@ import type {
 } from './make-entity-crud.types.js';
 import { PendingNotice } from './pending-notice.js';
 import { CATALOG_NEW_SLUG, slugToEntityId } from './slug.js';
+import { useCrudRenderLink } from './use-crud-render-link.js';
 import { useEntityAffordances } from './use-entity-affordances.js';
 import { useEntityBulk } from './use-entity-bulk.js';
 
@@ -205,6 +207,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     const queryClient = useQueryClient();
     const scope = entityQueryScope(entityConstructor);
     const affordances = useEntityAffordances(entityConstructor, metadataSource);
+    const renderLink = useCrudRenderLink(catalogKey);
 
     // Records this browser has created but the service has not finished
     // writing. Prepended below rather than patched into the cache, which a
@@ -296,6 +299,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
           totalItems={pager.totalItems + optimistic.length}
           hrefFor={id => withLocale(`${basePath}/${String(id)}`)}
           newHref={withLocale(`${basePath}/${CATALOG_NEW_SLUG}`)}
+          renderLink={renderLink}
           {...affordances}
           {...bulk.tableProps}
           onUseCase={handleRowUseCase}
@@ -375,8 +379,29 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
       },
     }));
 
-    const afterSave = onSaved ?? (() => router.push(withLocale(basePath)));
-    const afterDelete = onDeleted ?? (() => router.push(withLocale(basePath)));
+    // Inside a workspace tab, "back to the list" is the list's tab, not a URL
+    // that would leave the workspace. A host's own callbacks still win.
+    const host = useEntityNavHost();
+    const renderLink = useCrudRenderLink(catalogKey);
+    const queryClient = useQueryClient();
+    // The list this page returns to has its page cached, and it is no longer
+    // true. Invalidated rather than patched, for the reason `handOffWrite`
+    // gives: a transactional create is not in the service yet, and the pending
+    // set, not the cache, is what keeps it visible until it is.
+    //
+    // ⚠️ Invisible while every Open was a document load, which threw the cache
+    // away anyway (#20): the first client-side navigation back to the list
+    // showed the record as it was before the save.
+    const refreshList = () =>
+      queryClient.invalidateQueries({
+        queryKey: entityQueryScope(entityConstructor),
+      });
+    const toList = () =>
+      host === undefined
+        ? router.push(withLocale(basePath))
+        : host.toList(catalogKey);
+    const afterSave = onSaved ?? toList;
+    const afterDelete = onDeleted ?? toList;
 
     // The draft is spent once the write *commits*, and only here is that known:
     // `useEntityForm` neither fetches nor saves, so it cannot clear its own.
@@ -392,12 +417,14 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
       // refetch would replace the patched page and the row would vanish a
       // moment after appearing. The pending set outlives refetches.
       handOffWrite({ id: String(saved.id), record: saved, pending, draft });
+      void refreshList();
       afterSave();
     };
 
     const handleDelete = async () => {
       if (await remove(id)) {
         draft?.clear();
+        void refreshList();
         afterDelete();
       }
     };
@@ -447,6 +474,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
         onDelete={id == null ? undefined : handleDelete}
         onUseCase={handleUseCase}
         backHref={withLocale(basePath)}
+        renderLink={renderLink}
         draft={draft}
       />
     );

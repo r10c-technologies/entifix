@@ -6,10 +6,9 @@ import { expect, failOnPageErrors, test } from './support';
  * `lines` is a composition, so the generated form renders it as a grid under
  * the record rather than as a picker, and Save carries both.
  *
- * Driven through the workspace's tab strip: switching tabs is client-side, so
- * the in-memory repository still holds the save. The generated list's "open"
- * control is a plain link, and following it is a document load, which starts
- * the repository over from the seed.
+ * The repository lives in the page, so this journey also proves that nothing
+ * between save and reopen loads a document: a load would start it over from the
+ * seed and the new row would be gone.
  */
 test('adds an owned row, saves, and finds it on the record again', async ({
   page,
@@ -31,8 +30,12 @@ test('adds an owned row, saves, and finds it on the record again', async ({
   await expect(page).toHaveURL(/tab=master%3Ainvoice$/);
   await expect(page.getByRole('cell', { name: 'INV-0002-A' })).toBeVisible();
 
-  // Back to the record's own tab: both the scalar and the owned row landed.
-  await page.getByRole('button', { name: 'Factura #i-2', exact: true }).click();
+  // Reopened from the list row, which opens the record's tab in place.
+  await page
+    .getByRole('row')
+    .filter({ hasText: 'INV-0002-A' })
+    .getByRole('link', { name: 'Abrir' })
+    .click();
   await expect(page.getByLabel('Número')).toHaveValue('INV-0002-A');
   await expect(page.getByLabel('Descripción')).toHaveCount(2);
   await expect(page.getByLabel('Descripción').last()).toHaveValue(

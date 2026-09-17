@@ -17,7 +17,11 @@ import {
 import { Fragment, type ReactNode, useRef, useState } from 'react';
 
 import { useErrorMessage, useT, useTranslateKey } from '../../../i18n/index.js';
-import { OVERFLOW_GLYPH, useCasesForSurface } from '../../actions/index.js';
+import {
+  OVERFLOW_GLYPH,
+  renderAnchor,
+  useCasesForSurface,
+} from '../../actions/index.js';
 import { Button } from '../../atoms/button/index.js';
 import { CellValue } from '../../atoms/cell-value/index.js';
 import { Checkbox } from '../../atoms/field/index.js';
@@ -31,7 +35,7 @@ import {
   TableMessageRow,
   TableRow,
 } from '../../atoms/table/index.js';
-import { Link } from '../../atoms/text/index.js';
+import { linkClassName } from '../../atoms/text/index.js';
 import { BulkActionBar } from '../../molecules/bulk-action-bar/index.js';
 import { BulkResult } from '../../molecules/bulk-result/index.js';
 import { ColumnSettings } from '../../molecules/column-settings/index.js';
@@ -116,6 +120,7 @@ export function EntityTable<TEntity extends Entity>({
   onPageSizeChange,
   hrefFor,
   newHref,
+  renderLink = renderAnchor,
   onSelect,
   preferencesKey,
   showControls = true,
@@ -453,7 +458,12 @@ export function EntityTable<TEntity extends Entity>({
         {t('table.select')}
       </Button>
     ) : hrefFor ? (
-      <Link href={hrefFor(item.id)}>{t('table.open')}</Link>
+      renderLink({
+        href: hrefFor(item.id),
+        className: linkClassName,
+        children: t('table.open'),
+        intent: { kind: 'open', id: item.id },
+      })
     ) : undefined;
 
     const menu = rowMenu(item);
@@ -491,7 +501,13 @@ export function EntityTable<TEntity extends Entity>({
         <TableToolbar
           start={
             <>
-              {newHref && <Link href={newHref}>{t('table.new')}</Link>}
+              {newHref &&
+                renderLink({
+                  href: newHref,
+                  className: linkClassName,
+                  children: t('table.new'),
+                  intent: { kind: 'new' },
+                })}
               {/* Collection-bound verbs that need no selection. They sit with
                   `New` rather than in the bulk bar, because the bulk bar only
                   exists while rows are ticked and these are always available. */}

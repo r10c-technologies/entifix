@@ -202,6 +202,16 @@ export function Kbd({ className, ...props }: ComponentPropsWithoutRef<'kbd'>) {
   );
 }
 
+/**
+ * {@link Link}'s styling on its own, for a host that renders its own link
+ * component (a router's) and should still look like one.
+ */
+export const linkClassName = cn(
+  'font-medium text-primary underline underline-offset-2',
+  'transition-colors duration-200 ease-smooth hover:text-accent',
+  'focus-ring',
+);
+
 /** Themed anchor. */
 export function Link({
   className,
@@ -209,15 +219,7 @@ export function Link({
   ...props
 }: ComponentPropsWithoutRef<'a'>) {
   return (
-    <a
-      className={cn(
-        'font-medium text-primary underline underline-offset-2',
-        'transition-colors duration-200 ease-smooth hover:text-accent',
-        'focus-ring',
-        className,
-      )}
-      {...props}
-    >
+    <a className={cn(linkClassName, className)} {...props}>
       {children}
     </a>
   );

@@ -13,7 +13,10 @@ import {
   type EntityId,
 } from '@entifix/core';
 import { EntityColumn } from '@entifix/react-controls';
-import { EntifixQueryProvider } from '@entifix/react-integration';
+import {
+  EntifixQueryProvider,
+  makeQueryClient,
+} from '@entifix/react-integration';
 import {
   makeInMemoryEntityRepository,
   makeStubConfigurationClient,
@@ -32,6 +35,7 @@ import { Context, Effect, Option } from 'effect';
 import type { ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { EntityNavProvider } from '../workspace/entity-nav.js';
 import { usePendingState } from '../workspace/pending-state.js';
 import { PendingTransactionsProvider } from '../workspace/pending-transactions.js';
 import { makeEntityCrud } from './make-entity-crud.js';
@@ -924,6 +928,62 @@ describe('the generated form', () => {
     // bounces it, so the visitor pays a round trip per navigation.
     expect(push).toHaveBeenCalledWith('/es/catalog/product-brand');
   });
+
+  // The list the page returns to is navigated to client-side now (#20), so its
+  // cached page would otherwise show the record as it was before the write.
+  it.each([
+    ['a save', 'Guardar'],
+    ['a delete', 'Eliminar'],
+  ])('marks the cached list stale after %s', async (_label, button) => {
+    slug = 'b-1';
+    const user = userEvent.setup();
+    const client = makeQueryClient();
+    const invalidate = vi.spyOn(client, 'invalidateQueries');
+    render(
+      <EntifixQueryProvider client={client}>
+        <brandCrud.SingleViewPage />
+      </EntifixQueryProvider>,
+    );
+    await waitFor(() =>
+      expect(screen.getByLabelText(/nombre/i)).toHaveValue('Acme'),
+    );
+
+    await user.click(screen.getByRole('button', { name: button }));
+
+    await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: expect.arrayContaining([expect.anything()]),
+    });
+  });
+
+  // #20: inside a workspace tab the list is a tab, and a URL push would leave
+  // the workspace.
+  it.each([
+    ['a save', 'Guardar'],
+    ['a delete', 'Eliminar'],
+  ])(
+    'returns to the list tab after %s when a tab host is mounted',
+    async (_label, button) => {
+      slug = 'b-1';
+      const user = userEvent.setup();
+      const nav = { toList: vi.fn(), toEntity: vi.fn() };
+      renderPage(
+        <EntityNavProvider value={nav}>
+          <brandCrud.SingleViewPage />
+        </EntityNavProvider>,
+      );
+      await waitFor(() =>
+        expect(screen.getByLabelText(/nombre/i)).toHaveValue('Acme'),
+      );
+
+      await user.click(screen.getByRole('button', { name: button }));
+
+      await waitFor(() =>
+        expect(nav.toList).toHaveBeenCalledWith('product-brand'),
+      );
+      expect(push).not.toHaveBeenCalled();
+    },
+  );
 
   it.each([
     ['saving', 'Guardar'],
