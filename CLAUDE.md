@@ -28,6 +28,7 @@ pnpm exec prettier --check .
 pnpm nx sync                                   # tsconfig project references after adding deps
 
 pnpm nx e2e @entifix/example-workspace-e2e     # hermetic journeys, a required check
+pnpm nx e2e @entifix/example-service-e2e       # mock profile; E2E_PROFILE=live needs examples/compose.yaml up
 
 # Work against a consumer checkout (README → "Developing against a consumer")
 ENTIFIX_CONSUMERS=$PWD/../r10c pnpm nx run @entifix/source:dev-sync

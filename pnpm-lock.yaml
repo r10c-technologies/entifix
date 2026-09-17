@@ -289,6 +289,75 @@ importers:
         specifier: ^0.1.1
         version: 0.1.1(zustand@5.0.15(@types/react@19.2.18)(react@19.2.8)(use-sync-external-store@1.7.0(react@19.2.8)))
 
+  examples/service:
+    dependencies:
+      '@effect/platform':
+        specifier: 0.97.1
+        version: 0.97.1(effect@3.22.1)
+      '@entifix/amqp':
+        specifier: workspace:*
+        version: link:../../packages/ts/amqp-client
+      '@entifix/authz':
+        specifier: workspace:*
+        version: link:../../packages/ts/authz
+      '@entifix/business':
+        specifier: workspace:*
+        version: link:../../packages/ts/business
+      '@entifix/core':
+        specifier: workspace:*
+        version: link:../../packages/ts/core
+      '@entifix/example-service-domain':
+        specifier: workspace:*
+        version: link:../service-domain
+      '@entifix/mongo':
+        specifier: workspace:*
+        version: link:../../packages/ts/mongo-client
+      '@entifix/service-shell':
+        specifier: workspace:*
+        version: link:../../packages/effect/service-shell
+      '@entifix/testing-auth':
+        specifier: workspace:*
+        version: link:../../packages/ts/testing-auth
+      '@entifix/transactions':
+        specifier: workspace:*
+        version: link:../../packages/ts/transactions
+      amqplib:
+        specifier: 2.0.1
+        version: 2.0.1
+      effect:
+        specifier: 3.22.1
+        version: 3.22.1
+      mongodb:
+        specifier: 7.5.0
+        version: 7.5.0
+
+  examples/service-domain:
+    dependencies:
+      '@entifix/core':
+        specifier: workspace:*
+        version: link:../../packages/ts/core
+      '@swc/helpers':
+        specifier: 0.5.23
+        version: 0.5.23
+
+  examples/service-e2e:
+    devDependencies:
+      '@entifix/example-service':
+        specifier: workspace:*
+        version: link:../service
+      '@entifix/service-shell':
+        specifier: workspace:*
+        version: link:../../packages/effect/service-shell
+      '@entifix/testing-e2e':
+        specifier: workspace:*
+        version: link:../../packages/ts/testing-e2e
+      '@entifix/testing-unit':
+        specifier: workspace:*
+        version: link:../../packages/ts/testing-unit
+      effect:
+        specifier: 3.22.1
+        version: 3.22.1
+
   examples/workspace:
     dependencies:
       '@entifix/authz':

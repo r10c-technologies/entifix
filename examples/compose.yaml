@@ -1,0 +1,52 @@
+# Infrastructure for the examples that need it: `example-service` (Mongo and
+# RabbitMQ) and `example-minimal` (Postgres).
+#
+#   docker compose -f examples/compose.yaml up -d --wait
+#
+# Local development only. No volume is persisted and every credential below is a
+# well-known default — never point anything real at these.
+name: entifix-examples
+
+services:
+  mongo:
+    image: mongo:7
+    # A single-node replica set: Mongo only runs multi-document transactions on
+    # one, and the outbox is written in the entity's own transaction. Clients
+    # connect with `directConnection=true`.
+    command: ['mongod', '--replSet', 'rs0', '--bind_ip_all']
+    ports: ['27017:27017']
+    healthcheck:
+      # Initiates the set on first check and reports healthy once it has a
+      # primary, so `--wait` does not hand back a Mongo that refuses writes.
+      test:
+        - CMD
+        - mongosh
+        - --quiet
+        - --eval
+        - "try { rs.status() } catch (e) { rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'localhost:27017' }] }) }; quit(db.hello().isWritablePrimary ? 0 : 1)"
+      interval: 2s
+      timeout: 5s
+      retries: 30
+      start_period: 5s
+
+  rabbitmq:
+    image: rabbitmq:4-management
+    ports: ['5672:5672', '15672:15672']
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'check_port_connectivity']
+      interval: 3s
+      timeout: 10s
+      retries: 30
+
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: entifix
+      POSTGRES_PASSWORD: entifix
+      POSTGRES_DB: example_minimal
+    ports: ['5432:5432']
+    healthcheck:
+      test: ['CMD', 'pg_isready', '-U', 'entifix', '-d', 'example_minimal']
+      interval: 2s
+      timeout: 5s
+      retries: 30
