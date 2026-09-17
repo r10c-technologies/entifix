@@ -15,6 +15,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { UiPreferencesProvider } from '../../../preferences/ui-preferences-context.js';
 import type { UiPreferencesState } from '../../../preferences/ui-preferences-state.js';
+import type { RenderLinkProps } from '../../actions/index.js';
 import { EntityTable } from './entity-table.js';
 import {
   EntityColumn,
@@ -386,6 +387,39 @@ describe('EntityTable controls', () => {
       expect(screen.getByRole('link', { name: 'Nuevo' })).toHaveAttribute(
         'href',
         '/widget/new',
+      );
+    });
+
+    // #20: a plain anchor is a document load in a client-routed host, so the
+    // host renders the link — and needs to know what each one means.
+    it('hands both links to a host renderer, with what each one opens', () => {
+      const renderLink = vi.fn(
+        ({ href, className, children }: RenderLinkProps) => (
+          <a href={href} className={className} data-host-link="">
+            {children}
+          </a>
+        ),
+      );
+      renderTable({
+        hrefFor: id => `/widget/${String(id)}`,
+        newHref: '/widget/new',
+        renderLink,
+      });
+
+      expect(renderLink).toHaveBeenCalledWith(
+        expect.objectContaining({
+          href: '/widget/widget-1',
+          intent: { kind: 'open', id: 'widget-1' },
+        }),
+      );
+      expect(renderLink).toHaveBeenCalledWith(
+        expect.objectContaining({
+          href: '/widget/new',
+          intent: { kind: 'new' },
+        }),
+      );
+      expect(screen.getByRole('link', { name: 'Nuevo' })).toHaveAttribute(
+        'data-host-link',
       );
     });
   });

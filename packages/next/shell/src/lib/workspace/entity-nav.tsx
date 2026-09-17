@@ -1,6 +1,6 @@
 'use client';
 
-import { screenAddress } from '@entifix/authz';
+import { screenAddress, type ScreenType } from '@entifix/authz';
 import { useRouter } from 'next/navigation';
 import { createContext, type ReactNode, useContext, useMemo } from 'react';
 
@@ -32,23 +32,30 @@ export function useRouteEntityNav(basePath = '/catalog'): EntityNav {
   );
 }
 
-/** Tab host: navigation opens or focuses a workspace tab. */
-export function useTabEntityNav(): EntityNav {
+/**
+ * Tab host: navigation opens or focuses a workspace tab of the given screen type.
+ *
+ * The type is a parameter because a record belongs to the tier its list is in:
+ * a stock item opened from an Operaciones list is `operation:stock-item:<id>`,
+ * and hardcoding `master` opened it under the wrong kind — which the registry
+ * cannot resolve, and whose draft nothing reads back.
+ */
+export function useTabEntityNav(type: ScreenType = 'master'): EntityNav {
   const open = useTabsState(state => state.open);
   return useMemo(
     () => ({
       toList: entityKey =>
         open({
-          param: screenAddress({ type: 'master', key: entityKey }),
+          param: screenAddress({ type, key: entityKey }),
           title: entityKey,
         }),
       toEntity: (entityKey, id) =>
         open({
-          param: screenAddress({ type: 'master', key: entityKey, id }),
+          param: screenAddress({ type, key: entityKey, id }),
           title: `${entityKey} #${id}`,
         }),
     }),
-    [open],
+    [open, type],
   );
 }
 
@@ -64,6 +71,17 @@ export function EntityNavProvider({
       {children}
     </EntityNavContext.Provider>
   );
+}
+
+/**
+ * The {@link EntityNav} a host mounted, or `undefined` on a plain route.
+ *
+ * For a page that must behave differently inside a tab — follow a link's `href`
+ * on a route, but open a tab instead of leaving the workspace — where
+ * {@link useEntityNav}'s route fallback would hide which host it is in.
+ */
+export function useEntityNavHost(): EntityNav | undefined {
+  return useContext(EntityNavContext) ?? undefined;
 }
 
 /**

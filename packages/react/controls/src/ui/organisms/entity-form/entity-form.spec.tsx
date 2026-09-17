@@ -16,6 +16,7 @@ import userEvent from '@testing-library/user-event';
 import { type ReactNode, useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
+import type { RenderLinkProps } from '../../actions/index.js';
 import { EntityForm } from './entity-form.js';
 import type { EntityFormField, EntityFormProps } from './entity-form.types.js';
 import { EntityActions, EntityField } from './entity-form-slots.js';
@@ -652,6 +653,34 @@ describe('EntityForm', () => {
       'href',
       '/list',
     );
+  });
+
+  // #20: the back action is a host-rendered link now, and a styled link rather
+  // than a button nested inside one.
+  it('hands the back link to a host renderer, and makes it inert while busy', () => {
+    const renderLink = vi.fn(
+      ({ href, className, children }: RenderLinkProps) => (
+        <a href={href} className={className}>
+          {children}
+        </a>
+      ),
+    );
+    render(
+      <Harness
+        entity={makeGadget()}
+        mode="edit"
+        backHref="/list"
+        renderLink={renderLink}
+        isSaving
+      />,
+    );
+
+    expect(renderLink).toHaveBeenCalledWith(
+      expect.objectContaining({ href: '/list', intent: { kind: 'back' } }),
+    );
+    const back = screen.getByRole('link', { name: 'Volver' });
+    expect(back.querySelector('button')).toBeNull();
+    expect(back.className).toContain('pointer-events-none');
   });
 
   it('surfaces loading and error states', () => {

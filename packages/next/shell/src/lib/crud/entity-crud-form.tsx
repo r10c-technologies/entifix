@@ -10,6 +10,7 @@ import {
 import {
   EntityField,
   EntityForm,
+  type RenderLink,
   useT,
   useTranslateKey,
 } from '@entifix/react-controls';
@@ -41,6 +42,8 @@ export interface EntityCrudFormProps<TEntity extends Entity> {
   /** Omitted for a create — there is nothing to delete yet. */
   readonly onDelete?: () => void;
   readonly backHref: string;
+  /** Renders the Back link; see `useCrudRenderLink`. */
+  readonly renderLink?: RenderLink;
   /**
    * Where to autosave this form's draft. Omitted by a route host, which is what
    * keeps a plain route ephemeral; the workspace tab host supplies one.
@@ -84,6 +87,7 @@ export function EntityCrudForm<TEntity extends Entity>({
   onSave,
   onDelete,
   backHref,
+  renderLink,
   draft,
   metadataSource,
   onUseCase,
@@ -199,6 +203,7 @@ export function EntityCrudForm<TEntity extends Entity>({
       isDeleting={isDeleting}
       error={error}
       backHref={backHref}
+      renderLink={renderLink}
       // `entity` is undefined until the record lands, so testing it alone
       // titled a loading edit form "New" and then relabelled it (#139).
       title={et(

@@ -10,6 +10,8 @@ import type {
 } from '@entifix/core';
 import type { ReactNode } from 'react';
 
+import type { RenderLink } from '../../actions/index.js';
+
 /** Whether the form shows values as text (`read`) or as inputs (`edit`). */
 export type EntityFormMode = 'read' | 'edit';
 
@@ -170,6 +172,11 @@ export interface EntityFormProps<TEntity extends Entity> {
 
   /** Link to return to, rendered as a `Back` action. Omit to hide it. */
   backHref?: string;
+  /**
+   * Renders the `Back` link. Defaults to a plain anchor, which a client-routed
+   * host experiences as a full document load. See {@link RenderLink}.
+   */
+  renderLink?: RenderLink;
   /** Heading for the card. Defaults to a generic label. */
   title?: ReactNode;
 

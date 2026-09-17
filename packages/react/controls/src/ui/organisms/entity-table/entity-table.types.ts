@@ -12,6 +12,8 @@ import type {
 } from '@entifix/core';
 import type { ReactNode } from 'react';
 
+import type { RenderLink } from '../../actions/index.js';
+
 /**
  * A column as the table finally renders it: the metadata descriptor plus the
  * per-column overrides a caller supplied through an `<EntityColumn>` slot.
@@ -77,6 +79,12 @@ export interface EntityTableProps<TEntity extends Entity> {
   hrefFor?: (id: EntityId) => string;
   /** Link to the create form. Omit and no `New` action is rendered. */
   newHref?: string;
+  /**
+   * Renders the `Open` and `New` links. Defaults to a plain anchor, which a
+   * client-routed host experiences as a full document load — pass one built on
+   * the host's own link component. See {@link RenderLink}.
+   */
+  renderLink?: RenderLink;
 
   /**
    * Picks a row instead of navigating to it — how a link picker reuses this

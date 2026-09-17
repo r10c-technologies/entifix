@@ -3,7 +3,24 @@
 import { parseScreenPayload, type ScreenType } from '@entifix/authz';
 import type { ReactNode } from 'react';
 
+import { CATALOG_NEW_SLUG } from '../crud/slug.js';
+import { EntityNavProvider, useTabEntityNav } from './entity-nav.js';
 import type { TabKind } from './tab-kind.js';
+
+/**
+ * Makes every page rendered in a tab of this kind navigate by tab.
+ *
+ * A generated page asks {@link useEntityNavHost} whether a host is mounted; with
+ * this around it, opening a record or going back opens a tab of the same kind
+ * rather than following the link out of the workspace.
+ */
+function TabNav({ type, children }: { type: ScreenType; children: ReactNode }) {
+  return (
+    <EntityNavProvider value={useTabEntityNav(type)}>
+      {children}
+    </EntityNavProvider>
+  );
+}
 
 /** One list a workspace may open — the collection half of a screen. */
 export interface EntityTabList {
@@ -74,10 +91,15 @@ export function entityTabKind(
     title: (addr, translate) =>
       addr.id === undefined
         ? translate(screens.lists[addr.key].titleKey)
-        : `${translate(screens.records[addr.key].labelKey)} #${addr.id}`,
-    render: addr =>
-      addr.id === undefined
-        ? screens.lists[addr.key].render()
-        : screens.records[addr.key].render(addr.id),
+        : addr.id === CATALOG_NEW_SLUG
+          ? `${translate(screens.records[addr.key].labelKey)} · ${translate('shell:breadcrumbs.new')}`
+          : `${translate(screens.records[addr.key].labelKey)} #${addr.id}`,
+    render: addr => (
+      <TabNav type={type}>
+        {addr.id === undefined
+          ? screens.lists[addr.key].render()
+          : screens.records[addr.key].render(addr.id)}
+      </TabNav>
+    ),
   };
 }

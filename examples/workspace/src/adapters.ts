@@ -21,10 +21,8 @@ import { customerInstances, invoiceInstances } from './seed';
  * nothing above this file changes.
  *
  * Module scope, so every screen shares one store for the life of the page —
- * and only the page. A full document load starts again from the seed, and the
- * generated list's "open" control is a plain link when a route hosts it, so
- * opening a record from `/invoices` is such a load. Inside the workspace every
- * move is client-side and saved records stay.
+ * and only the page. A full document load starts again from the seed; every
+ * generated link navigates client-side, so only a reload or a typed URL does.
  */
 export const repositories = {
   customers: makeInMemoryEntityRepository(customerInstances() as Entity[]),
