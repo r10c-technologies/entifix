@@ -3,6 +3,7 @@ import type { Subscription } from '@entifix/transactions';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 
+import { describeSagaStoreContract } from '../contracts/saga-store.contract.js';
 import {
   describeEventBusContract,
   describeLockServiceContract,
@@ -13,11 +14,13 @@ import { runFailure } from '../effect/run.js';
 import {
   makeInMemoryInboxes,
   makeInMemoryLockService,
+  makeInMemorySagaStore,
   makeInMemorySequenceService,
   makeRecordingEventBus,
 } from './transaction-ports.js';
 
 describeLockServiceContract('in-memory fake', makeInMemoryLockService);
+describeSagaStoreContract('in-memory fake', makeInMemorySagaStore);
 describeSequenceServiceContract('in-memory fake', makeInMemorySequenceService);
 describeEventBusContract('recording fake', () => {
   const bus = makeRecordingEventBus();
@@ -177,5 +180,15 @@ describe('makeRecordingEventBus', () => {
     const error = await runFailure(bus.deliver(anEvent('tx-1')));
 
     expect(String(error)).toContain('handler blew up');
+  });
+});
+
+describe('makeInMemorySagaStore', () => {
+  it('exposes what it holds, and ignores a write to an instance it never started', async () => {
+    const store = makeInMemorySagaStore();
+
+    await Effect.runPromise(store.settle('absent', 'COMPLETED'));
+
+    expect(store.instances).toEqual([]);
   });
 });

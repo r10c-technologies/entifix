@@ -49,8 +49,12 @@ interface FakeCollection {
       $addToSet?: Record<string, unknown>;
       $inc?: Record<string, unknown>;
       $setOnInsert?: Record<string, unknown>;
+      $push?: Record<string, unknown>;
     },
-    options?: { upsert?: boolean },
+    options?: {
+      upsert?: boolean;
+      arrayFilters?: ReadonlyArray<Record<string, unknown>>;
+    },
   ): Promise<{
     matchedCount: number;
     modifiedCount: number;
@@ -337,6 +341,63 @@ describe('makeFakeMongoDb', () => {
       expect(await collection.findOne({ id: 'w-1' })).toMatchObject({
         name: 'Alpha',
       });
+    });
+
+    it('updateOne appends with $push, duplicates and all', async () => {
+      const collection = collectionOf(seeded(), 'widget');
+
+      await collection.updateOne({ id: 'w-1' }, { $push: { log: 'a' } });
+      await collection.updateOne({ id: 'w-1' }, { $push: { log: 'a' } });
+
+      expect(await collection.findOne({ id: 'w-1' })).toMatchObject({
+        log: ['a', 'a'],
+      });
+    });
+
+    // How a saga store flags one recorded outcome compensated without reading
+    // the array back and writing it whole.
+    it('updateOne sets a member on the elements an array filter selects', async () => {
+      const collection = collectionOf(seeded(), 'widget');
+      await collection.updateOne(
+        { id: 'w-1' },
+        { $set: { steps: [{ id: 'a' }, { id: 'b' }, 'not-a-document'] } },
+      );
+
+      await collection.updateOne(
+        { id: 'w-1' },
+        { $set: { 'steps.$[entry].done': true, name: 'Walked' } },
+        { arrayFilters: [{ 'entry.id': 'b' }] },
+      );
+
+      expect(await collection.findOne({ id: 'w-1' })).toMatchObject({
+        name: 'Walked',
+        steps: [{ id: 'a' }, { id: 'b', done: true }, 'not-a-document'],
+      });
+    });
+
+    it('updateOne treats a filtered position on a missing array as empty', async () => {
+      const collection = collectionOf(seeded(), 'widget');
+
+      await collection.updateOne(
+        { id: 'w-1' },
+        { $set: { 'steps.$[entry].done': true } },
+        { arrayFilters: [{ 'entry.id': 'b' }] },
+      );
+
+      expect(await collection.findOne({ id: 'w-1' })).toMatchObject({
+        steps: [],
+      });
+    });
+
+    it('updateOne refuses a filtered position no array filter names', async () => {
+      const collection = collectionOf(seeded(), 'widget');
+
+      await expect(
+        collection.updateOne(
+          { id: 'w-1' },
+          { $set: { 'steps.$[entry].done': true } },
+        ),
+      ).rejects.toThrow('no array filter found for identifier entry');
     });
 
     it('updateOne appends a new member with $addToSet', async () => {

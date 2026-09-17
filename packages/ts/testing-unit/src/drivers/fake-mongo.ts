@@ -458,6 +458,12 @@ export const makeFakeMongoDb = (
      * implements is that an absolute-value write loses updates, so a fake that
      * computed the new total from a value it had already read would model the
      * bug rather than the fix.
+     *
+     * `$push` appends, and a `$set` key of the form `field.$[name].member`
+     * applies to every element of `field` that `options.arrayFilters` selects —
+     * the pair a saga store records an outcome with and later flags one
+     * compensated. Both are what keep an array update from being a
+     * read-modify-write, which is the point of using them.
      */
     updateOne: (
       query: QueryDocument,
@@ -466,11 +472,18 @@ export const makeFakeMongoDb = (
         $addToSet?: Document;
         $inc?: Document;
         $setOnInsert?: Document;
+        $push?: Document;
       },
-      options?: { upsert?: boolean },
+      options?: { upsert?: boolean; arrayFilters?: readonly Document[] },
     ) =>
       record(name, 'updateOne', () => {
-        const supported = ['$set', '$addToSet', '$inc', '$setOnInsert'];
+        const supported = [
+          '$set',
+          '$addToSet',
+          '$inc',
+          '$setOnInsert',
+          '$push',
+        ];
         const unsupported = Object.keys(update).filter(
           operator => !supported.includes(operator),
         );
@@ -493,9 +506,53 @@ export const makeFakeMongoDb = (
           );
         }
 
-        /** `$set`, `$addToSet` and `$inc`, which apply on both branches. */
+        /** `$set`, `$addToSet`, `$inc` and `$push`, which apply on both branches. */
         const applyOperators = (base: Document): Document => {
-          const updated = { ...base, ...(update.$set ?? {}) };
+          const plain = Object.entries(update.$set ?? {}).filter(
+            ([field]) => !field.includes('.$['),
+          );
+          const updated = { ...base, ...Object.fromEntries(plain) };
+          for (const [path, value] of Object.entries(update.$set ?? {})) {
+            const filtered = /^([^.]+)\.\$\[([^\]]+)\]\.(.+)$/.exec(path);
+            if (filtered === null) continue;
+            const [, field, identifier, member] = filtered as unknown as [
+              string,
+              string,
+              string,
+              string,
+            ];
+            // The server refuses a filtered position with no filter naming it.
+            const conditions = (options?.arrayFilters ?? []).flatMap(filter =>
+              Object.entries(filter)
+                .filter(([key]) => key.startsWith(`${identifier}.`))
+                .map(
+                  ([key, condition]) =>
+                    [key.slice(identifier.length + 1), condition] as const,
+                ),
+            );
+            if (conditions.length === 0) {
+              throw new Error(
+                `fake-mongo: no array filter found for identifier ${identifier}`,
+              );
+            }
+            const current = updated[field];
+            updated[field] = (Array.isArray(current) ? current : []).map(
+              element =>
+                isPlainObject(element) &&
+                conditions.every(([key, condition]) =>
+                  matchesCondition(element[key], condition),
+                )
+                  ? { ...element, [member]: value }
+                  : element,
+            );
+          }
+          for (const [field, value] of Object.entries(update.$push ?? {})) {
+            const current = updated[field];
+            updated[field] = [
+              ...(Array.isArray(current) ? current : []),
+              value,
+            ];
+          }
           for (const [field, value] of Object.entries(update.$addToSet ?? {})) {
             const current = updated[field];
             const array = Array.isArray(current) ? current : [];
@@ -602,6 +659,7 @@ export const makeFakeMongoDb = (
         $addToSet?: Document;
         $inc?: Document;
         $setOnInsert?: Document;
+        $push?: Document;
       },
       options?: { upsert?: boolean; returnDocument?: 'before' | 'after' },
     ) =>
