@@ -31,14 +31,20 @@ export default defineConfig({
       url: `http://localhost:${SERVICE_PORT}/api/health/ready`,
       reuseExistingServer: true,
       // The service must resolve published `dist`, never the workspace's
-      // TypeScript source, which Node cannot strip decorators from.
-      env: { NODE_OPTIONS: '' },
+      // TypeScript source, which Node cannot strip decorators from. Spread over
+      // the whole environment: `env` replaces it rather than merging, and a
+      // service started without `PATH` never starts at all.
+      env: { ...process.env, NODE_OPTIONS: '' } as Record<string, string>,
+      stdout: 'pipe',
+      stderr: 'pipe',
     },
     {
       command: `pnpm exec next start -p ${APP_PORT}`,
       cwd: join(workspaceRoot, 'examples/minimal'),
       url: `http://localhost:${APP_PORT}/api/health/live`,
       reuseExistingServer: true,
+      stdout: 'pipe',
+      stderr: 'pipe',
     },
   ],
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
