@@ -12,11 +12,11 @@ pnpm add @entifix/react-controls effect react
 
 ## Entry points
 
-| Import                               | What it holds                                                                             |
-| ------------------------------------ | ----------------------------------------------------------------------------------------- |
-| `@entifix/react-controls`            | Everything: entity organisms, layout primitives, atoms, theme and UI-preference providers |
-| `@entifix/react-controls/primitives` | Layout primitives and atoms only — no entity metadata                                     |
-| `@entifix/react-controls/i18next`    | `I18nProvider`, binding the controls to i18next                                           |
+| Import                               | What it holds                                                                                                                       |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `@entifix/react-controls`            | Everything: entity organisms, layout primitives, atoms, theme and UI-preference providers                                           |
+| `@entifix/react-controls/primitives` | Layout primitives, atoms and presentational molecules (`SegmentedNav`, `SplitView`, `NavMenu`…), `ThemeScript` — no entity metadata |
+| `@entifix/react-controls/i18next`    | `I18nProvider`, binding the controls to i18next                                                                                     |
 
 ## Optional peers
 

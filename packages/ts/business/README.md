@@ -12,9 +12,9 @@ pnpm add @entifix/business effect
 
 ## Entry points
 
-| Import              | What it holds                                                                                                                    |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `@entifix/business` | Port tags, `getUCFactory` / `loadUCFactory` / `saveUCFactory` / `deleteUCFactory`, `HealthRegistryLayer`, `makeShutdownRegistry` |
+| Import              | What it holds                                                                                                                                                                                                                                             |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@entifix/business` | Port tags, `getUCFactory` / `loadUCFactory` / `saveUCFactory` / `deleteUCFactory`, `loadAllUCFactory` (every record a request keeps, page by page), `resolveLinksUCFactory` (chosen links of many records), `HealthRegistryLayer`, `makeShutdownRegistry` |
 
 ---
 

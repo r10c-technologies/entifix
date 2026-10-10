@@ -49,6 +49,9 @@ describeEntityRepositoryContract('in-memory fake', { makeRepository: seed => mak
 describeEntityRepositoryContract('mongo adapter over a fake driver', { makeRepository: seed => makeMongoRepository(fakeDb, Widget) });
 ```
 
+A read-only adapter runs `describeEntityRepositoryReadContract` alone;
+`describeEntityRepositoryContract` is it and `describeEntityRepositoryWriteContract`.
+
 This is what keeps a fake from quietly becoming a more forgiving version of the
 thing it stands in for. `@entifix/testing-integration` will later run
 the same suites against real infrastructure.
