@@ -1,3 +1,13 @@
+## 0.1.3 (2026-10-10)
+
+### 🚀 Features
+
+- unpaged loads, link targets, a URL filter and controls from myself-app ([#42](https://github.com/r10c-technologies/entifix/pull/42))
+
+### ❤️ Thank You
+
+- Herber Colop
+
 ## 0.1.2 (2026-09-17)
 
 ### 🚀 Features
