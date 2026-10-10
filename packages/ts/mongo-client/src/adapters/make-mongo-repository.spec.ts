@@ -115,7 +115,7 @@ describe('makeMongoRepository', () => {
 
     expect(fake.operations.map(op => op.op)).toContain('replaceOne');
     expect(fake.read(COLLECTION)).toEqual([
-      { id: 'w-1', name: 'Alpha', size: 10 },
+      { id: 'w-1', name: 'Alpha', size: 10, tags: [] },
     ]);
   });
 

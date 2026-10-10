@@ -19,6 +19,7 @@
     "jest.config.cts",
     "src/**/*.spec.ts",
     "src/**/*.test.ts",
+    "src/**/spec-support/**",
     "src/**/*.spec.tsx",
     "src/**/*.test.tsx",
     "src/**/*.spec.js",

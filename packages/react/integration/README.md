@@ -12,9 +12,10 @@ pnpm add @entifix/react-integration @tanstack/react-form @tanstack/react-query e
 
 ## Entry points
 
-| Import                       | What it holds                                                                                                                                       |
-| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@entifix/react-integration` | `EntifixQueryProvider`, `useEntityRecord`, `useEntityForm`, `useEntityMutation`, `useWizard`, `useReactiveInvalidation`, `useTransactionSettlement` |
+| Import                           | What it holds                                                                                                                                                           |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@entifix/react-integration`     | `EntifixQueryProvider`, `useEntityRecord`, `useEntityForm`, `useEntityMutation`, `useWizard`, `useReactiveInvalidation`, `useTransactionSettlement`                     |
+| `@entifix/react-integration/url` | `defineUrlQuery`, `useUrlState`, `useEntityLoad`, `useUrlFilter`: a filter kept in the query string, answered by `loadAllUCFactory` over an `EntitySource`. No TanStack |
 
 ---
 

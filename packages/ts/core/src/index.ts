@@ -12,6 +12,7 @@ export * from './entity-definition/links/apply-entity-links/index.js';
 export * from './entity-definition/links/entity-collection-link/index.js';
 export * from './entity-definition/links/entity-link/index.js';
 export * from './entity-definition/links/entity-link-source/index.js';
+export * from './entity-definition/links/link-targets/index.js';
 export * from './entity-definition/meta-entities/meta-accessor/index.js';
 export * from './entity-definition/meta-entities/meta-entity/index.js';
 export * from './entity-definition/meta-entities/meta-method/index.js';

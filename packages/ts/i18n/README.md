@@ -12,6 +12,8 @@ pnpm add @entifix/i18n i18next
 
 ## Entry points
 
+`fill` fills `{{name}}` placeholders of a string already translated, and `CatalogShape<T>` is the type a second locale's catalog `satisfies`.
+
 | Import                  | What it holds                                                                                    |
 | ----------------------- | ------------------------------------------------------------------------------------------------ |
 | `@entifix/i18n`         | `defineCatalogs`, `createI18n`, `getServerTFor`                                                  |

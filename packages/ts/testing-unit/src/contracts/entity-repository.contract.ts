@@ -15,6 +15,7 @@ export class ContractWidget implements Entity {
   #id?: EntityId;
   #name?: string;
   #size?: number;
+  #tags: readonly string[] = [];
 
   @accessor({ type: 'id' })
   get id(): EntityId {
@@ -39,17 +40,27 @@ export class ContractWidget implements Entity {
   set size(value: number | undefined) {
     this.#size = value;
   }
+
+  @accessor({ type: 'scalarCollection' })
+  get tags(): readonly string[] {
+    return this.#tags;
+  }
+  set tags(value: readonly string[]) {
+    this.#tags = value;
+  }
 }
 
 export const makeContractWidget = (
   id: EntityId,
   name: string,
   size: number,
+  tags: readonly string[] = [],
 ): ContractWidget => {
   const widget = new ContractWidget();
   widget.id = id;
   widget.name = name;
   widget.size = size;
+  widget.tags = tags;
   return widget;
 };
 
@@ -64,20 +75,16 @@ export interface EntityRepositoryContractOptions {
 }
 
 /**
- * The behaviour every {@link EntityRepository} must exhibit, regardless of what
- * backs it.
- *
- * Run it against the in-memory fake *and* against each real adapter. That is
- * what stops a fake from drifting into a more forgiving version of the thing it
- * stands in for — the failure mode where a suite is green and production is
- * not. `entifix-ts-testing-integration` will run this same suite against real
- * infrastructure later.
+ * The reads every {@link EntityRepository} must answer alike: `load` with its
+ * paging, filtering and sorting, and `get`. A read-only adapter — one over
+ * static files, say — runs this half alone, since it refuses `save` and
+ * `delete` by design.
  */
-export const describeEntityRepositoryContract = (
+export const describeEntityRepositoryReadContract = (
   name: string,
   { makeRepository }: EntityRepositoryContractOptions,
 ): void => {
-  describe(`EntityRepository contract: ${name}`, () => {
+  describe(`EntityRepository read contract: ${name}`, () => {
     const seeded = () => [
       makeContractWidget('w-1', 'Alpha', 10),
       makeContractWidget('w-2', 'Beta', 20),
@@ -107,21 +114,6 @@ export const describeEntityRepositoryContract = (
           repository.load<ContractWidget>({}),
         );
         expect(reloaded.items[0]!.name).toBe('Alpha');
-      });
-    });
-
-    it('keeps a saved record unchanged when the saved instance is mutated afterwards', async () => {
-      await withRepository(async repository => {
-        const widget = makeContractWidget('w-9', 'Delta', 40);
-        const returned = await runRepository(repository.save(widget));
-
-        widget.name = 'Mutated';
-        returned.name = 'Mutated too';
-
-        const stored = await runRepository(
-          repository.get<ContractWidget>('w-9'),
-        );
-        expect(stored.name).toBe('Delta');
       });
     });
 
@@ -202,6 +194,35 @@ export const describeEntityRepositoryContract = (
       });
     });
 
+    it('matches `in` and `nin` against any element of an array member', async () => {
+      await withRepository(
+        async repository => {
+          const tagged = await runRepository(
+            repository.load<ContractWidget>({
+              filtering: [
+                { property: 'tags', operator: 'in', values: ['blue', 'red'] },
+              ],
+            }),
+          );
+          expect(tagged.items.map(item => item.id)).toEqual(['w-1', 'w-3']);
+
+          const untagged = await runRepository(
+            repository.load<ContractWidget>({
+              filtering: [
+                { property: 'tags', operator: 'nin', values: ['blue', 'red'] },
+              ],
+            }),
+          );
+          expect(untagged.items.map(item => item.id)).toEqual(['w-2']);
+        },
+        [
+          makeContractWidget('w-1', 'Alpha', 10, ['blue', 'green']),
+          makeContractWidget('w-2', 'Beta', 20, ['green']),
+          makeContractWidget('w-3', 'Gamma', 30, ['red']),
+        ],
+      );
+    });
+
     it('sorts descending when asked to', async () => {
       await withRepository(async repository => {
         const page = await runRepository(
@@ -232,6 +253,51 @@ export const describeEntityRepositoryContract = (
         );
 
         expect(Exit.isFailure(exit)).toBe(true);
+      });
+    });
+
+    it('loads an empty page from an empty store', async () => {
+      await withRepository(async repository => {
+        const page = await runRepository(repository.load<ContractWidget>({}));
+
+        expect(page.items).toEqual([]);
+        expect(page.total).toBe(0);
+      }, []);
+    });
+  });
+};
+
+/** The writes every {@link EntityRepository} that accepts them must honour. */
+export const describeEntityRepositoryWriteContract = (
+  name: string,
+  { makeRepository }: EntityRepositoryContractOptions,
+): void => {
+  describe(`EntityRepository write contract: ${name}`, () => {
+    const seeded = () => [
+      makeContractWidget('w-1', 'Alpha', 10),
+      makeContractWidget('w-2', 'Beta', 20),
+      makeContractWidget('w-3', 'Gamma', 30),
+    ];
+
+    const withRepository = async (
+      use: (repository: EntityRepository) => Promise<void>,
+      seed: ContractWidget[] = seeded(),
+    ) => {
+      await use(await makeRepository(seed));
+    };
+
+    it('keeps a saved record unchanged when the saved instance is mutated afterwards', async () => {
+      await withRepository(async repository => {
+        const widget = makeContractWidget('w-9', 'Delta', 40);
+        const returned = await runRepository(repository.save(widget));
+
+        widget.name = 'Mutated';
+        returned.name = 'Mutated too';
+
+        const stored = await runRepository(
+          repository.get<ContractWidget>('w-9'),
+        );
+        expect(stored.name).toBe('Delta');
       });
     });
 
@@ -298,14 +364,23 @@ export const describeEntityRepositoryContract = (
         expect(page.total).toBe(3);
       });
     });
-
-    it('loads an empty page from an empty store', async () => {
-      await withRepository(async repository => {
-        const page = await runRepository(repository.load<ContractWidget>({}));
-
-        expect(page.items).toEqual([]);
-        expect(page.total).toBe(0);
-      }, []);
-    });
   });
+};
+
+/**
+ * The behaviour every {@link EntityRepository} must exhibit, regardless of what
+ * backs it: both halves.
+ *
+ * Run it against the in-memory fake *and* against each real adapter. That is
+ * what stops a fake from drifting into a more forgiving version of the thing it
+ * stands in for — the failure mode where a suite is green and production is
+ * not. `entifix-ts-testing-integration` will run this same suite against real
+ * infrastructure later.
+ */
+export const describeEntityRepositoryContract = (
+  name: string,
+  options: EntityRepositoryContractOptions,
+): void => {
+  describeEntityRepositoryReadContract(name, options);
+  describeEntityRepositoryWriteContract(name, options);
 };
