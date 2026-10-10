@@ -4,10 +4,12 @@ import {
   EntifixConnError,
   type EntifixError,
   type Entity,
+  EntityCollectionLink,
   type EntityConstructor,
   type EntityFilter,
   type EntityFiltering,
   type EntityId,
+  EntityLink,
   type EntityLoadRequest,
   type EntityPage,
   type EntitySorting,
@@ -25,6 +27,24 @@ const isFilterGroup = <TEntity extends Entity>(
   node: EntityFilter<TEntity> | FilterGroup<TEntity>,
 ): node is FilterGroup<TEntity> =>
   !('property' in node) && (node.operator === 'and' || node.operator === 'or');
+
+/**
+ * A member as the Mongo adapter stores it, and so as its queries see it: a
+ * link is its target's id, a collection link the list of their ids. Without
+ * this no operator can compare a link, since `eq` against an id is never
+ * `true` for an object.
+ */
+const storedValue = (value: unknown): unknown => {
+  if (value instanceof EntityLink) return value.id;
+  if (value instanceof EntityCollectionLink) return value.ids;
+  return value;
+};
+
+/** `$in` semantics: a scalar matches a value, an array when any element does. */
+const matchesAny = (actual: unknown, values: readonly unknown[]): boolean =>
+  Array.isArray(actual)
+    ? actual.some(element => values.includes(element))
+    : values.includes(actual);
 
 const compareValues = (left: unknown, right: unknown): number => {
   if (left === right) return 0;
@@ -50,7 +70,9 @@ const matchesNode = <TEntity extends Entity>(
       : node.values.every(child => matchesNode(item, child));
   }
 
-  const actual = (item as Record<string, unknown>)[String(node.property)];
+  const actual = storedValue(
+    (item as Record<string, unknown>)[String(node.property)],
+  );
 
   switch (node.operator) {
     case 'eq':
@@ -66,9 +88,9 @@ const matchesNode = <TEntity extends Entity>(
     case 'lte':
       return compareValues(actual, node.value) <= 0;
     case 'in':
-      return node.values.includes(actual as TEntity[keyof TEntity]);
+      return matchesAny(actual, node.values);
     case 'nin':
-      return !node.values.includes(actual as TEntity[keyof TEntity]);
+      return !matchesAny(actual, node.values);
     case 'between':
       return (
         compareValues(actual, node.start) >= 0 &&

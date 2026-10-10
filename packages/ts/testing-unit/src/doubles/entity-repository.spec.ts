@@ -1,4 +1,8 @@
-import { EntifixConnError } from '@entifix/core';
+import {
+  EntifixConnError,
+  EntityCollectionLink,
+  EntityLink,
+} from '@entifix/core';
 import { Exit } from 'effect';
 import { describe, expect, it } from 'vitest';
 
@@ -389,5 +393,48 @@ describe('makeInMemoryEntityRepository value comparison', () => {
     );
 
     expect(page.items.map(item => item.id)).toEqual(['w-1']);
+  });
+
+  it('filters a link by the id it names, as Mongo stores it', async () => {
+    class Area {
+      id = 'a';
+    }
+    class Note {
+      constructor(
+        public id: string,
+        public area: EntityLink<Area>,
+        public areas: EntityCollectionLink<Area>,
+      ) {}
+    }
+    const repository = makeInMemoryEntityRepository([
+      new Note(
+        'n-1',
+        new EntityLink(Area, { id: 'a-1' }),
+        new EntityCollectionLink(Area, { ids: ['a-1', 'a-2'] }),
+      ) as never,
+      new Note(
+        'n-2',
+        new EntityLink(Area, { id: 'a-2' }),
+        new EntityCollectionLink(Area, { ids: ['a-3'] }),
+      ) as never,
+    ]);
+    const ids = async (filtering: object[]) =>
+      (
+        await runRepository(
+          repository.load<Note & { id: string }>({
+            filtering: filtering as never,
+          }),
+        )
+      ).items.map(item => item.id);
+
+    expect(
+      await ids([{ property: 'area', operator: 'eq', value: 'a-2' }]),
+    ).toEqual(['n-2']);
+    expect(
+      await ids([{ property: 'areas', operator: 'in', values: ['a-2'] }]),
+    ).toEqual(['n-1']);
+    expect(
+      await ids([{ property: 'area', operator: 'in', values: ['a-1'] }]),
+    ).toEqual(['n-1']);
   });
 });
