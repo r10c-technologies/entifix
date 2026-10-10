@@ -26,6 +26,7 @@
     ".*\\.spec.tsx?$",
     ".*\\.test.tsx?$",
     ".*\\.stories.tsx?$",
+    ".*/spec-support/.*",
     "./src/jest-setup.ts$",
     "./**/jest-setup.ts$",
     ".*.js$"
