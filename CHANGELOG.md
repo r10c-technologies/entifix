@@ -1,3 +1,17 @@
+## 0.2.0 (2026-10-20)
+
+### 🚀 Features
+
+- ⚠️ migrate to effect 4 ([#46](https://github.com/r10c-technologies/entifix/pull/46))
+
+### ⚠️ Breaking Changes
+
+- migrate to effect 4 ([#46](https://github.com/r10c-technologies/entifix/pull/46))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.1.4 (2026-10-20)
 
 ### 🩹 Fixes
