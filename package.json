@@ -60,7 +60,7 @@
     "autoprefixer": "10.5.2",
     "axios": "1.19.0",
     "core-js": "3.49.0",
-    "effect": "3.22.1",
+    "effect": "3.22.2",
     "eslint": "10.6.0",
     "eslint-config-next": "16.2.9",
     "eslint-config-prettier": "10.1.8",

@@ -54,7 +54,7 @@
   "devDependencies": {
     "@entifix/testing-unit": "workspace:*",
     "@tanstack/react-query": "^5.101.4",
-    "effect": "3.22.1",
+    "effect": "3.22.2",
     "i18next": "26.3.6",
     "next": "16.2.10",
     "react": "19.2.8",
@@ -78,7 +78,7 @@
   ],
   "peerDependencies": {
     "@tanstack/react-query": ">=5.101 <6",
-    "effect": ">=3.22 <4",
+    "effect": ">=3.22.2 <4",
     "i18next": ">=26 <27",
     "next": ">=16 <17",
     "react": ">=19 <20",

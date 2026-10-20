@@ -21,7 +21,7 @@
     }
   },
   "dependencies": {
-    "@effect/platform": "0.97.1",
+    "@effect/platform": "0.97.2",
     "@effect/sql": "0.52.1",
     "@effect/sql-pg": "0.53.0",
     "@entifix/authz": "workspace:*",
@@ -31,6 +31,6 @@
     "@entifix/service-shell": "workspace:*",
     "@entifix/sql": "workspace:*",
     "@entifix/testing-auth": "workspace:*",
-    "effect": "3.22.1"
+    "effect": "3.22.2"
   }
 }
