@@ -1,3 +1,5 @@
+import './locales';
+
 import { defineCatalogs } from '@entifix/i18n';
 import { shellCatalogs, type ShellResources } from '@entifix/next-shell';
 import {

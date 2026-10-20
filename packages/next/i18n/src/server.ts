@@ -1,5 +1,5 @@
 import {
-  DEFAULT_LOCALE,
+  defaultLocale,
   isLocale,
   type Locale,
   LOCALE_HEADER,
@@ -13,7 +13,7 @@ import { headers } from 'next/headers';
  *
  * Read from a header rather than a route param — that is the trade the rewrite
  * strategy makes, and it is why the back-office route trees have no
- * `app/[locale]` segment. Falls back to the fleet default for paths the
+ * `app/[locale]` segment. Falls back to the host's default for paths the
  * middleware matcher skips (`/api/health`, `/api/config`), which have no
  * user-facing copy anyway.
  *
@@ -26,7 +26,7 @@ import { headers } from 'next/headers';
  */
 export async function getRequestLocale(): Promise<Locale> {
   const value = (await headers()).get(LOCALE_HEADER);
-  return isLocale(value) ? value : DEFAULT_LOCALE;
+  return isLocale(value) ? value : defaultLocale();
 }
 
 /**

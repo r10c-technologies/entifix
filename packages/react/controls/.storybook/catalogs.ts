@@ -10,4 +10,6 @@ defineCatalogs({
   resources: controlsCatalogs,
   namespaces: ['controls'],
   defaultNS: 'controls',
+  locales: ['es', 'en'],
+  defaultLocale: 'es',
 });

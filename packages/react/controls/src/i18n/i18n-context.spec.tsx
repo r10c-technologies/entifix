@@ -1,5 +1,6 @@
+import { defineLocales } from '@entifix/core';
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import { I18nProvider } from '../i18next/index.js';
 import { registerFallbackCatalog } from './fallback-catalogs.js';
@@ -66,7 +67,7 @@ describe('I18nProvider', () => {
     expect(translated[1]).toHaveTextContent('Open');
   });
 
-  it('renders the fleet default when nobody mounted a provider', () => {
+  it("renders the host's default when nobody mounted a provider", () => {
     render(<Probe />);
 
     expect(screen.getByTestId('locale')).toHaveTextContent('es');
@@ -155,5 +156,24 @@ describe('the no-provider fallback', () => {
     });
     render(<Bare ns="demo" k="hello" />);
     expect(screen.getByTestId('out')).toHaveTextContent('Hola');
+  });
+
+  describe("follows the host's declared default", () => {
+    afterEach(() => installSpecCatalogs());
+
+    it('speaks English when the host defaults to it', () => {
+      defineLocales({ locales: ['en', 'es'], defaultLocale: 'en' });
+      render(<Probe />);
+
+      expect(screen.getByTestId('locale')).toHaveTextContent('en');
+      expect(screen.getByTestId('translated')).toHaveTextContent('Open');
+    });
+
+    it('falls back to its own English for a locale it ships no copy for', () => {
+      defineLocales({ locales: ['pt', 'en'], defaultLocale: 'pt' });
+      render(<Bare k="table.open" />);
+
+      expect(screen.getByTestId('out')).toHaveTextContent('Open');
+    });
   });
 });

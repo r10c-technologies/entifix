@@ -1,5 +1,6 @@
+import { defaultLocale, locales, resetLocales } from '@entifix/core';
 import type { ThirdPartyModule } from 'i18next';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   createI18n,
@@ -44,8 +45,10 @@ const CATALOGS = {
 
 beforeEach(() => {
   resetCatalogs();
-  defineCatalogs(CATALOGS);
+  defineCatalogs({ ...CATALOGS, locales: ['es', 'en'], defaultLocale: 'es' });
 });
+
+afterEach(() => resetLocales());
 
 describe('createI18n', () => {
   it('resolves keys synchronously, so the first paint is already translated', () => {
@@ -101,7 +104,7 @@ describe('createI18n', () => {
 });
 
 describe('sharedFallbackI18n', () => {
-  it('serves the fleet default locale, not raw keys', () => {
+  it("serves the host's default locale, not raw keys", () => {
     expect(sharedFallbackI18n().t('controls:table.open')).toBe('Abrir');
   });
 
@@ -161,5 +164,42 @@ describe('defineCatalogs', () => {
     // A loud failure rather than an i18next instance with no resources, which
     // would render raw keys at a user and look like a translation bug.
     expect(() => createI18n('es')).toThrow(/No i18n catalogs are installed/);
+  });
+
+  it('declares the locales it is handed, the same call defineLocales makes', () => {
+    expect(locales()).toEqual(['es', 'en']);
+    expect(defaultLocale()).toBe('es');
+  });
+
+  it('leaves the locales alone when given none', () => {
+    resetLocales();
+    defineCatalogs(CATALOGS);
+
+    expect(locales()).toEqual(['en']);
+  });
+
+  it('refuses half a locale declaration', () => {
+    expect(() => defineCatalogs({ ...CATALOGS, locales: ['es'] })).toThrow(
+      /`locales` and `defaultLocale` together/,
+    );
+    expect(() => defineCatalogs({ ...CATALOGS, defaultLocale: 'es' })).toThrow(
+      /`locales` and `defaultLocale` together/,
+    );
+  });
+
+  it('falls back to the default the host declared, English included', () => {
+    defineCatalogs({
+      resources: {
+        en: { controls: { table: { open: 'Open' } } },
+        es: { controls: {} },
+      },
+      namespaces: ['controls'],
+      defaultNS: 'controls',
+      locales: ['en', 'es'],
+      defaultLocale: 'en',
+    });
+
+    expect(createI18n('es').t('table.open')).toBe('Open');
+    expect(sharedFallbackI18n().language).toBe('en');
   });
 });

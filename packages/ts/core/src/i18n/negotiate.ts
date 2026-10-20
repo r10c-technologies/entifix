@@ -1,4 +1,4 @@
-import { DEFAULT_LOCALE, isLocale, type Locale } from './locales.js';
+import { defaultLocale, isLocale, type Locale } from './locales.js';
 
 export interface LocalePath {
   /** The locale carried by the path's first segment, if it names one. */
@@ -80,7 +80,7 @@ export interface NegotiateLocaleInput {
 /**
  * The one place the precedence lives: an explicit path prefix beats the visitor's
  * remembered choice, which beats what their browser asks for, which beats the
- * fleet default. Pure, so the same function runs in edge middleware, in a server
+ * host's default. Pure, so the same function runs in edge middleware, in a server
  * component and in a test.
  */
 export function negotiateLocale({
@@ -93,5 +93,5 @@ export function negotiateLocale({
   if (fromPath !== undefined) return fromPath;
   if (isLocale(cookie)) return cookie;
 
-  return parseAcceptLanguage(acceptLanguage) ?? DEFAULT_LOCALE;
+  return parseAcceptLanguage(acceptLanguage) ?? defaultLocale();
 }

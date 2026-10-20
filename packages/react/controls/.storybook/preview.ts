@@ -1,7 +1,7 @@
 import './preview.css';
 import './catalogs.js';
 
-import { type Locale, LOCALES } from '@entifix/core';
+import { type Locale, locales } from '@entifix/core';
 import { withThemeByDataAttribute } from '@storybook/addon-themes';
 import type { Preview } from '@storybook/react-vite';
 import { createElement } from 'react';
@@ -24,7 +24,7 @@ const preview: Preview = {
       description: 'Locale',
       toolbar: {
         icon: 'globe',
-        items: [...LOCALES],
+        items: [...locales()],
         dynamicTitle: true,
       },
     },

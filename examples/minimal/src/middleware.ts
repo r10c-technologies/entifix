@@ -1,3 +1,5 @@
+import './locales';
+
 import { resolveLocale, rewriteToLocale } from '@entifix/next-i18n';
 import { stubSessionCookie } from '@entifix/testing-auth';
 import type { NextRequest, NextResponse } from 'next/server';

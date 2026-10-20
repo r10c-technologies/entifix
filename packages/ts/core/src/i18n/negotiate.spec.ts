@@ -1,11 +1,16 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { defineLocales, resetLocales } from './locales.js';
 import {
   localeHref,
   negotiateLocale,
   parseAcceptLanguage,
   splitLocalePath,
 } from './negotiate.js';
+
+// The host's declaration, not a default: entifix assumes no locale of its own.
+beforeEach(() => defineLocales({ locales: ['es', 'en'], defaultLocale: 'es' }));
+afterEach(() => resetLocales());
 
 describe('splitLocalePath', () => {
   it('peels a locale off the first segment', () => {
@@ -111,10 +116,16 @@ describe('negotiateLocale', () => {
     expect(negotiateLocale({ cookie: 'fr', acceptLanguage: 'en' })).toBe('en');
   });
 
-  it('falls back to the fleet default', () => {
+  it('falls back to the default the host declared', () => {
     expect(negotiateLocale({})).toBe('es');
     expect(negotiateLocale({ pathname: '/users', acceptLanguage: 'fr' })).toBe(
       'es',
     );
+  });
+
+  it('follows a host whose default is English', () => {
+    defineLocales({ locales: ['en', 'es'], defaultLocale: 'en' });
+
+    expect(negotiateLocale({ acceptLanguage: 'fr' })).toBe('en');
   });
 });

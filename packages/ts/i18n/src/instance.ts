@@ -1,4 +1,10 @@
-import { DEFAULT_LOCALE, EntifixBuildError, type Locale } from '@entifix/core';
+import {
+  defaultLocale,
+  defineLocales,
+  EntifixBuildError,
+  type Locale,
+  type LocaleDefinition,
+} from '@entifix/core';
 import i18next, {
   type i18n,
   type Namespace,
@@ -21,9 +27,18 @@ export interface I18nCatalogs {
   readonly resources: Readonly<Record<string, LocaleCatalogs>>;
   readonly namespaces: readonly string[];
   readonly defaultNS: string;
+  /**
+   * The host's locales, when it declares them here rather than through
+   * `defineLocales` from `@entifix/core` — the same call, made for it. A host
+   * whose middleware routes by locale still declares them there too: the
+   * middleware is bundled apart and never loads this package.
+   */
+  readonly locales?: LocaleDefinition['locales'];
+  readonly defaultLocale?: LocaleDefinition['defaultLocale'];
 }
 
 let installed: I18nCatalogs | undefined;
+let shared: i18n | undefined;
 
 /**
  * Hand this package the application's catalogs. Call it once, from a module
@@ -41,7 +56,22 @@ let installed: I18nCatalogs | undefined;
  * loading i18next or a single translation.
  */
 export function defineCatalogs(catalogs: I18nCatalogs): void {
+  if (catalogs.locales !== undefined || catalogs.defaultLocale !== undefined) {
+    if (
+      catalogs.locales === undefined ||
+      catalogs.defaultLocale === undefined
+    ) {
+      throw new EntifixBuildError(
+        'defineCatalogs takes `locales` and `defaultLocale` together, or neither.',
+      );
+    }
+    defineLocales({
+      locales: catalogs.locales,
+      defaultLocale: catalogs.defaultLocale,
+    });
+  }
   installed = catalogs;
+  shared = undefined;
 }
 
 const required = (): I18nCatalogs => {
@@ -81,7 +111,8 @@ export function createI18n(
 
   instance.init({
     lng: locale,
-    fallbackLng: DEFAULT_LOCALE,
+    // Read per instance, so a host's `defineLocales` decides it (#35).
+    fallbackLng: defaultLocale(),
     ns: [...catalogs.namespaces],
     defaultNS: catalogs.defaultNS,
     resources: catalogs.resources,
@@ -119,8 +150,6 @@ export function getServerTFor<N extends Namespace>(locale: Locale, ns?: N) {
   return createI18n(locale).getFixedT(locale, ns ?? null);
 }
 
-let shared: i18n | undefined;
-
 /**
  * The instance used when no provider is mounted — Storybook, a unit spec, a
  * screen that forgot.
@@ -129,14 +158,14 @@ let shared: i18n | undefined;
  * resolves copy through its own `useTranslation`, and react-i18next falls back
  * to its *uninitialized* global when no provider is in the tree — which renders
  * raw keys at the user. Handing every caller the same initialized default
- * instance makes that failure mode "the fleet default locale" instead.
+ * instance makes that failure mode "the host's default locale" instead.
  *
  * Built lazily, so an app that always mounts a provider never pays for it.
  */
 export function sharedFallbackI18n(
   modules: readonly ThirdPartyModule[] = [],
 ): i18n {
-  shared ??= createI18n(DEFAULT_LOCALE, modules);
+  shared ??= createI18n(defaultLocale(), modules);
   return shared;
 }
 
