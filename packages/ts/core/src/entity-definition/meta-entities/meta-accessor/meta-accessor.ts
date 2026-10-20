@@ -5,6 +5,9 @@ export type MetaAccessorKind = 'getter' | 'setter';
  * care. It is deliberately a presentation/behaviour taxonomy rather than a
  * TypeScript mirror: `id` and `enum` are strings at runtime but are rendered,
  * sorted and filtered differently.
+ *
+ * `localized` holds a text per locale (`LocalizedText`). It is queried only
+ * through one locale at a time — `name.en` — never as the whole object.
  */
 export const MetaAccessorTypes = [
   'string',
@@ -17,6 +20,7 @@ export const MetaAccessorTypes = [
   'linkCollection',
   'composition',
   'scalarCollection',
+  'localized',
 ] as const;
 export type MetaAccessorType = (typeof MetaAccessorTypes)[number];
 

@@ -4,6 +4,7 @@ import {
   type EntityFieldDescriptor,
 } from '../entity-definition/describe/index.js';
 import type { MetaAccessorType } from '../entity-definition/meta-entities/meta-accessor/index.js';
+import { isLocale, type Locale } from '../i18n/locales.js';
 import type { Entity, EntityConstructor } from '../types/Entity.js';
 import type { EntityFilter, FilterGroup } from '../types/EntityFiltering.js';
 import {
@@ -36,6 +37,55 @@ export function allowedDescriptors<TEntity extends Entity>(
 
 const reject = (message: string, details?: Record<string, unknown>) =>
   new EntifixBuildError(message, undefined, details);
+
+/** A query property resolved against the allowlist. */
+export interface AllowedProperty {
+  readonly descriptor: EntityFieldDescriptor;
+  /**
+   * What an adapter names: the member's wire key, or for a `localized` member
+   * the path to one locale's text (`title.en`).
+   */
+  readonly key: string;
+  /** The locale a `localized` member is queried in. */
+  readonly locale?: Locale;
+}
+
+/**
+ * Resolves the property a filter or a sort names, or rejects it.
+ *
+ * A `localized` member is the one that takes a path: it holds an object, and
+ * comparing an object as text matches nothing, so it is only ever queried
+ * through one locale — `title.en` — and that locale must be one the host
+ * declared. The bare member is rejected with a message that says so.
+ */
+export function resolveAllowedProperty(
+  allowed: Map<string, EntityFieldDescriptor>,
+  property: string,
+  requirement: 'filterable' | 'sortable',
+): AllowedProperty {
+  const direct = allowed.get(property);
+  if (direct !== undefined) {
+    if (direct.type === 'localized') {
+      throw reject(
+        `"${property}" is localized; name one locale, as "${property}.<locale>"`,
+        { property },
+      );
+    }
+    return { descriptor: direct, key: direct.key };
+  }
+
+  const dot = property.indexOf('.');
+  const descriptor =
+    dot === -1 ? undefined : allowed.get(property.slice(0, dot));
+  if (descriptor?.type !== 'localized') {
+    throw reject(`"${property}" is not a ${requirement} member`, { property });
+  }
+  const locale = property.slice(dot + 1);
+  if (!isLocale(locale)) {
+    throw reject(`"${locale}" is not a declared locale`, { property });
+  }
+  return { descriptor, key: `${descriptor.key}.${locale}`, locale };
+}
 
 /** Re-types one raw argument from the member's declared type. */
 function coerceValue(raw: string, descriptor: EntityFieldDescriptor): unknown {
@@ -75,16 +125,16 @@ function coerceFilter<TEntity extends Entity>(
   raw: RawFilter,
   allowed: Map<string, EntityFieldDescriptor>,
 ): EntityFilter<TEntity> {
-  const descriptor = allowed.get(raw.property);
-  if (!descriptor) {
-    throw reject(`"${raw.property}" is not a filterable member`, {
-      property: raw.property,
-    });
-  }
+  const { descriptor, key } = resolveAllowedProperty(
+    allowed,
+    raw.property,
+    'filterable',
+  );
 
   // The wire key is also the stored field name, so this is what the Mongo
-  // translator downstream will use.
-  const property = descriptor.key as keyof TEntity;
+  // translator downstream will use — dotted into one locale for a localized
+  // member, which Mongo reads as a path natively.
+  const property = key as keyof TEntity;
   const coerce = (value: string) => coerceValue(value, descriptor);
 
   if (raw.values) {

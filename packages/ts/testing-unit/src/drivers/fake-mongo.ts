@@ -371,7 +371,12 @@ export const makeFakeMongoDb = (
               (items, [field, direction]) =>
                 [...items].sort(
                   (left, right) =>
-                    compare(left[field], right[field]) * direction,
+                    // A dotted field sorts by the value it names, as the
+                    // server does — one locale of a localized member, say.
+                    compare(
+                      valuesAt(left, field)[0],
+                      valuesAt(right, field)[0],
+                    ) * direction,
                 ),
               matched,
             );

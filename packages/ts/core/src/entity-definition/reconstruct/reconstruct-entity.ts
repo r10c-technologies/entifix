@@ -1,5 +1,9 @@
 import { Entity, EntityConstructor } from '../../types/Entity.js';
-import { EntityDraft, readDraftString } from '../../types/EntityDraft.js';
+import {
+  EntityDraft,
+  readDraftString,
+  readLocalizedDraft,
+} from '../../types/EntityDraft.js';
 import { isRowDraftArray } from '../../types/EntityRowDraft.js';
 import {
   describeEntityColumns,
@@ -11,7 +15,10 @@ import {
 } from '../links/apply-entity-links/index.js';
 import { EntityCollectionLink } from '../links/entity-collection-link/index.js';
 import { EntityLink } from '../links/entity-link/index.js';
-import { coerceFieldValue } from './coerce-field-value.js';
+import {
+  coerceFieldValue,
+  coerceLocalizedDraft,
+} from './coerce-field-value.js';
 import { reconstructChild } from './reconstruct-child.js';
 
 /** Everything {@link reconstructEntity} needs beyond the draft itself. */
@@ -153,6 +160,14 @@ export function reconstructEntity<TEntity extends Entity>(
     // `alias ?? name`, which is the wire/SQL column, not the JS property.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const current = (instance as any)[descriptor.name];
+    if (descriptor.type === 'localized') {
+      if (descriptor.readonly) continue;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (instance as any)[descriptor.name] = coerceLocalizedDraft(
+        readLocalizedDraft(values, descriptor.name),
+      );
+      continue;
+    }
     if (!isWritableScalar(descriptor, current)) continue;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

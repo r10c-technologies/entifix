@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import { EntifixBuildError } from '../../base-entities/entifix-error/index.js';
+import { defineLocales, resetLocales } from '../../i18n/locales.js';
 import type { Entity, EntityId } from '../../types/Entity.js';
 import { accessor } from '../decorators/accessor/index.js';
 import { entity } from '../decorators/entity/index.js';
@@ -71,6 +72,18 @@ class Period implements Entity {
   @accessor({ type: 'linkCollection' })
   get areas(): EntityCollectionLink<Area> {
     return new EntityCollectionLink(Area);
+  }
+}
+
+@entity({ key: 'note' })
+class Note implements Entity {
+  @accessor({ type: 'id' })
+  get id(): EntityId {
+    return undefined;
+  }
+  @accessor({ type: 'localized', required: true })
+  get title(): Readonly<Record<string, string>> | undefined {
+    return undefined;
   }
 }
 
@@ -260,6 +273,39 @@ describe('validateRecords', () => {
       { path: 'periods.json › p-1 › role', message: 'is not a role we know' },
       { path: 'periods.json › #1', message: 'is odd' },
     ]);
+  });
+});
+
+describe('a localized member', () => {
+  afterEach(() => resetLocales());
+
+  it('needs non-empty text under every declared locale', () => {
+    defineLocales({ locales: ['en', 'es'], defaultLocale: 'en' });
+
+    expect(
+      validateRecords(Note, [
+        { id: 'a', title: { en: 'Hi', es: 'Hola' } },
+        { id: 'b', title: { en: 'Hi' } },
+        { id: 'c', title: { en: 'Hi', es: ' ' } },
+        { id: 'd', title: { en: 1, es: 'Hola' } },
+        { id: 'e', title: 'Hi' },
+        { id: 'f' },
+      ]).problems.map(problem => `${problem.path} ${problem.message}`),
+    ).toEqual([
+      'b › title is missing "es"',
+      'c › title is empty for "es"',
+      'd › title holds a number for "en", not text',
+      'e › title is not a text per locale',
+      'f › title is required, and is missing',
+    ]);
+  });
+
+  it('takes the locales it is handed over the declared ones', () => {
+    expect(
+      validateRecords(Note, [{ id: 'a', title: { pt: 'Olá' } }], {
+        locales: ['pt'],
+      }).problems,
+    ).toEqual([]);
   });
 });
 

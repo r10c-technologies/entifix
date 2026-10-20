@@ -80,7 +80,7 @@ export const SCALAR_TYPES: readonly MetaAccessorType[] = [
  * would quietly return an empty page.
  *
  * Exported so `describe-entity-columns.spec.ts` can assert that this list,
- * {@link SCALAR_TYPES} and the two reference types partition
+ * {@link SCALAR_TYPES}, the two reference types and `localized` partition
  * `MetaAccessorTypes` exactly. Nothing in the repo guards `MetaAccessorType`
  * exhaustively — every switch over it has a `default` that treats the value as
  * a string — so that partition spec is what makes an eleventh type impossible
@@ -184,7 +184,9 @@ function toDescriptor(
     inferType(name, (sample as Record<string, unknown> | undefined)?.[name]);
   assertNotQueryable(metaAccessor, type);
   assertItemCounts(metaAccessor, type);
-  const isScalar = SCALAR_TYPES.includes(type);
+  // A localized member is queried one locale at a time (`name.en`), which
+  // makes it as queryable as the text each locale holds.
+  const isScalar = SCALAR_TYPES.includes(type) || type === 'localized';
   const linkLabelProperty = metaAccessor.linkLabelProperty ?? 'name';
 
   return {

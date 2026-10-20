@@ -180,6 +180,23 @@ describe('translateFiltering', () => {
   });
 });
 
+describe('a localized member', () => {
+  // Core resolves `title.en` against the allowlist and the declared locales;
+  // what reaches this translator is a dotted path, which Mongo reads natively.
+  it('filters and sorts one locale as a dotted path', () => {
+    expect(
+      translateFiltering<Product>([
+        { property: 'title.en' as never, operator: 'like', value: 'soup' },
+      ]),
+    ).toEqual({ 'title.en': { $regex: 'soup', $options: 'i' } });
+    expect(
+      translateSorting<Product>([
+        { 0: { property: 'title.es' as never, type: 'desc' } },
+      ]),
+    ).toEqual({ 'title.es': -1 });
+  });
+});
+
 describe('translateSorting', () => {
   it('maps asc/desc by numeric priority', () => {
     const sorting: EntitySorting<Product>[] = [

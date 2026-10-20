@@ -1,4 +1,5 @@
 import { EntifixBuildError } from '../../base-entities/entifix-error/index.js';
+import { locales } from '../../i18n/locales.js';
 import type {
   Entity,
   EntityConstructor,
@@ -73,6 +74,11 @@ export interface ValidateRecordsOptions {
   readonly linkTargets?: Readonly<Record<string, ReadonlySet<EntityId>>>;
   /** Checks of the caller's own, run after the metadata's. */
   readonly rules?: readonly EntityRecordRule[];
+  /**
+   * Every locale a `localized` member must carry. Defaults to the locales the
+   * host declared through `defineLocales`.
+   */
+  readonly locales?: readonly string[];
 }
 
 export interface ValidateRecordsResult {
@@ -184,6 +190,36 @@ function checkScalar(
   }
 }
 
+/**
+ * A localized member: an object with non-empty text under every locale. A
+ * missing locale fails rather than falls back, so a page never shows one
+ * language in the middle of another.
+ */
+function checkLocalized(
+  value: unknown,
+  descriptor: EntityFieldDescriptor,
+  locales: readonly string[],
+  report: Report,
+): void {
+  if (!isPlainObject(value)) {
+    report(descriptor.name, 'is not a text per locale');
+    return;
+  }
+  for (const locale of locales) {
+    const text = value[locale];
+    if (text === undefined) {
+      report(descriptor.name, `is missing "${locale}"`);
+    } else if (typeof text !== 'string') {
+      report(
+        descriptor.name,
+        `holds a ${typeof text} for "${locale}", not text`,
+      );
+    } else if (text.trim() === '') {
+      report(descriptor.name, `is empty for "${locale}"`);
+    }
+  }
+}
+
 /** `minItems` / `maxItems` on a collection that is present and is a list. */
 function checkItemCount(
   value: unknown,
@@ -214,7 +250,12 @@ function checkItemCount(
 export function validateRecords<TEntity extends Entity>(
   entityConstructor: EntityConstructor<TEntity>,
   records: readonly unknown[],
-  { source, linkTargets = {}, rules = [] }: ValidateRecordsOptions = {},
+  {
+    source,
+    linkTargets = {},
+    rules = [],
+    locales: required = locales(),
+  }: ValidateRecordsOptions = {},
 ): ValidateRecordsResult {
   const problems: RecordProblem[] = [];
   const descriptors = describeEntityColumns(entityConstructor);
@@ -260,6 +301,8 @@ export function validateRecords<TEntity extends Entity>(
 
       if (descriptor.type === 'link' || descriptor.type === 'linkCollection') {
         checkLink(value, descriptor, linkTargets[descriptor.name], report);
+      } else if (descriptor.type === 'localized') {
+        checkLocalized(value, descriptor, required, report);
       } else if (descriptor.type === 'date') {
         const date = parseDate(value, report, descriptor.name);
         if (date !== undefined) record[descriptor.key] = date;

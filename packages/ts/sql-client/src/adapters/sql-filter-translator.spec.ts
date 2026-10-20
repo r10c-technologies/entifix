@@ -1,15 +1,17 @@
 import {
   accessor,
+  defineLocales,
   EntifixBuildError,
   type Entity,
   entity,
   type EntityFiltering,
   type EntityId,
   type EntitySorting,
+  resetLocales,
 } from '@entifix/core';
 import { makeFakeSqlClient } from '@entifix/testing-unit/drivers';
 import type { SqlClient, Statement } from 'effect/sql';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   escapeLikePattern,
@@ -348,5 +350,74 @@ describe('translateSorting', () => {
         { 0: { property: 'secret', type: 'asc' } },
       ]),
     ).toThrow(/not a sortable member/);
+  });
+});
+
+describe('a localized member', () => {
+  @entity({ key: 'dish' })
+  class Dish implements Entity {
+    #id?: EntityId;
+    #title?: Readonly<Record<string, string>>;
+
+    @accessor({ type: 'id' })
+    get id(): EntityId {
+      return this.#id;
+    }
+    set id(value: EntityId) {
+      this.#id = value;
+    }
+
+    @accessor({ type: 'localized', alias: 'dish_title' })
+    get title(): Readonly<Record<string, string>> | undefined {
+      return this.#title;
+    }
+    set title(value: Readonly<Record<string, string>> | undefined) {
+      this.#title = value;
+    }
+  }
+
+  beforeEach(() =>
+    defineLocales({ locales: ['en', 'es'], defaultLocale: 'en' }),
+  );
+  afterEach(() => resetLocales());
+
+  it('filters one locale of its jsonb column, the locale bound as a parameter', () => {
+    expect(
+      compile(
+        translateFiltering(sql, Dish, [
+          {
+            property: 'dish_title.es' as never,
+            operator: 'like',
+            value: 'sopa',
+          },
+        ]),
+      ),
+    ).toEqual([`"dish_title"->>$1 ILIKE $2`, ['es', '%sopa%']]);
+  });
+
+  it('sorts by one locale, keeping the first position of a repeat', () => {
+    expect(
+      compile(
+        translateSorting(sql, Dish, [
+          {
+            0: { property: 'title.en' as never, type: 'asc' },
+            1: { property: 'dish_title.en' as never, type: 'desc' },
+          },
+        ]),
+      ),
+    ).toEqual([`"dish_title"->>$1 DESC`, ['en']]);
+  });
+
+  it('refuses the whole object, and an undeclared locale', () => {
+    expect(() =>
+      translateFiltering(sql, Dish, [
+        { property: 'title', operator: 'eq', value: {} as never },
+      ]),
+    ).toThrow(/"title" is localized/);
+    expect(() =>
+      translateSorting(sql, Dish, [
+        { 0: { property: 'title.fr' as never, type: 'asc' } },
+      ]),
+    ).toThrow(/"fr" is not a declared locale/);
   });
 });

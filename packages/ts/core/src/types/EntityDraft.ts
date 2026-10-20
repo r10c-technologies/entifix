@@ -13,7 +13,10 @@ import type { EntityRowDraft } from './EntityRowDraft.js';
  * this is a union and not `string`: rows have no lossless string form, and the
  * two shapes a draft can hold are exactly the two ADR 0034 named.
  *
- * **Exactly two shapes, and the union says so rather than `JsonValue`.** Both
+ * A **`localized`** member's value is an {@link EntityLocalizedDraft}, a text per
+ * locale.
+ *
+ * **Exactly three shapes, and the union says so rather than `JsonValue`.** Both
  * are JSON — a workspace autosaves a draft through `createJSONStorage`
  * ([ADR 0032](../../../../../../docs/adr/0032-what-may-live-in-an-autosaved-draft.md)),
  * so a class instance, an `EntityLink` or a `Date` does not degrade, it returns
@@ -33,7 +36,16 @@ import type { EntityRowDraft } from './EntityRowDraft.js';
  * and `EntityCrudDraft` — and collapsing them is what made this widening a
  * single edit rather than four found by search.
  */
-export type EntityDraftValue = string | readonly EntityRowDraft[];
+export type EntityDraftValue =
+  string | readonly EntityRowDraft[] | EntityLocalizedDraft;
+
+/**
+ * A `localized` member's draft: one string per locale, the text each input
+ * holds. Flat like a row, so the union still has a bottom for TanStack Form to
+ * derive paths from, and JSON-safe for the same autosave a row has to survive.
+ * Told apart from a row list by not being an array.
+ */
+export type EntityLocalizedDraft = Readonly<Record<string, string>>;
 
 export type EntityDraft = Record<string, EntityDraftValue>;
 
@@ -52,4 +64,28 @@ export function readDraftString(
 ): string {
   const value = values?.[name];
   return typeof value === 'string' ? value : '';
+}
+
+/**
+ * The per-locale texts a draft holds for a `localized` member, or an empty map
+ * for anything else — a member never seeded, or one that came back from
+ * storage in another shape.
+ */
+export function readLocalizedDraft(
+  values: EntityDraft | undefined,
+  name: string,
+): EntityLocalizedDraft {
+  const value = values?.[name];
+  if (
+    value === undefined ||
+    typeof value === 'string' ||
+    Array.isArray(value)
+  ) {
+    return {};
+  }
+  return Object.fromEntries(
+    Object.entries(value as EntityLocalizedDraft).filter(
+      ([, text]) => typeof text === 'string',
+    ),
+  );
 }

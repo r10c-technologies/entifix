@@ -16,6 +16,7 @@ export class ContractWidget implements Entity {
   #name?: string;
   #size?: number;
   #tags: readonly string[] = [];
+  #title?: Readonly<Record<string, string>>;
 
   @accessor({ type: 'id' })
   get id(): EntityId {
@@ -47,6 +48,14 @@ export class ContractWidget implements Entity {
   }
   set tags(value: readonly string[]) {
     this.#tags = value;
+  }
+
+  @accessor({ type: 'localized' })
+  get title(): Readonly<Record<string, string>> | undefined {
+    return this.#title;
+  }
+  set title(value: Readonly<Record<string, string>> | undefined) {
+    this.#title = value;
   }
 }
 
@@ -219,6 +228,61 @@ export const describeEntityRepositoryReadContract = (
           makeContractWidget('w-1', 'Alpha', 10, ['blue', 'green']),
           makeContractWidget('w-2', 'Beta', 20, ['green']),
           makeContractWidget('w-3', 'Gamma', 30, ['red']),
+        ],
+      );
+    });
+
+    it('filters and sorts a localized member one locale at a time', async () => {
+      const titled = (
+        id: string,
+        name: string,
+        title: Record<string, string>,
+      ) => {
+        const widget = makeContractWidget(id, name, 0);
+        widget.title = title;
+        return widget;
+      };
+      await withRepository(
+        async repository => {
+          const found = await runRepository(
+            repository.load<ContractWidget>({
+              filtering: [
+                {
+                  property: 'title.es' as keyof ContractWidget,
+                  operator: 'like',
+                  value: 'SOPA',
+                },
+              ],
+            }),
+          );
+          expect(found.items.map(item => item.id)).toEqual(['w-2']);
+
+          const sorted = await runRepository(
+            repository.load<ContractWidget>({
+              sorting: [
+                {
+                  0: {
+                    property: 'title.en' as keyof ContractWidget,
+                    type: 'asc',
+                  },
+                },
+              ],
+            }),
+          );
+          expect(sorted.items.map(item => item.id)).toEqual([
+            'w-3',
+            'w-1',
+            'w-2',
+          ]);
+          expect(sorted.items[0]?.title).toEqual({
+            en: 'Apple',
+            es: 'Manzana',
+          });
+        },
+        [
+          titled('w-1', 'Alpha', { en: 'Bread', es: 'Pan' }),
+          titled('w-2', 'Beta', { en: 'Soup', es: 'Sopa' }),
+          titled('w-3', 'Gamma', { en: 'Apple', es: 'Manzana' }),
         ],
       );
     });
