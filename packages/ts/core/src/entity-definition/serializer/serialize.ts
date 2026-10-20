@@ -1,4 +1,8 @@
+import { applyFiltering, applySorting } from '../../query/in-memory-query.js';
 import { Entity, EntityConstructor } from '../../types/Entity.js';
+import type { EntityFiltering } from '../../types/EntityFiltering.js';
+import type { EntitySorting } from '../../types/EntitySorting.js';
+import { extractEntityView } from '../describe/entity-view.js';
 import { extractMetaAccessors } from '../helpers/index.js';
 import { EntityCollectionLink } from '../links/entity-collection-link/index.js';
 import { EntityLink } from '../links/entity-link/index.js';
@@ -110,11 +114,43 @@ export function serializeEntity<TEntity extends Entity>(
   return result;
 }
 
+export interface SerializeCollectionOptions {
+  /**
+   * One of the entity's named views: only the records it keeps, in its order,
+   * without the members it omits.
+   */
+  readonly view?: string;
+}
+
+/**
+ * Serializes many instances; with a `view`, publishes them in that view's
+ * shape — the one place a published shape is applied, so every adapter that
+ * publishes records writes the same thing.
+ */
 export function serializeEntityCollection<TEntity extends Entity>(
   entityConstructor: EntityConstructor<TEntity>,
   instances: readonly TEntity[],
+  { view: viewName }: SerializeCollectionOptions = {},
 ): SerializedEntity[] {
-  return instances.map(instance =>
-    serializeEntity(entityConstructor, instance),
+  if (viewName === undefined) {
+    return instances.map(instance =>
+      serializeEntity(entityConstructor, instance),
+    );
+  }
+  const view = extractEntityView(entityConstructor, viewName);
+  const omitted = new Set(view.omitted.map(descriptor => descriptor.key));
+  const kept = applySorting(
+    applyFiltering(
+      instances,
+      view.filtering as readonly EntityFiltering<TEntity>[] | undefined,
+    ),
+    view.sorting as readonly EntitySorting<TEntity>[] | undefined,
+  );
+  return kept.map(instance =>
+    Object.fromEntries(
+      Object.entries(serializeEntity(entityConstructor, instance)).filter(
+        ([key]) => !omitted.has(key),
+      ),
+    ),
   );
 }

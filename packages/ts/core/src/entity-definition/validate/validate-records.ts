@@ -9,6 +9,7 @@ import {
   COLLECTION_TYPES,
   describeEntityColumns,
   type EntityFieldDescriptor,
+  extractEntityView,
 } from '../describe/index.js';
 import { extractMetaEntity } from '../helpers/index.js';
 
@@ -79,6 +80,11 @@ export interface ValidateRecordsOptions {
    * host declared through `defineLocales`.
    */
   readonly locales?: readonly string[];
+  /**
+   * The view the records were published in. A member it omits is not
+   * required of them, since the view left it out on purpose.
+   */
+  readonly view?: string;
 }
 
 export interface ValidateRecordsResult {
@@ -255,10 +261,18 @@ export function validateRecords<TEntity extends Entity>(
     linkTargets = {},
     rules = [],
     locales: required = locales(),
+    view,
   }: ValidateRecordsOptions = {},
 ): ValidateRecordsResult {
   const problems: RecordProblem[] = [];
   const descriptors = describeEntityColumns(entityConstructor);
+  const omitted = new Set(
+    view === undefined
+      ? []
+      : extractEntityView(entityConstructor, view).omitted.map(
+          descriptor => descriptor.name,
+        ),
+  );
   const parsed: Record<string, unknown>[] = [];
   const seen = new Set<unknown>();
 
@@ -293,7 +307,7 @@ export function validateRecords<TEntity extends Entity>(
       const value = raw[descriptor.key];
 
       if (isAbsent(value)) {
-        if (descriptor.required) {
+        if (descriptor.required && !omitted.has(descriptor.name)) {
           report(descriptor.name, 'is required, and is missing');
         }
         continue;
