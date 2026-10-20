@@ -16,6 +16,7 @@ import { join } from 'node:path';
 import {
   devVersion,
   installedCopies,
+  linkedEntries,
   type Manifest,
   missingDependencies,
   parseConsumers,
@@ -211,6 +212,24 @@ describe('installedCopies', () => {
     );
 
     expect(installedCopies(consumer, '@entifix/core')).toEqual([copy]);
+  });
+});
+
+describe('linkedEntries', () => {
+  it('uses the default limit when .modules.yaml records none', () => {
+    writeFileSync(join(consumer, 'node_modules/.modules.yaml'), '{}\n');
+    linked('@entifix/core@0.2.0');
+
+    expect([...linkedEntries(consumer)]).toEqual(['@entifix+core@0.2.0']);
+  });
+
+  it('links nothing from a lockfile with no snapshots', () => {
+    writeFileSync(
+      join(consumer, 'node_modules/.pnpm/lock.yaml'),
+      "lockfileVersion: '9.0'\n",
+    );
+
+    expect([...linkedEntries(consumer)]).toEqual([]);
   });
 });
 
