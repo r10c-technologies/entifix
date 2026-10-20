@@ -58,9 +58,9 @@
   },
   "devDependencies": {
     "@entifix/testing-unit": "workspace:*",
-    "effect": "3.22.2"
+    "effect": "4.0.5"
   },
   "peerDependencies": {
-    "effect": ">=3.22.2 <4"
+    "effect": "^4.0.5"
   }
 }

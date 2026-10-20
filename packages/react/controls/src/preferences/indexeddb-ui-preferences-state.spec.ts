@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 
 import { EntifixConnError } from '@entifix/core';
-import { Effect, Exit } from 'effect';
+import { Cause, Effect, Exit, Option } from 'effect';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -60,7 +60,7 @@ describe('makeIndexedDbUiPreferencesState', () => {
 
     expect(Exit.isFailure(exit)).toBe(true);
     if (Exit.isFailure(exit)) {
-      const error = exit.cause._tag === 'Fail' ? exit.cause.error : undefined;
+      const error = Option.getOrUndefined(Cause.findErrorOption(exit.cause));
       expect(error).toBeInstanceOf(EntifixConnError);
     }
   });

@@ -47,7 +47,7 @@ export interface SagaDispatcher {
   ): Effect.Effect<SagaResponse, EntifixConnError>;
 }
 
-export class SagaDispatcherTag extends Context.Tag('SagaDispatcherTag')<
+export class SagaDispatcherTag extends Context.Service<
   SagaDispatcherTag,
   SagaDispatcher
->() {}
+>()('SagaDispatcherTag') {}

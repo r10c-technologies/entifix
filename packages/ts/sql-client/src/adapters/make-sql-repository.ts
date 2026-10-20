@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto';
 
-import type { SqlClient } from '@effect/sql';
 import type { EntityRepository } from '@entifix/business';
 import {
   deserializeEntityCollection,
@@ -16,6 +15,7 @@ import {
   serializeEntity,
 } from '@entifix/core';
 import { Effect } from 'effect';
+import type { SqlClient } from 'effect/sql';
 
 import {
   translateFiltering,

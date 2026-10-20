@@ -17,16 +17,13 @@ import {
  * again here would read a different series that is permanently zero.
  */
 const readGauge = (
-  metric: Metric.Metric.Gauge<number>,
-  tags: Record<string, string>,
+  metric: Metric.Gauge<number>,
+  attributes: Record<string, string>,
 ) =>
   Effect.runPromise(
-    Metric.value(
-      Object.entries(tags).reduce(
-        (tagged, [key, value]) => Metric.tagged(tagged, key, value),
-        metric,
-      ),
-    ).pipe(Effect.map(state => state.value)),
+    Metric.value(Metric.withAttributes(metric, attributes)).pipe(
+      Effect.map(state => state.value),
+    ),
   );
 
 const stats = (overrides: Partial<OutboxStats> = {}): OutboxStats => ({

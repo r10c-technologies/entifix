@@ -83,7 +83,7 @@
     "@entifix/mongo": "workspace:*",
     "@entifix/redis": "workspace:*",
     "axios": "*",
-    "effect": ">=3.22.2 <4",
+    "effect": "^4.0.5",
     "msw": "*",
     "vitest": "*"
   },
@@ -125,6 +125,6 @@
     "@entifix/amqp": "workspace:*",
     "@entifix/mongo": "workspace:*",
     "@entifix/redis": "workspace:*",
-    "effect": "3.22.2"
+    "effect": "4.0.5"
   }
 }

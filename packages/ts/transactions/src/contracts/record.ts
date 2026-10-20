@@ -74,10 +74,10 @@ export interface TransactionStore {
   >;
 }
 
-export class TransactionStoreTag extends Context.Tag('TransactionStoreTag')<
+export class TransactionStoreTag extends Context.Service<
   TransactionStoreTag,
   TransactionStore
->() {}
+>()('TransactionStoreTag') {}
 
 /**
  * What a service answers a `202` with: the id to poll, and the state it starts
@@ -154,6 +154,7 @@ export interface TransactionStatusReader {
   ): Effect.Effect<TransactionRecord | undefined, EntifixError>;
 }
 
-export class TransactionStatusReaderTag extends Context.Tag(
-  'TransactionStatusReaderTag',
-)<TransactionStatusReaderTag, TransactionStatusReader>() {}
+export class TransactionStatusReaderTag extends Context.Service<
+  TransactionStatusReaderTag,
+  TransactionStatusReader
+>()('TransactionStatusReaderTag') {}

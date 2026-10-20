@@ -269,7 +269,7 @@ describe('buildEntityRestAdapterLoad', () => {
   // Services answer a failure with `{ error, code, detail }`. The code has to
   // survive onto the error, because it is what the browser translates — without
   // it the user reads the service's English `error` string in every locale.
-  // Run through `Effect.either` so the assertion sees the `EntifixConnError`
+  // Run through `Effect.result` so the assertion sees the `EntifixConnError`
   // itself rather than the `FiberFailure` that wraps it.
   const loadFailure = (request: EntityLoadRequest<Widget> = {}) =>
     Effect.runPromise(

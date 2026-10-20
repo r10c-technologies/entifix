@@ -90,10 +90,10 @@ export interface HealthRegistry {
  * It lives here, in the contract layer, so `entifix-ts-*-client` packages can
  * register into it without depending on a shell.
  */
-export class HealthRegistryTag extends Context.Tag('HealthRegistryTag')<
+export class HealthRegistryTag extends Context.Service<
   HealthRegistryTag,
   HealthRegistry
->() {}
+>()('HealthRegistryTag') {}
 
 /**
  * Live registry over a `Ref`. Provide it **once** per service and share the
@@ -117,11 +117,10 @@ export const HealthRegistryLayer: Layer.Layer<HealthRegistryTag> = Layer.effect(
           probe =>
             probe.check.pipe(
               // A probe that throws is a failing probe, not a broken endpoint.
-              Effect.catchAllDefect(() => Effect.succeed(false)),
-              Effect.timeoutTo({
+              Effect.catchDefect(() => Effect.succeed(false)),
+              Effect.timeoutOrElse({
                 duration: PROBE_TIMEOUT,
-                onTimeout: () => false,
-                onSuccess: (ok: boolean) => ok,
+                orElse: () => Effect.succeed(false),
               }),
               Effect.map(ok => ({ name: probe.name, ok })),
             ),

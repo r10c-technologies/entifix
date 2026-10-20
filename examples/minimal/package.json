@@ -16,7 +16,7 @@
     "@entifix/style": "workspace:*",
     "@entifix/testing-auth": "workspace:*",
     "@tanstack/react-query": "5.102.8",
-    "effect": "3.22.2",
+    "effect": "4.0.5",
     "i18next": "26.3.6",
     "next": "16.2.10",
     "react": "19.2.8",

@@ -1,5 +1,5 @@
 import { type EntityChangeEvent, readEventEnvelope } from '@entifix/core';
-import { Effect, Either } from 'effect';
+import { Effect, Result } from 'effect';
 
 import type {
   EntityChangeListener,
@@ -40,19 +40,19 @@ export function makeEventSourceReactiveChannel(url: string): ReactiveChannel {
     // runs inside the browser's event loop, where a throw reaches no caller and
     // would take the rest of this delivery's listeners with it.
     const parsed = Effect.runSync(
-      Effect.either(
+      Effect.result(
         Effect.flatMap(
           Effect.try(() => JSON.parse(raw) as unknown),
           readEventEnvelope<EntityChangeEvent>,
         ),
       ),
     );
-    if (Either.isLeft(parsed)) {
+    if (Result.isFailure(parsed)) {
       return;
     }
 
     for (const listener of listeners) {
-      listener(parsed.right);
+      listener(parsed.success);
     }
   };
 

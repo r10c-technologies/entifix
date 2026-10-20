@@ -1,6 +1,6 @@
-import { HttpServerResponse } from '@effect/platform';
 import { type DomainEvent, makeEventEnvelope } from '@entifix/core';
 import { Duration, Effect, Stream } from 'effect';
+import { HttpServerResponse } from 'effect/http';
 
 /**
  * How often an idle connection emits a comment frame.
@@ -56,7 +56,7 @@ export const sseResponse = (
   events: Stream.Stream<DomainEvent>,
   { expiresAt, now = Date.now }: SseResponseOptions = {},
 ): HttpServerResponse.HttpServerResponse => {
-  const keepalive = Stream.repeatEffect(
+  const keepalive = Stream.fromEffectRepeat(
     Effect.as(Effect.sleep(KEEPALIVE), ': keepalive\n\n'),
   );
 

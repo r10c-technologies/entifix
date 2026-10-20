@@ -1,8 +1,8 @@
-import { HttpRouter, HttpServerResponse } from '@effect/platform';
 import { makeStaticPolicyDecision, PolicyDecisionTag } from '@entifix/authz';
 import { type TokenClaims, TokenServiceTag } from '@entifix/business';
 import { EntifixBuildError } from '@entifix/core';
 import { Effect, Layer } from 'effect';
+import { HttpRouter, HttpServerResponse } from 'effect/http';
 
 import { serveTestService } from '../serve-test-service.js';
 import { requireOrganization } from './require-organization.js';
@@ -25,14 +25,15 @@ const tokenFor = (activeOrganizationId?: string): string =>
     ...(activeOrganizationId === undefined ? {} : { activeOrganizationId }),
   } satisfies TokenClaims);
 
-const router = HttpRouter.empty.pipe(
-  HttpRouter.get(
+const router = HttpRouter.addAll([
+  HttpRouter.route(
+    'GET',
     '/api/catalog',
     requireOrganization('product-configuration-management:product:read')(
       organizationId => HttpServerResponse.json({ organizationId }),
     ),
   ),
-);
+]);
 
 /**
  * The grant table this spec authorizes against.

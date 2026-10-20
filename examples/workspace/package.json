@@ -2,7 +2,7 @@
   "name": "@entifix/example-workspace",
   "version": "0.0.0",
   "private": true,
-  "description": "The UI half of entifix standing alone: workspace tabs, generated table and form, master-detail, a wizard, the command palette and autosaved drafts \u2014 in the browser, over an in-memory repository, with no backend.",
+  "description": "The UI half of entifix standing alone: workspace tabs, generated table and form, master-detail, a wizard, the command palette and autosaved drafts — in the browser, over an in-memory repository, with no backend.",
   "dependencies": {
     "@entifix/authz": "workspace:*",
     "@entifix/business": "workspace:*",
@@ -16,7 +16,7 @@
     "@entifix/style": "workspace:*",
     "@entifix/testing-unit": "workspace:*",
     "@tanstack/react-query": "5.102.8",
-    "effect": "3.22.2",
+    "effect": "4.0.5",
     "i18next": "26.3.6",
     "next": "16.2.10",
     "react": "19.2.8",

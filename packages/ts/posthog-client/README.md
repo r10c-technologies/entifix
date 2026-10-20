@@ -9,7 +9,7 @@ The PostHog adapter for the product-analytics `Tracker` port
   over `posthog-js` (browser events + sync feature-flag / A-B reads).
 
 Both return a framework-free `Tracker`, provided per environment behind
-`TrackerTag` (Effect `Context.Tag`) at a composition root — the same
+`TrackerTag` (Effect `Context.Service`) at a composition root — the same
 adapter-per-environment shape as REST vs Mongo behind `EntityRepositoryTag`.
 
 Unlike OpenTelemetry (which stays unwrapped), a real vendor SDK belongs behind an

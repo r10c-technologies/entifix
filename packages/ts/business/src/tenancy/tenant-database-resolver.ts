@@ -12,7 +12,7 @@ import { Context, type Effect } from 'effect';
  * Two rules the implementations must keep:
  *
  * - **Resolve per request, never per `Layer`.** The connection pool is acquired
- *   once at boot (`MongoDatabaseLayer`'s `Layer.scoped`); a handle is not a
+ *   once at boot (`MongoDatabaseLayer`'s `Layer.effect`); a handle is not a
  *   connection. Building a `Layer` per request would rebuild the pool per
  *   request.
  * - **Derive the storage name from the organization id**, never from a mutable
@@ -35,6 +35,7 @@ export interface TenantDatabaseResolver<THandle> {
  * datastore-agnostic; a service narrows it at the composition root, where it
  * also knows which driver it provided.
  */
-export class TenantDatabaseResolverTag extends Context.Tag(
-  'TenantDatabaseResolverTag',
-)<TenantDatabaseResolverTag, TenantDatabaseResolver<unknown>>() {}
+export class TenantDatabaseResolverTag extends Context.Service<
+  TenantDatabaseResolverTag,
+  TenantDatabaseResolver<unknown>
+>()('TenantDatabaseResolverTag') {}

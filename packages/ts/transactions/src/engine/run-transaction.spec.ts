@@ -4,7 +4,7 @@ import {
   EntifixLockError,
   EntifixTransactionError,
 } from '@entifix/core';
-import { Effect, Exit, HashMap, Layer, Logger } from 'effect';
+import { Effect, Exit, Layer, Logger, References } from 'effect';
 import { describe, expect, it } from 'vitest';
 
 /** The slice every event in this file is published by. */
@@ -440,15 +440,16 @@ describe('completeTransaction', () => {
       completeTransaction(handles).pipe(
         Effect.provide(world.layer),
         Effect.provide(
-          Logger.replace(
-            Logger.defaultLogger,
-            Logger.make(({ message, annotations }) => {
+          Logger.layer([
+            Logger.make(({ message, fiber }) => {
               logs.push({
                 message: String(message),
-                annotations: Object.fromEntries(HashMap.toEntries(annotations)),
+                annotations: {
+                  ...fiber.getRef(References.CurrentLogAnnotations),
+                },
               });
             }),
-          ),
+          ]),
         ),
       ),
     );
@@ -479,12 +480,11 @@ describe('completeTransaction', () => {
       completeTransaction(handles).pipe(
         Effect.provide(world.layer),
         Effect.provide(
-          Logger.replace(
-            Logger.defaultLogger,
+          Logger.layer([
             Logger.make(({ message }) => {
               logs.push(String(message));
             }),
-          ),
+          ]),
         ),
       ),
     );

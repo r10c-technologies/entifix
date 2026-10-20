@@ -1,4 +1,5 @@
-import { Effect, TestClock, TestContext } from 'effect';
+import { Effect, Fiber } from 'effect';
+import { TestClock } from 'effect/testing';
 import { describe, expect, it } from 'vitest';
 
 import type { ShutdownHook, ShutdownRegistry } from './shutdown-registry.js';
@@ -112,12 +113,12 @@ describe('ShutdownRegistry', () => {
           hook('hangs', 'stop-intake', Effect.never),
           hook('relay', 'flush'),
         ]);
-        const draining = yield* Effect.fork(registry.drain);
+        const draining = yield* Effect.forkChild(registry.drain);
         // Past the hook's own bound. Without one the drain would sit here until
         // the kubelet's SIGKILL, and `relay` would never run at all.
         yield* TestClock.adjust('11 seconds');
-        yield* draining.await;
-      }).pipe(Effect.provide(TestContext.TestContext)),
+        yield* Fiber.await(draining);
+      }).pipe(Effect.provide(TestClock.layer())),
     );
 
     expect(ran).toEqual(['hangs', 'relay']);

@@ -1,8 +1,3 @@
-import {
-  HttpRouter,
-  HttpServerRequest,
-  HttpServerResponse,
-} from '@effect/platform';
 import { permissionForEntity } from '@entifix/authz';
 import {
   EntityIdTag,
@@ -26,6 +21,7 @@ import { makeMongoRepository, MongoDatabaseTag } from '@entifix/mongo';
 import { entityMetadataRoute, requirePermission } from '@entifix/service-shell';
 import { runSaga, SagaStoreTag } from '@entifix/transactions';
 import { Effect } from 'effect';
+import { HttpRouter, HttpServerRequest, HttpServerResponse } from 'effect/http';
 
 import { STATS_COLLECTION } from './order-stats.projection.ts';
 import {
@@ -64,7 +60,7 @@ const listStock = guard('read')(() =>
     return yield* HttpServerResponse.json(
       makeEntityPageEnvelope(StockItem, page, []),
     );
-  }).pipe(Effect.catchAll(error => failure(400, 'invalidQuery', error))),
+  }).pipe(Effect.catch(error => failure(400, 'invalidQuery', error))),
 );
 
 const getStock = guard('read')(() =>
@@ -77,7 +73,7 @@ const getStock = guard('read')(() =>
     return yield* HttpServerResponse.json(
       makeEntityEnvelope(StockItem, item, []),
     );
-  }).pipe(Effect.catchAll(() => failure(404, 'notFound'))),
+  }).pipe(Effect.catch(() => failure(404, 'notFound'))),
 );
 
 const putStock = guard('write')(() =>
@@ -93,7 +89,7 @@ const putStock = guard('write')(() =>
     return yield* HttpServerResponse.json(
       makeEntityEnvelope(StockItem, saved, []),
     );
-  }).pipe(Effect.catchAll(error => failure(400, 'invalidBody', error))),
+  }).pipe(Effect.catch(error => failure(400, 'invalidBody', error))),
 );
 
 /**
@@ -126,7 +122,7 @@ const postOrder = requirePermission(placeOrder.permission as never)(() =>
       { sagaId, state: result.state, error: result.error },
       { status },
     );
-  }).pipe(Effect.catchAll(error => failure(500, 'unexpected', error))),
+  }).pipe(Effect.catch(error => failure(500, 'unexpected', error))),
 );
 
 const getSaga = Effect.gen(function* () {
@@ -136,7 +132,7 @@ const getSaga = Effect.gen(function* () {
   return instance === undefined
     ? yield* failure(404, 'notFound')
     : yield* HttpServerResponse.json(instance);
-}).pipe(Effect.catchAll(error => failure(500, 'unexpected', error)));
+}).pipe(Effect.catch(error => failure(500, 'unexpected', error)));
 
 const getStats = Effect.gen(function* () {
   const db = yield* MongoDatabaseTag;
@@ -146,18 +142,22 @@ const getStats = Effect.gen(function* () {
       .findOne({ id: 'totals' }, { projection: { _id: 0 } }),
   );
   return yield* HttpServerResponse.json(totals ?? { orders: 0, units: 0 });
-}).pipe(Effect.catchAll(error => failure(500, 'unexpected', error)));
+}).pipe(Effect.catch(error => failure(500, 'unexpected', error)));
 
 /**
  * The routes. `/api/health*` and `/api/$service` come from `makeService`.
  * `$metadata` is registered before `/:id`, which would otherwise swallow it.
  */
-export const router = HttpRouter.empty.pipe(
-  HttpRouter.get('/api/stock-item', listStock),
-  HttpRouter.get('/api/stock-item/$metadata', entityMetadataRoute(StockItem)),
-  HttpRouter.get('/api/stock-item/:id', getStock),
-  HttpRouter.put('/api/stock-item/:id', putStock),
-  HttpRouter.post('/api/order', postOrder),
-  HttpRouter.get('/api/saga/:id', getSaga),
-  HttpRouter.get('/api/order-stats', getStats),
-);
+export const router = HttpRouter.addAll([
+  HttpRouter.route('GET', '/api/stock-item', listStock),
+  HttpRouter.route(
+    'GET',
+    '/api/stock-item/$metadata',
+    entityMetadataRoute(StockItem),
+  ),
+  HttpRouter.route('GET', '/api/stock-item/:id', getStock),
+  HttpRouter.route('PUT', '/api/stock-item/:id', putStock),
+  HttpRouter.route('POST', '/api/order', postOrder),
+  HttpRouter.route('GET', '/api/saga/:id', getSaga),
+  HttpRouter.route('GET', '/api/order-stats', getStats),
+]);

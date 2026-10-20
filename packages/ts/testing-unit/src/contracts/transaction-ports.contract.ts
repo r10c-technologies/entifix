@@ -1,4 +1,3 @@
-import { it as effectIt } from '@effect/vitest';
 import type { DomainEvent } from '@entifix/core';
 import type {
   EventBus,
@@ -7,8 +6,22 @@ import type {
   Subscription,
   TransactionInbox,
 } from '@entifix/transactions';
-import { Duration, Effect, Exit, Fiber, TestClock } from 'effect';
+import { Duration, Effect, Exit, Fiber } from 'effect';
+import { TestClock } from 'effect/testing';
 import { describe, expect, it } from 'vitest';
+
+/**
+ * Runs an Effect test on a `TestClock`, so a retry budget measured in seconds
+ * costs none of the wall clock.
+ */
+const effectIt = {
+  effect: (name: string, body: () => Effect.Effect<unknown, unknown>) =>
+    it(name, () =>
+      Effect.runPromise(
+        body().pipe(Effect.provide(TestClock.layer()), Effect.scoped),
+      ),
+    ),
+};
 
 const run = <TValue, TError>(effect: Effect.Effect<TValue, TError>) =>
   Effect.runPromise(effect);
@@ -42,7 +55,7 @@ export const describeLockServiceContract = (
         const locks = yield* Effect.promise(async () => makeLockService());
         yield* locks.acquire('contract:taken');
 
-        const fiber = yield* Effect.fork(locks.acquire('contract:taken'));
+        const fiber = yield* Effect.forkChild(locks.acquire('contract:taken'));
         yield* TestClock.adjust(Duration.minutes(1));
         const exit = yield* Fiber.await(fiber);
 
@@ -68,7 +81,7 @@ export const describeLockServiceContract = (
         yield* locks.release({ key: handle.key, token: 'not-mine' });
 
         // Still held, so a fresh acquisition must fail.
-        const fiber = yield* Effect.fork(locks.acquire('contract:stolen'));
+        const fiber = yield* Effect.forkChild(locks.acquire('contract:stolen'));
         yield* TestClock.adjust(Duration.minutes(1));
         const exit = yield* Fiber.await(fiber);
 

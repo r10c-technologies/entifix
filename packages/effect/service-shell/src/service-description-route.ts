@@ -1,7 +1,7 @@
-import { HttpRouter, HttpServerResponse } from '@effect/platform';
 import type { BoundSubscription, ProbeKind } from '@entifix/business';
 import { HealthRegistryTag, WiringRegistryTag } from '@entifix/business';
 import { Effect } from 'effect';
+import { HttpRouter, HttpServerResponse } from 'effect/http';
 
 import { requireServiceToken } from './auth/service-token.js';
 
@@ -87,7 +87,7 @@ const describe = (
   });
 
 /**
- * Mount `GET /api/$service` on a router.
+ * `GET /api/$service`, as a route layer to merge beside a service's own.
  *
  * **Gated by `X-Service-Token`.** This names every store, exchange and upstream
  * a service has, which is a reconnaissance map rather than diagnostics. The
@@ -106,18 +106,16 @@ const describe = (
  * The names come from a probe's `targets`, which are Store register names by
  * construction.
  */
-export const withServiceDescriptionRoute = <E, R>(
-  router: HttpRouter.HttpRouter<E, R>,
+export const serviceDescriptionRoute = (
   serviceName: string,
   slices: readonly string[],
 ) =>
-  router.pipe(
-    HttpRouter.get(
-      SERVICE_DESCRIPTION_PATH,
-      requireServiceToken(
-        Effect.flatMap(describe(serviceName, slices), description =>
-          HttpServerResponse.json(description),
-        ),
+  HttpRouter.add(
+    'GET',
+    SERVICE_DESCRIPTION_PATH,
+    requireServiceToken(
+      Effect.flatMap(describe(serviceName, slices), description =>
+        HttpServerResponse.json(description),
       ),
     ),
   );

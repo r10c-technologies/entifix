@@ -97,7 +97,7 @@ export interface TokenService {
 }
 
 /** DI tag the composition root binds to a concrete {@link TokenService}. */
-export class TokenServiceTag extends Context.Tag('TokenServiceTag')<
+export class TokenServiceTag extends Context.Service<
   TokenServiceTag,
   TokenService
->() {}
+>()('TokenServiceTag') {}

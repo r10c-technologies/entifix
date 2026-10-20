@@ -1,7 +1,7 @@
-import { HttpRouter, HttpServerResponse } from '@effect/platform';
 import type { HealthReport } from '@entifix/business';
 import { HealthRegistryTag, ShutdownRegistryTag } from '@entifix/business';
 import { Effect, Ref } from 'effect';
+import { HttpRouter, HttpServerResponse } from 'effect/http';
 
 /**
  * How long a readiness result is reused. These endpoints are unauthenticated by
@@ -17,7 +17,7 @@ interface CacheEntry {
 }
 
 /**
- * Mount the probe endpoints on a router.
+ * The probe endpoints, as a route layer to merge beside a service's own.
  *
  * - `GET /api/health` — the original endpoint, unchanged. Kept because
  *   Playwright's `readyPath` and existing tooling point at it.
@@ -37,15 +37,12 @@ interface CacheEntry {
  * message. This endpoint answers anyone who can reach the port.
  */
 // The return type is inferred rather than annotated: `HttpServerResponse.json`
-// widens the router's error channel with `HttpBodyError`, and spelling that out
+// widens the routes' error channel with `HttpBodyError`, and spelling that out
 // here would only duplicate what the platform types already say.
-export const withHealthRoutes = <E, R>(
-  router: HttpRouter.HttpRouter<E, R>,
-  serviceName: string,
-) => {
+export const healthRoutes = (serviceName: string) => {
   // One cache per server instance (the e2e mock profile boots services
   // in-process, so a module-level cache would leak across them).
-  const cache = Ref.unsafeMake<CacheEntry | null>(null);
+  const cache = Ref.makeUnsafe<CacheEntry | null>(null);
 
   const cachedReport = Effect.gen(function* () {
     const now = Date.now();
@@ -58,16 +55,19 @@ export const withHealthRoutes = <E, R>(
     return report;
   });
 
-  return router.pipe(
-    HttpRouter.get(
+  return HttpRouter.addAll([
+    HttpRouter.route(
+      'GET',
       '/api/health',
       HttpServerResponse.json({ status: 'ok', service: serviceName }),
     ),
-    HttpRouter.get(
+    HttpRouter.route(
+      'GET',
       '/api/health/live',
       HttpServerResponse.json({ status: 'live', service: serviceName }),
     ),
-    HttpRouter.get(
+    HttpRouter.route(
+      'GET',
       '/api/health/ready',
       Effect.gen(function* () {
         const shutdown = yield* ShutdownRegistryTag;
@@ -94,5 +94,5 @@ export const withHealthRoutes = <E, R>(
         );
       }),
     ),
-  );
+  ]);
 };

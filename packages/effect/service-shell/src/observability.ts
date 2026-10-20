@@ -28,7 +28,8 @@ import {
   SimpleSpanProcessor,
   type SpanProcessor,
 } from '@opentelemetry/sdk-trace-base';
-import { Effect, HashMap, Layer, Logger } from 'effect';
+import { Effect, Layer, Logger, References } from 'effect';
+import type * as EffectLogLevel from 'effect/LogLevel';
 
 /** Resolved observability settings (from config-service `logging.*`/`otel.*`). */
 export interface ObservabilityConfig {
@@ -117,29 +118,30 @@ const makeSink = (
     : makeStdoutJsonSink();
 
 /**
- * Effect's `LogLevel.label` mapped onto the four levels the tooling logger has.
+ * Effect's `LogLevel` mapped onto the four levels the tooling logger has.
  *
- * ⚠️ **The labels are upper case** — `"TRACE" | "DEBUG" | "INFO" | "WARN" |
- * "ERROR" | "FATAL" | "ALL" | "NONE"`, as `effect/LogLevel` declares them. This
- * switch used to read `'Trace'`/`'Debug'`/`'Warning'`/`'Error'`/`'Fatal'`, so
+ * ⚠️ **Match the spelling `effect/LogLevel` declares, and let the compiler
+ * hold you to it.** Effect 4's level is the string union `"All" | "Fatal" |
+ * "Error" | "Warn" | "Info" | "Debug" | "Trace" | "None"`. Under Effect 3 this
+ * switch read the level's `label`, which was upper case (`"ERROR"`), against
+ * mixed-case spellings (`'Error'`, `'Warning'`) typed as a plain `string` — so
  * **no case could ever match** and every log in the service fell through to
  * `default` and was emitted at `info`. Measured in Loki: an `Effect.logError`
  * arrived as `severity_text: INFO`, `severity_number: 9`, which makes an error
  * invisible to every level-based alert and dashboard while still appearing in
- * the log — the failure mode that reads as "we have no errors".
- *
- * `'WARNING'` is deliberately absent: Effect's label is `WARN`, and adding the
- * other spelling would suggest one of them is live when only this one is.
+ * the log — the failure mode that reads as "we have no errors". Typing the
+ * parameter as Effect's own union is what makes a misspelt case a compile
+ * error now: `'Warning'` would not compile.
  */
-const toToolingLevel = (label: string): LogLevel => {
-  switch (label) {
-    case 'TRACE':
-    case 'DEBUG':
+const toToolingLevel = (level: EffectLogLevel.LogLevel): LogLevel => {
+  switch (level) {
+    case 'Trace':
+    case 'Debug':
       return 'debug';
-    case 'WARN':
+    case 'Warn':
       return 'warn';
-    case 'ERROR':
-    case 'FATAL':
+    case 'Error':
+    case 'Fatal':
       return 'error';
     default:
       return 'info';
@@ -149,16 +151,16 @@ const toToolingLevel = (label: string): LogLevel => {
 /**
  * `Effect.annotateLogs`' entries flattened into tooling `Attributes`.
  *
- * The annotations arrive as a `HashMap<string, unknown>` and the attribute
- * values are a closed scalar set, so anything else is stringified rather than
- * dropped — an annotation that reaches a sink as `[object Object]` is still
- * more use than one that silently is not there.
+ * The annotations are a record read off the fiber, and the attribute values are
+ * a closed scalar set, so anything else is stringified rather than dropped — an
+ * annotation that reaches a sink as `[object Object]` is still more use than one
+ * that silently is not there.
  */
 const toAttributes = (
-  annotations: HashMap.HashMap<string, unknown>,
+  annotations: Readonly<Record<string, unknown>>,
 ): Attributes =>
   Object.fromEntries(
-    Array.from(HashMap.entries(annotations), ([key, value]) => [
+    Object.entries(annotations).map(([key, value]) => [
       key,
       typeof value === 'string' ||
       typeof value === 'number' ||
@@ -175,17 +177,19 @@ const messageToString = (message: unknown): string =>
     : String(message);
 
 /**
- * An Effect `Logger` that forwards every Effect log (including the HTTP request
- * logs from `HttpMiddleware.logger`) to the tooling logger — so the whole
- * service logs through one structured, trace-correlated pipeline.
+ * An Effect `Logger` that forwards every Effect log (including the request logs
+ * `HttpRouter.serve` writes) to the tooling logger — so the whole service logs
+ * through one structured, trace-correlated pipeline.
  *
- * **`annotations` are forwarded**, and used not to be: they were destructured
+ * **Annotations are forwarded**, and used not to be: they were destructured
  * away, so every `Effect.annotateLogs` in every service was discarded before it
  * reached a sink. That made the annotated fields the outbox relay and the
  * transaction engine attach — the tenant database, the event id, the
  * transaction id, the rollback's own error — unqueryable, while the comments
  * beside them said they were structured fields in Loki. Measured: the records
- * arrived carrying the message and nothing else.
+ * arrived carrying the message and nothing else. Effect 4 no longer hands them
+ * to a logger at all; they live on the fiber, as
+ * `References.CurrentLogAnnotations`, and are read from there.
  *
  * `error` is called through its own arm because the tooling `Logger` gives it a
  * different signature — `(message, error?, attributes?)` — so passing the
@@ -195,10 +199,12 @@ const messageToString = (message: unknown): string =>
 const makeEffectLogger = (
   logger: ToolingLogger,
 ): Logger.Logger<unknown, void> =>
-  Logger.make(({ logLevel, message, annotations }) => {
-    const level = toToolingLevel(logLevel.label);
+  Logger.make(({ logLevel, message, fiber }) => {
+    const level = toToolingLevel(logLevel);
     const text = messageToString(message);
-    const attributes = toAttributes(annotations);
+    const attributes = toAttributes(
+      fiber.getRef(References.CurrentLogAnnotations),
+    );
 
     if (level === 'error') {
       logger.error(text, undefined, attributes);
@@ -245,12 +251,12 @@ export const makeObservabilityLayerWith = (
     level: options.level,
     sink: options.sink,
   });
-  // Replace Effect's default logger with the tooling logger. The service boot
-  // (`makeService`) launches under `runMain` with `disablePrettyLogger: true`,
-  // and the e2e boots under `Effect.runFork`; both leave `defaultLogger` in
-  // place, so this single replace takes effect in either runtime.
+  // Replace Effect's loggers with the tooling logger. `Logger.layer` sets the
+  // fiber's current loggers outright rather than adding to them, and neither
+  // the service boot (`runMain`) nor the e2e boot (`Effect.runFork`) installs a
+  // logger of its own, so this single layer takes effect in either runtime.
   const effectLogger = makeEffectLogger(toolingLogger);
-  const LoggingLayer = Logger.replace(Logger.defaultLogger, effectLogger);
+  const LoggingLayer = Logger.layer([effectLogger]);
   // One `NodeSdk.layer` for both signals: it builds the OTel `Resource` once,
   // so the spans and the metrics carry the same `service.name` rather than two
   // resources that can disagree. `NodeSdk` degrades an absent `spanProcessor`

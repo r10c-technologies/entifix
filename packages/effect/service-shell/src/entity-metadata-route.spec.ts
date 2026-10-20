@@ -1,4 +1,3 @@
-import { HttpRouter } from '@effect/platform';
 import { makeStaticPolicyDecision, PolicyDecisionTag } from '@entifix/authz';
 import { type TokenClaims, TokenServiceTag } from '@entifix/business';
 import {
@@ -10,6 +9,7 @@ import {
   useCase,
 } from '@entifix/core';
 import { Effect, Layer } from 'effect';
+import { HttpRouter } from 'effect/http';
 
 import { entityMetadataRoute } from './entity-metadata-route.js';
 import { serveTestService } from './serve-test-service.js';
@@ -95,19 +95,25 @@ const bearerFor = (roles: readonly string[]) => ({
   } satisfies TokenClaims)}`,
 });
 
-const router = HttpRouter.empty.pipe(
-  HttpRouter.get(
+const router = HttpRouter.addAll([
+  HttpRouter.route(
+    'GET',
     '/api/user-identity/$metadata',
     entityMetadataRoute(UserIdentity),
   ),
   // The regression test for the wildcard trap: a by-id route registered FIRST,
   // so the literal has to win on specificity rather than on ordering.
-  HttpRouter.get('/api/secret-ledger/:id', entityMetadataRoute(SecretLedger)),
-  HttpRouter.get(
+  HttpRouter.route(
+    'GET',
+    '/api/secret-ledger/:id',
+    entityMetadataRoute(SecretLedger),
+  ),
+  HttpRouter.route(
+    'GET',
     '/api/secret-ledger/$metadata',
     entityMetadataRoute(SecretLedger),
   ),
-);
+]);
 
 /**
  * The grant table this spec authorizes against.

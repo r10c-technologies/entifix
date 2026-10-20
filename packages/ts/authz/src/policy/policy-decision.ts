@@ -37,10 +37,10 @@ export interface PolicyDecision {
 }
 
 /** DI tag the composition root binds to a concrete {@link PolicyDecision}. */
-export class PolicyDecisionTag extends Context.Tag('PolicyDecisionTag')<
+export class PolicyDecisionTag extends Context.Service<
   PolicyDecisionTag,
   PolicyDecision
->() {}
+>()('PolicyDecisionTag') {}
 
 /**
  * The v1 implementation: role-derived grants from a table the host supplies,

@@ -1,4 +1,3 @@
-import { HttpRouter } from '@effect/platform';
 import type { ShutdownRegistry } from '@entifix/business';
 import { HealthRegistryTag, ShutdownRegistryTag } from '@entifix/business';
 import { Effect, Layer } from 'effect';
@@ -36,7 +35,7 @@ const serveWithProbes = async (probes: ReadonlyArray<[string, boolean]>) => {
     name: SERVICE_NAME,
     port: 0,
     slices: ['test'],
-    router: HttpRouter.empty,
+    router: Layer.empty,
     appLayer: registerProbes,
   });
   return running.baseUrl;
@@ -47,7 +46,7 @@ afterEach(async () => {
   running = undefined;
 });
 
-describe('withHealthRoutes', () => {
+describe('healthRoutes', () => {
   it('keeps /api/health answering as it always did', async () => {
     const baseUrl = await serveWithProbes([]);
 
@@ -130,7 +129,7 @@ describe('withHealthRoutes', () => {
       name: SERVICE_NAME,
       port: 0,
       slices: ['test'],
-      router: HttpRouter.empty,
+      router: Layer.empty,
       appLayer: countingProbe,
     });
 
@@ -167,7 +166,7 @@ describe('withHealthRoutes', () => {
       name: SERVICE_NAME,
       port: 0,
       slices: ['test'],
-      router: HttpRouter.empty,
+      router: Layer.empty,
       appLayer,
     });
     // What the `Layer` finalizer does on SIGTERM, minus the signal.

@@ -3,10 +3,9 @@ import { Context, Effect, Layer, Schedule } from 'effect';
 import { Db, MongoClient } from 'mongodb';
 
 /** DI tag carrying a connected mongodb {@link Db} handle. */
-export class MongoDatabaseTag extends Context.Tag('MongoDatabaseTag')<
-  MongoDatabaseTag,
-  Db
->() {}
+export class MongoDatabaseTag extends Context.Service<MongoDatabaseTag, Db>()(
+  'MongoDatabaseTag',
+) {}
 
 /**
  * DI tag carrying the connected {@link MongoClient} itself — the **pool**.
@@ -18,10 +17,10 @@ export class MongoDatabaseTag extends Context.Tag('MongoDatabaseTag')<
  *
  * Reach for {@link MongoDatabaseTag} unless you are resolving tenant storage.
  */
-export class MongoClientTag extends Context.Tag('MongoClientTag')<
+export class MongoClientTag extends Context.Service<
   MongoClientTag,
   MongoClient
->() {}
+>()('MongoClientTag') {}
 
 export interface MongoClientSettings {
   readonly uri: string;
@@ -48,7 +47,7 @@ export interface MongoDatabaseSettings extends MongoClientSettings {
 export const MongoClientLayer = (
   settings: MongoClientSettings,
 ): Layer.Layer<MongoClientTag, EntifixConnError> =>
-  Layer.scoped(
+  Layer.effect(
     MongoClientTag,
     Effect.acquireRelease(
       Effect.tryPromise({
@@ -67,7 +66,9 @@ export const MongoClientLayer = (
         // still rolling out. Keep trying for a window instead of dying on the
         // first refusal, which leaves a dead process nothing will restart.
         Effect.retry(
-          Schedule.exponential('250 millis').pipe(Schedule.upTo('30 seconds')),
+          Schedule.exponential('250 millis').pipe(
+            Schedule.upTo({ duration: '30 seconds' }),
+          ),
         ),
       ),
       client => Effect.promise(() => client.close()),

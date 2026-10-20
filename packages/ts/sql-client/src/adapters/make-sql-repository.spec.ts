@@ -1,4 +1,3 @@
-import type { SqlClient } from '@effect/sql';
 import {
   accessor,
   EntifixBuildError,
@@ -12,7 +11,8 @@ import {
   type FakeSqlClient,
   makeFakeSqlClient,
 } from '@entifix/testing-unit/drivers';
-import { Exit } from 'effect';
+import { Cause, Exit, Option } from 'effect';
+import type { SqlClient } from 'effect/sql';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { makeSqlRepository } from './make-sql-repository.js';
@@ -91,8 +91,8 @@ const executed = (match: string) =>
 
 /** The typed error of a failed exit, or `undefined` if it did not fail that way. */
 const failureOf = (exit: Exit.Exit<unknown, unknown>) =>
-  Exit.isFailure(exit) && exit.cause._tag === 'Fail'
-    ? exit.cause.error
+  Exit.isFailure(exit)
+    ? Option.getOrUndefined(Cause.findErrorOption(exit.cause))
     : undefined;
 
 describe('makeSqlRepository', () => {

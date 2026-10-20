@@ -40,7 +40,7 @@ export const ZitadelHealthProbeLayer = (
           }),
         ).pipe(
           Effect.map(response => response.ok),
-          Effect.catchAll(() => Effect.succeed(false)),
+          Effect.catch(() => Effect.succeed(false)),
         ),
       });
     }),

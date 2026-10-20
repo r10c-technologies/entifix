@@ -150,7 +150,7 @@ export interface SessionStore {
 }
 
 /** DI tag the composition root binds to a concrete {@link SessionStore}. */
-export class SessionStoreTag extends Context.Tag('SessionStoreTag')<
+export class SessionStoreTag extends Context.Service<
   SessionStoreTag,
   SessionStore
->() {}
+>()('SessionStoreTag') {}

@@ -11,9 +11,10 @@ import { SERVICE_TOKEN_HEADER, serviceToken } from './auth/service-token.js';
  * DI tag carrying the raw {@link ConfigurationPlain} a service loaded at boot,
  * so a `GET /api/config` introspection route can expose it (redacted).
  */
-export class LoadedConfigurationTag extends Context.Tag(
-  'LoadedConfigurationTag',
-)<LoadedConfigurationTag, ConfigurationPlain>() {}
+export class LoadedConfigurationTag extends Context.Service<
+  LoadedConfigurationTag,
+  ConfigurationPlain
+>()('LoadedConfigurationTag') {}
 
 /**
  * Default boot-fetch retry policy: 20 attempts spaced 1s apart (~20s window).
@@ -26,7 +27,7 @@ export class LoadedConfigurationTag extends Context.Tag(
  * bounded window lets the fleet come up in any order.
  */
 export const defaultConfigRetrySchedule: Schedule.Schedule<unknown, unknown> =
-  Schedule.intersect(Schedule.spaced('1 seconds'), Schedule.recurs(20));
+  Schedule.max([Schedule.spaced('1 seconds'), Schedule.recurs(20)]);
 
 /**
  * Deadline for a single boot-fetch attempt.

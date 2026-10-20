@@ -60,7 +60,7 @@ export const startOrderStatsProjection = Effect.gen(function* () {
       },
       catch: error => error,
     }).pipe(
-      Effect.catchAll(error =>
+      Effect.catch(error =>
         isDuplicateKey(error)
           ? Effect.void
           : Effect.fail(

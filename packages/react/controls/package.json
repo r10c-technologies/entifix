@@ -53,7 +53,7 @@
     "@storybook/addon-docs": "^10.5.3",
     "@storybook/addon-themes": "^10.5.3",
     "@storybook/react-vite": "^10.5.3",
-    "effect": "3.22.2",
+    "effect": "4.0.5",
     "i18next": "26.3.6",
     "react": "19.2.8",
     "react-i18next": "17.0.11",
@@ -97,7 +97,7 @@
   },
   "peerDependencies": {
     "@entifix/i18n": "workspace:*",
-    "effect": ">=3.22.2 <4",
+    "effect": "^4.0.5",
     "i18next": ">=26 <27",
     "react": ">=19 <20",
     "react-i18next": ">=17 <18"

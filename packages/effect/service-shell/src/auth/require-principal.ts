@@ -1,4 +1,3 @@
-import { HttpServerRequest, HttpServerResponse } from '@effect/platform';
 import {
   parsePermission,
   type Permission,
@@ -7,6 +6,7 @@ import {
 import { type TokenClaims, TokenServiceTag } from '@entifix/business';
 import { ACCESS_COOKIE } from '@entifix/core';
 import { Effect, Option } from 'effect';
+import { HttpServerRequest, HttpServerResponse } from 'effect/http';
 
 /**
  * The authenticated subject as a service sees it. Structurally identical to

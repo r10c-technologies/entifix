@@ -52,8 +52,8 @@ export const freePort = (): Promise<number> =>
  * timeout: the launch fiber is raced against the health check, so a missing
  * dependency reports its own cause.
  */
-export const serveTestService = async <E, R>(
-  def: ServiceDefinition<E, R>,
+export const serveTestService = async <RRoutes>(
+  def: ServiceDefinition<RRoutes>,
   { port, ...waitOptions }: ServeTestServiceOptions = {},
 ): Promise<RunningTestService> => {
   const boundPort = port ?? (await freePort());

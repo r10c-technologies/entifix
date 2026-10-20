@@ -16,7 +16,6 @@ import { Context } from 'effect';
  * environment variable, so a service that forgets it fails to build its layer
  * instead of publishing events signed by nobody.
  */
-export class EventSourceTag extends Context.Tag('EventSourceTag')<
-  EventSourceTag,
-  string
->() {}
+export class EventSourceTag extends Context.Service<EventSourceTag, string>()(
+  'EventSourceTag',
+) {}

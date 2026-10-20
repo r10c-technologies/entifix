@@ -15,7 +15,7 @@ package, two independent modules (no shared interface between them):
 - **`@entifix/tooling/tracking`** — the product-analytics facade: the
   `Tracker` interface (`track`/`identify`/`flag`) plus a `NoopTracker`. The real
   vendor adapter lives in `@entifix/posthog`; `Tracker` is
-  provided per environment behind `TrackerTag` (Effect `Context.Tag`).
+  provided per environment behind `TrackerTag` (Effect `Context.Service`).
 
 Why framework-free (not an Effect wrap): the browser and Next server are not
 Effect, so only an OTel-standard facade can serve every runtime from one package.

@@ -44,7 +44,7 @@ describe('makeMongoOutbox.stats', () => {
 
   it('reports a failure rather than a zero depth', async () => {
     const outcome = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         withCollection({
           countDocuments: async () => {
             throw new Error('connection reset');
@@ -56,7 +56,7 @@ describe('makeMongoOutbox.stats', () => {
 
     // A zero here would read as "the outbox is empty", which is the opposite of
     // what a store that cannot be queried means.
-    expect(outcome._tag).toBe('Left');
+    expect(outcome._tag).toBe('Failure');
   });
 });
 
@@ -128,10 +128,10 @@ describe('reviveQuarantined', () => {
     } as unknown as Db;
 
     const outcome = await Effect.runPromise(
-      Effect.either(reviveQuarantined(db, 'off-3:t')),
+      Effect.result(reviveQuarantined(db, 'off-3:t')),
     );
 
-    expect(outcome._tag).toBe('Left');
+    expect(outcome._tag).toBe('Failure');
   });
 });
 
@@ -218,10 +218,10 @@ describe('makeMongoOutbox writes', () => {
     });
 
     const outcome = await Effect.runPromise(
-      Effect.either(outbox.enqueue(anEvent())),
+      Effect.result(outbox.enqueue(anEvent())),
     );
 
-    expect(outcome._tag).toBe('Left');
+    expect(outcome._tag).toBe('Failure');
   });
 
   it('drains only what is unsent and un-quarantined', async () => {
@@ -241,9 +241,9 @@ describe('makeMongoOutbox writes', () => {
       },
     });
 
-    const outcome = await Effect.runPromise(Effect.either(outbox.pending(10)));
+    const outcome = await Effect.runPromise(Effect.result(outbox.pending(10)));
 
-    expect(outcome._tag).toBe('Left');
+    expect(outcome._tag).toBe('Failure');
   });
 
   it('marks an entry sent by its event id', async () => {
@@ -274,7 +274,7 @@ describe('makeMongoOutbox writes', () => {
     });
 
     const outcome = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         outbox.markSent({
           eventId: 'e-1',
           event: anEvent(),
@@ -286,7 +286,7 @@ describe('makeMongoOutbox writes', () => {
       ),
     );
 
-    expect(outcome._tag).toBe('Left');
+    expect(outcome._tag).toBe('Failure');
   });
 
   /**
@@ -329,7 +329,7 @@ describe('makeMongoOutbox writes', () => {
     });
 
     const outcome = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         outbox.recordFailure(
           {
             eventId: 'e-1',
@@ -345,7 +345,7 @@ describe('makeMongoOutbox writes', () => {
       ),
     );
 
-    expect(outcome._tag).toBe('Left');
+    expect(outcome._tag).toBe('Failure');
   });
 });
 
@@ -388,7 +388,7 @@ describe('ensureOutboxIndexes', () => {
    */
   it('reports a conflicting index rather than continuing', async () => {
     const outcome = await Effect.runPromise(
-      Effect.either(
+      Effect.result(
         ensureOutboxIndexes(
           spyingDb(async () => {
             throw new Error('IndexOptionsConflict');
@@ -397,7 +397,7 @@ describe('ensureOutboxIndexes', () => {
       ),
     );
 
-    expect(outcome._tag).toBe('Left');
+    expect(outcome._tag).toBe('Failure');
   });
 });
 
@@ -413,11 +413,11 @@ describe('reviveQuarantined, when the driver fails', () => {
     } as unknown as Db;
 
     const outcome = await Effect.runPromise(
-      Effect.either(reviveQuarantined(db, 'e-1')),
+      Effect.result(reviveQuarantined(db, 'e-1')),
     );
 
     // `false` would read as "there was nothing quarantined to revive", which is
     // the opposite of "we could not look".
-    expect(outcome._tag).toBe('Left');
+    expect(outcome._tag).toBe('Failure');
   });
 });

@@ -1,6 +1,6 @@
-import type { SqlClient } from '@effect/sql';
-import * as Statement from '@effect/sql/Statement';
 import { Effect, Exit, Stream } from 'effect';
+import type { SqlClient } from 'effect/sql';
+import { Statement } from 'effect/sql';
 import { describe, expect, it } from 'vitest';
 
 import { makeFakeAmqpChannel } from './fake-amqp.js';

@@ -1,19 +1,22 @@
-import { HttpRouter, HttpServerResponse } from '@effect/platform';
 import { Context, Effect, Layer } from 'effect';
+import { HttpRouter, HttpServerResponse } from 'effect/http';
 
 import { freePort, serveTestService } from './serve-test-service.js';
 
-class GreetingTag extends Context.Tag('GreetingTag')<GreetingTag, string>() {}
+class GreetingTag extends Context.Service<GreetingTag, string>()(
+  'GreetingTag',
+) {}
 
-const router = HttpRouter.empty.pipe(
-  HttpRouter.get(
+const router = HttpRouter.addAll([
+  HttpRouter.route(
+    'GET',
     '/api/greeting',
     Effect.gen(function* () {
       const greeting = yield* GreetingTag;
       return yield* HttpServerResponse.json({ greeting });
     }),
   ),
-);
+]);
 
 const definition = {
   name: '@r10c/spec-service',
@@ -58,7 +61,10 @@ describe('serveTestService', () => {
       serveTestService(
         {
           ...definition,
-          appLayer: Layer.die(new Error('mongo is unreachable')),
+          appLayer: Layer.effect(
+            GreetingTag,
+            Effect.die(new Error('mongo is unreachable')),
+          ),
         },
         { attempts: 100, delayMs: 20 },
       ),

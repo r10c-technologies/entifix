@@ -76,25 +76,20 @@
     }
   },
   "dependencies": {
-    "@effect/sql": "0.52.1",
     "@entifix/transactions": "workspace:*",
     "@entifix/business": "workspace:*",
     "@entifix/core": "workspace:*",
     "@swc/helpers": "0.5.23"
   },
   "peerDependencies": {
-    "@effect/vitest": ">=0.30 <1",
     "@entifix/react-controls": "workspace:*",
     "@testing-library/react": "*",
-    "effect": ">=3.22.2 <4",
+    "effect": "^4.0.5",
     "msw": "*",
     "react": "*",
     "vitest": "*"
   },
   "peerDependenciesMeta": {
-    "@effect/vitest": {
-      "optional": true
-    },
     "@entifix/react-controls": {
       "optional": true
     },
@@ -115,7 +110,6 @@
     }
   },
   "devDependencies": {
-    "@effect/vitest": "^0.30.0",
-    "effect": "3.22.2"
+    "effect": "4.0.5"
   }
 }

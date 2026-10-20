@@ -63,7 +63,7 @@ export function acceptTransaction() {
 }
 
 /** What {@link acceptTransaction} decided — a fresh command, or a replay. */
-export type AcceptOutcome = Effect.Effect.Success<
+export type AcceptOutcome = Effect.Success<
   ReturnType<typeof acceptTransaction>
 >;
 

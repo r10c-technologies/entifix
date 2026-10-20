@@ -40,7 +40,7 @@ export interface OneTimeTokenStore {
 }
 
 /** DI tag the composition root binds to a concrete {@link OneTimeTokenStore}. */
-export class OneTimeTokenStoreTag extends Context.Tag('OneTimeTokenStoreTag')<
+export class OneTimeTokenStoreTag extends Context.Service<
   OneTimeTokenStoreTag,
   OneTimeTokenStore
->() {}
+>()('OneTimeTokenStoreTag') {}

@@ -144,7 +144,7 @@ describe('makeZitadelActions', () => {
   const actions = makeZitadelActions({ signingKey: SIGNING_KEY });
 
   const verify = (raw: string, sig: string | undefined) =>
-    Effect.runSync(Effect.either(actions.verifyEvent(raw, sig)));
+    Effect.runSync(Effect.result(actions.verifyEvent(raw, sig)));
 
   it.each(PROVIDER_USER_LIFECYCLE_EVENTS)(
     'reports %s as revoking sessions',
@@ -152,8 +152,12 @@ describe('makeZitadelActions', () => {
       const raw = body({ event_type: eventType });
       const result = verify(raw, header(raw));
       expect(result).toMatchObject({
-        _tag: 'Right',
-        right: { eventType, subject: 'zitadel-user-1', revokesSessions: true },
+        _tag: 'Success',
+        success: {
+          eventType,
+          subject: 'zitadel-user-1',
+          revokesSessions: true,
+        },
       });
     },
   );
@@ -163,14 +167,14 @@ describe('makeZitadelActions', () => {
   it('verifies an event it does not act on', () => {
     const raw = body({ event_type: 'user.human.added' });
     expect(verify(raw, header(raw))).toMatchObject({
-      _tag: 'Right',
-      right: { eventType: 'user.human.added', revokesSessions: false },
+      _tag: 'Success',
+      success: { eventType: 'user.human.added', revokesSessions: false },
     });
   });
 
   it('fails when the signature does not verify', () => {
     const raw = body();
-    expect(verify(raw, header(raw, NOW, 'other-key'))._tag).toBe('Left');
+    expect(verify(raw, header(raw, NOW, 'other-key'))._tag).toBe('Failure');
   });
 
   it.each([
@@ -182,7 +186,7 @@ describe('makeZitadelActions', () => {
     ['no aggregateID', JSON.stringify({ event_type: 'user.deactivated' })],
     ['an empty aggregateID', body({ aggregateID: '' })],
   ])('fails on %s', (_name, raw) => {
-    expect(verify(raw, header(raw))._tag).toBe('Left');
+    expect(verify(raw, header(raw))._tag).toBe('Failure');
   });
 });
 

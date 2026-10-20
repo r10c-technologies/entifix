@@ -1,9 +1,3 @@
-import {
-  HttpRouter,
-  HttpServerRequest,
-  HttpServerResponse,
-} from '@effect/platform';
-import { SqlClient } from '@effect/sql';
 import { type Action, permissionForEntity } from '@entifix/authz';
 import {
   deleteUCFactory,
@@ -27,6 +21,8 @@ import { Book } from '@entifix/example-minimal-domain';
 import { entityMetadataRoute, requirePermission } from '@entifix/service-shell';
 import { makeSqlRepository } from '@entifix/sql';
 import { Effect } from 'effect';
+import { HttpRouter, HttpServerRequest, HttpServerResponse } from 'effect/http';
+import { SqlClient } from 'effect/sql';
 
 const failure = (status: number, code: string, detail?: unknown) =>
   HttpServerResponse.json({ code, detail: String(detail ?? '') }, { status });
@@ -54,7 +50,7 @@ const list = guard('read')(() =>
     return yield* HttpServerResponse.json(
       makeEntityPageEnvelope(Book, page, []),
     );
-  }).pipe(Effect.catchAll(error => failure(400, 'invalidQuery', error))),
+  }).pipe(Effect.catch(error => failure(400, 'invalidQuery', error))),
 );
 
 const byId = guard('read')(() =>
@@ -65,7 +61,7 @@ const byId = guard('read')(() =>
       Effect.provideService(EntityIdTag, id),
     );
     return yield* HttpServerResponse.json(makeEntityEnvelope(Book, book, []));
-  }).pipe(Effect.catchAll(() => failure(404, 'notFound'))),
+  }).pipe(Effect.catch(() => failure(404, 'notFound'))),
 );
 
 const save = (fromParams: boolean) =>
@@ -81,7 +77,7 @@ const save = (fromParams: boolean) =>
       return yield* HttpServerResponse.json(
         makeEntityEnvelope(Book, saved, []),
       );
-    }).pipe(Effect.catchAll(error => failure(400, 'invalidBody', error))),
+    }).pipe(Effect.catch(error => failure(400, 'invalidBody', error))),
   );
 
 const remove = guard('delete')(() =>
@@ -95,15 +91,15 @@ const remove = guard('delete')(() =>
       meta: { type: 'entity', entity: 'book', links: [] },
       data: { id },
     });
-  }).pipe(Effect.catchAll(error => failure(500, 'unexpected', error))),
+  }).pipe(Effect.catch(error => failure(500, 'unexpected', error))),
 );
 
 /** One entity's CRUD over Postgres. `$metadata` precedes `/:id`. */
-export const router = HttpRouter.empty.pipe(
-  HttpRouter.get('/api/book', list),
-  HttpRouter.post('/api/book', save(false)),
-  HttpRouter.get('/api/book/$metadata', entityMetadataRoute(Book)),
-  HttpRouter.get('/api/book/:id', byId),
-  HttpRouter.put('/api/book/:id', save(true)),
-  HttpRouter.del('/api/book/:id', remove),
-);
+export const router = HttpRouter.addAll([
+  HttpRouter.route('GET', '/api/book', list),
+  HttpRouter.route('POST', '/api/book', save(false)),
+  HttpRouter.route('GET', '/api/book/$metadata', entityMetadataRoute(Book)),
+  HttpRouter.route('GET', '/api/book/:id', byId),
+  HttpRouter.route('PUT', '/api/book/:id', save(true)),
+  HttpRouter.route('DELETE', '/api/book/:id', remove),
+]);

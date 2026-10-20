@@ -99,13 +99,15 @@ describe('ensureInboxIndexes', () => {
     harness.failIndexesWith(new Error('not primary'));
 
     const outcome = await Effect.runPromise(
-      Effect.either(ensureInboxIndexes(harness.db)),
+      Effect.result(ensureInboxIndexes(harness.db)),
     );
 
-    expect(outcome._tag).toBe('Left');
-    if (outcome._tag === 'Left') {
-      expect(outcome.left.message).toContain('Failed to ensure inbox indexes');
-      expect(outcome.left.details).toMatchObject({
+    expect(outcome._tag).toBe('Failure');
+    if (outcome._tag === 'Failure') {
+      expect(outcome.failure.message).toContain(
+        'Failed to ensure inbox indexes',
+      );
+      expect(outcome.failure.details).toMatchObject({
         database: 'transaction_manager',
       });
     }
@@ -139,14 +141,14 @@ describe('makeMongoInbox', () => {
     } as unknown as Db;
 
     const outcome = await Effect.runPromise(
-      Effect.either(makeMongoInbox(db, 'a').claim('tx-1:completed')),
+      Effect.result(makeMongoInbox(db, 'a').claim('tx-1:completed')),
     );
 
-    expect(outcome._tag).toBe('Left');
-    if (outcome._tag === 'Left') {
-      expect(outcome.left.message).toContain('Failed to claim inbox entry');
+    expect(outcome._tag).toBe('Failure');
+    if (outcome._tag === 'Failure') {
+      expect(outcome.failure.message).toContain('Failed to claim inbox entry');
       // Both halves of the key, so a failed claim is queryable by either.
-      expect(outcome.left.details).toMatchObject({
+      expect(outcome.failure.details).toMatchObject({
         consumer: 'a',
         eventId: 'tx-1:completed',
       });

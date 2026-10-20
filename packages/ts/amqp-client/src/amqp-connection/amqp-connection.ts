@@ -84,10 +84,10 @@ export interface AmqpConnector {
 }
 
 /** DI tag carrying the self-healing connection (closed on release). */
-export class AmqpChannelTag extends Context.Tag('AmqpChannelTag')<
+export class AmqpChannelTag extends Context.Service<
   AmqpChannelTag,
   AmqpConnector
->() {}
+>()('AmqpChannelTag') {}
 
 export interface AmqpSettings {
   readonly uri: string;
@@ -248,7 +248,7 @@ export const makeAmqpConnector = (uri: string) => {
 export const AmqpLayer = (
   settings: AmqpSettings,
 ): Layer.Layer<AmqpChannelTag, EntifixConnError> =>
-  Layer.scoped(
+  Layer.effect(
     AmqpChannelTag,
     Effect.acquireRelease(
       Effect.tryPromise({

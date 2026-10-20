@@ -2,7 +2,7 @@ import { EntifixConnError } from '@entifix/core';
 import { describeSagaStoreContract } from '@entifix/testing-unit/contracts';
 import { makeFakeMongoDb } from '@entifix/testing-unit/drivers';
 import { SagaStoreTag } from '@entifix/transactions';
-import { Effect, Exit, Layer } from 'effect';
+import { Cause, Effect, Exit, Layer, Option } from 'effect';
 import type { Db } from 'mongodb';
 import { describe, expect, it } from 'vitest';
 
@@ -49,8 +49,10 @@ describe('makeMongoSagaStore', () => {
         attempt as Effect.Effect<unknown, EntifixConnError>,
       );
       expect(Exit.isFailure(exit)).toBe(true);
-      if (Exit.isFailure(exit) && exit.cause._tag === 'Fail') {
-        expect(exit.cause.error).toBeInstanceOf(EntifixConnError);
+      if (Exit.isFailure(exit)) {
+        expect(
+          Option.getOrUndefined(Cause.findErrorOption(exit.cause)),
+        ).toBeInstanceOf(EntifixConnError);
       }
     }
   });

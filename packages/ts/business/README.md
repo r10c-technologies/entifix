@@ -2,7 +2,7 @@
 
 The ports an application is written against, and the generic use-cases that run over them. A use-case depends on `EntityRepositoryTag`, never on a database, so the same code runs in a browser against `@entifix/rest` and on a backend against `@entifix/mongo` or `@entifix/sql` — the adapter is chosen where the application is composed.
 
-Ports are Effect `Context.Tag`s: repository, link resolver, session and one-time-token stores, token service, tenant database resolver, and the health, shutdown and wiring registries.
+Ports are Effect `Context.Service`s: repository, link resolver, session and one-time-token stores, token service, tenant database resolver, and the health, shutdown and wiring registries.
 
 ## Install
 

@@ -83,7 +83,7 @@ export const resumeStaleSagas = ({
             }),
           ),
         ),
-        Effect.catchAll(error =>
+        Effect.catch(error =>
           Effect.logError('resuming a saga instance failed').pipe(
             Effect.annotateLogs({
               sagaId: claimed.sagaId,
@@ -94,7 +94,7 @@ export const resumeStaleSagas = ({
       );
     }
   }).pipe(
-    Effect.catchAll(error =>
+    Effect.catch(error =>
       Effect.logError('saga resume sweep failed').pipe(
         Effect.annotateLogs({ error: String(error) }),
       ),
@@ -127,7 +127,7 @@ export const startSagaResume = (
       Effect.provideService(SagaDispatcherTag, dispatcher),
     );
 
-    const daemon = yield* Effect.forkDaemon(
+    const daemon = yield* Effect.forkDetach(
       pass.pipe(
         Effect.delay(Duration.millis(options.intervalMs)),
         Effect.forever,

@@ -43,7 +43,7 @@ export const outboxPending = Metric.gauge('outbox_pending_entries', {
  * A depth that is flat and an age that climbs is the signature of a relay whose
  * head has stopped moving.
  */
-export const outboxOldestPendingAge: Metric.Metric.Gauge<number> = Metric.gauge(
+export const outboxOldestPendingAge: Metric.Gauge<number> = Metric.gauge(
   'outbox_oldest_pending_age',
   {
     description:
@@ -60,7 +60,7 @@ export const outboxOldestPendingAge: Metric.Metric.Gauge<number> = Metric.gauge(
   // it `_seconds`, which is why the name above no longer carries that suffix
   // itself. The cost is a constant `unit` label, because the producer builds the
   // datapoint attributes from the same tag set it reads the unit from.
-  Metric.tagged('unit', 's'),
+  Metric.withAttributes({ unit: 's' }),
 );
 
 /** Entries past the ceiling, which nothing retries and nothing deletes. */
@@ -70,8 +70,8 @@ export const outboxQuarantined = Metric.gauge('outbox_quarantined_entries', {
 
 /** Record one outbox's depth and age. */
 export const recordOutboxStats = (database: string, stats: OutboxStats) => {
-  const tagged = (metric: Metric.Metric.Gauge<number>) =>
-    Metric.tagged(metric, 'database', database);
+  const tagged = (metric: Metric.Gauge<number>) =>
+    Metric.withAttributes(metric, { database });
 
   // Zero when nothing is waiting. The alternative — not reporting the series —
   // reads on most dashboards as "no data", which is indistinguishable from the
@@ -81,8 +81,8 @@ export const recordOutboxStats = (database: string, stats: OutboxStats) => {
       ? 0
       : Math.max(0, (Date.now() - Date.parse(stats.oldestPendingAt)) / 1000);
 
-  return Metric.set(tagged(outboxPending), stats.pending).pipe(
-    Effect.andThen(Metric.set(tagged(outboxOldestPendingAge), ageSeconds)),
-    Effect.andThen(Metric.set(tagged(outboxQuarantined), stats.quarantined)),
+  return Metric.update(tagged(outboxPending), stats.pending).pipe(
+    Effect.andThen(Metric.update(tagged(outboxOldestPendingAge), ageSeconds)),
+    Effect.andThen(Metric.update(tagged(outboxQuarantined), stats.quarantined)),
   );
 };

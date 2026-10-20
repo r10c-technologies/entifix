@@ -70,7 +70,7 @@ export interface TransactionHandler {
   ): Effect.Effect<void, EntifixError>;
 }
 
-export class TransactionHandlerTag extends Context.Tag('TransactionHandlerTag')<
+export class TransactionHandlerTag extends Context.Service<
   TransactionHandlerTag,
   TransactionHandler
->() {}
+>()('TransactionHandlerTag') {}

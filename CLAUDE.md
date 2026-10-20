@@ -103,7 +103,7 @@ tests need no build. A consumer resolves `dist`.
   `gh workflow run pull_request_check.yml --ref <branch>`.
 - **A consumer sees unreleased work by copy, never by link.** A `link:` or
   `file:` specifier resolves `effect` from this repository and gives the consumer
-  two copies, which breaks `Context.Tag` identity without an error. Use
+  two copies, which breaks `Context.Service` identity without an error. Use
   `dev-sync`.
 - **ADRs are corrected in place when a fact goes stale.** Reasoning is
   immutable; factual claims are not. Supersede only when the decision itself no

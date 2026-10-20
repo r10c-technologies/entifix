@@ -1,8 +1,8 @@
-import { HttpRouter, HttpServerResponse } from '@effect/platform';
 import { makeStaticPolicyDecision, PolicyDecisionTag } from '@entifix/authz';
 import { type TokenClaims, TokenServiceTag } from '@entifix/business';
 import { EntifixBuildError } from '@entifix/core';
 import { Effect, Layer } from 'effect';
+import { HttpRouter, HttpServerResponse } from 'effect/http';
 
 import { serveTestService } from '../serve-test-service.js';
 import { requirePermission, requirePrincipal } from './require-principal.js';
@@ -28,18 +28,20 @@ const tokenFor = (roles: readonly string[]): string =>
     roles,
   } satisfies TokenClaims);
 
-const router = HttpRouter.empty.pipe(
-  HttpRouter.get(
+const router = HttpRouter.addAll([
+  HttpRouter.route(
+    'GET',
     '/api/me',
     requirePrincipal(principal => HttpServerResponse.json(principal)),
   ),
-  HttpRouter.get(
+  HttpRouter.route(
+    'GET',
     '/api/users',
     requirePermission('authn:user-identity:read')(principal =>
       HttpServerResponse.json({ roles: principal.roles }),
     ),
   ),
-);
+]);
 
 /**
  * The grant table this spec authorizes against.

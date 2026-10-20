@@ -44,7 +44,7 @@ export const MongoHealthProbeLayer = (
         ).pipe(
           Effect.as(true),
           // Unreachable is a `false`, never a failed endpoint.
-          Effect.catchAll(() => Effect.succeed(false)),
+          Effect.catch(() => Effect.succeed(false)),
         ),
       });
     }),

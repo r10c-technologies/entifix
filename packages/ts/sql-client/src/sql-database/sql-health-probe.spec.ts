@@ -1,4 +1,3 @@
-import { SqlClient } from '@effect/sql';
 import type { HealthReport } from '@entifix/business';
 import { HealthRegistryLayer, HealthRegistryTag } from '@entifix/business';
 import {
@@ -6,6 +5,7 @@ import {
   makeFakeSqlClient,
 } from '@entifix/testing-unit/drivers';
 import { Effect, Layer } from 'effect';
+import { SqlClient } from 'effect/sql';
 import { describe, expect, it } from 'vitest';
 
 import { SQL_PROBE_NAME, SqlHealthProbeLayer } from './sql-health-probe.js';

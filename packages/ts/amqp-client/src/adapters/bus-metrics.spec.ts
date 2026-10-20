@@ -27,13 +27,14 @@ import {
  * in the same worker.
  */
 const readCounter = (
-  metric: Metric.Metric.Counter<number>,
+  metric: Metric.Counter<number>,
   tags: Record<string, string>,
 ) =>
   Effect.runPromise(
     Metric.value(
       Object.entries(tags).reduce(
-        (tagged, [key, value]) => Metric.tagged(tagged, key, value),
+        (tagged, [key, value]) =>
+          Metric.withAttributes(tagged, { [key]: value }),
         metric,
       ),
     ).pipe(Effect.map(state => state.count)),

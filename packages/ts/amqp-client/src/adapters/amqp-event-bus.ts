@@ -204,17 +204,16 @@ export const makeAmqpEventBus = (
         // instead would make the declared-vs-observed diff pass on a service whose
         // every publish is failing (ADR 0031).
       }).pipe(
-        Effect.tapBoth({
-          onSuccess: () =>
-            wiring
-              .recordPublish(event.name)
-              .pipe(Effect.andThen(recordPublished(event.name))),
-          // Counted here and not in the `catch` above, which only builds the
-          // error: a rising publish-failure rate against a flat published rate
-          // is what a broker outage looks like from the publisher's side, and
-          // the outbox's own backlog is the confirmation.
-          onFailure: () => recordPublishFailure(event.name),
-        }),
+        Effect.tap(() =>
+          wiring
+            .recordPublish(event.name)
+            .pipe(Effect.andThen(recordPublished(event.name))),
+        ),
+        // Counted here and not in the `catch` above, which only builds the
+        // error: a rising publish-failure rate against a flat published rate
+        // is what a broker outage looks like from the publisher's side, and
+        // the outbox's own backlog is the confirmation.
+        Effect.tapError(() => recordPublishFailure(event.name)),
       ),
 
     subscribe: (subscription, handler) =>

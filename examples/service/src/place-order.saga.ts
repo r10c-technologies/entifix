@@ -127,7 +127,7 @@ const transactionally = (
     },
     catch: error => error,
   }).pipe(
-    Effect.catchAll(error =>
+    Effect.catch(error =>
       error instanceof Refusal
         ? Effect.succeed(error.response)
         : isDuplicateKey(error)
@@ -256,7 +256,7 @@ const orders =
 
 /** The saga's participants, answered in this process. */
 export const PlaceOrderDispatcherLayer = (chargeLimit: number) =>
-  Layer.unwrapEffect(
+  Layer.unwrap(
     Effect.gen(function* () {
       const client = yield* MongoClientTag;
       const db = yield* MongoDatabaseTag;

@@ -7,7 +7,7 @@ import {
   entity,
   type EntityId,
 } from '@entifix/core';
-import { Context, Effect, Exit } from 'effect';
+import { Cause, Context, Effect, Exit, Option } from 'effect';
 import { describe, expect, it } from 'vitest';
 
 import { ConfigurationRepositoryTag } from './config.repository.js';
@@ -85,7 +85,7 @@ const repositoryFor = (items: Entity[]) =>
     load: () => Effect.fail(new EntifixLogicError('not used')),
     save: () => Effect.fail(new EntifixLogicError('not used')),
     delete: () => Effect.fail(new EntifixLogicError('not used')),
-  } as unknown as EntityRepositoryTag['Type']);
+  } as unknown as EntityRepositoryTag['Service']);
 
 const registrations = (): EntityLinkRegistration[] => [
   [Brand, repositoryFor([makeBrand('b-1', 'Acme')])],
@@ -132,10 +132,9 @@ describe('createEntityLinkResolver', () => {
     );
 
     expect(Exit.isFailure(exit)).toBe(true);
-    const error =
-      Exit.isFailure(exit) && exit.cause._tag === 'Fail'
-        ? exit.cause.error
-        : undefined;
+    const error = Exit.isFailure(exit)
+      ? Option.getOrUndefined(Cause.findErrorOption(exit.cause))
+      : undefined;
     expect(error).toBeInstanceOf(EntifixLogicError);
     expect((error as EntifixLogicError).message).toContain('Category');
   });
