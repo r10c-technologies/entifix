@@ -37,6 +37,7 @@ jobs:
       build-chunks: ${{ steps.chunks.outputs.build-chunks }}
       test-chunks: ${{ steps.chunks.outputs.test-chunks }}
       e2e-projects: ${{ steps.chunks.outputs.e2e-projects }}
+      storybook-projects: ${{ steps.chunks.outputs.storybook-projects }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -123,11 +124,13 @@ jobs:
           build=$(projects build)
           test=$(projects test)
           e2e=$(projects e2e)
+          storybook=$(projects build-storybook)
 
           echo "lint-projects=$(jq -r 'join(",")' <<<"$lint")" >> "$GITHUB_OUTPUT"
           echo "build-chunks=$(chunk "$build" "$BUILD_CHUNK_SIZE")" >> "$GITHUB_OUTPUT"
           echo "test-chunks=$(chunk "$test" "$TEST_CHUNK_SIZE")" >> "$GITHUB_OUTPUT"
           echo "e2e-projects=$(jq -r 'join(",")' <<<"$e2e")" >> "$GITHUB_OUTPUT"
+          echo "storybook-projects=$(jq -r 'join(",")' <<<"$storybook")" >> "$GITHUB_OUTPUT"
 
   # One job, not a matrix: lint takes about as long as a runner takes to start.
   lint:
@@ -284,6 +287,37 @@ jobs:
             examples/*/test-output
           retention-days: 7
 
+  # Stories are in no tsconfig project, so `typecheck` never reads one and
+  # Vitest never renders one; the loading-contract spec only checks that a
+  # `Loading` story is *exported*. Building Storybook is the one step that
+  # compiles every story, so a story that throws at build fails here (#33).
+  storybook:
+    name: Storybook (${{ needs.initialize.outputs.storybook-projects }})
+    needs: initialize
+    if: needs.initialize.outputs.storybook-projects != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11.9'
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+      - uses: actions/cache/restore@v4
+        with:
+          key: deps-${{ runner.os }}-node26.4-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml', 'package.json') }}
+          fail-on-cache-miss: true
+          path: |
+            node_modules
+            packages/*/*/node_modules
+            packages/style/node_modules
+            tools/*/node_modules
+            examples/*/node_modules
+      - run: pnpm nx run-many -t build-storybook --projects="${{ needs.initialize.outputs.storybook-projects }}"
+
   # NOTE: this job must stay unconditional, and its commands must not become
   # affected-scoped. A tier claim and a documentation claim are about the whole
   # framework, and the pull request that breaks one usually adds a dependency to
@@ -323,6 +357,9 @@ jobs:
       - name: Formatting
         if: always()
         run: pnpm exec prettier --check .
+      - name: The release scripts
+        if: always()
+        run: node --test 'tools/release/*.test.mjs'
 
   # The version a release cuts is inferred from these messages, so a commit that
   # slips past `.husky/commit-msg` — with `--no-verify`, from a clone where
@@ -385,7 +422,7 @@ jobs:
   # it is what `commits` reports on a push, and what a matrix with no chunks does.
   done:
     name: Done
-    needs: [initialize, lint, build, test, e2e, assertions, commits]
+    needs: [initialize, lint, build, test, e2e, storybook, assertions, commits]
     if: always()
     runs-on: ubuntu-latest
     steps:
