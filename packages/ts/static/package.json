@@ -1,6 +1,6 @@
 {
   "name": "@entifix/static",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A read-only entity repository over records bundled with the build: Mongo's query semantics, records validated against entity metadata before they are served.",
   "license": "MIT",
   "repository": {
