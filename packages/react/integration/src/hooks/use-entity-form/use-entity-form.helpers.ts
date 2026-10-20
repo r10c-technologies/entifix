@@ -248,6 +248,12 @@ export interface EntityDraftMessages {
   number(field: string): string;
   date(field: string): string;
   option(field: string): string;
+  /** A collection holding fewer than its `minItems`. */
+  minItems(field: string, count: number): string;
+  /** A collection holding more than its `maxItems`. */
+  maxItems(field: string, count: number): string;
+  /** A date before the one its `notBefore` names. */
+  notBefore(field: string, other: string): string;
 }
 
 /**
@@ -284,13 +290,81 @@ export function validateEntityDraft(
       errors[descriptor.name] = messages.required(labelFor(descriptor));
       continue;
     }
+    // Before the guard below: an empty list is a count of zero, and a link
+    // collection's count is checkable though its ids are not.
+    const counted = isCountedList(descriptor)
+      ? itemCountMessage(descriptor, countItems(raw), messages, labelFor)
+      : undefined;
+    if (counted !== undefined) {
+      errors[descriptor.name] = counted;
+      continue;
+    }
     if (raw === '' || !hasCheckableFormat(descriptor)) continue;
 
-    const message = formatMessage(descriptor, raw, messages, labelFor);
+    const message =
+      formatMessage(descriptor, raw, messages, labelFor) ??
+      orderMessage(descriptor, raw, descriptors, values, messages, labelFor);
     if (message !== undefined) errors[descriptor.name] = message;
   }
 
   return errors;
+}
+
+/** A collection whose draft is a comma list: values, or the ids of links. */
+function isCountedList(descriptor: EntityFieldDescriptor): boolean {
+  return (
+    descriptor.type === 'scalarCollection' ||
+    descriptor.type === 'linkCollection'
+  );
+}
+
+/** How many values a draft's comma list holds, blanks aside. */
+function countItems(raw: string): number {
+  return raw.split(',').filter(item => item.trim() !== '').length;
+}
+
+/**
+ * A collection's `minItems` / `maxItems`, judged on its count. The same rule
+ * `validateRecords` applies to a stored record, so a draft the form accepts is
+ * one a static build would too.
+ */
+function itemCountMessage(
+  descriptor: EntityFieldDescriptor,
+  count: number,
+  messages: EntityDraftMessages,
+  labelFor: EntityFieldLabeler,
+): string | undefined {
+  const { minItems, maxItems } = descriptor;
+  if (minItems !== undefined && count < minItems) {
+    return messages.minItems(labelFor(descriptor), minItems);
+  }
+  if (maxItems !== undefined && count > maxItems) {
+    return messages.maxItems(labelFor(descriptor), maxItems);
+  }
+  return undefined;
+}
+
+/**
+ * `notBefore`: a filled date that precedes the filled date it names. Either one
+ * empty, or unparseable, is someone else's message.
+ */
+function orderMessage(
+  descriptor: EntityFieldDescriptor,
+  raw: string,
+  descriptors: readonly EntityFieldDescriptor[],
+  values: EntityDraft,
+  messages: EntityDraftMessages,
+  labelFor: EntityFieldLabeler,
+): string | undefined {
+  if (descriptor.notBefore === undefined) return undefined;
+  const earlier = descriptors.find(
+    other => other.name === descriptor.notBefore,
+  );
+  const start = new Date(readDraftString(values, descriptor.notBefore));
+  if (earlier === undefined || Number.isNaN(start.getTime())) return undefined;
+  return new Date(raw) < start
+    ? messages.notBefore(labelFor(descriptor), labelFor(earlier))
+    : undefined;
 }
 
 /**
@@ -350,6 +424,8 @@ function validateComposition(
     errors[descriptor.name] = messages.required(labelFor(descriptor));
     return errors;
   }
+  const counted = itemCountMessage(descriptor, rows.length, messages, labelFor);
+  if (counted !== undefined) errors[descriptor.name] = counted;
   if (descriptor.childType === undefined) return errors;
 
   const columns = editableChildColumns(
@@ -503,4 +579,7 @@ export const DEFAULT_VALIDATION_MESSAGES: EntityDraftMessages = {
   number: field => `validation.number:${field}`,
   date: field => `validation.date:${field}`,
   option: field => `validation.option:${field}`,
+  minItems: (field, count) => `validation.minItems:${field}:${count}`,
+  maxItems: (field, count) => `validation.maxItems:${field}:${count}`,
+  notBefore: (field, other) => `validation.notBefore:${field}:${other}`,
 };

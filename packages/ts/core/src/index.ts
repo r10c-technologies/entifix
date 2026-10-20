@@ -20,6 +20,7 @@ export * from './entity-definition/meta-entities/meta-use-case/index.js';
 export * from './entity-definition/metadata/index.js';
 export * from './entity-definition/reconstruct/index.js';
 export * from './entity-definition/serializer/index.js';
+export * from './entity-definition/validate/index.js';
 export * from './envelope/index.js';
 export * from './http/session-cookies.js';
 export * from './i18n/format.js';

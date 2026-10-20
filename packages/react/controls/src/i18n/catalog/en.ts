@@ -154,6 +154,11 @@ export const controls: EsControls = {
     min: '{{field}} is too small',
     max: '{{field}} is too large',
     pattern: '{{field}} has an invalid format',
+    minItems_one: '{{field}} needs at least {{count}} item',
+    minItems_other: '{{field}} needs at least {{count}} items',
+    maxItems_one: '{{field}} takes at most {{count}} item',
+    maxItems_other: '{{field}} takes at most {{count}} items',
+    notBefore: '{{field}} cannot be before {{other}}',
   },
   operator: {
     eq: 'is',

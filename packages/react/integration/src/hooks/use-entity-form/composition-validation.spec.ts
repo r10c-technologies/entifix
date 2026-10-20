@@ -112,6 +112,9 @@ const messages: EntityDraftMessages = {
   number: field => `${field} debe ser un número`,
   date: field => `${field} debe ser una fecha`,
   option: field => `${field} no es una opción válida`,
+  minItems: (field, count) => `${field} necesita al menos ${count}`,
+  maxItems: (field, count) => `${field} admite como máximo ${count}`,
+  notBefore: (field, other) => `${field} no puede ser anterior a ${other}`,
 };
 
 const row = (over: Record<string, string> = {}) => ({
