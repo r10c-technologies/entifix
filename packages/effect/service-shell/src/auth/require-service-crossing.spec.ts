@@ -1,4 +1,3 @@
-import { HttpRouter, HttpServerResponse } from '@effect/platform';
 import {
   makeStaticServiceCrossingPolicy,
   type Permission,
@@ -6,6 +5,7 @@ import {
 } from '@entifix/authz';
 import { ACCESS_COOKIE } from '@entifix/core';
 import { Layer } from 'effect';
+import { HttpRouter, HttpServerResponse } from 'effect/http';
 import { describe, expect, it } from 'vitest';
 
 import { serveTestService } from '../serve-test-service.js';
@@ -33,8 +33,9 @@ const ALLOWED_CROSSINGS: readonly Permission[] = [
   'payment-management:payment:write',
 ];
 
-const router = HttpRouter.empty.pipe(
-  HttpRouter.post(
+const router = HttpRouter.addAll([
+  HttpRouter.route(
+    'POST',
     '/api/reservation',
     requireServiceCrossing('stock-management:reservation:write')(
       organizationId => HttpServerResponse.json({ organizationId }),
@@ -42,7 +43,8 @@ const router = HttpRouter.empty.pipe(
   ),
   // A permission no crossing grants, guarded by the same mechanism — the token
   // is correct and the answer is still 403.
-  HttpRouter.post(
+  HttpRouter.route(
+    'POST',
     '/api/stock-item',
     requireServiceCrossing('stock-management:stock-item:write')(
       organizationId => HttpServerResponse.json({ organizationId }),
@@ -50,13 +52,15 @@ const router = HttpRouter.empty.pipe(
   ),
   // The platform-plane sibling: same token, same permission table, and no
   // organization header — there is no tenant handle for one to choose.
-  HttpRouter.post(
+  HttpRouter.route(
+    'POST',
     '/api/product-order',
     requireCrossing('order-management:product-order:write')(
       HttpServerResponse.json({ written: true }),
     ),
   ),
-  HttpRouter.post(
+  HttpRouter.route(
+    'POST',
     '/api/payment',
     requireCrossing('payment-management:payment:write')(
       HttpServerResponse.json({ written: true }),
@@ -68,13 +72,14 @@ const router = HttpRouter.empty.pipe(
   // refund is a new record with its own money movement, not the absence of a
   // capture (ADR 0054). A grant appearing here would authorize erasing the
   // evidence that a customer was charged.
-  HttpRouter.post(
+  HttpRouter.route(
+    'POST',
     '/api/payment-reversal',
     requireCrossing('payment-management:payment:delete')(
       HttpServerResponse.json({ written: true }),
     ),
   ),
-);
+]);
 
 const withService = async (
   use: (baseUrl: string) => Promise<void>,

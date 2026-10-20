@@ -271,14 +271,16 @@ export const makeInMemoryEntityRepository = (
       // caller's instance nor the returned one can change the record without a
       // second save — which a real adapter guarantees by construction.
       return copyOf(entity).pipe(
-        Effect.tap(stored => {
-          const index = items.findIndex(item => item.id === stored.id);
-          if (index === -1) {
-            items.push(stored);
-          } else {
-            items[index] = stored;
-          }
-        }),
+        Effect.tap(stored =>
+          Effect.sync(() => {
+            const index = items.findIndex(item => item.id === stored.id);
+            if (index === -1) {
+              items.push(stored);
+            } else {
+              items[index] = stored;
+            }
+          }),
+        ),
         Effect.flatMap(copyOf),
       );
     });

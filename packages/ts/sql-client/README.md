@@ -1,8 +1,8 @@
 # @entifix/sql
 
-The SQL adapter, over `@effect/sql`. `makeSqlRepository` implements the `EntityRepository` port from `@entifix/business` and translates an RSQL filter and sort into parameterised SQL — values are bound, never interpolated, and `LIKE` patterns are escaped.
+The SQL adapter, over `effect/sql`. `makeSqlRepository` implements the `EntityRepository` port from `@entifix/business` and translates an RSQL filter and sort into parameterised SQL — values are bound, never interpolated, and `LIKE` patterns are escaped.
 
-Bring the `@effect/sql` driver for your database and provide its `SqlClient`; this package does not choose one.
+Bring an Effect SQL driver for your database (`@effect/sql-pg`, say) and provide its `SqlClient`; this package does not choose one.
 
 ## Install
 

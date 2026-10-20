@@ -76,7 +76,7 @@ describe('makeLocalSagaDispatcher', () => {
 
     expect(Exit.isFailure(exit)).toBe(true);
     if (Exit.isFailure(exit)) {
-      expect(Cause.isDie(exit.cause)).toBe(true);
+      expect(Cause.hasDies(exit.cause)).toBe(true);
       expect(Cause.squash(exit.cause)).toBeInstanceOf(EntifixLogicError);
     }
   });

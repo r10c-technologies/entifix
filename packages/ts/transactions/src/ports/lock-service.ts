@@ -20,7 +20,7 @@ export interface LockService {
   release(handle: LockHandle): Effect.Effect<void, EntifixConnError>;
 }
 
-export class LockServiceTag extends Context.Tag('LockServiceTag')<
+export class LockServiceTag extends Context.Service<
   LockServiceTag,
   LockService
->() {}
+>()('LockServiceTag') {}

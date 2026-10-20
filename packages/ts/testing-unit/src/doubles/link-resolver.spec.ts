@@ -5,7 +5,7 @@ import {
   entity,
   type EntityId,
 } from '@entifix/core';
-import { Effect, Exit } from 'effect';
+import { Cause, Effect, Exit, Option } from 'effect';
 import { describe, expect, it } from 'vitest';
 
 import { makeInMemoryEntityLinkResolver } from './link-resolver.js';
@@ -79,10 +79,9 @@ describe('makeInMemoryEntityLinkResolver', () => {
     );
 
     expect(Exit.isFailure(exit)).toBe(true);
-    const error =
-      Exit.isFailure(exit) && exit.cause._tag === 'Fail'
-        ? exit.cause.error
-        : undefined;
+    const error = Exit.isFailure(exit)
+      ? Option.getOrUndefined(Cause.findErrorOption(exit.cause))
+      : undefined;
     expect(error).toBeInstanceOf(EntifixConnError);
     expect((error as EntifixConnError).details).toEqual({
       entity: 'Brand',

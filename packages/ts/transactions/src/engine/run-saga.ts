@@ -242,14 +242,14 @@ const compensateStep = (
         { organizationId: call.organizationId },
         { outcome: call.body },
       ).pipe(
-        Effect.catchAll(error =>
+        Effect.catch(error =>
           Effect.succeed({ ok: false, status: 0, body: error }),
         ),
         // A template that no longer matches the participant's response shape
         // throws rather than interpolating `undefined`; that is a defect, and
         // it is reported as a stranded compensation rather than crashing the
         // walk and leaving every later hold in place.
-        Effect.catchAllDefect(defect =>
+        Effect.catchDefect(defect =>
           Effect.succeed({ ok: false, status: 0, body: defect }),
         ),
       );

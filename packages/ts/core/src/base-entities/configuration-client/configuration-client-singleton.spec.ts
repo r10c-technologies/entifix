@@ -1,4 +1,4 @@
-import { Effect, Exit } from 'effect';
+import { Cause, Effect, Exit, Option } from 'effect';
 import { describe, expect, it } from 'vitest';
 
 import { EntifixBuildError } from '../entifix-error/index.js';
@@ -19,11 +19,13 @@ const failureOf = async <TValue>(
   if (Exit.isSuccess(exit)) {
     throw new Error('expected the effect to fail');
   }
-  const cause = exit.cause;
-  if (cause._tag !== 'Fail') {
-    throw new Error(`expected a Fail cause, got ${cause._tag}`);
+  const failure = Cause.findErrorOption(exit.cause);
+  if (Option.isNone(failure)) {
+    throw new Error(
+      `expected a typed failure, got ${Cause.pretty(exit.cause)}`,
+    );
   }
-  return cause.error;
+  return failure.value;
 };
 
 /** Any group getter, erased to a common type so `it.each` tables stay uniform. */

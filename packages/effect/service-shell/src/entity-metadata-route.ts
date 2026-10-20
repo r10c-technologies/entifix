@@ -1,6 +1,5 @@
 import { createHash } from 'node:crypto';
 
-import { HttpServerRequest, HttpServerResponse } from '@effect/platform';
 import {
   parsePermission,
   type Permission,
@@ -18,6 +17,7 @@ import {
   makeEntityMetadataEnvelope,
 } from '@entifix/core';
 import { Effect } from 'effect';
+import { HttpServerRequest, HttpServerResponse } from 'effect/http';
 
 import { requirePrincipal } from './auth/index.js';
 

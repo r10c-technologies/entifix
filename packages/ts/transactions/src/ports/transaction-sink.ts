@@ -72,10 +72,10 @@ export interface TransactionSink {
  * (`mergeContext`), because an invariant the compiler cannot hold is one a test
  * has to.
  */
-export class TransactionSinkTag extends Context.Tag('TransactionSinkTag')<
+export class TransactionSinkTag extends Context.Service<
   TransactionSinkTag,
   TransactionSink
->() {}
+>()('TransactionSinkTag') {}
 
 /**
  * The sink where nothing is watching — outside a mounted provider, and in every

@@ -1,13 +1,7 @@
 import { type ShutdownHook, ShutdownRegistryTag } from '@entifix/business';
 import { EntifixConnError } from '@entifix/core';
-import {
-  Duration,
-  Effect,
-  Layer,
-  Logger,
-  TestClock,
-  TestContext,
-} from 'effect';
+import { Duration, Effect, Layer, Logger } from 'effect';
+import { TestClock } from 'effect/testing';
 import { describe, expect, it } from 'vitest';
 
 import { defineSaga } from '../contracts/saga-definition.js';
@@ -92,7 +86,7 @@ const dispatcher = (answer: 'ok' | 'unreachable') =>
         : Effect.fail(new EntifixConnError('participant down')),
   });
 
-const quiet = Logger.replace(Logger.defaultLogger, Logger.none);
+const quiet = Logger.layer([]);
 
 const sweep = (store: SagaStore, answer: 'ok' | 'unreachable' = 'ok') =>
   Effect.runPromise(
@@ -173,7 +167,7 @@ describe('startSagaResume', () => {
         expect(settled).toEqual([]);
 
         yield* TestClock.adjust(Duration.millis(1));
-        yield* Effect.yieldNow();
+        yield* Effect.yieldNow;
         expect(settled).toEqual([{ sagaId: 's-1', state: 'COMPLETED' }]);
 
         expect(hooks.map(hook => [hook.name, hook.phase])).toEqual([
@@ -182,7 +176,7 @@ describe('startSagaResume', () => {
         yield* hooks[0]!.run;
 
         yield* TestClock.adjust(Duration.millis(10_000));
-        yield* Effect.yieldNow();
+        yield* Effect.yieldNow;
         expect(settled).toHaveLength(1);
       }).pipe(
         Effect.provide(Layer.succeed(SagaStoreTag, store)),
@@ -198,7 +192,7 @@ describe('startSagaResume', () => {
           }),
         ),
         Effect.provide(quiet),
-        Effect.provide(TestContext.TestContext),
+        Effect.provide(TestClock.layer()),
       ),
     );
   });

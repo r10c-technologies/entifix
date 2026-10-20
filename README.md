@@ -190,7 +190,7 @@ change. `ENTIFIX_CONSUMERS` takes several paths, separated by `:`.
 
 - **A copy, never a link.** A symlinked package resolves its own dependencies
   from this repository's `node_modules`, which hands the consumer a second
-  `effect` and breaks `Context.Tag` identity silently. A copy resolves its peers
+  `effect` and breaks `Context.Service` identity silently. A copy resolves its peers
   from the consumer, exactly as the tarball does.
 - **File by file, into the directories already there.** Each changed file is
   written beside its target and renamed over it, and unchanged files are left

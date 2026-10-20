@@ -60,7 +60,7 @@ export const buildTransactionStatusReader = (
 
           return yield* readTransactionRecordEnvelope(response.body);
         }).pipe(
-          Effect.catchAll(error =>
+          Effect.catch(error =>
             error.details?.['status'] === 404
               ? Effect.succeed(undefined)
               : Effect.fail(error),

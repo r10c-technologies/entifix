@@ -17,7 +17,7 @@ const CONFIG_API = 'http://config-service:3190';
 const SERVICE = 'marketplace-admin-service';
 
 // Fail fast in the error-path tests: a single attempt, no boot-retry wait.
-const noRetry = { retrySchedule: Schedule.stop } as const;
+const noRetry = { retrySchedule: Schedule.recurs(0) } as const;
 // Retry immediately (no delay) so the recovery test doesn't wait real seconds.
 const instantRetry = { retrySchedule: Schedule.recurs(5) } as const;
 

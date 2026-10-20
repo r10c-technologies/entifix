@@ -1,6 +1,6 @@
-import { HttpRouter, HttpServerResponse } from '@effect/platform';
 import { HealthRegistryTag, WiringRegistryTag } from '@entifix/business';
 import { Effect, Layer } from 'effect';
+import { HttpRouter, HttpServerResponse } from 'effect/http';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import {
@@ -69,12 +69,13 @@ const serve = async (): Promise<string> => {
     name: SERVICE_NAME,
     port: 0,
     slices: SLICES,
-    router: HttpRouter.empty.pipe(
-      HttpRouter.get(
+    router: HttpRouter.addAll([
+      HttpRouter.route(
+        'GET',
         '/api/:entity',
         HttpServerResponse.json({ from: 'the parametric route' }),
       ),
-    ),
+    ]),
     appLayer: wiringLayer,
   });
   return running.baseUrl;
@@ -95,7 +96,7 @@ afterEach(async () => {
   running = undefined;
 });
 
-describe('withServiceDescriptionRoute', () => {
+describe('serviceDescriptionRoute', () => {
   it('answers 401 without the service token', async () => {
     const baseUrl = await serve();
 

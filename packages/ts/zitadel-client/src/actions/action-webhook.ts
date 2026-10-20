@@ -76,10 +76,10 @@ export interface ZitadelActions {
   ): Effect.Effect<ProviderUserEvent, EntifixLogicError>;
 }
 
-export class ZitadelActionsTag extends Context.Tag('ZitadelActionsTag')<
+export class ZitadelActionsTag extends Context.Service<
   ZitadelActionsTag,
   ZitadelActions
->() {}
+>()('ZitadelActionsTag') {}
 
 interface ParsedSignature {
   readonly timestamp: number;

@@ -102,7 +102,6 @@ export interface EventBus {
   ): Effect.Effect<void, EntifixConnError>;
 }
 
-export class EventBusTag extends Context.Tag('EventBusTag')<
-  EventBusTag,
-  EventBus
->() {}
+export class EventBusTag extends Context.Service<EventBusTag, EventBus>()(
+  'EventBusTag',
+) {}

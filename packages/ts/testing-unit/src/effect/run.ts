@@ -1,5 +1,5 @@
 import type { ConfigurationRepositoryTag } from '@entifix/business';
-import { Effect, Exit, type Layer } from 'effect';
+import { Cause, Effect, Exit, type Layer, Option } from 'effect';
 
 import { stubConfigurationLayer } from '../doubles/configuration.js';
 
@@ -36,12 +36,12 @@ export const expectFailure = async <TValue, TError, TContext>(
     );
   }
 
-  const failure = exit.cause;
-  if (failure._tag === 'Fail') {
-    return failure.error;
+  const failure = Cause.findErrorOption(exit.cause);
+  if (Option.isSome(failure)) {
+    return failure.value;
   }
   throw new Error(
-    `Expected a typed failure, but the effect died with: ${String(failure)}`,
+    `Expected a typed failure, but the effect died with: ${String(exit.cause)}`,
   );
 };
 
@@ -83,8 +83,9 @@ export const runFailure = async <TValue, TError>(
       )}`,
     );
   }
-  if (exit.cause._tag === 'Fail') {
-    return exit.cause.error;
+  const failure = Cause.findErrorOption(exit.cause);
+  if (Option.isSome(failure)) {
+    return failure.value;
   }
   throw new Error(
     `Expected a typed failure, but the effect died with: ${String(exit.cause)}`,

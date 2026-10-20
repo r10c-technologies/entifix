@@ -12,7 +12,7 @@ export interface SequenceService {
   next(name: string): Effect.Effect<number, EntifixConnError>;
 }
 
-export class SequenceServiceTag extends Context.Tag('SequenceServiceTag')<
+export class SequenceServiceTag extends Context.Service<
   SequenceServiceTag,
   SequenceService
->() {}
+>()('SequenceServiceTag') {}

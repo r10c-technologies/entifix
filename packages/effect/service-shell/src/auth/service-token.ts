@@ -1,7 +1,7 @@
 import { timingSafeEqual } from 'node:crypto';
 
-import { HttpServerRequest, HttpServerResponse } from '@effect/platform';
 import { Effect } from 'effect';
+import { HttpServerRequest, HttpServerResponse } from 'effect/http';
 
 /** The header a caller of config-service's fleet lookup presents. */
 export const SERVICE_TOKEN_HEADER = 'x-service-token';

@@ -32,7 +32,7 @@ export const RedisHealthProbeLayer = (
         targets: stores,
         check: Effect.tryPromise(() => redis.ping()).pipe(
           Effect.map(reply => reply === 'PONG'),
-          Effect.catchAll(() => Effect.succeed(false)),
+          Effect.catch(() => Effect.succeed(false)),
         ),
       });
     }),

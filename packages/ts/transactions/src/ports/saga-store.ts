@@ -128,7 +128,6 @@ export interface SagaStore {
   ): Effect.Effect<void, EntifixConnError>;
 }
 
-export class SagaStoreTag extends Context.Tag('SagaStoreTag')<
-  SagaStoreTag,
-  SagaStore
->() {}
+export class SagaStoreTag extends Context.Service<SagaStoreTag, SagaStore>()(
+  'SagaStoreTag',
+) {}

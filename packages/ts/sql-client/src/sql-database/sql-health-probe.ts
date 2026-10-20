@@ -1,6 +1,6 @@
-import { SqlClient } from '@effect/sql';
 import { HealthRegistryTag } from '@entifix/business';
 import { Effect, Layer } from 'effect';
+import { SqlClient } from 'effect/sql';
 
 /** Probe name reported by `/api/health/ready` when the database is unreachable. */
 export const SQL_PROBE_NAME = 'postgres';
@@ -37,7 +37,7 @@ export const SqlHealthProbeLayer = (
         check: sql`SELECT 1`.pipe(
           Effect.as(true),
           // Unreachable is a `false`, never a failed endpoint.
-          Effect.catchAll(() => Effect.succeed(false)),
+          Effect.catch(() => Effect.succeed(false)),
         ),
       });
     }),

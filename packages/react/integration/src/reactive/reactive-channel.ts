@@ -46,10 +46,10 @@ export interface ReactiveChannel {
   onConnect(listener: () => void): () => void;
 }
 
-export class ReactiveChannelTag extends Context.Tag('ReactiveChannel')<
+export class ReactiveChannelTag extends Context.Service<
   ReactiveChannelTag,
   ReactiveChannel
->() {}
+>()('ReactiveChannel') {}
 
 /**
  * A channel that never emits — the default until a transport is provided.

@@ -6,7 +6,7 @@ import {
   type OutboxEntry,
   type TransactionOutbox,
 } from '@entifix/transactions';
-import { Effect, HashMap, Layer, Logger } from 'effect';
+import { Effect, Layer, Logger, References } from 'effect';
 import { describe, expect, it } from 'vitest';
 
 import { MongoDatabaseTag } from '../mongo-database/mongo-database.js';
@@ -103,15 +103,16 @@ const runDrain = async (
   const sent = await Effect.runPromise(
     drainOutbox(outbox, bus, options).pipe(
       Effect.provide(
-        Logger.replace(
-          Logger.defaultLogger,
-          Logger.make(({ message, annotations }) => {
+        Logger.layer([
+          Logger.make(({ message, fiber }) => {
             logs.push({
               message: String(message),
-              annotations: Object.fromEntries(HashMap.toEntries(annotations)),
+              annotations: {
+                ...fiber.getRef(References.CurrentLogAnnotations),
+              },
             });
           }),
-        ),
+        ]),
       ),
     ),
   );
@@ -269,12 +270,11 @@ describe('sweepOutbox', () => {
     await Effect.runPromise(
       sweepOutbox(failing, bus, { maxAttempts: 3, database: 'order' }).pipe(
         Effect.provide(
-          Logger.replace(
-            Logger.defaultLogger,
+          Logger.layer([
             Logger.make(({ message }) => {
               logs.push(String(message));
             }),
-          ),
+          ]),
         ),
       ),
     );

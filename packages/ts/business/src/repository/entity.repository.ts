@@ -25,7 +25,7 @@ export interface EntityRepository {
   ): Effect<void, EntifixError, ConfigurationRepositoryTag>;
 }
 
-export class EntityRepositoryTag extends Context.Tag('EntityRepositoryTag')<
+export class EntityRepositoryTag extends Context.Service<
   EntityRepositoryTag,
   EntityRepository
->() {}
+>()('EntityRepositoryTag') {}

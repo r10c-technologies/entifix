@@ -5,19 +5,7 @@ import {
   type MetricData,
   type SumMetricData,
 } from '@opentelemetry/sdk-metrics';
-import {
-  Cause,
-  Effect,
-  FiberId,
-  FiberRef,
-  FiberRefs,
-  HashMap,
-  HashSet,
-  List,
-  Logger,
-  LogLevel,
-  Metric,
-} from 'effect';
+import { Cause, Effect, Logger, Metric, References } from 'effect';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
@@ -47,7 +35,7 @@ const runLogging = async <A>(effect: Effect.Effect<A>) => {
       // in-memory layer already sets to `debug`. Both have to be lowered, and a
       // spec that only set the second would report the bridge as losing a debug
       // record it was never handed.
-      Logger.withMinimumLogLevel(LogLevel.Debug),
+      Effect.provideService(References.MinimumLogLevel, 'Debug'),
       Effect.provide(observability.layer),
     ),
   );
@@ -55,8 +43,8 @@ const runLogging = async <A>(effect: Effect.Effect<A>) => {
 };
 
 describe('the Effect log bridge', () => {
-  // Effect's labels are upper case (`"ERROR"`, `"WARN"`, `"DEBUG"`), and the
-  // mapper used to switch on `'Error'`/`'Warning'`/`'Debug'` — no case could
+  // Under Effect 3 the labels were upper case (`"ERROR"`, `"WARN"`, `"DEBUG"`),
+  // and the mapper switched on `'Error'`/`'Warning'`/`'Debug'` — no case could
   // match, so everything fell through to `info`. An `Effect.logError` reaching
   // a sink as INFO is invisible to every level-based alert while still being
   // present in the log, which reads as "the service has no errors".
@@ -151,8 +139,8 @@ describe('the metric pipeline', () => {
     });
 
     await Effect.runPromise(
-      Metric.increment(requests).pipe(
-        Effect.andThen(Metric.increment(requests)),
+      Metric.update(requests, 1).pipe(
+        Effect.andThen(Metric.update(requests, 1)),
         Effect.provide(observability.layer),
       ),
     );
@@ -175,7 +163,7 @@ describe('the metric pipeline', () => {
     const errors = Metric.counter('spec_errors_total');
 
     await Effect.runPromise(
-      Metric.increment(errors).pipe(Effect.provide(observability.layer)),
+      Metric.update(errors, 1).pipe(Effect.provide(observability.layer)),
     );
 
     const collected = await observability.collectMetrics();
@@ -406,7 +394,7 @@ describe('observabilityFromConfiguration', () => {
  * The two label arms the four common levels do not reach, and the array form of
  * a log message.
  *
- * `TRACE` and `FATAL` are real `effect/LogLevel` labels that collapse onto the
+ * `Trace` and `Fatal` are real `effect/LogLevel` levels that collapse onto the
  * four the tooling logger has. They are asserted for the same reason the others
  * are: the whole switch matched nothing for a year, and a case nothing exercises
  * is how that survives a second time.
@@ -416,7 +404,7 @@ describe('the log bridge at the edges of the level set', () => {
     const observability = makeInMemoryObservabilityLayer('@r10c/spec-service');
     await Effect.runPromise(
       effect.pipe(
-        Logger.withMinimumLogLevel(LogLevel.All),
+        Effect.provideService(References.MinimumLogLevel, 'All'),
         Effect.provide(observability.layer),
       ),
     );
@@ -461,17 +449,17 @@ describe('a log message that is not an array', () => {
 
     await Effect.runPromise(
       Effect.gen(function* () {
-        const loggers = yield* FiberRef.get(FiberRef.currentLoggers);
-        for (const logger of HashSet.values(loggers)) {
+        const loggers = yield* Logger.CurrentLoggers;
+        const fiber = yield* Effect.withFiber(current =>
+          Effect.succeed(current),
+        );
+        for (const logger of loggers) {
           logger.log({
             message: 'bare string',
-            logLevel: LogLevel.Info,
-            annotations: HashMap.empty(),
+            logLevel: 'Info',
             cause: Cause.empty,
-            context: FiberRefs.unsafeMake(new Map()),
+            fiber,
             date: new Date(),
-            fiberId: FiberId.none,
-            spans: List.empty(),
           });
         }
       }).pipe(Effect.provide(observability.layer)),

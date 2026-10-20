@@ -75,9 +75,10 @@ export interface TransactionStreamHub {
   ): Stream.Stream<DomainEvent<EntityChangeEvent>>;
 }
 
-export class TransactionStreamHubTag extends Context.Tag(
-  'TransactionStreamHubTag',
-)<TransactionStreamHubTag, TransactionStreamHub>() {}
+export class TransactionStreamHubTag extends Context.Service<
+  TransactionStreamHubTag,
+  TransactionStreamHub
+>()('TransactionStreamHubTag') {}
 
 /** Builds a hub over a sliding {@link PubSub}. */
 export const makeTransactionStreamHub = (

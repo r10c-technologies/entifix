@@ -17,10 +17,10 @@ import { EntityRepositoryTag } from './entity.repository.js';
  * and use-cases that follow links yield this tag rather than depending on any
  * concrete repository.
  */
-export class EntityLinkResolverTag extends Context.Tag('EntityLinkResolverTag')<
+export class EntityLinkResolverTag extends Context.Service<
   EntityLinkResolverTag,
   EntityLinkResolver
->() {}
+>()('EntityLinkResolverTag') {}
 
 /** Maps a link target constructor to the repository adapter that loads it. */
 export type EntityLinkRegistration = readonly [

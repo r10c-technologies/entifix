@@ -66,11 +66,11 @@
     "@entifix/transactions": "workspace:*",
     "@entifix/testing-unit": "workspace:*",
     "@types/amqplib": "0.10.5",
-    "effect": "3.22.2"
+    "effect": "4.0.5"
   },
   "peerDependencies": {
     "@entifix/transactions": "workspace:*",
-    "effect": ">=3.22.2 <4"
+    "effect": "^4.0.5"
   },
   "peerDependenciesMeta": {
     "@entifix/transactions": {

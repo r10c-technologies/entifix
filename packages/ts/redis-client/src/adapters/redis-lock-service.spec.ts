@@ -1,10 +1,10 @@
-import { it as effectIt } from '@effect/vitest';
 import {
   describeLockServiceContract,
   describeSequenceServiceContract,
 } from '@entifix/testing-unit/contracts';
 import { makeFakeRedis } from '@entifix/testing-unit/drivers';
-import { Duration, Effect, Exit, Fiber, TestClock } from 'effect';
+import { Duration, Effect, Exit, Fiber } from 'effect';
+import { TestClock } from 'effect/testing';
 import type { Redis } from 'ioredis';
 import { describe, expect, it } from 'vitest';
 
@@ -15,6 +15,19 @@ import {
   makeRedisLockService,
 } from './redis-lock-service.js';
 import { makeRedisSequenceService } from './redis-sequence-service.js';
+
+/**
+ * Runs an Effect test on a `TestClock`, so a retry budget measured in seconds
+ * costs none of the wall clock.
+ */
+const effectIt = {
+  effect: (name: string, body: () => Effect.Effect<unknown, unknown>) =>
+    it(name, () =>
+      Effect.runPromise(
+        body().pipe(Effect.provide(TestClock.layer()), Effect.scoped),
+      ),
+    ),
+};
 
 /**
  * The adapters run unchanged against a fake ioredis client, so `SET NX PX`, the
@@ -55,7 +68,7 @@ describe('makeRedisLockService', () => {
   });
 
   // The retry budget is bounded, so exhausting it means waiting out every
-  // sleep. `it.effect` supplies a TestClock, so the 2s of retries costs no wall
+  // sleep. `effectIt.effect` supplies a TestClock, so the 2s of retries costs no wall
   // clock at all — and asserting the attempt count proves the budget, which a
   // plain timeout never would.
   effectIt.effect(
@@ -65,7 +78,7 @@ describe('makeRedisLockService', () => {
         const { fake, redis } = withFakeRedis();
         fake.hold('product:code');
 
-        const fiber = yield* Effect.fork(
+        const fiber = yield* Effect.forkChild(
           makeRedisLockService(redis).acquire('product:code'),
         );
         yield* TestClock.adjust(

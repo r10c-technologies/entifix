@@ -1,4 +1,4 @@
-import { Effect, Exit } from 'effect';
+import { Cause, Effect, Exit, Option } from 'effect';
 import { describe, expect, it } from 'vitest';
 
 import { EntifixBuildError } from '../../base-entities/entifix-error/index.js';
@@ -100,10 +100,13 @@ const deserialize = (data: unknown) =>
 const failureOf = async (effect: Effect.Effect<unknown, EntifixBuildError>) => {
   const exit = await Effect.runPromiseExit(effect);
   if (Exit.isSuccess(exit)) throw new Error('expected a failure');
-  const cause = exit.cause;
-  if (cause._tag !== 'Fail')
-    throw new Error(`expected Fail, got ${cause._tag}`);
-  return cause.error;
+  const failure = Cause.findErrorOption(exit.cause);
+  if (Option.isNone(failure)) {
+    throw new Error(
+      `expected a typed failure, got ${Cause.pretty(exit.cause)}`,
+    );
+  }
+  return failure.value;
 };
 
 describe('deserializeSingleEntity', () => {

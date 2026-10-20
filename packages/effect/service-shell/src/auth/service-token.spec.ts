@@ -1,5 +1,5 @@
-import { HttpRouter, HttpServerResponse } from '@effect/platform';
 import { Layer } from 'effect';
+import { HttpRouter, HttpServerResponse } from 'effect/http';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { serveTestService } from '../serve-test-service.js';
@@ -10,12 +10,13 @@ import {
   serviceToken,
 } from './service-token.js';
 
-const router = HttpRouter.empty.pipe(
-  HttpRouter.get(
+const router = HttpRouter.addAll([
+  HttpRouter.route(
+    'GET',
     '/api/config/auth-service',
     requireServiceToken(HttpServerResponse.json({ mongo: [] })),
   ),
-);
+]);
 
 const withService = async (
   use: (baseUrl: string) => Promise<void>,

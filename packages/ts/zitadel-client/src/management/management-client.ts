@@ -105,10 +105,10 @@ export interface ZitadelManagement {
   ): Effect.Effect<readonly ZitadelEvent[], EntifixConnError>;
 }
 
-export class ZitadelManagementTag extends Context.Tag('ZitadelManagementTag')<
+export class ZitadelManagementTag extends Context.Service<
   ZitadelManagementTag,
   ZitadelManagement
->() {}
+>()('ZitadelManagementTag') {}
 
 interface V1UserRow {
   readonly id?: string;
@@ -228,7 +228,7 @@ export const makeZitadelManagement = (
       }),
       // A deleted or never-existing id is a `404`, which is an answer rather
       // than a failure: callers ask precisely because they do not know.
-      Effect.catchAll(error =>
+      Effect.catch(error =>
         /404|NotFound|doesn't exist/i.test(error.message)
           ? Effect.succeed(null)
           : Effect.fail(error),

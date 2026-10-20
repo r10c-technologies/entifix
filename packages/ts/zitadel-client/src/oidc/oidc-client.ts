@@ -120,10 +120,10 @@ export interface ZitadelOidc {
   ): Effect.Effect<LogoutEvent, EntifixConnError | EntifixLogicError>;
 }
 
-export class ZitadelOidcTag extends Context.Tag('ZitadelOidcTag')<
+export class ZitadelOidcTag extends Context.Service<
   ZitadelOidcTag,
   ZitadelOidc
->() {}
+>()('ZitadelOidcTag') {}
 
 /**
  * JWKS is fetched lazily and cached per issuer, with jose handling rotation:
@@ -285,7 +285,7 @@ export const makeZitadelOidc = (config: ZitadelOidcConfig): ZitadelOidc => {
             return (await response.json()) as JWTPayload;
           },
           catch: error => new EntifixConnError(String(error)),
-        }).pipe(Effect.catchAll(() => Effect.succeed({} as JWTPayload)));
+        }).pipe(Effect.catch(() => Effect.succeed({} as JWTPayload)));
 
   const exchangeCode = (input: {
     readonly code: string;

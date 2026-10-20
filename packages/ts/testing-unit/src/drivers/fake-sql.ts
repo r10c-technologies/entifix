@@ -13,9 +13,9 @@
  * Postgres, the way the driver connection Layers are covered.
  */
 
-import { SqlError } from '@effect/sql';
-import * as Statement from '@effect/sql/Statement';
 import { Effect } from 'effect';
+import { SqlError } from 'effect/sql';
+import { Statement } from 'effect/sql';
 
 /** One statement the adapter executed, already compiled. */
 export interface FakeSqlExecution {
@@ -110,7 +110,12 @@ export const makeFakeSqlClient = (
     const message = scoped?.message ?? failure;
     if (message !== undefined) {
       return Effect.fail(
-        new SqlError.SqlError({ cause: new Error(message), message }),
+        new SqlError.SqlError({
+          reason: new SqlError.UnknownError({
+            cause: new Error(message),
+            message,
+          }),
+        }),
       );
     }
     return Effect.succeed(answer(sql));

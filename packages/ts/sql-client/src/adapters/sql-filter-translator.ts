@@ -1,5 +1,3 @@
-import type { SqlClient } from '@effect/sql';
-import type { Statement } from '@effect/sql';
 import {
   allowedDescriptors,
   EntifixBuildError,
@@ -12,6 +10,8 @@ import {
   type EntitySorting,
   type FilterGroup,
 } from '@entifix/core';
+import type { SqlClient } from 'effect/sql';
+import type { Statement } from 'effect/sql';
 
 /** SQL comparison for each binary operator. Fixed strings, never user input. */
 const BINARY_OPERATORS: Record<EntityFilterBinaryOperator, string> = {

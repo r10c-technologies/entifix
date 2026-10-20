@@ -1,14 +1,15 @@
 import { Entity, EntityId, EntityLoadRequest } from '@entifix/core';
 import { Context } from 'effect';
 
-export class EntityIdTag extends Context.Tag('EntityIdTag')<
-  EntityIdTag,
-  EntityId
->() {}
+export class EntityIdTag extends Context.Service<EntityIdTag, EntityId>()(
+  'EntityIdTag',
+) {}
 
-export class EntityLoadRequestTag extends Context.Tag('EntityLoadRequestTag')<
+export class EntityLoadRequestTag extends Context.Service<
   EntityLoadRequestTag,
   EntityLoadRequest
->() {}
+>()('EntityLoadRequestTag') {}
 
-export class EntityTag extends Context.Tag('EntityTag')<EntityTag, Entity>() {}
+export class EntityTag extends Context.Service<EntityTag, Entity>()(
+  'EntityTag',
+) {}

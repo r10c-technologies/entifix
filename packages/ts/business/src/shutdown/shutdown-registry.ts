@@ -79,10 +79,10 @@ export interface ShutdownRegistry {
  * `entifix-ts-*-client` package can register a hook without depending on a
  * shell.
  */
-export class ShutdownRegistryTag extends Context.Tag('ShutdownRegistryTag')<
+export class ShutdownRegistryTag extends Context.Service<
   ShutdownRegistryTag,
   ShutdownRegistry
->() {}
+>()('ShutdownRegistryTag') {}
 
 /**
  * Runs one hook and swallows whatever it does.
@@ -95,7 +95,7 @@ export class ShutdownRegistryTag extends Context.Tag('ShutdownRegistryTag')<
 const runHook = (hook: ShutdownHook): Effect.Effect<void> =>
   hook.run.pipe(
     Effect.timeout(HOOK_TIMEOUT),
-    Effect.catchAllCause(cause =>
+    Effect.catchCause(cause =>
       Effect.logError('shutdown hook did not complete').pipe(
         // Annotations, not a rendered message: the tooling logger emits these
         // as structured fields, so which hook stalled a rollout is queryable.

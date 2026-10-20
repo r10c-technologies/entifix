@@ -18,7 +18,7 @@ export interface UiPreferencesState {
   remove(key: string): Effect.Effect<void, EntifixError>;
 }
 
-export class UiPreferencesStateTag extends Context.Tag('UiPreferencesState')<
+export class UiPreferencesStateTag extends Context.Service<
   UiPreferencesStateTag,
   UiPreferencesState
->() {}
+>()('UiPreferencesState') {}

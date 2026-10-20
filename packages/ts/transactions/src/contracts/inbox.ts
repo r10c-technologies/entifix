@@ -77,7 +77,7 @@ export interface TransactionInbox {
   claim(eventId: string): Effect.Effect<InboxClaimResult, EntifixConnError>;
 }
 
-export class TransactionInboxTag extends Context.Tag('TransactionInboxTag')<
+export class TransactionInboxTag extends Context.Service<
   TransactionInboxTag,
   TransactionInbox
->() {}
+>()('TransactionInboxTag') {}

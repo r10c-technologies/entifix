@@ -143,7 +143,7 @@ export interface TransactionOutbox {
   stats(): Effect.Effect<OutboxStats, EntifixConnError>;
 }
 
-export class TransactionOutboxTag extends Context.Tag('TransactionOutboxTag')<
+export class TransactionOutboxTag extends Context.Service<
   TransactionOutboxTag,
   TransactionOutbox
->() {}
+>()('TransactionOutboxTag') {}

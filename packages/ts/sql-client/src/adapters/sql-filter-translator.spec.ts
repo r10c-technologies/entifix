@@ -1,4 +1,3 @@
-import type { SqlClient, Statement } from '@effect/sql';
 import {
   accessor,
   EntifixBuildError,
@@ -9,6 +8,7 @@ import {
   type EntitySorting,
 } from '@entifix/core';
 import { makeFakeSqlClient } from '@entifix/testing-unit/drivers';
+import type { SqlClient, Statement } from 'effect/sql';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
@@ -306,7 +306,7 @@ describe('translateSorting', () => {
           0: { property: 'size', type: 'desc' },
         },
       ]),
-    ).toEqual(['"size" DESC, "widget_name" ASC', []]);
+    ).toEqual(['"size" DESC,"widget_name" ASC', []]);
   });
 
   it('merges several sorting records in order', () => {
@@ -315,7 +315,7 @@ describe('translateSorting', () => {
         { 0: { property: 'size', type: 'desc' } },
         { 0: { property: 'name', type: 'asc' } },
       ]),
-    ).toEqual(['"size" DESC, "widget_name" ASC', []]);
+    ).toEqual(['"size" DESC,"widget_name" ASC', []]);
   });
 
   it('keeps a repeated column in its first position with its last direction', () => {
@@ -325,7 +325,7 @@ describe('translateSorting', () => {
         { 0: { property: 'name', type: 'asc' } },
         { 0: { property: 'size', type: 'desc' } },
       ]),
-    ).toEqual(['"size" DESC, "widget_name" ASC', []]);
+    ).toEqual(['"size" DESC,"widget_name" ASC', []]);
   });
 
   it('skips a priority slot that carries nothing', () => {

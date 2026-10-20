@@ -1,6 +1,6 @@
-import { HttpServerResponse } from '@effect/platform';
 import type { Permission } from '@entifix/authz';
 import { Effect } from 'effect';
+import { HttpServerResponse } from 'effect/http';
 
 import {
   type RequestPrincipal,

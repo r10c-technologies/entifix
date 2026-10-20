@@ -1,4 +1,3 @@
-import { SqlClient } from '@effect/sql';
 import { PgClient } from '@effect/sql-pg';
 import { ConfigurationRepositoryTag } from '@entifix/business';
 import { ConfigurationClientInMemory } from '@entifix/core';
@@ -9,6 +8,7 @@ import {
   FixedTokenServiceLayer,
 } from '@entifix/testing-auth';
 import { Effect, Layer, Redacted } from 'effect';
+import { SqlClient } from 'effect/sql';
 
 import type { MinimalServiceSettings } from './settings.ts';
 

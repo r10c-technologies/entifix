@@ -73,26 +73,32 @@ export interface SubscriptionTags {
 }
 
 const withSubscription = (
-  metric: Metric.Metric.Counter<number>,
+  metric: Metric.Counter<number>,
   tags: SubscriptionTags,
 ) =>
   metric.pipe(
-    Metric.tagged('queue', tags.queue),
-    Metric.tagged('slice', tags.slice),
-    Metric.tagged('mode', tags.mode),
+    Metric.withAttributes({ queue: tags.queue }),
+    Metric.withAttributes({ slice: tags.slice }),
+    Metric.withAttributes({ mode: tags.mode }),
   );
 
 /** Record one event accepted by the broker. */
 export const recordPublished = (eventName: string) =>
-  Metric.increment(Metric.tagged(busEventsPublished, 'event', eventName));
+  Metric.update(
+    Metric.withAttributes(busEventsPublished, { event: eventName }),
+    1,
+  );
 
 /** Record one publish the broker refused. */
 export const recordPublishFailure = (eventName: string) =>
-  Metric.increment(Metric.tagged(busPublishFailures, 'event', eventName));
+  Metric.update(
+    Metric.withAttributes(busPublishFailures, { event: eventName }),
+    1,
+  );
 
 /** Record one delivery acked after its handler completed. */
 export const recordConsumed = (tags: SubscriptionTags) =>
-  Metric.increment(withSubscription(busEventsConsumed, tags));
+  Metric.update(withSubscription(busEventsConsumed, tags), 1);
 
 /**
  * Record one nacked delivery.
@@ -106,6 +112,7 @@ export const recordFailed = (
   tags: SubscriptionTags,
   failure: 'transient' | 'poison',
 ) =>
-  Metric.increment(
-    Metric.tagged(withSubscription(busEventsFailed, tags), 'failure', failure),
+  Metric.update(
+    Metric.withAttributes(withSubscription(busEventsFailed, tags), { failure }),
+    1,
   );

@@ -1,8 +1,8 @@
 import { timingSafeEqual } from 'node:crypto';
 
-import { HttpServerRequest, HttpServerResponse } from '@effect/platform';
 import { type Permission, ServiceCrossingPolicyTag } from '@entifix/authz';
 import { Context, Effect } from 'effect';
+import { HttpServerRequest, HttpServerResponse } from 'effect/http';
 
 /**
  * The header carrying the crossing secret.
@@ -41,9 +41,10 @@ export const ORGANIZATION_HEADER = 'x-organization-id';
  * config-service as an `is_secret` row, so it arrives through the same boot
  * fetch as `mongo.uri` and can be rotated without redeploying a container.
  */
-export class ServiceCrossingTokenTag extends Context.Tag(
-  'ServiceCrossingTokenTag',
-)<ServiceCrossingTokenTag, string>() {}
+export class ServiceCrossingTokenTag extends Context.Service<
+  ServiceCrossingTokenTag,
+  string
+>()('ServiceCrossingTokenTag') {}
 
 /** Constant-time comparison, so the secret cannot be recovered byte by byte. */
 const matches = (provided: string | undefined, expected: string): boolean => {

@@ -5,7 +5,7 @@ import {
   type OutboxStats,
   type TransactionOutbox,
 } from '@entifix/transactions';
-import { Context, Duration, Effect, Either, Fiber } from 'effect';
+import { Context, Duration, Effect, Fiber, Result } from 'effect';
 
 import { MongoDatabaseTag } from '../mongo-database/mongo-database.js';
 import { recordOutboxStats } from './metrics.js';
@@ -30,10 +30,10 @@ export const BATCH = 100;
  * `NaN`, every `attempts >= maxAttempts` comparison goes false, and nothing is
  * ever quarantined — a relay that looks healthy while its head never moves.
  */
-export class OutboxMaxAttempts extends Context.Tag('OutboxMaxAttempts')<
+export class OutboxMaxAttempts extends Context.Service<
   OutboxMaxAttempts,
   number
->() {}
+>()('OutboxMaxAttempts') {}
 
 /** What {@link drainOutbox} needs beyond the ports it publishes through. */
 export interface DrainOptions {
@@ -63,13 +63,13 @@ export const drainOutbox = (
     const entries = yield* outbox.pending(BATCH);
     let sent = 0;
     for (const entry of entries) {
-      const outcome = yield* Effect.either(bus.publish(entry.event));
+      const outcome = yield* Effect.result(bus.publish(entry.event));
 
-      if (Either.isLeft(outcome)) {
+      if (Result.isFailure(outcome)) {
         const attempts = entry.attempts + 1;
         const quarantine = attempts >= options.maxAttempts;
 
-        yield* outbox.recordFailure(entry, outcome.left.message, quarantine);
+        yield* outbox.recordFailure(entry, outcome.failure.message, quarantine);
 
         if (!quarantine) {
           return sent;
@@ -81,7 +81,7 @@ export const drainOutbox = (
             eventId: entry.eventId,
             eventName: entry.event.name,
             attempts,
-            lastError: outcome.left.message,
+            lastError: outcome.failure.message,
           }),
         );
         continue;
@@ -130,7 +130,7 @@ export const sweepOutbox = (
     const sink = options.onStats ?? recordOutboxStats;
     yield* sink(options.database, yield* outbox.stats());
   }).pipe(
-    Effect.catchAll(error =>
+    Effect.catch(error =>
       Effect.logError('outbox sweep failed').pipe(
         Effect.annotateLogs({
           database: options.database,
@@ -172,7 +172,7 @@ export const startOutboxRelay = (options?: {
       ...(options?.onStats ? { onStats: options.onStats } : {}),
     });
 
-    const daemon = yield* Effect.forkDaemon(
+    const daemon = yield* Effect.forkDetach(
       sweepOnce.pipe(Effect.delay(SWEEP_INTERVAL), Effect.forever),
     );
 

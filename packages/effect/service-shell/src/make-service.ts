@@ -1,6 +1,5 @@
 import { createServer } from 'node:http';
 
-import { HttpMiddleware, HttpRouter, HttpServer } from '@effect/platform';
 import { NodeHttpServer, NodeRuntime } from '@effect/platform-node';
 import {
   HealthRegistryLayer,
@@ -12,21 +11,44 @@ import {
   WiringRegistryTag,
 } from '@entifix/business';
 import { Effect, Layer } from 'effect';
+import { HttpRouter } from 'effect/http';
 
-import { withHealthRoutes } from './health-routes.js';
-import { withServiceDescriptionRoute } from './service-description-route.js';
+import { healthRoutes } from './health-routes.js';
+import { serviceDescriptionRoute } from './service-description-route.js';
+
+/**
+ * A service's routes: `HttpRouter.add` / `HttpRouter.addAll` layers, merged
+ * with `Layer.mergeAll`. Its requirements carry, as `HttpRouter` request
+ * markers, the domain services the handlers need.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type ServiceRoutes<R = any> = Layer.Layer<never, never, R>;
+
+/**
+ * What a service's `appLayer` must provide for routes requiring `R`: the
+ * services their handlers read per request, plus anything building the route
+ * layers themselves needs.
+ */
+export type RoutesRequirements<R> =
+  | HttpRouter.Request.Only<'Requires', R>
+  | HttpRouter.Request.Without<Exclude<R, HttpRouter.HttpRouter>>;
+
+/** The registries {@link makeServerLayer} provides to every `appLayer`. */
+export type ServiceRegistries =
+  HealthRegistryTag | ShutdownRegistryTag | WiringRegistryTag;
 
 /**
  * Definition of an Effect-native backend service.
  *
- * `router` carries the service's routes and, in its `R` type parameter, the
- * exact set of domain services those routes require. `appLayer` must provide
- * that same `R` — the composition root. Because `R` is tracked in the type, a
- * missing dependency is a COMPILE error here, not a runtime surprise. This is
- * the uniform skeleton every `*-service` composes; the HTTP server, logging,
+ * `router` carries the service's routes and, in its requirements, the exact set
+ * of domain services those routes need. `appLayer` must provide them — the
+ * composition root. Because the requirements are tracked in the type, a
+ * missing dependency is a COMPILE error at `makeService`, not a runtime
+ * surprise: the launched layer must require nothing. This is the uniform
+ * skeleton every `*-service` composes; the HTTP server, logging,
  * `/api/health`, and graceful shutdown live here so services stay thin.
  */
-export interface ServiceDefinition<E, R> {
+export interface ServiceDefinition<RRoutes> {
   /** Service name, surfaced on `/api/health`. */
   readonly name: string;
   /** Port to bind. Convention: 310N for domain services, 319x for platform. */
@@ -41,8 +63,8 @@ export interface ServiceDefinition<E, R> {
    * quietly mislabelling the fleet.
    */
   readonly slices: readonly string[];
-  /** The service's routes; its `R` is satisfied by `appLayer`. */
-  readonly router: HttpRouter.HttpRouter<E, R>;
+  /** The service's routes; their requirements are satisfied by `appLayer`. */
+  readonly router: ServiceRoutes<RRoutes>;
   /**
    * Composition root providing everything `router` requires.
    *
@@ -54,9 +76,9 @@ export interface ServiceDefinition<E, R> {
    * read them share one apiece.
    */
   readonly appLayer: Layer.Layer<
-    R,
+    RoutesRequirements<RRoutes>,
     never,
-    HealthRegistryTag | ShutdownRegistryTag | WiringRegistryTag
+    ServiceRegistries
   >;
 }
 
@@ -76,19 +98,20 @@ export interface ServiceDefinition<E, R> {
  * only a real process boot has a SIGTERM to latch, and an in-process e2e boot
  * that installed one would leave a process listener per service it started.
  */
-export const makeServerLayer = <E, R>(
-  def: ServiceDefinition<E, R>,
+export const makeServerLayer = <RRoutes>(
+  def: ServiceDefinition<RRoutes>,
   port: number = def.port,
   shutdown: ShutdownRegistry = makeShutdownRegistry().registry,
 ) => {
-  const router = withServiceDescriptionRoute(
-    withHealthRoutes(def.router, def.name),
-    def.name,
-    def.slices,
+  const routes = Layer.mergeAll(
+    def.router,
+    healthRoutes(def.name),
+    serviceDescriptionRoute(def.name, def.slices),
+    // Permissive CORS (frontends call these services cross-origin from their
+    // dev ports). Tighten per-environment later.
+    HttpRouter.cors(),
   );
 
-  // Request logging + permissive CORS (frontends call these services
-  // cross-origin from their dev ports). Tighten CORS per-environment later.
   // `provideMerge` (not `provide`) so the registries the client layers
   // registered into are the same instances the readiness and description routes
   // read.
@@ -109,18 +132,25 @@ export const makeServerLayer = <E, R>(
   // give that ordering — `runMain` interrupts the fiber on SIGTERM, and a
   // handler racing that interrupt would drain against a closing client.
   const drained = Layer.provideMerge(
-    Layer.scopedDiscard(
+    Layer.effectDiscard(
       Effect.acquireRelease(Effect.void, () => shutdown.drain),
     ),
     appLayer,
   );
 
-  return HttpServer.serve(router, app =>
-    HttpMiddleware.logger(HttpMiddleware.cors()(app)),
-  ).pipe(
+  // `HttpRouter.serve` logs every request unless told not to, which is the
+  // request logging `HttpMiddleware.logger` used to add here.
+  const served = HttpRouter.serve(routes).pipe(
     Layer.provide(drained),
     Layer.provide(NodeHttpServer.layer(() => createServer(), { port })),
   );
+  // `ServiceDefinition` already proved `appLayer` covers what the routes need;
+  // TypeScript cannot carry that proof through `Exclude` on a type parameter,
+  // so the closed requirement set is stated here rather than re-derived.
+  return served as Layer.Layer<
+    Layer.Success<typeof served>,
+    Layer.Error<typeof served>
+  >;
 };
 
 /**
@@ -139,17 +169,12 @@ export const makeServerLayer = <E, R>(
  * be: Kubernetes runs it before it sends SIGTERM, and this repo declares no
  * Deployment for a service. It lands with the first one.
  */
-export const makeService = <E, R>(def: ServiceDefinition<E, R>): void => {
+export const makeService = <RRoutes>(def: ServiceDefinition<RRoutes>): void => {
   const shutdown = makeShutdownRegistry();
   process.once('SIGTERM', shutdown.begin);
   process.once('SIGINT', shutdown.begin);
 
-  // `disablePrettyLogger` keeps `runMain` from swapping Effect's `defaultLogger`
-  // for `prettyLoggerDefault`. A service that replaces `defaultLogger` (e.g. to
-  // route logs through `@entifix/tooling`) needs it present to replace;
-  // services that don't simply keep the structured default logger.
   NodeRuntime.runMain(
     Layer.launch(makeServerLayer(def, def.port, shutdown.registry)),
-    { disablePrettyLogger: true },
   );
 };

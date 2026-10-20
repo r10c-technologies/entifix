@@ -3,7 +3,7 @@ import { Context, Effect, Layer, Schedule } from 'effect';
 import { Redis } from 'ioredis';
 
 /** DI tag carrying a connected ioredis client. */
-export class RedisTag extends Context.Tag('RedisTag')<RedisTag, Redis>() {}
+export class RedisTag extends Context.Service<RedisTag, Redis>()('RedisTag') {}
 
 export interface RedisSettings {
   readonly uri: string;
@@ -38,7 +38,7 @@ const CONNECT_RETRY_WINDOW = '30 seconds';
 export const RedisLayer = (
   settings: RedisSettings,
 ): Layer.Layer<RedisTag, EntifixConnError> =>
-  Layer.scoped(
+  Layer.effect(
     RedisTag,
     Effect.acquireRelease(
       Effect.tryPromise({
@@ -57,7 +57,7 @@ export const RedisLayer = (
       }).pipe(
         Effect.retry(
           Schedule.exponential('250 millis').pipe(
-            Schedule.upTo(CONNECT_RETRY_WINDOW),
+            Schedule.upTo({ duration: CONNECT_RETRY_WINDOW }),
           ),
         ),
       ),

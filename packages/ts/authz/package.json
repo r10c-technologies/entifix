@@ -55,9 +55,9 @@
     "@swc/helpers": "0.5.23"
   },
   "peerDependencies": {
-    "effect": ">=3.22.2 <4"
+    "effect": "^4.0.5"
   },
   "devDependencies": {
-    "effect": "3.22.2"
+    "effect": "4.0.5"
   }
 }

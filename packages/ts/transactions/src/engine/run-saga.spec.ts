@@ -140,7 +140,7 @@ const run = (
   Effect.runPromise(
     runSaga({ sagaId: 'saga-1', definition: checkout, inputs }).pipe(
       Effect.provide(world.layer),
-      Effect.provide(Logger.remove(Logger.defaultLogger)),
+      Effect.provide(Logger.layer([])),
     ),
   );
 
@@ -404,17 +404,11 @@ describe('runSaga — a stranded saga is surfaced, never swallowed', () => {
       }).pipe(
         Effect.provide(world.layer),
         Effect.provide(
-          Logger.replace(
-            Logger.defaultLogger,
-            Logger.make(({ message, annotations }) => {
-              logged.push(
-                `${String(message)} ${String(
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  (annotations as any)?.pipe?.name ?? '',
-                )}`,
-              );
+          Logger.layer([
+            Logger.make(({ message }) => {
+              logged.push(String(message));
             }),
-          ),
+          ]),
         ),
       ),
     );
@@ -490,10 +484,7 @@ describe('runSaga — once the pivot has committed', () => {
         sagaId: 'saga-2',
         definition: checkoutWithCapture,
         inputs: { reserve: [{ body: {} }] },
-      }).pipe(
-        Effect.provide(world.layer),
-        Effect.provide(Logger.remove(Logger.defaultLogger)),
-      ),
+      }).pipe(Effect.provide(world.layer), Effect.provide(Logger.layer([]))),
     );
 
     expect(result.state).toBe('STRANDED');
@@ -517,10 +508,7 @@ describe('runSaga — once the pivot has committed', () => {
         sagaId: 'saga-3',
         definition: checkoutWithCapture,
         inputs: { reserve: [{ body: {} }] },
-      }).pipe(
-        Effect.provide(world.layer),
-        Effect.provide(Logger.remove(Logger.defaultLogger)),
-      ),
+      }).pipe(Effect.provide(world.layer), Effect.provide(Logger.layer([]))),
     );
 
     const conversions = world.dispatched.filter(d =>
@@ -545,10 +533,7 @@ describe('runSaga — once the pivot has committed', () => {
         sagaId: 'saga-4',
         definition: checkoutWithCapture,
         inputs: { reserve: [{ body: {} }] },
-      }).pipe(
-        Effect.provide(world.layer),
-        Effect.provide(Logger.remove(Logger.defaultLogger)),
-      ),
+      }).pipe(Effect.provide(world.layer), Effect.provide(Logger.layer([]))),
     );
 
     // A pivot that refuses committed nothing, so the saga is fully reversible.
@@ -570,10 +555,7 @@ describe('runSaga — once the pivot has committed', () => {
         sagaId: 'saga-5',
         definition: checkoutWithCapture,
         inputs: { reserve: [{ body: {} }] },
-      }).pipe(
-        Effect.provide(world.layer),
-        Effect.provide(Logger.remove(Logger.defaultLogger)),
-      ),
+      }).pipe(Effect.provide(world.layer), Effect.provide(Logger.layer([]))),
     );
 
     expect(
@@ -617,10 +599,7 @@ describe('runSaga — a step that fans out from an earlier one', () => {
             { body: { offeringId: 'o-2' }, organizationId: 'vendor-b' },
           ],
         },
-      }).pipe(
-        Effect.provide(world.layer),
-        Effect.provide(Logger.remove(Logger.defaultLogger)),
-      ),
+      }).pipe(Effect.provide(world.layer), Effect.provide(Logger.layer([]))),
     );
 
     expect(result.state).toBe('COMPLETED');
@@ -652,10 +631,7 @@ describe('runSaga — a step that fans out from an earlier one', () => {
             { body: { offeringId: 'o-2' }, organizationId: 'vendor-b' },
           ],
         },
-      }).pipe(
-        Effect.provide(world.layer),
-        Effect.provide(Logger.remove(Logger.defaultLogger)),
-      ),
+      }).pipe(Effect.provide(world.layer), Effect.provide(Logger.layer([]))),
     );
 
     expect(
@@ -673,10 +649,7 @@ describe('runSaga — a step that fans out from an earlier one', () => {
         sagaId: 'saga-8',
         definition: checkoutWithCapture,
         inputs: { reserve: [] },
-      }).pipe(
-        Effect.provide(world.layer),
-        Effect.provide(Logger.remove(Logger.defaultLogger)),
-      ),
+      }).pipe(Effect.provide(world.layer), Effect.provide(Logger.layer([]))),
     );
 
     expect(
@@ -741,10 +714,7 @@ describe('runSaga — a derived fan-out still carries a body', () => {
           // would need.
           'convert-reservation': [{ body: { reason: 'sale' } }],
         },
-      }).pipe(
-        Effect.provide(world.layer),
-        Effect.provide(Logger.remove(Logger.defaultLogger)),
-      ),
+      }).pipe(Effect.provide(world.layer), Effect.provide(Logger.layer([]))),
     );
 
     expect(
@@ -781,7 +751,7 @@ describe('runSaga — a derived fan-out still carries a body', () => {
     const result = await Effect.runPromise(
       runSaga({ sagaId: 'saga-10', definition: handBuilt, inputs: {} }).pipe(
         Effect.provide(world.layer),
-        Effect.provide(Logger.remove(Logger.defaultLogger)),
+        Effect.provide(Logger.layer([])),
       ),
     );
 
@@ -820,7 +790,7 @@ const resume = (
   Effect.runPromise(
     resumeSaga({ instance, definition, maxResumeAttempts }).pipe(
       Effect.provide(world.layer),
-      Effect.provide(Logger.remove(Logger.defaultLogger)),
+      Effect.provide(Logger.layer([])),
     ),
   );
 

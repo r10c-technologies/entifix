@@ -18,9 +18,10 @@ export interface ServiceCrossingPolicy {
 }
 
 /** DI tag the composition root binds to a concrete {@link ServiceCrossingPolicy}. */
-export class ServiceCrossingPolicyTag extends Context.Tag(
-  'ServiceCrossingPolicyTag',
-)<ServiceCrossingPolicyTag, ServiceCrossingPolicy>() {}
+export class ServiceCrossingPolicyTag extends Context.Service<
+  ServiceCrossingPolicyTag,
+  ServiceCrossingPolicy
+>()('ServiceCrossingPolicyTag') {}
 
 /**
  * The allowlist implementation: a host hands over the whole of what its fleet

@@ -62,10 +62,10 @@ export interface WiringRegistry {
  * into it without depending on a shell — the same placement, and the same
  * reason, as {@link HealthRegistryTag}.
  */
-export class WiringRegistryTag extends Context.Tag('WiringRegistryTag')<
+export class WiringRegistryTag extends Context.Service<
   WiringRegistryTag,
   WiringRegistry
->() {}
+>()('WiringRegistryTag') {}
 
 /** Whether two bindings are the same binding. */
 const same = (a: BoundSubscription, b: BoundSubscription): boolean =>

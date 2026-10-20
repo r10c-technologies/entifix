@@ -1,5 +1,6 @@
 import type { DomainEvent } from '@entifix/core';
-import { Chunk, Effect, Stream, TestClock, TestContext } from 'effect';
+import { Effect, Fiber, Stream } from 'effect';
+import { TestClock } from 'effect/testing';
 import { describe, expect, it } from 'vitest';
 
 import { sseFrame, sseResponse } from './sse.js';
@@ -60,8 +61,8 @@ describe('sseResponse', () => {
           sseResponse(Stream.make(event('a:accepted'), event('a:completed'))),
         ),
       ).pipe(
-        Effect.map(chunk => Chunk.toReadonlyArray(chunk).join('')),
-        Effect.provide(TestContext.TestContext),
+        Effect.map(frames => frames.join('')),
+        Effect.provide(TestClock.layer()),
       ),
     );
 
@@ -78,18 +79,18 @@ describe('sseResponse', () => {
   // with no error either side can report.
   it('emits a keepalive comment while the source is idle', async () => {
     const first = Effect.gen(function* () {
-      const reading = yield* Effect.fork(
+      const reading = yield* Effect.forkChild(
         Stream.runCollect(
           Stream.take(Stream.drop(framesOf(sseResponse(Stream.never)), 1), 1),
         ),
       );
       yield* TestClock.adjust('25 seconds');
-      return Chunk.toReadonlyArray(yield* reading);
+      return yield* Fiber.join(reading);
     });
 
-    expect(
-      await run(first.pipe(Effect.provide(TestContext.TestContext))),
-    ).toEqual([': keepalive\n\n']);
+    expect(await run(first.pipe(Effect.provide(TestClock.layer())))).toEqual([
+      ': keepalive\n\n',
+    ]);
   });
 
   // The bound every REST route gets implicitly: verification is stateless, so
@@ -97,7 +98,7 @@ describe('sseResponse', () => {
   // it has to close itself (ADR 0036).
   it('closes the connection when the token expires', async () => {
     const closing = Effect.gen(function* () {
-      const reading = yield* Effect.fork(
+      const reading = yield* Effect.forkChild(
         Stream.runDrain(
           framesOf(
             sseResponse(Stream.never, { expiresAt: 1000, now: () => 100_000 }),
@@ -105,12 +106,12 @@ describe('sseResponse', () => {
         ),
       );
       yield* TestClock.adjust('16 minutes');
-      return yield* reading;
+      return yield* Fiber.join(reading);
     });
 
     // Terminates rather than hanging — the assertion is that this resolves.
     await expect(
-      run(closing.pipe(Effect.provide(TestContext.TestContext))),
+      run(closing.pipe(Effect.provide(TestClock.layer()))),
     ).resolves.toBeUndefined();
   });
 
@@ -121,13 +122,8 @@ describe('sseResponse', () => {
 
     // The opening comment and nothing else: the client learns the connection
     // exists and that it is over, rather than being left in `CONNECTING`.
-    expect(
-      await run(
-        drained.pipe(
-          Effect.map(Chunk.toReadonlyArray),
-          Effect.provide(TestContext.TestContext),
-        ),
-      ),
-    ).toEqual([': open\n\n']);
+    expect(await run(drained.pipe(Effect.provide(TestClock.layer())))).toEqual([
+      ': open\n\n',
+    ]);
   });
 });

@@ -1,5 +1,5 @@
 import type { DomainEvent, EntityChangeEvent } from '@entifix/core';
-import { Chunk, Effect, Stream } from 'effect';
+import { Effect, Fiber, Stream } from 'effect';
 import { describe, expect, it } from 'vitest';
 
 import type { TransactionEvent, TransactionState } from '../contracts/event.js';
@@ -69,15 +69,15 @@ const received = (
   Effect.scoped(
     Effect.gen(function* () {
       const hub = yield* makeTransactionStreamHubEffect;
-      const reading = yield* Effect.fork(
+      const reading = yield* Effect.forkChild(
         Stream.runCollect(Stream.take(hub.subscribe(organizationId), count)),
       );
       // The subscriber attaches asynchronously; yield until it has.
-      yield* Effect.yieldNow();
+      yield* Effect.yieldNow;
       yield* Effect.forEach(offered, event => hub.publish(event), {
         discard: true,
       });
-      return Chunk.toReadonlyArray(yield* reading);
+      return yield* Fiber.join(reading);
     }),
   );
 

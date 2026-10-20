@@ -305,7 +305,7 @@ describe('AmqpLayer', () => {
 
     expect(Exit.isFailure(exit)).toBe(true);
     const failure = Exit.isFailure(exit)
-      ? Option.getOrUndefined(Cause.failureOption(exit.cause))
+      ? Option.getOrUndefined(Cause.findErrorOption(exit.cause))
       : undefined;
     expect(String(failure)).toContain('Failed to connect to RabbitMQ');
   });
@@ -333,7 +333,7 @@ describe('AmqpLayer', () => {
     );
 
     const failure = Exit.isFailure(exit)
-      ? Option.getOrUndefined(Cause.failureOption(exit.cause))
+      ? Option.getOrUndefined(Cause.findErrorOption(exit.cause))
       : undefined;
     expect(failure).toBeInstanceOf(EntifixConnError);
   });
