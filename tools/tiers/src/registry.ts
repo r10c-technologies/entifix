@@ -70,6 +70,14 @@ export const PACKAGES: readonly PackageDeclaration[] = [
     dir: 'packages/ts/sql-client',
     tier: 2,
   },
+  // Records bundled with the build, read-only. No external system at all, and
+  // a package of its own all the same: a static site installs this and not a
+  // database driver.
+  {
+    name: '@entifix/static',
+    dir: 'packages/ts/static',
+    tier: 2,
+  },
   {
     name: '@entifix/redis',
     dir: 'packages/ts/redis-client',
