@@ -1,3 +1,13 @@
+## 0.1.4 (2026-10-20)
+
+### 🩹 Fixes
+
+- move the pinned runtime dependencies to their current effect-3 releases ([#44](https://github.com/r10c-technologies/entifix/pull/44))
+
+### ❤️ Thank You
+
+- Herber Colop
+
 ## 0.1.3 (2026-10-10)
 
 ### 🚀 Features
