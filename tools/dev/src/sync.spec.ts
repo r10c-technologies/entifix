@@ -1,4 +1,5 @@
 import {
+  appendFileSync,
   cpSync,
   existsSync,
   mkdirSync,
@@ -20,6 +21,7 @@ import {
   parseConsumers,
   reset,
   sourcePackages,
+  storeDirectoryOf,
   sync,
   syncedEntries,
   SyncError,
@@ -53,8 +55,28 @@ const built = (dir: string, manifest: Manifest, file = 'index.js') => {
   writeFileSync(join(entifix, dir, 'dist', file), 'export const built = true;');
 };
 
-/** An installed copy in the fake consumer's virtual store. */
-const installed = (entry: string, name: string, manifest: Manifest) => {
+/** Records a dependency path as pnpm does for what it links. */
+const linked = (depPath: string) =>
+  appendFileSync(
+    join(consumer, 'node_modules', '.pnpm', 'lock.yaml'),
+    `  '${depPath}':\n    dependencies: {}\n\n`,
+  );
+
+/** The dependency path behind a fixture entry: `a+b@1_x` → `a/b@1(x)`. */
+const depPathOf = (entry: string) =>
+  entry.replace('+', '/').replace(/_(.+)$/, '($1)');
+
+/**
+ * An installed copy in the fake consumer's virtual store. An `orphan` is left
+ * out of the lockfile, as pnpm leaves a previous release's directory behind.
+ */
+const installed = (
+  entry: string,
+  name: string,
+  manifest: Manifest,
+  { orphan = false } = {},
+) => {
+  if (!orphan) linked(depPathOf(entry));
   const dir = join(
     consumer,
     'node_modules',
@@ -77,6 +99,10 @@ beforeEach(() => {
   entifix = join(scratch, 'entifix');
   consumer = join(scratch, 'r10c');
   mkdirSync(join(consumer, 'node_modules', '.pnpm'), { recursive: true });
+  writeFileSync(
+    join(consumer, 'node_modules', '.pnpm', 'lock.yaml'),
+    "lockfileVersion: '9.0'\n\nimporters:\n\n  .: {}\n\nsnapshots:\n\n",
+  );
   lines = [];
 });
 
@@ -136,6 +162,115 @@ describe('installedCopies', () => {
     });
 
     expect(installedCopies(consumer, '@entifix/core')).toEqual([plain, peered]);
+  });
+
+  it('skips a directory pnpm no longer links', () => {
+    const live = installed('@entifix+core@0.1.2', '@entifix/core', {});
+    installed('@entifix+core@0.1.1', '@entifix/core', {}, { orphan: true });
+
+    expect(installedCopies(consumer, '@entifix/core')).toEqual([live]);
+  });
+
+  it('finds a directory whose name pnpm cut and hashed', () => {
+    const depPath = `@entifix/mongo@0.2.0(@entifix/transactions@0.2.0(effect@4.0.5))(${'x'.repeat(80)}@1.0.0)`;
+    const entry = storeDirectoryOf(depPath);
+    linked(depPath);
+    const copy = installed(
+      entry,
+      '@entifix/mongo',
+      {},
+      {
+        orphan: true,
+      },
+    );
+
+    expect(entry).toMatch(/^@entifix\+mongo@0\.2\.0_.{66}_[0-9a-f]{32}$/);
+    expect(installedCopies(consumer, '@entifix/mongo')).toEqual([copy]);
+  });
+
+  it('refuses a consumer with no lockfile of what it installed', () => {
+    rmSync(join(consumer, 'node_modules/.pnpm/lock.yaml'));
+
+    expect(() => installedCopies(consumer, '@entifix/core')).toThrow(
+      /has no node_modules\/\.pnpm\/lock\.yaml/,
+    );
+  });
+
+  it('reads the length limit pnpm recorded', () => {
+    writeFileSync(
+      join(consumer, 'node_modules/.modules.yaml'),
+      '{\n  "virtualStoreDirMaxLength": 60\n}\n',
+    );
+    const depPath = '@entifix/core@0.2.0(effect@4.0.5)(typescript@5.9.3)';
+    linked(depPath);
+    const copy = installed(
+      storeDirectoryOf(depPath, 60),
+      '@entifix/core',
+      {},
+      { orphan: true },
+    );
+
+    expect(installedCopies(consumer, '@entifix/core')).toEqual([copy]);
+  });
+});
+
+describe('storeDirectoryOf', () => {
+  it('flattens peers the way pnpm names the directory', () => {
+    expect(
+      storeDirectoryOf(
+        '@entifix/mongo@0.2.0(@entifix/transactions@0.2.0(effect@4.0.5))(effect@4.0.5)',
+      ),
+    ).toBe(
+      '@entifix+mongo@0.2.0_@entifix+transactions@0.2.0_effect@4.0.5__effect@4.0.5',
+    );
+  });
+
+  it('hashes a name with upper case, as pnpm does', () => {
+    expect(storeDirectoryOf('@entifix/core@0.2.0(Peer@1.0.0)')).toMatch(
+      /^@entifix\+core@0\.2\.0_Peer@1\.0\.0_[0-9a-f]{32}$/,
+    );
+  });
+
+  it('leaves a path with no version alone', () => {
+    expect(storeDirectoryOf('@entifix/core')).toBe('@entifix+core');
+  });
+});
+
+describe('syncPackage with an orphaned copy', () => {
+  it('writes the live copy and ignores an orphan whose dependencies differ', () => {
+    built('packages/ts/transactions', {
+      name: '@entifix/transactions',
+      version: '0.1.2',
+      dependencies: { '@entifix/business': '0.1.2' },
+    });
+    const live = installed(
+      '@entifix+transactions@0.1.2',
+      '@entifix/transactions',
+      {
+        version: '0.1.2',
+        dependencies: { '@entifix/business': '0.1.2' },
+      },
+    );
+    const orphan = installed(
+      '@entifix+transactions@0.1.1',
+      '@entifix/transactions',
+      { version: '0.1.1' },
+      { orphan: true },
+    );
+
+    expect(
+      syncPackage(
+        {
+          name: '@entifix/transactions',
+          dir: join(entifix, 'packages/ts/transactions'),
+        },
+        context(),
+      ),
+    ).toBe(1);
+    expect(readJson(join(live, 'package.json')).entifixDevSync).toBeDefined();
+    expect(
+      readJson(join(orphan, 'package.json')).entifixDevSync,
+    ).toBeUndefined();
   });
 });
 
