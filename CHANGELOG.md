@@ -1,3 +1,17 @@
+## 0.3.0 (2026-10-20)
+
+### 🚀 Features
+
+- ⚠️ host locales, a localized type, record constraints, views and @entifix/static ([#48](https://github.com/r10c-technologies/entifix/pull/48))
+
+### ⚠️ Breaking Changes
+
+- host locales, a localized type, record constraints, views and @entifix/static ([#48](https://github.com/r10c-technologies/entifix/pull/48))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.2.0 (2026-10-20)
 
 ### 🚀 Features
