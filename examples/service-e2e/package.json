@@ -25,6 +25,6 @@
     "@entifix/service-shell": "workspace:*",
     "@entifix/testing-e2e": "workspace:*",
     "@entifix/testing-unit": "workspace:*",
-    "effect": "3.22.1"
+    "effect": "3.22.2"
   }
 }
