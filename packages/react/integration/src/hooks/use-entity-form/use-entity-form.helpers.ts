@@ -7,10 +7,14 @@ import {
   type EntityDraftValue,
   type EntityFieldDescriptor,
   EntityLink,
+  type EntityLocalizedDraft,
   type EntityRowDraft,
+  isLocalizedText,
   isRowDraftArray,
   joinFieldPath,
+  locales,
   readDraftString,
+  readLocalizedDraft,
   readRowDrafts,
   ROW_KEY,
   rowFieldPath,
@@ -85,7 +89,28 @@ export function seedFieldValue(
   if (descriptor.type === 'composition') {
     return seedRowDrafts(descriptor, entity);
   }
+  if (descriptor.type === 'localized') {
+    return seedLocalizedDraft(descriptor, entity);
+  }
   return seedScalarValue(descriptor, entity);
+}
+
+/**
+ * A `localized` member seeds one input per declared locale, each holding that
+ * locale's text or `''`. Every declared locale is present even when the record
+ * lacks it, so the form shows the empty input a translator has to fill.
+ */
+function seedLocalizedDraft(
+  descriptor: EntityFieldDescriptor,
+  entity: unknown,
+): EntityLocalizedDraft {
+  const raw = (entity as Record<string, unknown> | null | undefined)?.[
+    descriptor.name
+  ];
+  const text = isLocalizedText(raw) ? raw : {};
+  return Object.fromEntries(
+    locales().map(locale => [locale, text[locale] ?? '']),
+  );
 }
 
 /** {@link seedFieldValue} for every member that round-trips through a string. */
@@ -196,6 +221,17 @@ export function restoreEntityDraft(
       if (isRowDraftArray(value)) restored[descriptor.name] = value;
       continue;
     }
+    if (descriptor.type === 'localized') {
+      // Over the seed rather than instead of it, so a locale declared since
+      // the draft was saved still gets its (empty) input.
+      if (isLocalizedText(value)) {
+        restored[descriptor.name] = {
+          ...readLocalizedDraft(seed, descriptor.name),
+          ...readLocalizedDraft(persisted, descriptor.name),
+        };
+      }
+      continue;
+    }
     if (typeof value === 'string') restored[descriptor.name] = value;
   }
   return restored;
@@ -254,6 +290,8 @@ export interface EntityDraftMessages {
   maxItems(field: string, count: number): string;
   /** A date before the one its `notBefore` names. */
   notBefore(field: string, other: string): string;
+  /** A localized member with no text for one of the declared locales. */
+  locale(field: string, locale: string): string;
 }
 
 /**
@@ -283,6 +321,11 @@ export function validateEntityDraft(
       );
       continue;
     }
+    if (descriptor.type === 'localized') {
+      const message = localizedMessage(descriptor, values, messages, labelFor);
+      if (message !== undefined) errors[descriptor.name] = message;
+      continue;
+    }
 
     const raw = readDraftString(values, descriptor.name);
 
@@ -308,6 +351,33 @@ export function validateEntityDraft(
   }
 
   return errors;
+}
+
+/**
+ * A localized member is all or nothing: left wholly empty it is absent, which
+ * only `required` objects to; once any locale holds text, every declared one
+ * must — the rule `validateRecords` holds stored content to, so a page never
+ * shows one language in the middle of another.
+ */
+function localizedMessage(
+  descriptor: EntityFieldDescriptor,
+  values: EntityDraft,
+  messages: EntityDraftMessages,
+  labelFor: EntityFieldLabeler,
+): string | undefined {
+  const draft = readLocalizedDraft(values, descriptor.name);
+  const missing = locales().filter(
+    locale => (draft[locale] ?? '').trim() === '',
+  );
+  if (missing.length === locales().length) {
+    return descriptor.required
+      ? messages.required(labelFor(descriptor))
+      : undefined;
+  }
+  const [first] = missing;
+  return first === undefined
+    ? undefined
+    : messages.locale(labelFor(descriptor), first);
 }
 
 /** A collection whose draft is a comma list: values, or the ids of links. */
@@ -582,4 +652,5 @@ export const DEFAULT_VALIDATION_MESSAGES: EntityDraftMessages = {
   minItems: (field, count) => `validation.minItems:${field}:${count}`,
   maxItems: (field, count) => `validation.maxItems:${field}:${count}`,
   notBefore: (field, other) => `validation.notBefore:${field}:${other}`,
+  locale: (field, locale) => `validation.locale:${field}:${locale}`,
 };

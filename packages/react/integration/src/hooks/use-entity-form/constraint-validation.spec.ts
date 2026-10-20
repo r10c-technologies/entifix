@@ -68,6 +68,7 @@ const messages: EntityDraftMessages = {
   minItems: (field, count) => `${field} needs ${count}`,
   maxItems: (field, count) => `${field} takes ${count}`,
   notBefore: (field, other) => `${field} before ${other}`,
+  locale: (field, locale) => `${field} lacks ${locale}`,
 };
 
 const step = (key: string) => ({ [ROW_KEY]: key, text: 'x' });

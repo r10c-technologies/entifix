@@ -1,14 +1,16 @@
 'use client';
 
-import type {
-  Entity,
-  EntityFieldDescriptor,
-  EntitySorting,
-  EntitySortType,
+import {
+  type Entity,
+  type EntityFieldDescriptor,
+  type EntitySorting,
+  type EntitySortType,
+  findQueriedDescriptor,
+  queryPropertyFor,
 } from '@entifix/core';
 import { useCallback, useState } from 'react';
 
-import { useT } from '../../../i18n/index.js';
+import { useLocale, useT } from '../../../i18n/index.js';
 import { Button } from '../../atoms/button/index.js';
 import { Select } from '../../atoms/field/index.js';
 import { Text } from '../../atoms/text/index.js';
@@ -36,11 +38,10 @@ function toDrafts<TEntity extends Entity>(
       const entry = sorting[priority];
       if (!entry) return [];
       // Rows address members by accessor name; an applied value carries the
-      // wire key, which is the same string unless the member declared an alias.
-      const descriptor = descriptors.find(
-        candidate =>
-          candidate.key === String(entry.property) ||
-          candidate.name === String(entry.property),
+      // wire key, or a locale path into a localized member.
+      const descriptor = findQueriedDescriptor(
+        descriptors,
+        String(entry.property),
       );
       return descriptor
         ? [{ property: descriptor.name, type: entry.type }]
@@ -72,6 +73,7 @@ export function SortBuilder<TEntity extends Entity>({
   const [drafts, setDrafts] = useState<SortDraft[]>(() =>
     toDrafts(applied, descriptors),
   );
+  const locale = useLocale();
 
   const apply = useCallback(
     (next: SortDraft[]) => {
@@ -82,7 +84,8 @@ export function SortBuilder<TEntity extends Entity>({
           );
           if (descriptor) {
             accumulator[index] = {
-              property: descriptor.key as keyof TEntity,
+              // A localized member sorts by the reader's own locale.
+              property: queryPropertyFor(descriptor, locale) as keyof TEntity,
               type: draft.type,
             };
           }
@@ -92,7 +95,7 @@ export function SortBuilder<TEntity extends Entity>({
       );
       onChange(sorting);
     },
-    [descriptors, onChange],
+    [descriptors, locale, onChange],
   );
 
   const t = useT();

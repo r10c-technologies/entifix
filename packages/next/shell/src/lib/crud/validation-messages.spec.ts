@@ -14,6 +14,7 @@ describe('validationMessagesFor', () => {
     expect(say.minItems('Tags', 1)).toBe('Tags needs at least 1 item');
     expect(say.maxItems('Tags', 3)).toBe('Tags takes at most 3 items');
     expect(say.notBefore('End', 'Start')).toBe('End cannot be before Start');
+    expect(say.locale('Title', 'es')).toBe('Title has no ES text');
   });
 
   it('speaks the catalog it is handed', () => {

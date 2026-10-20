@@ -159,6 +159,7 @@ export const controls: EsControls = {
     maxItems_one: '{{field}} takes at most {{count}} item',
     maxItems_other: '{{field}} takes at most {{count}} items',
     notBefore: '{{field}} cannot be before {{other}}',
+    locale: '{{field}} has no {{locale}} text',
   },
   operator: {
     eq: 'is',

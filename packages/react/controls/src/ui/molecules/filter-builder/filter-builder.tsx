@@ -1,16 +1,19 @@
 'use client';
 
-import type {
-  Entity,
-  EntityFieldDescriptor,
-  EntityFilter,
-  FilterGroup,
-  LogicOperator,
-  MetaAccessorType,
+import {
+  type Entity,
+  type EntityFieldDescriptor,
+  type EntityFilter,
+  type FilterGroup,
+  findQueriedDescriptor,
+  type Locale,
+  type LogicOperator,
+  type MetaAccessorType,
+  queryPropertyFor,
 } from '@entifix/core';
 import { useCallback, useId, useState } from 'react';
 
-import { useEnumLabel, useT } from '../../../i18n/index.js';
+import { useEnumLabel, useLocale, useT } from '../../../i18n/index.js';
 import { Button } from '../../atoms/button/index.js';
 import { Select, TextInput } from '../../atoms/field/index.js';
 import { Text } from '../../atoms/text/index.js';
@@ -55,8 +58,10 @@ function coerce(raw: string, type: MetaAccessorType): unknown {
 function toFilter<TEntity extends Entity>(
   draft: FilterDraft,
   descriptor: EntityFieldDescriptor,
+  locale: Locale,
 ): EntityFilter<TEntity> | undefined {
-  const property = descriptor.key as keyof TEntity;
+  // A localized member is filtered in the reader's own locale.
+  const property = queryPropertyFor(descriptor, locale) as keyof TEntity;
 
   switch (operatorArity(draft.operator)) {
     case 'none':
@@ -109,6 +114,7 @@ function toFilter<TEntity extends Entity>(
 function toDrafts<TEntity extends Entity>(
   filtering: FilterGroup<TEntity> | undefined,
   idPrefix: string,
+  descriptors: readonly EntityFieldDescriptor[],
 ): FilterDraft[] {
   if (!filtering) return [];
 
@@ -132,7 +138,11 @@ function toDrafts<TEntity extends Entity>(
     return [
       {
         key: `${idPrefix}-applied-${index}`,
-        property: String(filter.property),
+        // Rows address members by accessor name; an applied filter carries the
+        // wire key, or a locale path into a localized member.
+        property:
+          findQueriedDescriptor(descriptors, String(filter.property))?.name ??
+          String(filter.property),
         operator: filter.operator,
         value: filter.values
           ? filter.values.map(text).join(', ')
@@ -169,8 +179,9 @@ export function FilterBuilder<TEntity extends Entity>({
   const idPrefix = useId();
   const [logic, setLogic] = useState<LogicOperator>(applied?.operator ?? 'and');
   const [drafts, setDrafts] = useState<FilterDraft[]>(() =>
-    toDrafts(applied, idPrefix),
+    toDrafts(applied, idPrefix, descriptors),
   );
+  const locale = useLocale();
 
   const descriptorFor = useCallback(
     (name: string) => descriptors.find(entry => entry.name === name),
@@ -182,7 +193,9 @@ export function FilterBuilder<TEntity extends Entity>({
       const values = nextDrafts
         .map(draft => {
           const descriptor = descriptorFor(draft.property);
-          return descriptor ? toFilter<TEntity>(draft, descriptor) : undefined;
+          return descriptor
+            ? toFilter<TEntity>(draft, descriptor, locale)
+            : undefined;
         })
         .filter(
           (filter): filter is EntityFilter<TEntity> => filter !== undefined,
@@ -190,7 +203,7 @@ export function FilterBuilder<TEntity extends Entity>({
 
       onChange({ operator: nextLogic, values });
     },
-    [descriptorFor, onChange],
+    [descriptorFor, locale, onChange],
   );
 
   /** Edits the draft only — nothing reaches the caller until Apply. */

@@ -115,6 +115,7 @@ const messages: EntityDraftMessages = {
   minItems: (field, count) => `${field} necesita al menos ${count}`,
   maxItems: (field, count) => `${field} admite como máximo ${count}`,
   notBefore: (field, other) => `${field} no puede ser anterior a ${other}`,
+  locale: (field, locale) => `${field} sin ${locale}`,
 };
 
 const row = (over: Record<string, string> = {}) => ({

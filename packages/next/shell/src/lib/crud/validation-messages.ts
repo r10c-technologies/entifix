@@ -28,5 +28,7 @@ export function validationMessagesFor(
     minItems: (field, count) => ct('validation.minItems', { field, count }),
     maxItems: (field, count) => ct('validation.maxItems', { field, count }),
     notBefore: (field, other) => ct('validation.notBefore', { field, other }),
+    locale: (field, locale) =>
+      ct('validation.locale', { field, locale: locale.toUpperCase() }),
   };
 }

@@ -183,6 +183,7 @@ export const controls = {
     maxItems_one: '{{field}} admite como máximo {{count}} elemento',
     maxItems_other: '{{field}} admite como máximo {{count}} elementos',
     notBefore: '{{field}} no puede ser anterior a {{other}}',
+    locale: '{{field}} no tiene texto en {{locale}}',
   },
   /**
    * The filter vocabulary shown to a user. Deliberately distinct from

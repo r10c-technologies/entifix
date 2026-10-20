@@ -57,6 +57,12 @@ class SourceBrand implements Entity {
   set notes(value: string | undefined) {
     this.#notes = value;
   }
+
+  /** Filterable one locale at a time, which a quick search has none of. */
+  @accessor({ type: 'localized' })
+  get motto(): Readonly<Record<string, string>> | undefined {
+    return undefined;
+  }
 }
 
 @entity({ key: 'source-widget' })
@@ -285,6 +291,14 @@ describe('useEntityLinkSource', () => {
         descriptor: brandDescriptor({ linkSearchProperty: 'notes' }),
       }),
     ).toThrow(EntifixLogicError);
+  });
+
+  it('refuses to search a localized member, having no locale to search it in', () => {
+    expect(() =>
+      renderSource({
+        descriptor: brandDescriptor({ linkSearchProperty: 'motto' }),
+      }),
+    ).toThrow(/the member is localized/);
   });
 
   it('refuses to search a member that does not exist', () => {

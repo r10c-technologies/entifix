@@ -143,6 +143,21 @@ describe('describeChildColumns', () => {
   });
 });
 
+describe('a localized child member', () => {
+  it('is refused: a row is a flat string map', () => {
+    class Caption {
+      @accessor({ type: 'localized' })
+      get text(): Readonly<Record<string, string>> | undefined {
+        return undefined;
+      }
+    }
+
+    expect(() => describeChildColumns(Caption)).toThrow(
+      /declares "text" as localized, which a row cannot hold/,
+    );
+  });
+});
+
 describe('editableChildColumns', () => {
   it('keeps a read-only member, which a grid still shows', () => {
     const names = editableChildColumns(describeChildColumns(Line)).map(

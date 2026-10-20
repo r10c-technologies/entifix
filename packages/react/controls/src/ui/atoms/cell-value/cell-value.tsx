@@ -1,15 +1,22 @@
 'use client';
 
-import type { Formatters } from '@entifix/core';
+import type { Formatters, Locale } from '@entifix/core';
 import {
   type Entity,
   EntityCollectionLink,
   type EntityFieldDescriptor,
   EntityLink,
+  isLocalizedText,
+  localize,
   type MetaAccessorType,
 } from '@entifix/core';
 
-import { useEnumLabel, useFormatters, useT } from '../../../i18n/index.js';
+import {
+  useEnumLabel,
+  useFormatters,
+  useLocale,
+  useT,
+} from '../../../i18n/index.js';
 
 /** Stand-in for an absent value, so an empty cell still reads as intentional. */
 const EMPTY = '—';
@@ -22,19 +29,23 @@ const EMPTY = '—';
 function entityLabel(
   target: Entity | undefined,
   linkLabelProperty: string,
+  locale: Locale,
 ): string | undefined {
   const label = (target as Record<string, unknown> | undefined)?.[
     linkLabelProperty
   ];
-  return label == null ? undefined : String(label);
+  if (label == null) return undefined;
+  // A target labelled by a localized member reads in the reader's locale.
+  return isLocalizedText(label) ? localize(label, locale) : String(label);
 }
 
 function formatLink(
   link: EntityLink<Entity>,
   linkLabelProperty: string,
+  locale: Locale,
 ): string {
   return (
-    entityLabel(link.value, linkLabelProperty) ??
+    entityLabel(link.value, linkLabelProperty, locale) ??
     (link.id == null ? EMPTY : String(link.id))
   );
 }
@@ -42,13 +53,14 @@ function formatLink(
 function formatCollectionLink(
   link: EntityCollectionLink<Entity>,
   linkLabelProperty: string,
+  locale: Locale,
 ): string {
   const loaded = link.values;
   if (loaded !== undefined) {
     return loaded
       .map(
         (target, index) =>
-          entityLabel(target, linkLabelProperty) ??
+          entityLabel(target, linkLabelProperty, locale) ??
           String(target.id ?? link.ids[index] ?? ''),
       )
       .join(', ');
@@ -67,6 +79,7 @@ interface CellFormatting {
   readonly no: string;
   readonly enumLabel: (value: string) => string;
   readonly rowCount: (count: number) => string;
+  readonly locale: Locale;
 }
 
 function formatByType(
@@ -90,11 +103,11 @@ function formatByType(
       return formatting.enumLabel(String(value));
     case 'link':
       return value instanceof EntityLink
-        ? formatLink(value, linkLabelProperty)
+        ? formatLink(value, linkLabelProperty, formatting.locale)
         : String(value);
     case 'linkCollection':
       return value instanceof EntityCollectionLink
-        ? formatCollectionLink(value, linkLabelProperty)
+        ? formatCollectionLink(value, linkLabelProperty, formatting.locale)
         : String(value);
     case 'scalarCollection':
       // The same comma list the draft holds, spaced for reading. Not `String`:
@@ -108,6 +121,12 @@ function formatByType(
       return Array.isArray(value)
         ? formatting.rowCount(value.length)
         : String(value);
+    case 'localized':
+      // The reader's locale, falling back to the host's default; a value
+      // that is not a text per locale has no reading worth guessing at.
+      return isLocalizedText(value)
+        ? (localize(value, formatting.locale) ?? '')
+        : '';
     default:
       return String(value);
   }
@@ -138,6 +157,7 @@ export function CellValue({ value, descriptor }: CellValueProps) {
   const t = useT();
   const formatters = useFormatters();
   const enumLabel = useEnumLabel();
+  const locale = useLocale();
 
   if (value === undefined || value === null) {
     return <span className="text-content-muted">{EMPTY}</span>;
@@ -153,6 +173,7 @@ export function CellValue({ value, descriptor }: CellValueProps) {
       no: t('value.no'),
       enumLabel: raw => enumLabel(descriptor, raw),
       rowCount: count => t('value.rowCount', { count }),
+      locale,
     },
   );
 

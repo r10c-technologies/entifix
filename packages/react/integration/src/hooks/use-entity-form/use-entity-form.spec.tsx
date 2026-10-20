@@ -278,6 +278,7 @@ const MESSAGES = {
   minItems: (field: string, count: number) => `${field} needs ${count}`,
   maxItems: (field: string, count: number) => `${field} takes ${count}`,
   notBefore: (field: string, other: string) => `${field} before ${other}`,
+  locale: (field: string, locale: string) => `${field} lacks ${locale}`,
 };
 
 /**
@@ -312,6 +313,7 @@ const SPANISH: typeof MESSAGES = {
   minItems: (field, count) => `${field} necesita ${count}`,
   maxItems: (field, count) => `${field} admite ${count}`,
   notBefore: (field, other) => `${field} antes de ${other}`,
+  locale: (field, locale) => `${field} sin ${locale}`,
 };
 
 describe('validateEntityDraft', () => {

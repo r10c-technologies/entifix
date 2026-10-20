@@ -299,3 +299,45 @@ describe('CellValue', () => {
     });
   });
 });
+
+describe('CellValue — a localized member', () => {
+  // The spec catalogs declare Spanish first and as the default.
+  it("renders the reader's locale", () => {
+    renderCell({ es: 'Sopa', en: 'Soup' }, 'localized');
+
+    expect(screen.getByText('Sopa')).toBeInTheDocument();
+  });
+
+  it('falls back to the default locale, then to the placeholder', () => {
+    renderCell({ en: 'Soup' }, 'localized');
+    expect(screen.getByText('—')).toBeInTheDocument();
+  });
+
+  it('renders the placeholder for a value that is not a text per locale', () => {
+    renderCell('Soup', 'localized');
+    expect(screen.getByText('—')).toBeInTheDocument();
+  });
+});
+
+describe('CellValue — a link labelled by a localized member', () => {
+  it("reads the target's label in the reader's locale", () => {
+    class Dish implements Entity {
+      constructor(
+        public id: EntityId,
+        public title: Record<string, string>,
+      ) {}
+    }
+    const link = new EntityLink(Dish, {
+      value: new Dish('d-1', { es: 'Sopa', en: 'Soup' }),
+    });
+    const many = new EntityCollectionLink(Dish, {
+      values: [new Dish('d-2', { es: 'Pan', en: 'Bread' })],
+    });
+
+    renderCell(link, 'link', 'title');
+    renderCell(many, 'linkCollection', 'title');
+
+    expect(screen.getByText('Sopa')).toBeInTheDocument();
+    expect(screen.getByText('Pan')).toBeInTheDocument();
+  });
+});
