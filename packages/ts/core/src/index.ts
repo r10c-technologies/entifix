@@ -25,6 +25,7 @@ export * from './http/session-cookies.js';
 export * from './i18n/format.js';
 export * from './i18n/locales.js';
 export * from './i18n/negotiate.js';
+export * from './query/in-memory-query.js';
 export * from './rsql/index.js';
 export * from './types/BulkOutcome.js';
 export * from './types/Entity.js';

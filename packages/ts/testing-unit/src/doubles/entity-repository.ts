@@ -1,160 +1,19 @@
 import type { EntityRepository } from '@entifix/business';
 import {
+  applyFiltering,
+  applySorting,
   deserializeSingleEntity,
   EntifixConnError,
   type EntifixError,
   type Entity,
-  EntityCollectionLink,
   type EntityConstructor,
-  type EntityFilter,
-  type EntityFiltering,
   type EntityId,
-  EntityLink,
   type EntityLoadRequest,
   type EntityPage,
-  type EntitySorting,
   extractMetaAccessors,
-  type FilterGroup,
   serializeEntity,
 } from '@entifix/core';
 import { Effect } from 'effect';
-
-/** Escapes a string so `like`/`nlike` match literally, as the Mongo adapter does. */
-const escapeRegex = (value: string): string =>
-  value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-const isFilterGroup = <TEntity extends Entity>(
-  node: EntityFilter<TEntity> | FilterGroup<TEntity>,
-): node is FilterGroup<TEntity> =>
-  !('property' in node) && (node.operator === 'and' || node.operator === 'or');
-
-/**
- * A member as the Mongo adapter stores it, and so as its queries see it: a
- * link is its target's id, a collection link the list of their ids. Without
- * this no operator can compare a link, since `eq` against an id is never
- * `true` for an object.
- */
-const storedValue = (value: unknown): unknown => {
-  if (value instanceof EntityLink) return value.id;
-  if (value instanceof EntityCollectionLink) return value.ids;
-  return value;
-};
-
-/** `$in` semantics: a scalar matches a value, an array when any element does. */
-const matchesAny = (actual: unknown, values: readonly unknown[]): boolean =>
-  Array.isArray(actual)
-    ? actual.some(element => values.includes(element))
-    : values.includes(actual);
-
-const compareValues = (left: unknown, right: unknown): number => {
-  if (left === right) return 0;
-  // Mongo sorts missing values below present ones.
-  if (left == null) return -1;
-  if (right == null) return 1;
-  if (typeof left === 'number' && typeof right === 'number') {
-    return left - right;
-  }
-  if (left instanceof Date && right instanceof Date) {
-    return left.getTime() - right.getTime();
-  }
-  return String(left).localeCompare(String(right));
-};
-
-const matchesNode = <TEntity extends Entity>(
-  item: TEntity,
-  node: EntityFilter<TEntity> | FilterGroup<TEntity>,
-): boolean => {
-  if (isFilterGroup(node)) {
-    return node.operator === 'or'
-      ? node.values.some(child => matchesNode(item, child))
-      : node.values.every(child => matchesNode(item, child));
-  }
-
-  const actual = storedValue(
-    (item as Record<string, unknown>)[String(node.property)],
-  );
-
-  switch (node.operator) {
-    case 'eq':
-      return actual === node.value;
-    case 'ne':
-      return actual !== node.value;
-    case 'gt':
-      return compareValues(actual, node.value) > 0;
-    case 'gte':
-      return compareValues(actual, node.value) >= 0;
-    case 'lt':
-      return compareValues(actual, node.value) < 0;
-    case 'lte':
-      return compareValues(actual, node.value) <= 0;
-    case 'in':
-      return matchesAny(actual, node.values);
-    case 'nin':
-      return !matchesAny(actual, node.values);
-    case 'between':
-      return (
-        compareValues(actual, node.start) >= 0 &&
-        compareValues(actual, node.end) <= 0
-      );
-    case 'nbetween':
-      return !(
-        compareValues(actual, node.start) >= 0 &&
-        compareValues(actual, node.end) <= 0
-      );
-    case 'like':
-      return new RegExp(escapeRegex(node.value), 'i').test(String(actual));
-    case 'nlike':
-      return !new RegExp(escapeRegex(node.value), 'i').test(String(actual));
-    case 'isNull':
-      return actual == null;
-    case 'isNotNull':
-      return actual != null;
-    default: {
-      // Exhaustiveness guard — a new operator must be handled explicitly.
-      const never: never = node;
-      return never;
-    }
-  }
-};
-
-const applyFiltering = <TEntity extends Entity>(
-  items: TEntity[],
-  filtering?: EntityFiltering<TEntity>[],
-): TEntity[] => {
-  if (!filtering || filtering.length === 0) return items;
-  // Every top-level entry is combined with `and`, matching `translateFiltering`.
-  const nodes = filtering.flatMap(entry =>
-    Array.isArray(entry) ? entry : [entry],
-  );
-  return items.filter(item => nodes.every(node => matchesNode(item, node)));
-};
-
-const applySorting = <TEntity extends Entity>(
-  items: TEntity[],
-  sorting?: EntitySorting<TEntity>[],
-): TEntity[] => {
-  if (!sorting || sorting.length === 0) return items;
-
-  const entries = sorting.flatMap(record =>
-    Object.keys(record)
-      .map(Number)
-      .sort((left, right) => left - right)
-      .map(priority => record[priority])
-      .filter(entry => entry != null),
-  );
-
-  return [...items].sort((left, right) => {
-    for (const entry of entries) {
-      const property = String(entry.property);
-      const result = compareValues(
-        (left as Record<string, unknown>)[property],
-        (right as Record<string, unknown>)[property],
-      );
-      if (result !== 0) return entry.type === 'desc' ? -result : result;
-    }
-    return 0;
-  });
-};
 
 /**
  * A copy of `entity` that shares no state with it.
@@ -202,8 +61,9 @@ export interface InMemoryEntityRepository extends EntityRepository {
  * In-memory {@link EntityRepository}: the default double for anything that
  * depends on persistence.
  *
- * Its semantics deliberately mirror `makeMongoRepository` — same filtering and
- * sorting rules, same 1-based paging with a default page size of 10, same
+ * Its semantics deliberately mirror `makeMongoRepository` — the same filtering
+ * and sorting rules, which it takes from core's in-memory query evaluation
+ * rather than keeping a copy of its own, same 1-based paging with a default page size of 10, same
  * "entity not found" failure, same id minting on create — and
  * `describeEntityRepositoryContract` holds both to that shared contract.
  */
