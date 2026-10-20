@@ -4,6 +4,7 @@
 - Date: 2026-09-15
 - Revised: 2026-09-16 by [#6](https://github.com/r10c-technologies/entifix/issues/6) — r10c's tag dimensions retired, and a same-tier edge must now be declared
 - Revised: 2026-09-16 by [ADR 0004](0004-the-examples-are-the-composability-proof.md) — the examples are decided there
+- Revised: 2026-10-20 by [ADR 0005](0005-content-an-entity-describes.md) — locales are a host value now, and `@entifix/static` is a 24th package
 - Area: platform
 - Read when: adding a package, adding a dependency between two, deciding whether something is public API, or about to bake a host's value into framework code — a downward edge can still be illegal, and the seam takes values rather than paths
 
@@ -195,6 +196,8 @@ graph and from its provider for the client.
 `shell` ships with `next-shell`. Those never vary per host, so `useT('controls')`
 stays internally typed forever and a framework string is never a host's problem.
 What crosses the seam is a translator instance and a locale — never a catalog.
+Which locales exist, and which is the default, is the host's too: core declares
+none of its own ([ADR 0005](0005-content-an-entity-describes.md)).
 
 ### Names in the framework are neutral, and fixed rather than configurable
 
@@ -230,7 +233,7 @@ drift.
 ### Public API is what a package exports
 
 Exported from `index.ts`, or reachable through a declared subpath export, is
-public. Everything else is internal and may change in a patch. Today that is 23
+public. Everything else is internal and may change in a patch. Today that is 24
 packages and 24 subpaths.
 
 Neither versioning rule below means anything without this line: without it, every
@@ -242,7 +245,7 @@ decision.
 
 ### Fixed versioning, first release `0.1.0`
 
-All 23 packages carry one version and move together. No compatibility matrix to
+All 24 packages carry one version and move together. No compatibility matrix to
 maintain, and every entifix-to-entifix peer — `workspace:*` here, an exact version
 once published — is trivially correct because there is only ever one version in
 play. Peers on the outside world (`effect`, `react`, `i18next`) stay ranges; those

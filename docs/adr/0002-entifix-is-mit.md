@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-09-15
+- Revised: 2026-10-20 by [ADR 0005](0005-content-an-entity-describes.md) — a 24th package carries the same licence
 - Area: platform
 - Read when: publishing a package, accepting an outside contribution, or wondering whether the licence can still be changed — a shipped version's grant is permanent, the project's licence going forward is not
 
@@ -70,7 +71,7 @@ and a corporate policy gate before a human ever reads the code.
 
 ## Consequences
 
-- **Each of the 23 packages carries `"license": "MIT"` and a `LICENSE`**, and a
+- **Each of the 24 packages carries `"license": "MIT"` and a `LICENSE`**, and a
   new package that forgets is a package nobody's legal review will clear. This is
   a packing rule, so it belongs with the release configuration.
 - **We ship no patent grant.** An adopter whose review requires one will ask for

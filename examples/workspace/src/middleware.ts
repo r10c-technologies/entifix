@@ -1,3 +1,5 @@
+import './locales';
+
 import { resolveLocale, rewriteToLocale } from '@entifix/next-i18n';
 import type { NextRequest } from 'next/server';
 

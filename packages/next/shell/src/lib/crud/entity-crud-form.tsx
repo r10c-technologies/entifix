@@ -26,6 +26,7 @@ import type {
 } from './make-entity-crud.types.js';
 import { useEntityAffordances } from './use-entity-affordances.js';
 import { useEntityLinkSources } from './use-entity-link-sources.js';
+import { validationMessagesFor } from './validation-messages.js';
 
 export interface EntityCrudFormProps<TEntity extends Entity> {
   readonly entityConstructor: EntityConstructor<TEntity>;
@@ -95,21 +96,8 @@ export function EntityCrudForm<TEntity extends Entity>({
   const et = useT('entity');
   const ct = useT('controls');
 
-  // `controls` copy, resolved here and handed down. The integration package
-  // owns the validation *rules* and this shell owns the sentences, because a
-  // sideways import between the two T3 packages is an edge the tier register
-  // does not declare.
-  const validationMessages = useMemo(() => {
-    const say =
-      (failure: 'required' | 'number' | 'date' | 'option') => (field: string) =>
-        ct(`validation.${failure}`, { field });
-    return {
-      required: say('required'),
-      number: say('number'),
-      date: say('date'),
-      option: say('option'),
-    };
-  }, [ct]);
+  // `controls` copy, resolved here and handed down; see validationMessagesFor.
+  const validationMessages = useMemo(() => validationMessagesFor(ct), [ct]);
 
   // A runtime-key translator, so a message names the field by its catalog word
   // (`labelKey`) and a schema's keyed message resolves at all. Without it both

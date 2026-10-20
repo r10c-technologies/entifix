@@ -669,3 +669,59 @@ describe('seeding from the applied value', () => {
     ).not.toBeInTheDocument();
   });
 });
+
+describe('FilterBuilder — a localized member', () => {
+  // The spec catalogs declare Spanish as the default, so the reader is Spanish.
+  it("filters one locale, the reader's own", async () => {
+    const { onChange, user } = renderBuilder([
+      descriptor('title', 'localized', { key: 'item_title' }),
+    ]);
+    await addFilter(user);
+
+    await user.type(screen.getByLabelText('Valor del filtro'), 'sopa');
+    await apply(user);
+
+    expect(lastFiltering(onChange)).toEqual({
+      operator: 'and',
+      values: [{ property: 'item_title.es', operator: 'like', value: 'sopa' }],
+    });
+  });
+
+  it('restores an applied locale path onto its member', () => {
+    render(
+      <FilterBuilder<Product>
+        descriptors={[descriptor('title', 'localized', { key: 'item_title' })]}
+        value={{
+          operator: 'and',
+          values: [
+            {
+              property: 'item_title.en' as keyof Product,
+              operator: 'like',
+              value: 'soup',
+            },
+          ],
+        }}
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText('Valor del filtro')).toHaveValue('soup');
+  });
+
+  it('keeps an applied filter on a member it no longer offers out of the rows', () => {
+    render(
+      <FilterBuilder<Product>
+        descriptors={[descriptor('title', 'localized')]}
+        value={{
+          operator: 'and',
+          values: [
+            { property: 'retired' as keyof Product, operator: 'isNull' },
+          ],
+        }}
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByLabelText('Valor del filtro')).not.toBeInTheDocument();
+  });
+});

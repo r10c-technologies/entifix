@@ -1,6 +1,6 @@
 import {
   allowedDescriptors,
-  EntifixBuildError,
+  type EntifixBuildError,
   type Entity,
   type EntityConstructor,
   type EntityFieldDescriptor,
@@ -9,6 +9,7 @@ import {
   type EntityFiltering,
   type EntitySorting,
   type FilterGroup,
+  resolveAllowedProperty,
 } from '@entifix/core';
 import type { SqlClient } from 'effect/sql';
 import type { Statement } from 'effect/sql';
@@ -47,7 +48,7 @@ function isFilterGroup<TEntity extends Entity>(
 }
 
 /**
- * Resolves a filter/sort member to its **column name**, or rejects it.
+ * Resolves a filter/sort member to the expression it compares, or rejects it.
  *
  * This is the security boundary of this file. A property name reaches SQL as an
  * identifier, so it can never be taken on trust: it is looked up in the
@@ -56,25 +57,33 @@ function isFilterGroup<TEntity extends Entity>(
  * ever emitted. A member the entity did not declare is an
  * {@link EntifixBuildError}, which the service maps to a `400`.
  *
+ * A `localized` member is stored as one `jsonb` column and queried a locale at
+ * a time (`title.en`), which becomes `"title"->>$1`: the locale is a bound
+ * parameter, never an identifier, and core has already checked it is one the
+ * host declared.
+ *
  * A request arriving through `parseLoadRequestParams` has already been through
  * this gate, so this is deliberately a second check — an `EntityLoadRequest`
  * built in code reaches the adapter without passing the URL codec at all.
  */
-function resolveColumn(
+function resolveExpression(
+  sql: SqlClient.SqlClient,
   property: string | number | symbol,
   allowed: Map<string, EntityFieldDescriptor>,
   requirement: 'filterable' | 'sortable',
-): string {
-  const name = String(property);
-  const descriptor = allowed.get(name);
-  if (!descriptor) {
-    throw new EntifixBuildError(
-      `"${name}" is not a ${requirement} member`,
-      undefined,
-      { property: name },
-    );
-  }
-  return descriptor.key;
+): { key: string; expression: Statement.Fragment } {
+  const { descriptor, key, locale } = resolveAllowedProperty(
+    allowed,
+    String(property),
+    requirement,
+  );
+  return {
+    key,
+    expression:
+      locale === undefined
+        ? sql`${sql(descriptor.key)}`
+        : sql`${sql(descriptor.key)}->>${locale}`,
+  };
 }
 
 /**
@@ -100,7 +109,12 @@ function translateNode<TEntity extends Entity>(
     return node.operator === 'or' ? sql.or(children) : sql.and(children);
   }
 
-  const column = sql(resolveColumn(node.property, allowed, 'filterable'));
+  const column = resolveExpression(
+    sql,
+    node.property,
+    allowed,
+    'filterable',
+  ).expression;
 
   switch (node.operator) {
     case 'eq':
@@ -195,7 +209,13 @@ export function translateSorting<TEntity extends Entity>(
     entityConstructor,
     descriptor => descriptor.sortable,
   );
-  const directions = new Map<string, 'ASC' | 'DESC'>();
+  // Keyed by what the property resolves to, so a member named twice — by its
+  // name and its alias, say — keeps its first position with the last
+  // direction, as Mongo's sort document does by assignment.
+  const directions = new Map<
+    string,
+    { expression: Statement.Fragment; direction: 'ASC' | 'DESC' }
+  >();
 
   for (const record of sorting) {
     for (const priority of Object.keys(record)
@@ -203,10 +223,16 @@ export function translateSorting<TEntity extends Entity>(
       .sort((left, right) => left - right)) {
       const entry = record[priority];
       if (entry) {
-        directions.set(
-          resolveColumn(entry.property, allowed, 'sortable'),
-          entry.type === 'desc' ? 'DESC' : 'ASC',
+        const { key, expression } = resolveExpression(
+          sql,
+          entry.property,
+          allowed,
+          'sortable',
         );
+        directions.set(key, {
+          expression: directions.get(key)?.expression ?? expression,
+          direction: entry.type === 'desc' ? 'DESC' : 'ASC',
+        });
       }
     }
   }
@@ -214,8 +240,9 @@ export function translateSorting<TEntity extends Entity>(
   if (directions.size === 0) return undefined;
 
   return sql.csv(
-    [...directions].map(
-      ([column, direction]) => sql`${sql(column)} ${sql.literal(direction)}`,
+    [...directions.values()].map(
+      ({ expression, direction }) =>
+        sql`${expression} ${sql.literal(direction)}`,
     ),
   );
 }

@@ -21,6 +21,9 @@ import {
  * member would write the wrong column, and preferring the member over the key
  * would leave the grid with no identity at all.
  *
+ * **Nor a `localized` member**, for a reason of the same kind: a row's draft is a
+ * flat string map, and a text per locale has no single cell to live in.
+ *
  * `EntifixBuildError` rather than a logic error, because this is a declaration
  * fault in the entity — the same class `assertNotQueryable` raises when a
  * collection claims to be sortable.
@@ -39,6 +42,21 @@ export function describeChildColumns<TChild extends object>(
         'cannot share a name, and the row would lose its identity on every edit.',
       undefined,
       { member: ROW_KEY },
+    );
+  }
+
+  // A row's draft is a flat string map, which is what keeps a draft's type
+  // bounded for the form engine; a text per locale has no cell to live in.
+  const localized = descriptors.find(
+    descriptor => descriptor.type === 'localized',
+  );
+  if (localized !== undefined) {
+    throw new EntifixBuildError(
+      `A composition child declares "${localized.name}" as localized, which a row ` +
+        'cannot hold: a row is a flat string map. Keep the localized text on the ' +
+        'entity, or make the child an entity of its own.',
+      undefined,
+      { member: localized.name },
     );
   }
 

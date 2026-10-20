@@ -5,6 +5,9 @@ export type MetaAccessorKind = 'getter' | 'setter';
  * care. It is deliberately a presentation/behaviour taxonomy rather than a
  * TypeScript mirror: `id` and `enum` are strings at runtime but are rendered,
  * sorted and filtered differently.
+ *
+ * `localized` holds a text per locale (`LocalizedText`). It is queried only
+ * through one locale at a time — `name.en` — never as the whole object.
  */
 export const MetaAccessorTypes = [
   'string',
@@ -17,6 +20,7 @@ export const MetaAccessorTypes = [
   'linkCollection',
   'composition',
   'scalarCollection',
+  'localized',
 ] as const;
 export type MetaAccessorType = (typeof MetaAccessorTypes)[number];
 
@@ -131,6 +135,23 @@ export interface MetaAccessorOptions {
    * The identity member is always reset and needs no flag.
    */
   resetOnClone?: boolean;
+  /**
+   * The fewest values a collection member may hold — `1` for "not empty". Only
+   * meaningful on a collection type (`scalarCollection`, `linkCollection`,
+   * `composition`); declaring it elsewhere fails when the entity is described.
+   *
+   * Distinct from {@link required}: on a collection `required` already means
+   * "at least one", and a `minItems` of two is a fact `required` cannot state.
+   */
+  minItems?: number;
+  /** The most values a collection member may hold. Collection types only. */
+  maxItems?: number;
+  /**
+   * Another `date` member this one may not precede — a period's `end` declares
+   * `notBefore: 'start'`. Checked only when both hold a value. Both members must
+   * be `date`s, or describing the entity fails.
+   */
+  notBefore?: string;
 }
 
 export class MetaAccessor {
@@ -155,6 +176,9 @@ export class MetaAccessor {
   readonly linkSerialization?: EntityLinkSerialization;
   readonly childType?: () => ChildConstructor;
   readonly resetOnClone?: boolean;
+  readonly minItems?: number;
+  readonly maxItems?: number;
+  readonly notBefore?: string;
 
   //#endregion
 
@@ -183,6 +207,9 @@ export class MetaAccessor {
     this.linkSerialization = options?.linkSerialization;
     this.childType = options?.childType;
     this.resetOnClone = options?.resetOnClone;
+    this.minItems = options?.minItems;
+    this.maxItems = options?.maxItems;
+    this.notBefore = options?.notBefore;
   }
   //#endregion
 

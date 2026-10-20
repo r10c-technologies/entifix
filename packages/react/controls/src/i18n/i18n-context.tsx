@@ -1,7 +1,7 @@
 'use client';
 
 import {
-  DEFAULT_LOCALE,
+  defaultLocale,
   type Formatters,
   type Locale,
   makeFormatters,
@@ -91,8 +91,9 @@ const interpolate = (text: string, params?: Record<string, unknown>): string =>
  *
  * Deliberately a working translator rather than a thrown error, unlike
  * `useTheme`. These controls render inside server components, and a control
- * that explodes on a missing ancestor is worse than one that renders Spanish:
- * the failure mode becomes "this screen is Spanish for an English visitor",
+ * that explodes on a missing ancestor is worse than one that renders the host's
+ * default locale: the failure mode becomes "this screen is in the default
+ * language for a visitor who chose another",
  * which the locale-switch e2e catches, not a blank page.
  *
  * It resolves against **this package's own catalog**, which is the point of the
@@ -102,9 +103,13 @@ const interpolate = (text: string, params?: Record<string, unknown>): string =>
  * entity label — has nothing here to resolve against and comes back as itself.
  */
 function fallbackTranslator(): Translator {
-  fallback ??= {
-    locale: DEFAULT_LOCALE,
-    formatters: makeFormatters(DEFAULT_LOCALE),
+  // Read on every call rather than once at load: a host declares its locales
+  // from its own entry module, which may well evaluate after this one (#35).
+  const locale = defaultLocale();
+  if (fallback?.locale === locale) return fallback;
+  fallback = {
+    locale,
+    formatters: makeFormatters(locale),
     t: (ns, key, params) => {
       // `useTranslateKey` hands over a fully qualified `entity:gadget.label`,
       // because a runtime key carries its own namespace. i18next strips the
@@ -116,10 +121,11 @@ function fallbackTranslator(): Translator {
       const namespace = qualified ? prefix : ns;
       const bare = qualified ? rest.join(':') : key;
 
-      const catalog = fallbackCatalogFor(
-        namespace ?? 'controls',
-        DEFAULT_LOCALE,
-      );
+      // A host may default to a locale this package ships no copy for; its own
+      // English then beats a raw key.
+      const catalog =
+        fallbackCatalogFor(namespace ?? 'controls', locale) ??
+        fallbackCatalogFor(namespace ?? 'controls', 'en');
       if (catalog === undefined) return bare;
       const text = lookup(catalog, bare, params);
       return text === undefined ? bare : interpolate(text, params);

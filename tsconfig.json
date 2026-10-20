@@ -101,6 +101,9 @@
     },
     {
       "path": "./examples/minimal-e2e"
+    },
+    {
+      "path": "./packages/ts/static"
     }
   ]
 }

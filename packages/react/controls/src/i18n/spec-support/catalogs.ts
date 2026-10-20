@@ -108,5 +108,9 @@ export function installSpecCatalogs(): void {
     },
     namespaces: ['controls', 'entity', 'errors'],
     defaultNS: 'controls',
+    // A host's declaration: entifix assumes no locale of its own (#35), and
+    // these specs were written against a Spanish default.
+    locales: ['es', 'en'],
+    defaultLocale: 'es',
   });
 }

@@ -1215,3 +1215,65 @@ describe('EntityForm actions from served metadata', () => {
     expect(screen.getByTestId('loading-boundary')).toBeInTheDocument();
   });
 });
+
+describe('a localized member', () => {
+  @entity({ key: 'dish' })
+  class Dish implements Entity {
+    #id?: EntityId;
+    #title?: Readonly<Record<string, string>>;
+
+    @accessor({ type: 'id', hidden: true })
+    get id(): EntityId {
+      return this.#id;
+    }
+    set id(value: EntityId) {
+      this.#id = value;
+    }
+
+    @accessor({ type: 'localized', label: 'Title' })
+    get title(): Readonly<Record<string, string>> | undefined {
+      return this.#title;
+    }
+    set title(value: Readonly<Record<string, string>> | undefined) {
+      this.#title = value;
+    }
+  }
+
+  function DishForm({ entity: value }: { entity?: Dish }) {
+    const [draft, setDraft] = useState<EntityDraft>({
+      title: { es: 'Sopa', en: '' },
+    });
+    return (
+      <EntityForm
+        entityConstructor={Dish}
+        entity={value}
+        values={draft}
+        mode={value === undefined ? 'edit' : 'read'}
+        onFieldChange={(name, next) =>
+          setDraft(current => ({ ...current, [name]: next }))
+        }
+      />
+    );
+  }
+
+  it('edits one input per declared locale', async () => {
+    const user = userEvent.setup();
+    render(<DishForm />);
+
+    expect(screen.getByLabelText('Title (es)')).toHaveValue('Sopa');
+    await user.type(screen.getByLabelText('Title (en)'), 'Soup');
+
+    expect(screen.getByLabelText('Title (en)')).toHaveValue('Soup');
+    expect(screen.getByLabelText('Title (es)')).toHaveValue('Sopa');
+  });
+
+  it("reads in the reader's locale", () => {
+    const dish = new Dish();
+    dish.title = { es: 'Sopa', en: 'Soup' };
+    render(<DishForm entity={dish} />);
+
+    // The spec catalogs default to Spanish.
+    expect(screen.getByText('Sopa')).toBeInTheDocument();
+    expect(screen.queryByText('Soup')).not.toBeInTheDocument();
+  });
+});

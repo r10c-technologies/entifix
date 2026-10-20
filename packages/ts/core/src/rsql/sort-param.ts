@@ -1,7 +1,6 @@
-import { EntifixBuildError } from '../base-entities/entifix-error/index.js';
 import type { Entity, EntityConstructor } from '../types/Entity.js';
 import type { EntitySorting, EntitySortType } from '../types/EntitySorting.js';
-import { allowedDescriptors } from './coerce-rsql.js';
+import { allowedDescriptors, resolveAllowedProperty } from './coerce-rsql.js';
 
 /**
  * RSQL standardizes filtering only, so sorting travels in its own `sort`
@@ -75,17 +74,9 @@ export function parseSort<TEntity extends Entity>(
 
     const type: EntitySortType = term.startsWith('-') ? 'desc' : 'asc';
     const name = term.replace(/^[+-]/, '');
-    const descriptor = allowed.get(name);
+    const { key } = resolveAllowedProperty(allowed, name, 'sortable');
 
-    if (!descriptor) {
-      throw new EntifixBuildError(
-        `"${name}" is not a sortable member`,
-        undefined,
-        { property: name },
-      );
-    }
-
-    record[priority++] = { property: descriptor.key as keyof TEntity, type };
+    record[priority++] = { property: key as keyof TEntity, type };
   }
 
   return priority === 0 ? undefined : [record];

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import {
   existsSync,
   mkdirSync,
@@ -110,18 +111,86 @@ export const sourcePackages = (root: string): Map<string, SourcePackage> => {
   return found;
 };
 
+/** pnpm's default for `virtualStoreDirMaxLength`, used when `.modules.yaml` names none. */
+const DEFAULT_STORE_DIR_MAX_LENGTH = 120;
+
+/**
+ * The virtual-store directory pnpm gives a dependency path:
+ * `@entifix/mongo@0.2.0(@entifix/transactions@0.2.0(effect@4.0.5))(effect@4.0.5)`
+ * → `@entifix+mongo@0.2.0_@entifix+transactions@0.2.0_effect@4.0.5__effect@4.0.5`.
+ *
+ * A copy of pnpm's own `depPathToFilename`, hash rule included: a name longer
+ * than the limit (or one with upper case) is cut and suffixed with a hash of
+ * the whole, so it cannot be matched by prefix.
+ */
+export const storeDirectoryOf = (
+  depPath: string,
+  maxLength = DEFAULT_STORE_DIR_MAX_LENGTH,
+): string => {
+  const at = depPath.indexOf('@', 1);
+  let filename = (
+    at === -1 ? depPath : `${depPath.slice(0, at)}@${depPath.slice(at + 1)}`
+  ).replace(/[\\/:*?"<>|#]/g, '+');
+  if (filename.includes('(')) {
+    filename = filename.replace(/\)$/, '').replace(/\)\(|\(|\)/g, '_');
+  }
+  if (filename.length > maxLength || filename !== filename.toLowerCase()) {
+    const hash = createHash('sha256')
+      .update(filename)
+      .digest('hex')
+      .slice(0, 32);
+    return `${filename.slice(0, maxLength - 33)}_${hash}`;
+  }
+  return filename;
+};
+
+/**
+ * The `@entifix/*` virtual-store directories pnpm currently links, read from
+ * the lockfile it keeps of what it installed (`node_modules/.pnpm/lock.yaml`).
+ *
+ * ⚠️ Listing the store is not the same thing. After a version bump pnpm keeps
+ * the previous release's directories for `modulesCacheMaxAge` (seven days), so
+ * `@entifix+core@0.1.1` sits beside the live `@entifix+core@0.1.2`. Nothing
+ * loads it, and its manifest carries the old dependency list, which made
+ * {@link missingDependencies} stop the whole sync on a package nothing used.
+ */
+export const linkedEntries = (consumer: string): ReadonlySet<string> => {
+  const modules = join(consumer, 'node_modules', '.modules.yaml');
+  const limit = existsSync(modules)
+    ? Number(
+        /virtualStoreDirMaxLength["']?:\s*(\d+)/.exec(
+          readFileSync(modules, 'utf8'),
+        )?.[1] ?? DEFAULT_STORE_DIR_MAX_LENGTH,
+      )
+    : DEFAULT_STORE_DIR_MAX_LENGTH;
+  const lock = join(consumer, 'node_modules', '.pnpm', 'lock.yaml');
+  if (!existsSync(lock)) {
+    throw new SyncError(
+      `${consumer} has no node_modules/.pnpm/lock.yaml — run \`pnpm install\` there first.`,
+    );
+  }
+  const snapshots = readFileSync(lock, 'utf8').split(/^snapshots:$/m)[1] ?? '';
+  return new Set(
+    [
+      ...snapshots.matchAll(/^ {2}'?(@entifix\/[^\s']+?)'?:\s*(?:\{\})?$/gm),
+    ].map(([, depPath]) => storeDirectoryOf(depPath as string, limit)),
+  );
+};
+
 /**
  * The installed copies of `name` in a consumer's virtual store.
  *
  * There can be more than one: pnpm keeps a directory per resolved peer set, so
  * `@entifix+core@0.1.1` and `@entifix+core@0.1.1_effect@3.22.1` are both the
  * same package, and a copy left stale is a copy some importer still loads.
+ * Only directories pnpm currently links count — see {@link linkedEntries}.
  */
 export const installedCopies = (consumer: string, name: string): string[] => {
   const store = join(consumer, 'node_modules', '.pnpm');
   const prefix = `${name.replace('/', '+')}@`;
+  const linked = linkedEntries(consumer);
   return readdirSync(store)
-    .filter(entry => entry.startsWith(prefix))
+    .filter(entry => entry.startsWith(prefix) && linked.has(entry))
     .map(entry => join(store, entry, 'node_modules', name))
     .filter(dir => existsSync(join(dir, 'package.json')))
     .sort();

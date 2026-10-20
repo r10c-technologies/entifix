@@ -2,6 +2,7 @@ import { EntifixBuildError } from '../../base-entities/entifix-error/index.js';
 import { extractMetaAccessors } from '../helpers/index.js';
 import { EntityCollectionLink } from '../links/entity-collection-link/index.js';
 import { EntityLink } from '../links/entity-link/index.js';
+import { assertBounds } from '../meta-entities/bounds.js';
 import {
   type ChildConstructor,
   type EntityLinkSerialization,
@@ -55,6 +56,12 @@ export interface EntityFieldDescriptor {
    * stamp. The identity member is always reset and is not flagged.
    */
   resetOnClone: boolean;
+  /** The fewest values a collection member may hold. */
+  minItems?: number;
+  /** The most values a collection member may hold. */
+  maxItems?: number;
+  /** The `date` member this one may not precede. */
+  notBefore?: string;
 }
 
 /** Types whose values are scalars a user can meaningfully sort/filter on. */
@@ -73,7 +80,7 @@ export const SCALAR_TYPES: readonly MetaAccessorType[] = [
  * would quietly return an empty page.
  *
  * Exported so `describe-entity-columns.spec.ts` can assert that this list,
- * {@link SCALAR_TYPES} and the two reference types partition
+ * {@link SCALAR_TYPES}, the two reference types and `localized` partition
  * `MetaAccessorTypes` exactly. Nothing in the repo guards `MetaAccessorType`
  * exhaustively — every switch over it has a `default` that treats the value as
  * a string — so that partition spec is what makes an eleventh type impossible
@@ -131,6 +138,41 @@ function assertNotQueryable(
   );
 }
 
+/**
+ * Item counts belong to a collection, and must be counts. A `minItems` on a
+ * string would read as honoured and constrain nothing.
+ */
+function assertItemCounts(metaAccessor: MetaAccessor, type: MetaAccessorType) {
+  const { minItems, maxItems } = metaAccessor;
+  if (minItems === undefined && maxItems === undefined) return;
+  const name = String(metaAccessor.name);
+  if (!COLLECTION_TYPES.includes(type)) {
+    throw new EntifixBuildError(
+      `"${name}" is a ${type}, and only a collection can declare minItems or maxItems.`,
+    );
+  }
+  assertBounds(`"${name}"`, { min: minItems, max: maxItems });
+}
+
+/**
+ * `notBefore` compares two instants, so both ends must be `date` members of
+ * the same entity. Checked once every member is described, since the one it
+ * names may be declared after it.
+ */
+function assertNotBefore(descriptors: readonly EntityFieldDescriptor[]) {
+  for (const descriptor of descriptors) {
+    if (descriptor.notBefore === undefined) continue;
+    const earlier = descriptors.find(
+      other => other.name === descriptor.notBefore,
+    );
+    if (descriptor.type !== 'date' || earlier?.type !== 'date') {
+      throw new EntifixBuildError(
+        `"${descriptor.name}" declares notBefore "${descriptor.notBefore}", and both must be date members of the entity.`,
+      );
+    }
+  }
+}
+
 function toDescriptor(
   metaAccessor: MetaAccessor,
   index: number,
@@ -141,7 +183,10 @@ function toDescriptor(
     metaAccessor.type ??
     inferType(name, (sample as Record<string, unknown> | undefined)?.[name]);
   assertNotQueryable(metaAccessor, type);
-  const isScalar = SCALAR_TYPES.includes(type);
+  assertItemCounts(metaAccessor, type);
+  // A localized member is queried one locale at a time (`name.en`), which
+  // makes it as queryable as the text each locale holds.
+  const isScalar = SCALAR_TYPES.includes(type) || type === 'localized';
   const linkLabelProperty = metaAccessor.linkLabelProperty ?? 'name';
 
   return {
@@ -162,6 +207,9 @@ function toDescriptor(
     linkSerialization: metaAccessor.linkSerialization ?? 'id',
     childType: metaAccessor.childType?.(),
     resetOnClone: metaAccessor.resetOnClone ?? false,
+    minItems: metaAccessor.minItems,
+    maxItems: metaAccessor.maxItems,
+    notBefore: metaAccessor.notBefore,
   };
 }
 
@@ -188,7 +236,7 @@ export function describeEntityColumns<TTarget extends object>(
 ): EntityFieldDescriptor[] {
   const seen = new Set<string>();
 
-  return extractMetaAccessors(entityConstructor)
+  const descriptors = extractMetaAccessors(entityConstructor)
     .filter(metaAccessor => {
       if (metaAccessor.hidden || metaAccessor.kind !== 'getter') return false;
       const name = String(metaAccessor.name);
@@ -198,4 +246,6 @@ export function describeEntityColumns<TTarget extends object>(
     })
     .map((metaAccessor, index) => toDescriptor(metaAccessor, index, sample))
     .sort((left, right) => left.order - right.order);
+  assertNotBefore(descriptors);
+  return descriptors;
 }

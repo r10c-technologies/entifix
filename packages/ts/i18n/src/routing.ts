@@ -8,14 +8,16 @@
  * makes a middleware bundle free of this package entirely.
  */
 export {
-  DEFAULT_LOCALE,
+  defaultLocale,
+  defineLocales,
   isLocale,
   type Locale,
   LOCALE_COOKIE,
   LOCALE_HEADER,
+  type LocaleDefinition,
   localeHref,
   type LocalePath,
-  LOCALES,
+  locales,
   negotiateLocale,
   type NegotiateLocaleInput,
   parseAcceptLanguage,

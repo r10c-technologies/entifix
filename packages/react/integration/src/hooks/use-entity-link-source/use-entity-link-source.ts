@@ -43,6 +43,17 @@ function assertSearchable<TTarget extends Entity>(
   const target = describeEntityColumns(config.entityConstructor).find(
     column => column.name === searchProperty,
   );
+  if (target?.type === 'localized') {
+    // Queried one locale at a time, and this hook holds no locale: the bare
+    // member is what the service would refuse.
+    throw new EntifixLogicError(
+      `Cannot search ${config.entityConstructor.name} by "${searchProperty}": ` +
+        'the member is localized, and a quick search has no locale to search ' +
+        'it in. Point the relation at a string member with `linkSearchProperty`.',
+      undefined,
+      { entity: config.entityConstructor.name, searchProperty },
+    );
+  }
   if (target?.filterable === true) return;
 
   throw new EntifixLogicError(

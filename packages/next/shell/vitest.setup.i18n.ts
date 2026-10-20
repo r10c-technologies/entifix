@@ -26,4 +26,7 @@ defineCatalogs({
   },
   namespaces: ['controls', 'shell'],
   defaultNS: 'controls',
+  // A host's declaration: entifix assumes no locale of its own (#35).
+  locales: ['es', 'en'],
+  defaultLocale: 'es',
 });

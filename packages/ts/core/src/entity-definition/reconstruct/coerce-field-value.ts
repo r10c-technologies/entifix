@@ -44,3 +44,16 @@ export function coerceFieldValue(
   if (descriptor.type === 'date') return new Date(raw);
   return raw;
 }
+
+/**
+ * The value a `localized` member's draft stands for: the locales that hold
+ * text, or `undefined` when none does — an untouched member is not an object
+ * of empty strings. Whether every declared locale is filled is the form's
+ * question to ask before submit, not this one's.
+ */
+export function coerceLocalizedDraft(
+  draft: Readonly<Record<string, string>>,
+): Record<string, string> | undefined {
+  const filled = Object.entries(draft).filter(([, text]) => text.trim() !== '');
+  return filled.length === 0 ? undefined : Object.fromEntries(filled);
+}

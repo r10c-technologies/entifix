@@ -275,6 +275,10 @@ const MESSAGES = {
   number: (field: string) => `${field} must be a number`,
   date: (field: string) => `${field} must be a date`,
   option: (field: string) => `${field} is not a valid option`,
+  minItems: (field: string, count: number) => `${field} needs ${count}`,
+  maxItems: (field: string, count: number) => `${field} takes ${count}`,
+  notBefore: (field: string, other: string) => `${field} before ${other}`,
+  locale: (field: string, locale: string) => `${field} lacks ${locale}`,
 };
 
 /**
@@ -306,6 +310,10 @@ const SPANISH: typeof MESSAGES = {
   number: field => `${field} debe ser un número`,
   date: field => `${field} debe ser una fecha`,
   option: field => `${field} no es una opción válida`,
+  minItems: (field, count) => `${field} necesita ${count}`,
+  maxItems: (field, count) => `${field} admite ${count}`,
+  notBefore: (field, other) => `${field} antes de ${other}`,
+  locale: (field, locale) => `${field} sin ${locale}`,
 };
 
 describe('validateEntityDraft', () => {

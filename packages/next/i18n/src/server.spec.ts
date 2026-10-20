@@ -1,4 +1,4 @@
-import { LOCALE_HEADER } from '@entifix/core';
+import { defineLocales, LOCALE_HEADER } from '@entifix/core';
 import { defineCatalogs } from '@entifix/i18n';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -38,6 +38,8 @@ defineCatalogs({
   },
   namespaces: ['controls', 'shell', 'app'],
   defaultNS: 'controls',
+  locales: ['es', 'en'],
+  defaultLocale: 'es',
 });
 
 const requestHeaders = vi.hoisted(() => ({ value: new Headers() }));
@@ -59,11 +61,19 @@ describe('getRequestLocale', () => {
 
   // Paths the matcher skips (`/api/health`, `/api/config`) arrive without the
   // header; they carry no user-facing copy, so the default is enough.
-  it('falls back to the fleet default when the header is absent or junk', async () => {
+  it("falls back to the host's default when the header is absent or junk", async () => {
     await expect(getRequestLocale()).resolves.toBe('es');
 
     requestHeaders.value.set(LOCALE_HEADER, 'klingon');
     await expect(getRequestLocale()).resolves.toBe('es');
+  });
+
+  it('follows a host whose default is English', async () => {
+    defineLocales({ locales: ['en', 'es'], defaultLocale: 'en' });
+
+    await expect(getRequestLocale()).resolves.toBe('en');
+
+    defineLocales({ locales: ['es', 'en'], defaultLocale: 'es' });
   });
 });
 

@@ -402,3 +402,32 @@ describe('seeding from the applied value', () => {
     expect(screen.queryByLabelText('Miembro de orden')).not.toBeInTheDocument();
   });
 });
+
+describe('SortBuilder — a localized member', () => {
+  const title: EntityFieldDescriptor = {
+    ...descriptor('title', 'Title', 'item_title'),
+    type: 'localized',
+  };
+
+  it("sorts by the reader's own locale", async () => {
+    const { onChange, user } = renderBuilder([title]);
+    await addSort(user);
+    await apply(user);
+
+    expect(onChange).toHaveBeenLastCalledWith({
+      0: { property: 'item_title.es', type: 'asc' },
+    });
+  });
+
+  it('restores an applied locale path onto its member', () => {
+    render(
+      <SortBuilder<Product>
+        descriptors={[title]}
+        value={{ 0: { property: 'item_title.en' as never, type: 'desc' } }}
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText('Miembro de orden')).toHaveValue('title');
+  });
+});

@@ -144,6 +144,16 @@ export const defineRecordSearchSource = <TEntity extends Entity>({
   // the service rejects the sort and the group degrades whole. Unsorted was the
   // alternative and is worse — the services apply no default order, so results
   // would arrive in storage order and shuffle as records are rewritten.
+  // A localized label sorts one locale at a time, and a search that fans out
+  // across services holds none: the bare member would answer `400`.
+  if (label.type === 'localized') {
+    throw rejection(
+      entityName,
+      labelProperty,
+      'the label member is localized, and the search has no locale to sort it in.',
+      'Label records by a string member.',
+    );
+  }
   if (!label.sortable) {
     throw rejection(
       entityName,

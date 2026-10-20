@@ -383,16 +383,14 @@ describe('makeInMemoryEntityRepository value comparison', () => {
   // case here is a compile error. Reaching it takes a cast, and it returns the
   // node itself — truthy, so an unknown operator matches rather than silently
   // filtering everything out. Pinned because that is what callers get today.
-  it('reaches its exhaustiveness guard only through a cast', async () => {
-    const page = await runRepository(
+  it('refuses an operator it does not know, as the adapters do', () => {
+    expect(() =>
       makeInMemoryEntityRepository([
         makeContractWidget('w-1', 'Alpha', 10),
       ]).load<ContractWidget>({
         filtering: [{ property: 'name', operator: 'unknown' }] as never,
       }),
-    );
-
-    expect(page.items.map(item => item.id)).toEqual(['w-1']);
+    ).toThrow(/Unknown filter operator "unknown"/);
   });
 
   it('filters a link by the id it names, as Mongo stores it', async () => {

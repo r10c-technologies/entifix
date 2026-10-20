@@ -116,6 +116,13 @@ jobs:
           git tag -a "v${VERSION}" -m "v${VERSION}"
           git push origin "v${VERSION}"
 
+      # The workspace resolves `@entifix/source` to `src`, which the tarball does
+      # not ship; a published manifest naming it sends a consumer that sets the
+      # condition to a missing file (#32). This checkout is discarded after the
+      # job, so the repository keeps the condition.
+      - name: Strip the workspace-only export condition
+        run: node tools/release/strip-source-condition.mjs
+
       - name: Publish to npm
         run: pnpm nx release publish
 

@@ -1,5 +1,5 @@
 import type { MetaAccessorType } from '@entifix/core';
-import { type Locale, LOCALES } from '@entifix/core';
+import { type Locale, locales } from '@entifix/core';
 import { createI18n } from '@entifix/i18n';
 import { describe, expect, it } from 'vitest';
 
@@ -106,7 +106,7 @@ describe('operatorsForType', () => {
   // A new operator that reaches the picker without a catalog entry would render
   // its own key at the user. The type system catches a missing `es` entry; this
   // catches the rest, in every locale.
-  it.each(LOCALES.map(locale => [locale]))(
+  it.each(locales().map(locale => [locale]))(
     'has a %s label for every operator',
     (locale: Locale) => {
       const i18n = createI18n(locale);

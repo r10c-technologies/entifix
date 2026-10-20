@@ -5,7 +5,7 @@ contradicts a reasonable default and links to where the reasoning lives. The
 [README](README.md) is the adopter's view; the
 [decision records](docs/adr/README.md) are the why.
 
-entifix is an entity framework published to npm as 23 `@entifix/*` packages on
+entifix is an entity framework published to npm as 24 `@entifix/*` packages on
 fixed versioning. It was extracted from `r10c-technologies/r10c`, which is now
 one of its consumers.
 
@@ -75,7 +75,7 @@ tests need no build. A consumer resolves `dist`.
   [ADR 0003](docs/adr/0003-releasing-without-a-credential.md).
 - **Never rename `.github/workflows/release.yml`, and never add an npm
   credential.** Every package's npm trusted-publisher claim names that file and
-  the `npm-publish` environment; renaming it breaks publishing for all 23
+  the `npm-publish` environment; renaming it breaks publishing for all 24
   silently. Releasing is merging the `chore(release): X.Y.Z` pull request that
   `release_prepare.yml` opens — it is rebuilt from `main` on every push, and a
   version change closes the old one in favour of the new.
@@ -117,6 +117,7 @@ tests need no build. A consumer resolves `dist`.
 - [0002](docs/adr/0002-entifix-is-mit.md) **entifix is MIT** — read when publishing a package, accepting an outside contribution, or wondering whether the licence can still be changed.
 - [0003](docs/adr/0003-releasing-without-a-credential.md) **Releasing without a credential** — read when cutting a release, wondering why the release workflow cannot be renamed, or why a merge did not publish anything.
 - [0004](docs/adr/0004-the-examples-are-the-composability-proof.md) **The examples are the composability proof** — read when adding an example or an e2e journey, putting an entity class inside a Next application, or a `@useCase()` verb never appears on screen.
+- [0005](docs/adr/0005-content-an-entity-describes.md) **Content an entity describes** — read when declaring locales, holding text in several languages, writing a validation rule a consumer keeps repeating, publishing an entity narrower than it is stored, serving records that arrive as JSON, or about to write a second in-memory filter.
 
 A source comment citing a higher number (`ADR 0030`) means an r10c record; the
 appendix of ADR 0001 maps each one.

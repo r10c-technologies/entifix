@@ -2,9 +2,14 @@
 // than `nodenext` (see tsconfig.spec.json). `next` ships no `exports` map, so
 // NodeNext's ESM mode refuses the bare `next/server` subpath outright — and this
 // is the only spec that imports Next directly.
-import { LOCALE_COOKIE, LOCALE_HEADER } from '@entifix/core';
+import {
+  defineLocales,
+  LOCALE_COOKIE,
+  LOCALE_HEADER,
+  resetLocales,
+} from '@entifix/core';
 import { NextRequest, NextResponse } from 'next/server';
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
   rememberLocale,
@@ -22,6 +27,11 @@ function request(
 
   return new NextRequest(new URL(url, 'http://localhost:3001'), { headers });
 }
+
+// A middleware declares the host's locales itself; it shares no module state
+// with the server.
+beforeAll(() => defineLocales({ locales: ['es', 'en'], defaultLocale: 'es' }));
+afterAll(() => resetLocales());
 
 describe('resolveLocale', () => {
   it('takes the locale from the path and strips it', () => {

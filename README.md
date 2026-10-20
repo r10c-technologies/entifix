@@ -51,7 +51,25 @@ defineCatalogs({
   },
   namespaces: ['controls', 'shell', 'app'],
   defaultNS: 'controls',
+  // The locales you ship, in switcher order, and the one a visitor falls back
+  // to. entifix assumes none: declare nothing and you speak English alone.
+  locales: ['es', 'en'],
+  defaultLocale: 'es',
 });
+```
+
+**Declare your locales, and narrow the type.** The two fields above are
+`defineLocales` from `@entifix/core`, called for you. A Next middleware is
+bundled apart and never loads this module, so call `defineLocales` from a module
+it imports too. Narrowing `Locale` from any string to yours makes a typo in a
+`localeHref` a compile error:
+
+```ts
+declare module '@entifix/core' {
+  interface LocaleRegister {
+    locale: 'es' | 'en';
+  }
+}
 ```
 
 Each package ships the copy for what _it_ renders — `controls` with the agnostic
@@ -73,14 +91,14 @@ through an edge the register declares — and, the rule that actually matters,
 never hard-depends on a capability its tier is supposed to be
 adoptable without.
 
-| Tier |               | Packages                                                                                              |
-| ---- | ------------- | ----------------------------------------------------------------------------------------------------- |
-| T0   | standalone    | `style` · `tooling`                                                                                   |
-| T1   | entity        | `core` · `business`                                                                                   |
-| T2   | adapters      | `mongo` · `sql` · `redis` · `amqp` · `rest` · `transactions` · `jwt` · `zitadel` · `posthog` · `i18n` |
-| T3   | ui            | `react-controls` · `react-integration`                                                                |
-| T4   | app framework | `authz` · `service-shell` · `next-shell` · `next-i18n`                                                |
-| T5   | testing       | `testing-unit` · `testing-e2e` · `testing-auth`                                                       |
+| Tier |               | Packages                                                                                                         |
+| ---- | ------------- | ---------------------------------------------------------------------------------------------------------------- |
+| T0   | standalone    | `style` · `tooling`                                                                                              |
+| T1   | entity        | `core` · `business`                                                                                              |
+| T2   | adapters      | `mongo` · `sql` · `static` · `redis` · `amqp` · `rest` · `transactions` · `jwt` · `zitadel` · `posthog` · `i18n` |
+| T3   | ui            | `react-controls` · `react-integration`                                                                           |
+| T4   | app framework | `authz` · `service-shell` · `next-shell` · `next-i18n`                                                           |
+| T5   | testing       | `testing-unit` · `testing-e2e` · `testing-auth`                                                                  |
 
 So a table does not arrive with i18next and a Spanish catalog attached, and a
 Mongo repository does not arrive with a saga engine. Where a package _can_ use an
@@ -92,11 +110,31 @@ The reasoning, and the invariant that fails the build, is
 
 ## What a host supplies
 
-entifix reads no file and knows no file format. Four things cross the seam, all
-of them **values** rather than paths: your catalogs, your grant table, the Layers
-that verify a real token, and your own copy. TypeScript by default — a
+entifix reads no file and knows no file format. Five things cross the seam, all
+of them **values** rather than paths: your catalogs, your locales, your grant
+table, the Layers that verify a real token, and your own copy. TypeScript by default — a
 `Record<Role, readonly Permission[]>` makes a typo a compile error — with JSON
 accepted through Standard Schema for a host that must configure at runtime.
+
+## Content an entity describes
+
+An entity's metadata says more than how to store and render it:
+
+- **Text in every language you ship.** `@accessor({ type: 'localized' })` holds
+  one value with a text per locale — `{ en: 'Tech Lead', es: 'Líder técnico' }`
+  — read with `localize(value, locale)`. It is queried one locale at a time
+  (`title.en`, in a filter and a sort alike), and the generated form edits every
+  locale side by side.
+- **Constraints.** `minItems` / `maxItems` on a collection, `notBefore` between
+  two dates, and `@entity({ cardinality })` for how many records may exist.
+- **Published shapes.** `@entity({ views: { public: { filtering, omit } } })`
+  names a narrower shape; `serializeEntityCollection(entity, records, { view })`
+  publishes through it, and a member a view omits stays `required` everywhere
+  else.
+- **One check for untyped records.** `validateRecords` holds JSON from a build,
+  an import or a seed to all of the above, collecting every problem with its
+  path. `@entifix/static` runs it before serving bundled records through the
+  ordinary use cases.
 
 ## Examples
 
@@ -153,11 +191,13 @@ docker compose -f examples/compose.yaml up -d --wait
 pnpm nx run @entifix/example-minimal-e2e:e2e-live   # starts the service and the app itself
 ```
 
-## Three packages ship unexercised
+## Four packages ship unexercised
 
 `@entifix/zitadel`, `@entifix/jwt` and `@entifix/posthog` are vendor adapters with
 unit tests and no example. They are published because the framework's own shells
 use their ports, not because their integrations are demonstrated here.
+`@entifix/static` runs the shared repository read contract but has no example
+either; its first consumer is a static-export site outside this repository.
 
 ## Working on entifix
 

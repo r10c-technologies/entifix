@@ -1,5 +1,5 @@
 import * as core from '@entifix/core';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import * as routing from './routing.js';
 
@@ -15,9 +15,14 @@ import * as routing from './routing.js';
  * core rather than with this package's own barrel.
  */
 describe('the routing entry point', () => {
+  afterEach(() => core.resetLocales());
+
   it('carries the whole negotiation surface middleware needs', () => {
-    expect(routing.DEFAULT_LOCALE).toBe('es');
-    expect(routing.LOCALES).toEqual(['es', 'en']);
+    // A middleware is bundled apart, so it declares the host's locales itself.
+    routing.defineLocales({ locales: ['es', 'en'], defaultLocale: 'es' });
+
+    expect(routing.defaultLocale()).toBe('es');
+    expect(routing.locales()).toEqual(['es', 'en']);
     expect(routing.isLocale('en')).toBe(true);
     expect(routing.splitLocalePath('/es/catalog')).toEqual({
       locale: 'es',

@@ -72,6 +72,11 @@ class Thing implements Entity {
   set unsortable(value: string | undefined) {
     this.#unsortable = value;
   }
+
+  @accessor({ type: 'localized' })
+  get title(): Readonly<Record<string, string>> | undefined {
+    return undefined;
+  }
 }
 
 const define = (over: Record<string, unknown> = {}) =>
@@ -163,6 +168,12 @@ describe('defineRecordSearchSource', () => {
     it('refuses a label member the entity does not declare', () => {
       expect(() => define({ labelProperty: 'nope' })).toThrow(
         /no such label member/,
+      );
+    });
+
+    it('refuses a localized label member, which it has no locale to sort in', () => {
+      expect(() => define({ labelProperty: 'title' })).toThrow(
+        /the label member is localized/,
       );
     });
 

@@ -1,0 +1,65 @@
+{
+  "name": "@entifix/static",
+  "version": "0.2.0",
+  "description": "A read-only entity repository over records bundled with the build: Mongo's query semantics, records validated against entity metadata before they are served.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/r10c-technologies/entifix.git",
+    "directory": "packages/ts/static"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@entifix/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo",
+    "LICENSE"
+  ],
+  "nx": {
+    "tags": [
+      "tier:2"
+    ],
+    "sourceRoot": "packages/ts/static/src",
+    "targets": {
+      "build": {
+        "executor": "@nx/js:swc",
+        "outputs": [
+          "{options.outputPath}"
+        ],
+        "options": {
+          "outputPath": "packages/ts/static/dist",
+          "main": "packages/ts/static/src/index.ts",
+          "tsConfig": "packages/ts/static/tsconfig.lib.json",
+          "skipTypeCheck": true,
+          "stripLeadingPaths": true
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "@entifix/business": "workspace:*",
+    "@entifix/core": "workspace:*",
+    "@swc/helpers": "0.5.23"
+  },
+  "devDependencies": {
+    "@entifix/testing-unit": "workspace:*",
+    "effect": "4.0.5"
+  },
+  "peerDependencies": {
+    "effect": "^4.0.5"
+  }
+}

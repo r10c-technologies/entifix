@@ -178,6 +178,12 @@ export const controls = {
     min: '{{field}} es demasiado pequeño',
     max: '{{field}} es demasiado grande',
     pattern: '{{field}} tiene un formato inválido',
+    minItems_one: '{{field}} necesita al menos {{count}} elemento',
+    minItems_other: '{{field}} necesita al menos {{count}} elementos',
+    maxItems_one: '{{field}} admite como máximo {{count}} elemento',
+    maxItems_other: '{{field}} admite como máximo {{count}} elementos',
+    notBefore: '{{field}} no puede ser anterior a {{other}}',
+    locale: '{{field}} no tiene texto en {{locale}}',
   },
   /**
    * The filter vocabulary shown to a user. Deliberately distinct from

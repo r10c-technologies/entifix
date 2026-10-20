@@ -11,6 +11,7 @@ import {
   type EntityLinkSource,
   type MetaAccessorType,
   readDraftString,
+  readLocalizedDraft,
   readRowDrafts,
   type UseCaseDescriptor,
 } from '@entifix/core';
@@ -30,6 +31,7 @@ import {
 import { Button, button } from '../../atoms/button/index.js';
 import { CellValue } from '../../atoms/cell-value/index.js';
 import { FieldControl } from '../../atoms/field-control/index.js';
+import { LocalizedFieldControl } from '../../atoms/localized-field-control/index.js';
 import { Skeleton } from '../../atoms/skeleton/index.js';
 import { Text } from '../../atoms/text/index.js';
 import { Card } from '../../molecules/card/index.js';
@@ -680,6 +682,15 @@ function FieldRow<TEntity extends Entity>({
           setField(field.name, '');
           onLinkChange?.(field.name, undefined);
         }}
+      />
+    );
+  } else if (field.type === 'localized' && !field.virtual) {
+    control = (
+      <LocalizedFieldControl
+        descriptor={field}
+        value={readLocalizedDraft(draft, field.name)}
+        onChange={next => setField(field.name, next)}
+        id={id}
       />
     );
   } else if (field.virtual || isRelation) {
