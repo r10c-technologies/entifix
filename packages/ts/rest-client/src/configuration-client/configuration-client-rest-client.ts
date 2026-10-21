@@ -97,7 +97,14 @@ class ConfigurationClientGroupRestClient implements ConfigurationClientGroup {
  * {@link ConfigurationClient} that sources its `ConfigurationPlain` over HTTP
  * (by default the same-origin `/api/config` route, which proxies
  * marketplace-config-api). The fetched configuration is memoized so it is
- * requested at most once per client instance.
+ * requested at most once per client instance — **once it has arrived**.
+ *
+ * ⚠️ A failed load is not memoized. Clients are usually built once per process
+ * (a server component's module scope), and in a fleet that starts together the
+ * first read routinely races config-service's boot. Caching that rejection made
+ * the failure permanent: a storefront rendered an empty catalog until it was
+ * restarted, while every service it reads from was healthy. Callers that arrive
+ * while a request is in flight still share it.
  */
 export class ConfigurationClientRestClient implements ConfigurationClient {
   #loadPlain: Effect.Effect<ConfigurationPlain, EntifixBuildError>;
@@ -107,16 +114,27 @@ export class ConfigurationClientRestClient implements ConfigurationClient {
     const headers = options?.headers;
     let cache: Promise<ConfigurationPlain> | undefined;
 
+    const load = (): Promise<ConfigurationPlain> => {
+      if (cache !== undefined) return cache;
+      const pending = fetch(url, { headers }).then(response => {
+        if (!response.ok) {
+          throw new Error(
+            `Configuration request to ${url} failed with status ${response.status}`,
+          );
+        }
+        return response.json() as Promise<ConfigurationPlain>;
+      });
+      cache = pending;
+      // Forget a failure so the next read asks again. Nothing else clears the
+      // cache, so the entry being cleared is always this request's own.
+      pending.catch(() => {
+        cache = undefined;
+      });
+      return pending;
+    };
+
     this.#loadPlain = Effect.tryPromise({
-      try: () =>
-        (cache ??= fetch(url, { headers }).then(response => {
-          if (!response.ok) {
-            throw new Error(
-              `Configuration request to ${url} failed with status ${response.status}`,
-            );
-          }
-          return response.json() as Promise<ConfigurationPlain>;
-        })),
+      try: load,
       catch: error =>
         new EntifixBuildError('Failed to load configuration', error, { url }),
     });

@@ -155,6 +155,55 @@ describe('ConfigurationClientRestClient', () => {
     expect(error).toBeInstanceOf(EntifixBuildError);
   });
 
+  // A process usually builds one client and keeps it, and in a fleet that
+  // starts together its first read can beat config-service's boot. A cached
+  // rejection made that failure permanent until a restart.
+  it('asks again after the endpoint was unreachable', async () => {
+    const requests = countRequests();
+    const client = store();
+    server.use(
+      http.get(CONFIG_URL, () => HttpResponse.error(), { once: true }),
+    );
+
+    const first = await Effect.runPromiseExit(
+      client.in('mongo').getString('uri'),
+    );
+    const second = await Effect.runPromise(client.in('mongo').getString('uri'));
+
+    expect(Exit.isFailure(first)).toBe(true);
+    expect(second).toBe('mongodb://host');
+    expect(requests()).toBe(2);
+  });
+
+  it('asks again after an error status, then memoizes the success', async () => {
+    const requests = countRequests();
+    const client = store();
+    server.use(
+      http.get(CONFIG_URL, () => new HttpResponse(null, { status: 503 }), {
+        once: true,
+      }),
+    );
+
+    await Effect.runPromiseExit(client.in('mongo').getString('uri'));
+    await Effect.runPromise(client.in('mongo').getString('uri'));
+    await Effect.runPromise(client.in('mongo').getString('uri'));
+
+    expect(requests()).toBe(2);
+  });
+
+  it('shares one in-flight request between concurrent readers', async () => {
+    const requests = countRequests();
+    const client = store();
+
+    const values = await Promise.all([
+      Effect.runPromise(client.in('mongo').getString('uri')),
+      Effect.runPromise(client.in('restUri').getString('service-domain')),
+    ]);
+
+    expect(values).toEqual(['mongodb://host', 'http://service/api']);
+    expect(requests()).toBe(1);
+  });
+
   it('fails on a key the configuration does not carry', async () => {
     const error = await Effect.runPromise(
       Effect.flip(store().in('mongo').getString('absent')),
