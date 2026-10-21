@@ -8,8 +8,11 @@
     "ignoreDeprecations": "6.0",
     "rootDir": "."
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.test.ts", "src/**/*.spec.ts", "src/**/*.d.ts"],
   "references": [
+    {
+      "path": "./tsconfig.lib.json"
+    },
     {
       "path": "../core/tsconfig.lib.json"
     },
@@ -18,9 +21,6 @@
     },
     {
       "path": "../mongo-client/tsconfig.lib.json"
-    },
-    {
-      "path": "../testing-unit/tsconfig.spec.json"
     },
     {
       "path": "../testing-unit/tsconfig.lib.json"

@@ -7,10 +7,19 @@
     "ignoreDeprecations": "6.0",
     "rootDir": "."
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.test.ts", "src/**/*.spec.ts", "src/**/*.d.ts"],
   "references": [
-    { "path": "../core/tsconfig.lib.json" },
-    { "path": "../business/tsconfig.lib.json" },
-    { "path": "../authz/tsconfig.lib.json" }
+    {
+      "path": "./tsconfig.lib.json"
+    },
+    {
+      "path": "../core/tsconfig.lib.json"
+    },
+    {
+      "path": "../business/tsconfig.lib.json"
+    },
+    {
+      "path": "../authz/tsconfig.lib.json"
+    }
   ]
 }

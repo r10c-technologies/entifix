@@ -15,8 +15,17 @@
     "ignoreDeprecations": "6.0",
     "rootDir": "."
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "include": [
+    "src/**/*.test.ts",
+    "src/**/*.spec.ts",
+    "src/**/*.test.tsx",
+    "src/**/*.spec.tsx",
+    "src/**/*.d.ts"
+  ],
   "references": [
+    {
+      "path": "./tsconfig.lib.json"
+    },
     {
       "path": "../core/tsconfig.lib.json"
     },
