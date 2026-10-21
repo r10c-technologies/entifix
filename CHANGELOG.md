@@ -1,3 +1,17 @@
+## 0.4.0 (2026-10-21)
+
+### 🚀 Features
+
+- ⚠️ move to Nx 23.3 and latest dependencies, msw 3 for the testing packages ([#50](https://github.com/r10c-technologies/entifix/pull/50))
+
+### ⚠️ Breaking Changes
+
+- move to Nx 23.3 and latest dependencies, msw 3 for the testing packages ([#50](https://github.com/r10c-technologies/entifix/pull/50))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.3.0 (2026-10-20)
 
 ### 🚀 Features
