@@ -6,12 +6,14 @@
     "lib": ["es2022", "dom", "dom.iterable"],
     "types": [
       "vitest/globals",
-      "@testing-library/jest-dom",
+      "@testing-library/jest-dom/vitest",
       "vitest/importMeta",
       "vite/client",
       "node"
     ],
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "ignoreDeprecations": "6.0",
+    "rootDir": "."
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],
   "references": [

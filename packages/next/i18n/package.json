@@ -57,17 +57,17 @@
     }
   },
   "dependencies": {
+    "@entifix/core": "workspace:*",
     "@entifix/i18n": "workspace:*",
-    "@swc/helpers": "0.5.23",
-    "@entifix/core": "workspace:*"
+    "@swc/helpers": "0.5.23"
   },
   "peerDependencies": {
-    "next": ">=16",
-    "i18next": ">=26 <27"
+    "i18next": ">=26 <27",
+    "next": ">=16"
   },
   "devDependencies": {
-    "next": "16.2.10",
-    "i18next": "26.3.6"
+    "i18next": "26.5.3",
+    "next": "16.4.2"
   },
   "peerDependenciesMeta": {
     "i18next": {

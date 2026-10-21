@@ -9,7 +9,9 @@
     "rewriteRelativeImportExtensions": true,
     "erasableSyntaxOnly": true,
     "forceConsistentCasingInFileNames": true,
-    "types": ["node", "vitest/globals", "vitest/importMeta"]
+    "types": ["node", "vitest/globals", "vitest/importMeta"],
+    "ignoreDeprecations": "6.0",
+    "rootDir": "."
   },
   "include": ["src/**/*.ts"],
   "references": []

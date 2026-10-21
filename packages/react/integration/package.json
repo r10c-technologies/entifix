@@ -57,16 +57,16 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@entifix/transactions": "workspace:*",
     "@entifix/business": "workspace:*",
-    "@entifix/core": "workspace:*"
+    "@entifix/core": "workspace:*",
+    "@entifix/transactions": "workspace:*"
   },
   "devDependencies": {
     "@entifix/testing-unit": "workspace:*",
     "@tanstack/react-form": "1.33.5",
-    "@tanstack/react-query": "^5.101.4",
+    "@tanstack/react-query": "^5.104.5",
     "effect": "4.0.5",
-    "react": "19.2.8"
+    "react": "19.3.1"
   },
   "peerDependencies": {
     "@tanstack/react-form": ">=1.33 <2",

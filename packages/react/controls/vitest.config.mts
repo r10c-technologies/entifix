@@ -2,7 +2,7 @@ import { defineEntifixTest } from '../../../vitest.shared.mjs';
 
 export default defineEntifixTest({
   name: '@entifix/react-controls',
-  root: __dirname,
+  root: import.meta.dirname,
   environment: 'jsdom',
   setupFiles: ['./vitest.setup.i18n.ts'],
   // Storybook material lives beside the components but is not unit-tested — it

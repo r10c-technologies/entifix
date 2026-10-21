@@ -4,7 +4,9 @@
     "allowJs": true,
     "outDir": "out-tsc/playwright",
     "sourceMap": false,
-    "types": ["node"]
+    "types": ["node"],
+    "ignoreDeprecations": "6.0",
+    "rootDir": "."
   },
   "include": ["playwright.live.config.ts", "src/**/*.ts"],
   "exclude": ["out-tsc", "test-output", "eslint.config.mjs"],

@@ -63,9 +63,9 @@
     "amqplib": "2.2.0"
   },
   "devDependencies": {
-    "@entifix/transactions": "workspace:*",
     "@entifix/testing-unit": "workspace:*",
-    "@types/amqplib": "0.10.5",
+    "@entifix/transactions": "workspace:*",
+    "@types/amqplib": "0.10.8",
     "effect": "4.0.5"
   },
   "peerDependencies": {

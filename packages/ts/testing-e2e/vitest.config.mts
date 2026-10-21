@@ -2,7 +2,7 @@ import { defineEntifixTest } from '../../../vitest.shared.mjs';
 
 export default defineEntifixTest({
   name: '@entifix/testing-e2e',
-  root: __dirname,
+  root: import.meta.dirname,
   coverageExclude: [
     // The Playwright entry point: a config preset, a `test.extend` fixture and
     // a page object. Every line of it only executes inside a Playwright worker

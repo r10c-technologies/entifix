@@ -74,3 +74,4 @@ graphify-out
 
 # Playwright
 .playwright-mcp
+.vitest
