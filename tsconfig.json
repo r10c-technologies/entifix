@@ -105,5 +105,8 @@
     {
       "path": "./packages/ts/static"
     }
-  ]
+  ],
+  "compilerOptions": {
+    "ignoreDeprecations": "6.0"
+  }
 }

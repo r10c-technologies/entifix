@@ -63,8 +63,8 @@
     "mongodb": "7.7.0"
   },
   "devDependencies": {
-    "@entifix/transactions": "workspace:*",
     "@entifix/testing-unit": "workspace:*",
+    "@entifix/transactions": "workspace:*",
     "effect": "4.0.5"
   },
   "peerDependencies": {

@@ -9,7 +9,9 @@
     "rewriteRelativeImportExtensions": true,
     "erasableSyntaxOnly": true,
     "forceConsistentCasingInFileNames": true,
-    "types": ["node"]
+    "types": ["node"],
+    "ignoreDeprecations": "6.0",
+    "rootDir": "."
   },
   "include": ["src/**/*.ts"],
   "references": [

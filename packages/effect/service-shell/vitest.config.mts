@@ -2,7 +2,7 @@ import { defineEntifixTest } from '../../../vitest.shared.mjs';
 
 export default defineEntifixTest({
   name: '@entifix/service-shell',
-  root: __dirname,
+  root: import.meta.dirname,
   coverageExclude: [
     // Process bootstrap: binds a port and hands control to `NodeRuntime.runMain`,
     // which never returns and installs signal handlers. It branches on nothing,

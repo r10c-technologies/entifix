@@ -97,13 +97,19 @@ export const defineEntifixE2eTest = ({
           // escape to the network: a spec that passes because it silently
           // talked to nothing is worse than one that fails. The app's own
           // origin is exempt — it legitimately serves itself.
-          onUnhandledRequest: (request, print) => {
+          // `onUnhandledFrame` since msw 3; the old `onUnhandledRequest` is
+          // ignored rather than rejected. A frame is HTTP or WebSocket, and only
+          // an HTTP frame carries a request — read structurally, because
+          // `instanceof` against msw's class fails across two installed copies.
+          onUnhandledFrame: ({ frame, defaults }) => {
+            const request = (frame.data as { request?: Request }).request;
             if (
+              request !== undefined &&
               passthroughOrigins.some(origin => request.url.startsWith(origin))
             ) {
               return;
             }
-            print.error();
+            defaults.error();
           },
         });
 
