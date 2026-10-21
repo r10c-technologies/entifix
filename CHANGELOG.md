@@ -1,3 +1,13 @@
+## 0.4.1 (2026-10-21)
+
+### 🩹 Fixes
+
+- **rest:** a failed configuration load is retried, not cached ([#52](https://github.com/r10c-technologies/entifix/pull/52))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.4.0 (2026-10-21)
 
 ### 🚀 Features
