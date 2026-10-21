@@ -1,3 +1,6 @@
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
+
 import { accessor, type Entity, entity, type EntityId } from '@entifix/core';
 import { describe, expect, it } from 'vitest';
 
@@ -63,6 +66,25 @@ describe('setupEntifixServer', () => {
   // worse than one that fails.
   it('rejects an unhandled request', async () => {
     await expect(fetch('http://service/api/unstubbed')).rejects.toThrow();
+  });
+
+  // The host above does not resolve, so it would reject with or without msw.
+  // A real server that answers 200 proves the strategy itself: the request is
+  // refused before it can reach the network. msw 3 renamed the option to
+  // `onUnhandledFrame`, and the old name is ignored rather than rejected.
+  it('refuses an unhandled request even when something would answer it', async () => {
+    const listening = createServer((_request, response) =>
+      response.end('reached the network'),
+    );
+    await new Promise<void>(resolve =>
+      listening.listen(0, '127.0.0.1', resolve),
+    );
+    const { port } = listening.address() as AddressInfo;
+    try {
+      await expect(fetch(`http://127.0.0.1:${port}/`)).rejects.toThrow();
+    } finally {
+      listening.close();
+    }
   });
 
   it('serves the handlers it was given', async () => {

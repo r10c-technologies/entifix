@@ -84,7 +84,8 @@
     "@entifix/redis": "workspace:*",
     "axios": "*",
     "effect": "^4.0.5",
-    "msw": "*",
+    "msw": ">=3",
+    "@msw/playwright": ">=0.7",
     "vitest": "*"
   },
   "peerDependenciesMeta": {
@@ -120,11 +121,11 @@
     }
   },
   "devDependencies": {
-    "@nx/devkit": "23.0.1",
-    "@nx/playwright": "23.0.1",
     "@entifix/amqp": "workspace:*",
     "@entifix/mongo": "workspace:*",
     "@entifix/redis": "workspace:*",
+    "@nx/devkit": "23.3.0",
+    "@nx/playwright": "23.3.0",
     "effect": "4.0.5"
   }
 }

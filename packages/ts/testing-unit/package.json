@@ -76,16 +76,16 @@
     }
   },
   "dependencies": {
-    "@entifix/transactions": "workspace:*",
     "@entifix/business": "workspace:*",
     "@entifix/core": "workspace:*",
+    "@entifix/transactions": "workspace:*",
     "@swc/helpers": "0.5.23"
   },
   "peerDependencies": {
     "@entifix/react-controls": "workspace:*",
     "@testing-library/react": "*",
     "effect": "^4.0.5",
-    "msw": "*",
+    "msw": ">=3",
     "react": "*",
     "vitest": "*"
   },

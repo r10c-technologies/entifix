@@ -8,7 +8,7 @@ export type EntifixMockServer = ReturnType<typeof setupServer>;
 /**
  * Starts an MSW server for the current test file and wires its lifecycle.
  *
- * `onUnhandledRequest: 'error'` is the important part: a request nobody stubbed
+ * `onUnhandledFrame: 'error'` is the important part: a request nobody stubbed
  * fails the test instead of quietly escaping to the network. A test that passes
  * because it silently talked to nothing is worse than one that fails.
  *
@@ -24,7 +24,9 @@ export const setupEntifixServer = (
   const server = setupServer(...handlers);
 
   beforeAll(() => {
-    server.listen({ onUnhandledRequest: 'error' });
+    // msw 3 renamed `onUnhandledRequest`. The old name is ignored, not
+    // rejected, so keeping it would let unmocked requests through silently.
+    server.listen({ onUnhandledFrame: 'error' });
   });
   afterEach(() => {
     server.resetHandlers();
