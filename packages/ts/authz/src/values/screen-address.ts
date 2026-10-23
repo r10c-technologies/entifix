@@ -4,8 +4,7 @@ import type { ScreenType } from './screen-type.js';
  * Where a screen lives, as data — a {@link ScreenType}, the entity or screen key
  * within it, and optionally the record being viewed.
  *
- * This is the parsed form of a workspace tab address
- * ([ADR 0042](../../../../../../docs/adr/0042-the-workspace-address-is-the-taxonomy-serialized.md)).
+ * This is the parsed form of a workspace tab address.
  */
 export interface ScreenAddress {
   readonly type: ScreenType;
@@ -18,8 +17,7 @@ export interface ScreenAddress {
    *
    * One segment for both, rather than a member per type, because the grammar is
    * what a `TabKind.match` parses and a second optional segment would make every
-   * kind's parser handle a shape no kind produces
-   * ([ADR 0045](../../../../../../docs/adr/0045-the-wizard-a-step-graph-and-a-submit-that-hands-off.md)).
+   * kind's parser handle a shape no kind produces.
    */
   readonly id?: string;
 }
@@ -38,7 +36,7 @@ export interface ScreenAddress {
  *
  * There is no address for a section carrying no {@link ScreenType}. That is not
  * an omission: the account surface is deliberately outside the taxonomy
- * (ADR 0033), and taking a `ScreenType` here is what makes "the account cannot
+ *, and taking a `ScreenType` here is what makes "the account cannot
  * be a tab" a fact the compiler enforces rather than a rule somebody remembers.
  */
 export function screenAddress({ type, key, id }: ScreenAddress): string {

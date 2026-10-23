@@ -24,9 +24,8 @@ export type WizardStepKind = (typeof WizardStepKinds)[number];
  * one may lead to, so reachability, unknown targets, cycles and terminality are
  * decidable by reading the definition — no probing, no enumeration of the state
  * space, and no rule that "only appears to hold" because a `next` reading a form
- * value could never be enumerated. It is the move
- * [ADR 0039](../../../../../../docs/adr/0039-multi-step-sagas-are-orchestrated.md)
- * made for saga steps, for the same reason: a walkable definition is checkable
+ * value could never be enumerated. It is the move a saga definition makes for
+ * its steps, for the same reason: a walkable definition is checkable
  * at load, and a function is not.
  *
  * A step with an empty `to` is **terminal**, and
@@ -105,8 +104,7 @@ export const findStep = (
  * branch names a step that does not exist, must fail on the first render of any
  * surface rather than on the render of the step nobody reached — otherwise the
  * failure of the longest flow in the product arrives at the end of it. That is
- * the posture `assertLinkSourcesAreEditable` and `surfaceFor` already take
- * ([ADR 0035](../../../../../../docs/adr/0035-entity-actions-selection-and-bulk.md)).
+ * the posture `assertLinkSourcesAreEditable` and `surfaceFor` already take.
  *
  * Six faults, each of which is silent otherwise:
  *
@@ -117,9 +115,8 @@ export const findStep = (
  * - **a step nothing reaches**, which is either a dead branch or a missing edge;
  * - **the wrong terminal step** — the flow must end in the summary, and there
  *   must be exactly one of those. A wizard ending anywhere else commits without
- *   the operator ever seeing what they answered, which
- *   [#111](https://github.com/r10c-technologies/r10c/issues/111) records as not
- *   optional.
+ *   the operator ever seeing what they answered, which is not optional in a
+ *   long flow.
  *
  * A cycle needs no separate check: every step is reachable from the entry and
  * exactly one is terminal, so a cycle would leave the steps on it unable to

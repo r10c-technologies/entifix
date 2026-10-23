@@ -19,8 +19,8 @@ export type LocaleCatalogs = Readonly<Record<string, object>>;
  * host's own, already merged.
  *
  * ⚠️ **Supplied by the host, never assembled here.** This package used to import
- * five namespaces directly, two of which were r10c product copy — `'r10c Admin'`
- * shipped inside the framework. Taking them as a value is what lets two
+ * five namespaces directly, two of which were one host's product copy — its
+ * product name shipped inside the framework. Taking them as a value is what lets two
  * applications with different copy share one i18next setup.
  */
 export interface I18nCatalogs {

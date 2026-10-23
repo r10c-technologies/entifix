@@ -21,7 +21,7 @@ import type { FilterGroup } from './EntityFiltering.js';
  * `total` is carried rather than derived because only the server knows it, and
  * the count is the whole affordance — "Retirar 3.200 marcas" is a different
  * sentence from "Retirar", and the user has to read the number *before* they
- * confirm ([ADR 0035](../../../../../../docs/adr/0035-entity-actions-selection-and-bulk.md)).
+ * confirm.
  */
 export type EntitySelection<TEntity extends Entity> =
   | {
@@ -122,8 +122,7 @@ export function selectionIds<TEntity extends Entity>(
  *
  * `Set` does not survive `JSON.stringify` — it serializes to `{}`, silently,
  * and arrives as an empty object that reads as "no rows excluded" rather than
- * as an error. That is the same class of fault ADR 0032 recorded for autosaved
- * drafts, and it is worse here: a `matching` selection whose exclusions
+ * as an error. That is the same class of fault an autosaved draft meets, and it is worse here: a `matching` selection whose exclusions
  * evaporate acts on rows the operator deliberately took out.
  *
  * So the wire form is arrays and the in-memory form is sets, named separately

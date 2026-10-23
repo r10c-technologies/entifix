@@ -33,8 +33,8 @@ export interface GuardedNavItem {
   /** Omit to show the item to every signed-in user. */
   permission?: Permission;
   /**
-   * Also gate this item on the acting organization's provisioning — ADR 0007's
-   * second ceiling — using the domain segment of its own {@link permission}.
+   * Also gate this item on the acting organization's provisioning — the second
+   * ceiling, beside the role — using the domain segment of its own {@link permission}.
    *
    * A boolean rather than a domain name, because the domain is already written
    * one line up: a second string here could disagree with the permission the
@@ -44,7 +44,7 @@ export interface GuardedNavItem {
    * **Omitted is the right answer for most items.** An organization is not
    * "provisioned for" `catalog-reference`, `config` or `authn` — those are
    * operator-owned, and `catalog-reference` is explicitly never grantable
-   * (ADR 0022). Setting this on one of them would hide the platform's own
+   *. Setting this on one of them would hide the platform's own
    * vocabulary from every vendor.
    *
    * Setting it without a `permission` is a declaration error and throws: there
@@ -63,7 +63,7 @@ export interface GuardedNavSection {
   items: GuardedNavItem[];
   /**
    * What shape these screens are — the top tier of the sidebar, above the
-   * domain ([ADR 0033](../../../../../../docs/adr/0033-the-screen-taxonomy.md)).
+   * domain.
    *
    * Every contributing shell declares its own, because this interface is the
    * only thing a shell and the host application both reach: adding the

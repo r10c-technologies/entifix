@@ -20,7 +20,7 @@ import {
  *
  * The `const` type parameter keeps `key` a literal at the declaration site.
  * Write it inline — `@useCase({ ...DESCRIPTOR })` would compile and would make
- * the source scan in `@r10c/slices` stop seeing the declaration.
+ * a host's source scan stop seeing the declaration.
  */
 export function useCase<const TKey extends string, TEntity extends Entity>(
   options: MetaUseCaseOptions<TKey, TEntity>,

@@ -37,8 +37,8 @@ export interface LocaleDefinition {
 
 /**
  * What a host gets when it declares nothing: English alone. Neutral rather than
- * any one adopter's choice — r10c, which once supplied the `es` default here,
- * now declares it like everyone else (#35).
+ * any one adopter's choice — the adopter that once supplied the `es` default
+ * here now declares it like everyone else (#35).
  */
 const UNDECLARED: LocaleDefinition = {
   locales: ['en' as Locale],

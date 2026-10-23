@@ -33,7 +33,7 @@ import { BuildEntityRestOptions } from '../types.js';
  * `202` describing a transaction rather than an entity, so there is no stored
  * entity to read back yet: the client mints the transaction id, which *is* the
  * id the entity will be stored under, and returns the entity it already holds.
- * That is the point of the client owning the id (ADR 0028) — before it, this
+ * That is the point of the client owning the id — before it, this
  * adapter parsed the `202` as an entity envelope, failed, and reported an error
  * for a create that was in fact about to succeed.
  */
@@ -91,7 +91,7 @@ export const buildEntityRestAdapterSave =
         // point in the system that knows it — the entity returned below is
         // indistinguishable from a plain REST create, so without this the
         // browser navigates away at the `202` and a later failure leaves no row,
-        // no message and nothing to retry from (ADR 0043).
+        // no message and nothing to retry from.
         //
         // `serviceOption`, deliberately: reading the tag this way keeps it out
         // of this function's `R`, so the storefront, the plain REST adapters and

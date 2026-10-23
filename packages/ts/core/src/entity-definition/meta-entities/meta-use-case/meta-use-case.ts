@@ -65,7 +65,7 @@ export interface MetaUseCaseOptions<
    * refuses anyway, since a verb key is the third segment of one permission and
    * two classes cannot share a key. Three classes would have meant three
    * permissions for one act, and a grant that let somebody publish one offering
-   * but not twenty (#216).
+   * but not twenty.
    *
    * The primary cell stays where it is so that nothing already declared
    * changes, and so a descriptor still reads as "this verb lives here" with the

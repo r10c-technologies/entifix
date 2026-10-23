@@ -1,7 +1,7 @@
 import { Context, Effect, Layer, Ref } from 'effect';
 
 /**
- * The queue shapes a subscriber may ask for (ADR 0030).
+ * The queue shapes a subscriber may ask for.
  *
  * Duplicated from `SubscriptionMode` in `@entifix/transactions` rather than
  * imported: that package is T2, **above** this one at T1, so the edge would
@@ -18,7 +18,7 @@ export type BoundSubscriptionMode = (typeof BOUND_SUBSCRIPTION_MODES)[number];
  *
  * Observed rather than declared, which is the whole point: a document generated
  * from `tools/slices/` would agree with `tools/slices/` by construction and
- * catch nothing (ADR 0031). `queue` is the broker's own name for it, so someone
+ * catch nothing. `queue` is the broker's own name for it, so someone
  * looking at depth in the management UI can match the two up.
  */
 export interface BoundSubscription {
@@ -39,8 +39,8 @@ export interface BoundSubscription {
  *
  * Both halves are cumulative and never cleared. `published` is a set of event
  * **names** and nothing else: no payloads, no counts, no timestamps. Counts
- * would be per-replica and un-alertable, which is the telemetry path ADR 0001
- * already chose OTLP for.
+ * would be per-replica and un-alertable, which is what the metrics pipeline is
+ * for.
  */
 export interface WiringRegistry {
   /** Called by the bus adapter once per binding, including after a reconnect. */

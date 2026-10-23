@@ -182,9 +182,10 @@ describe('a use-case verb in the grant table', () => {
   it('is covered by the developer tier and by nothing else', () => {
     const verb = 'authn:user-identity:revoke-sessions' as Permission;
     expect(permissionMatches('*:*:*', verb)).toBe(true);
-    // The measured claim ADR 0026 rests on: an entityKey wildcard does not
-    // reach a new verb, so declaring one escalates to nobody. If this ever
-    // fails, the residual recorded in that ADR has become live.
+    // The measured claim the use-case descriptor rests on: an entityKey
+    // wildcard does not reach a new verb, so declaring one escalates to
+    // nobody. If this ever fails, a new verb is granted to whoever holds the
+    // wildcard the moment it is declared.
     expect(permissionMatches('authn:*:write', verb)).toBe(false);
   });
 });
