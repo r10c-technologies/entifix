@@ -16,7 +16,7 @@ import { serveTestService } from './serve-test-service.js';
 
 /**
  * Declared locally rather than imported: framework code may not reach a host's
- * own domain package (r10c's `business-ts-authn`). The `domain`/`key` pair is what matters —
+ * own domain package. The `domain`/`key` pair is what matters —
  * it is what the real `ROLE_PERMISSIONS` grants against, so the spec exercises
  * the shipped grant table rather than a stub of it.
  */
@@ -119,8 +119,8 @@ const router = HttpRouter.addAll([
  * The grant table this spec authorizes against.
  *
  * ⚠️ **The shell's own, not an application's.** These specs used to authorize
- * through r10c's `ROLE_PERMISSIONS`, which is exactly the coupling the split
- * removes: a shell is supposed to take a grant table, so its tests supply one.
+ * through a host's grant table, which is exactly the coupling a framework must
+ * not have: a shell is supposed to take a grant table, so its tests supply one.
  */
 const GRANTS = {
   // Read and write but deliberately not delete, so "and no more" has something
@@ -136,7 +136,7 @@ const GRANTS = {
 } as const;
 
 const definition = {
-  name: '@r10c/spec-metadata-service',
+  name: 'spec-metadata-service',
   port: 0,
   slices: ['test'],
   router,

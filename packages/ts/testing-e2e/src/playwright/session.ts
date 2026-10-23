@@ -62,8 +62,8 @@ export interface SeedSessionOptions {
    */
   partyId?: string | null;
   /**
-   * The domains the seeded organization is provisioned for — ADR 0007's second
-   * ceiling, which the back-office nav reads.
+   * The domains the seeded organization is provisioned for — the second
+   * ceiling beside the role, which the back-office nav reads.
    *
    * Defaults to the one domain `entitlementSeedData` gives the demo
    * organization, so the fixture keeps mirroring what a real sign-in produces.
@@ -195,9 +195,8 @@ const waitForNextStep = async (
 /**
  * Sign in for real, through Zitadel's hosted login page.
  *
- * There is no API shortcut left and that is by design: no r10c endpoint accepts
- * a password, because r10c holds none
- * ([ADR 0016](../../../../../docs/adr/0016-zitadel-authenticates-r10c-authorizes.md)).
+ * There is no API shortcut left and that is by design: no host endpoint accepts
+ * a password, because a host that delegates authentication holds none.
  * The only way to obtain a real session is the flow a person performs, so the
  * `live` profile performs it — which also means this fixture exercises the
  * redirect, the PKCE exchange and the callback rather than skipping them.

@@ -97,8 +97,7 @@ export interface ZitadelManagement {
    * The one read here that is not about a single user: it answers "what
    * happened while I was not listening". Zitadel's Actions v2 target is
    * `restAsync` — it sends the call and ignores the response, and it does not
-   * retry — so an event fired while auth-service is down is gone for good
-   * ([ADR 0019](../../../../../../docs/adr/0019-provider-user-lifecycle-events-revoke-sessions.md)).
+   * retry — so an event fired while auth-service is down is gone for good.
    */
   searchEvents(
     query: ZitadelEventQuery,
@@ -136,12 +135,12 @@ interface V2User {
 const ACTIVE = 'USER_STATE_ACTIVE';
 
 /**
- * The slice of Zitadel's management API r10c drives.
+ * The slice of Zitadel's management API a host drives.
  *
  * Only user lifecycle: everything about *credentials* — passwords, TOTP, linked
  * social accounts, recovery — is Zitadel's alone and has no method here on
- * purpose. r10c must not be able to read or set a credential, because the whole
- * point of the swap is that it no longer holds any.
+ * purpose. A host must not be able to read or set a credential, because the
+ * whole point of delegating authentication is that it holds none.
  *
  * Endpoints are a deliberate mix of API versions, matching what Zitadel v4
  * actually offers: search is v1 (the v2 surface has no equivalent email query),

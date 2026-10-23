@@ -68,7 +68,7 @@ describe('authentication', () => {
 });
 
 describe('findUserByEmail', () => {
-  it('maps a match onto the shape r10c projects from', async () => {
+  it('maps a match onto the shape a host projects from', async () => {
     answers({
       result: [
         {
@@ -294,7 +294,7 @@ describe('createHuman', () => {
 
 describe('updateProfile', () => {
   it('writes the profile back to the system that owns it', async () => {
-    // Zitadel is the writer for these fields; r10c only projects them. An admin
+    // Zitadel is the writer for these fields; the host only projects them. An admin
     // edit therefore travels outward before it is ever read back.
     answers({});
 

@@ -50,7 +50,7 @@ export interface RequestPrincipal {
    * Every REST route is already bounded by it implicitly — verification is
    * stateless, so the next call after expiry simply fails. A **held-open**
    * response has no next call, so `GET /api/transaction/events` reads it and
-   * closes the connection there (ADR 0036). Absent when the token carries no
+   * closes the connection there. Absent when the token carries no
    * `exp`, which a signed one always does; the guard is for the type, not for a
    * case the fleet produces.
    */

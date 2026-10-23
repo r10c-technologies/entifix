@@ -67,7 +67,7 @@ export interface AuthorizationUrlInput {
   readonly uiLocales?: string;
 }
 
-/** Who Zitadel says signed in, reduced to what r10c projects onto its own record. */
+/** Who Zitadel says signed in, reduced to what a host projects onto its own record. */
 export interface ZitadelIdentity {
   /** The stable `sub`. Recorded as an `external-subject` identifier, never as a key. */
   readonly subject: string;
@@ -219,7 +219,7 @@ export const makeZitadelOidc = (config: ZitadelOidcConfig): ZitadelOidc => {
    * The security boundary of this file, and the only place either token kind is
    * verified. Without the pinned `algorithms` jose honours the token's own `alg`
    * header, and a JWKS key served openly would be accepted as an HMAC secret —
-   * the same alg-confusion hole ADR 0015 closed on our own tokens. Written once
+   * the same alg-confusion hole pinning closes on a host's own tokens. Written once
    * so a second verifier cannot be added without it.
    */
   const verifyProviderJwt = (

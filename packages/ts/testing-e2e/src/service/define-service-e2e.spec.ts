@@ -48,7 +48,7 @@ describe('defineServiceE2e in the mock profile', () => {
   let closed = false;
 
   mockContext = defineServiceE2e({
-    liveUrlEnvVar: 'R10C_SPEC_SERVICE_URL',
+    liveUrlEnvVar: 'SPEC_SERVICE_URL',
     startMock: async () => {
       const { server, baseUrl } = await startStubService();
       return {
@@ -90,17 +90,17 @@ describe('defineServiceE2e in the live profile', () => {
   beforeAll(async () => {
     const stub = await startStubService();
     server = stub.server;
-    process.env['R10C_SPEC_SERVICE_URL'] = `${stub.baseUrl}/`;
+    process.env['SPEC_SERVICE_URL'] = `${stub.baseUrl}/`;
   });
 
   const context = defineServiceE2e({
-    liveUrlEnvVar: 'R10C_SPEC_SERVICE_URL',
+    liveUrlEnvVar: 'SPEC_SERVICE_URL',
     startMock: () => Promise.reject(new Error('startMock must not run live')),
   });
 
   afterAll(async () => {
     await stopStubService(server);
-    delete process.env['R10C_SPEC_SERVICE_URL'];
+    delete process.env['SPEC_SERVICE_URL'];
     process.env['E2E_PROFILE'] = 'mock';
   });
 
@@ -123,7 +123,7 @@ describe('defineServiceE2e with an authorization hook', () => {
   let server: Server;
 
   const context = defineServiceE2e({
-    liveUrlEnvVar: 'R10C_SPEC_SERVICE_URL',
+    liveUrlEnvVar: 'SPEC_SERVICE_URL',
     startMock: async () => {
       const stub = await startStubService();
       server = stub.server;

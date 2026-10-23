@@ -60,7 +60,8 @@ const wiringLayer = Layer.effectDiscard(
  * The router deliberately also carries a parametric `/api/:entity` sibling. The
  * description path is two static segments, so it must win; a parametric route
  * that matched first would answer its own `404` and the endpoint would read as
- * "this service has no description" while appearing mounted (ADR 0026's lesson).
+ * "this service has no description" while appearing mounted — the failure the
+ * `$metadata` route had before it was registered first.
  */
 // `null` rather than `undefined` for "no guard": passing `undefined` to a
 // defaulted parameter triggers the default, which would mount the route.
@@ -144,7 +145,7 @@ describe('serviceDescriptionRoute', () => {
   });
 
   // Generated from the health probe registrations, sorted by `kind` — one
-  // registration behind both readiness and this document (ADR 0031).
+  // registration behind both readiness and this document.
   it('sorts the probe registrations into stores, brokers and upstreams', async () => {
     const description = await describeService(await serve());
 
