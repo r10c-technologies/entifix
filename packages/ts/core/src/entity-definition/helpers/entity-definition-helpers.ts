@@ -70,8 +70,8 @@ export function appendMetaMethod(
  * declared on its own class, but the entity is what a surface holds, so the
  * descriptor has to end up there. The consequence is that a use-case module
  * which is never imported leaves the entity looking as if it had no actions,
- * which is why `@r10c/slices` asserts every `@useCase()` class is re-exported
- * from its package barrel.
+ * which is why a host's register should assert every `@useCase()` class is
+ * re-exported from its package barrel.
  *
  * It reads the target's **own** metadata rather than going through
  * {@link readMetadata}. `Symbol.metadata` resolves along the prototype chain, so

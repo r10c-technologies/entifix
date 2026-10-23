@@ -29,8 +29,6 @@
  * sets one wins for its subtree, and one page can show the fluid and the fixed
  * scale side by side. It also lets a comfortable screen hold one compact
  * region — a dense table inside a roomy page — without a second stylesheet.
- *
- * See ADR 0027.
  */
 
 [data-scale='fixed'] {

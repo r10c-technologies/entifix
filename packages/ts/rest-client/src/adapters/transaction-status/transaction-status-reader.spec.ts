@@ -73,7 +73,7 @@ describe('buildTransactionStatusReader', () => {
   // tracker over the bus, so with the broker down the entity write commits while
   // no event is ever published and the tracker holds nothing. Answering
   // `undefined` is what keeps the caller waiting instead of un-rendering a write
-  // that is about to appear (ADR 0043).
+  // that is about to appear.
   it('answers undefined for an untracked id rather than failing', async () => {
     server.use(
       http.get(`${BASE_URL}/${TX}`, () =>

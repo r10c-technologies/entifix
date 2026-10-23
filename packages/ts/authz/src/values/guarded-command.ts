@@ -45,8 +45,8 @@ export interface GuardedCommand {
   /** Omit to show the command to every signed-in user. */
   permission?: Permission;
   /**
-   * Also gate on the acting organization's provisioning — ADR 0007's second
-   * ceiling — using the domain segment of its own {@link permission}, with all
+   * Also gate on the acting organization's provisioning — the second ceiling,
+   * beside the role — using the domain segment of its own {@link permission}, with all
    * the reasoning {@link GuardedNavItem.entitled} carries. Setting it without a
    * permission is the same declaration error, and fails the same way.
    */

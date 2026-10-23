@@ -19,15 +19,13 @@ import type { EntityLoadRequest } from '../types/EntityLoadRequest.js';
  * carry four shapes.** `transactionEvent` used to mean all of them, and a
  * discriminant that means several things asserts nothing when it is read —
  * which is what `readTransactionEventEnvelope` was doing on the `202`: checking
- * a name that the record route and the event type both also answered to
- * ([ADR 0055](../../../../../../docs/adr/0055-a-coordinator-resumes-from-its-own-record.md),
- * #176).
+ * a name that the record route and the event type both also answered to.
  *
  * - `transactionAccepted` — the `202` accept body, `{ transactionId, state }`.
  *   Not a record: it has no `createdAt` and names no entity id yet.
  * - `transactionRecord` — the fold a client polls, a `TransactionRecord`.
  * - `sagaResult` — how a settled multi-step walk ended: which steps ran and
- *   what each returned ([ADR 0052](../../../../../../docs/adr/0052-the-checkout-saga.md)).
+ *   what each returned.
  * - `sagaInstance` — the durable instance itself, which is what a resumable
  *   coordinator reads and what `GET /api/saga/:id` serves. It differs from
  *   `sagaResult` in carrying the inputs and the resume count, because those are
@@ -95,7 +93,7 @@ export interface EntifixEventMeta {
    * makes a transaction's `completed` look like a duplicate of its `accepted`.
    */
   id: string;
-  /** The emitting **slice** (ADR 0020's ownership noun), e.g. `marketplace-admin`. */
+  /** The emitting **slice** — the unit that owns a store — e.g. `catalog`. */
   source: string;
   /** ISO-8601 emission time. */
   at: string;
@@ -125,7 +123,7 @@ export interface EntifixEnvelopeMeta {
  *
  * Generic in the payload so a publisher keeps its own shape —
  * `DomainEvent<TransactionEvent>` today, `DomainEvent<PublishedOffering>` when
- * ADR 0009's projection event lands — without the transport learning either.
+ * a projection's event lands — without the transport learning either.
  */
 export interface DomainEvent<TData = unknown> extends EntifixEventMeta {
   data: TData;
@@ -134,7 +132,7 @@ export interface DomainEvent<TData = unknown> extends EntifixEventMeta {
 /**
  * A change to an entity that happened on the server, delivered out-of-band —
  * the `data` of a bus/stream `event` envelope rather than a framing of its own
- * (ADR 0036). `entity` is the `key ?? name` an adapter routes on, the same
+ *. `entity` is the `key ?? name` an adapter routes on, the same
  * string `entityQueryScope` uses, so a subscriber can invalidate exactly the
  * affected query keys.
  *

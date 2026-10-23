@@ -10,8 +10,7 @@ import { type Permission, permissionMatches } from '../values/permission.js';
  * looking a *role string* up in the grant table, so a crossing grant living
  * there would be inherited by any access token carrying the matching string —
  * turning a session claim into a cross-organization write. Two tables, two
- * lookups, and nothing a session guard calls can reach this one
- * ([ADR 0023](../../../../../../docs/adr/0023-service-to-service-tenant-crossing.md)).
+ * lookups, and nothing a session guard calls can reach this one.
  */
 export interface ServiceCrossingPolicy {
   allows(required: Permission): boolean;

@@ -34,7 +34,8 @@ export interface UseCaseDescriptor {
  * Unlike {@link describeEntityColumns}, this is only trustworthy where the
  * use-case modules have been loaded: a `@useCase()` class registers itself when
  * its module evaluates. On a service that is the composition root's job, and
- * `@r10c/slices` fails the build on a class its package barrel does not export.
+ * a host's register should fail the build on a class its package barrel does
+ * not export.
  * A browser never calls this — it fetches the descriptors instead, so no
  * use-case implementation reaches a client bundle.
  */

@@ -11,7 +11,7 @@ import {
  *
  * Thin over {@link describeEntityColumns}, which already accepts a
  * `ChildConstructor` — a child is described by its accessors and needs no
- * `@entity()` ([ADR 0034](../../../../../../../docs/adr/0034-composition-metadata.md)).
+ * `@entity()`.
  * What this adds is the one rule a row has and an entity does not.
  *
  * **A child may not declare `$key`.** That name is the row's minted client

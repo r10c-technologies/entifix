@@ -4,7 +4,7 @@
  * A `composition`'s rows are editable before the record they belong to has ever
  * been saved, and the child is a **value** — `OrderItem` has no `id`, no domain
  * and no permission namespace
- * ([ADR 0034](../../../../../../docs/adr/0034-composition-metadata.md)). So the
+ *. So the
  * only identity a row can have is one the browser mints, and it exists for
  * exactly two jobs: a stable React key, and stable focus across a re-render.
  *
@@ -21,8 +21,7 @@ export const ROW_KEY = '$key';
  *
  * Members are strings for the reason every draft value is a string — that is
  * what a native input round-trips — and the whole row is JSON, because the
- * workspace autosaves the master's draft through `createJSONStorage`
- * ([ADR 0032](../../../../../../docs/adr/0032-what-may-live-in-an-autosaved-draft.md)).
+ * workspace autosaves the master's draft through `createJSONStorage`.
  * The key rides **inside** the row rather than in a parallel array precisely so
  * that it survives that round trip attached to the row it identifies; a parallel
  * structure re-introduces the index identity this exists to avoid.

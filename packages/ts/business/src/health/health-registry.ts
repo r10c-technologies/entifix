@@ -27,7 +27,7 @@ export interface HealthProbe {
    * (`catalog`, `saga`), an exchange (`entifix.events`), a service (`zitadel`).
    * Never a URI, never a database name: `catalog` is physically
    * `tenant_<organizationId>`, and a document naming those is an organization
-   * enumerator (ADR 0031).
+   * enumerator.
    *
    * It is a list rather than one string because a single connection can back
    * several Stores: marketplace-admin-service opens one Mongo client for the

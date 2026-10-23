@@ -27,7 +27,7 @@ export function foldForMatch(text: string): string {
  *
  * Subsequence rather than substring, so `prbr` finds "Producto Bruto" and `numa`
  * finds "Nueva marca" — the thing that makes a palette feel fast. Deliberately
- * **not** scored: ADR 0040 fixed group order as the ranking, and a score inside
+ * **not** scored: group order is the ranking, and a score inside
  * a group would reshuffle it on every keystroke for no gain a person can learn.
  *
  * An empty term matches everything, which is what makes an unfiltered palette

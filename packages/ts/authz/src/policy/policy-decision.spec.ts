@@ -11,8 +11,8 @@ import {
 const CATALOG_DOMAIN = 'catalog';
 
 /**
- * The spec's own grant table. It used to be r10c's, which made the framework's
- * policy test assert one application's business rules.
+ * The spec's own grant table. It used to be a host's, which made the
+ * framework's policy test assert one application's business rules.
  */
 const GRANTS: GrantTable = {
   user: [`${CATALOG_DOMAIN}:product:read`] as readonly Permission[],
