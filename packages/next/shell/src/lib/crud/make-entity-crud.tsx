@@ -104,8 +104,7 @@ export function mergeCrudContext<TAdapters>(
  *
  * **Serves compile-time `@entity()` classes only.** Operator reference data ships
  * with the code, so making this spec-driven would trade type safety for nothing;
- * a vendor-authored `EntitySpecification` renders through a separate path
- * (ADR 0014).
+ * a vendor-authored `EntitySpecification` renders through a separate path.
  */
 /**
  * A rejected verb, as something the form's error slot can render.
@@ -242,15 +241,15 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     // Decided from the served document rather than from the runner, because
     // the runner is a property of the *shell* (it knows the route) and the
     // grant is a property of the *caller*. The column therefore appears when
-    // the document lands, which is the asynchrony ADR 0026 already accepts for
-    // every action surface.
+    // the document lands, which is the asynchrony serving affordances accepts
+    // for every action surface.
     const canRunBulk =
       useCasesForSurface('bulk-bar', affordances.metadata?.useCases).length > 0;
 
     const bulk = useEntityBulk<TEntity>({
       run: canRunBulk ? runBulkUseCase : undefined,
       // A bulk write changed the rows underneath the listing, so the page is
-      // re-read; the selection deliberately survives it (#121 — "the selection
+      // re-read; the selection deliberately survives it ("the selection
       // is still there afterwards"), because the operator's next act is usually
       // to retry the failures or run a second verb on the same rows.
       onCompleted: () => {
@@ -264,7 +263,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     // ⚠️ **A row verb and the form's are the same runner with different
     // arguments.** `EntityTable` hands back the whole record, because that is
     // what it has; `runUseCase` takes an id, because that is what a route needs
-    // (#216). The list has no error slot of its own, so a failure lands in the
+    // The list has no error slot of its own, so a failure lands in the
     // table's own error region — the same one a failed page read uses.
     const [useCaseError, setUseCaseError] = useState<EntifixError | undefined>(
       undefined,

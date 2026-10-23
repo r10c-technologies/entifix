@@ -33,7 +33,7 @@ export * from './lib/session/refresh-route.js';
 export * from './lib/crud/slug.js';
 
 // The cross-domain record search: the aggregating route, and the declarations a
-// host fans out over (ADR 0040).
+// host fans out over.
 export * from './lib/search/record-search-route.js';
 export * from './lib/search/record-search-source.js';
 

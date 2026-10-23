@@ -28,7 +28,7 @@ export interface CommandRecency {
  * Which commands this person reaches for, and in what order to offer them.
  *
  * **Recency reorders within a group and never across groups.** Group order is
- * the ranking (ADR 0040), and it is fixed precisely so an operator learns where
+ * the ranking, and it is fixed precisely so an operator learns where
  * a kind of result lands; letting use move a whole group would take that away
  * for a convenience nobody asked for. Inside a group there is no such contract,
  * so the last thing you ran comes first.

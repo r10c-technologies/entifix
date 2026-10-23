@@ -35,7 +35,7 @@ export interface AccountDestination {
  */
 export const ACCOUNT_DESTINATIONS: readonly AccountDestination[] = [
   { labelKey: 'account.profile', path: '/account' },
-  // Not `/account/password` any more. r10c holds no password to change, so the
+  // Not `/account/password` any more. The host holds no password to change, so the
   // screen behind this is a set of links into the provider's own self-service —
   // which is also where a second factor is enrolled and a social account is
   // linked, neither of which had anywhere to live before.

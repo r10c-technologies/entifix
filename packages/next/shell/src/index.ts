@@ -26,7 +26,7 @@ export * from './lib/workspace/index.js';
  * autosave it, so it has to be able to name the type — but the type is core's,
  * and a fourth structural copy of `Record<string, string>` beside
  * `EntityFormValues`/`EntityFormDraft`/`EntityLinkDraft` is exactly what
- * [ADR 0034](../../../../docs/adr/0034-composition-metadata.md) collapsed. One
+ * composition metadata collapsed. One
  * declaration, reachable from the layer its consumers already depend on.
  */
 export * from './lib/i18n/catalog/index.js';

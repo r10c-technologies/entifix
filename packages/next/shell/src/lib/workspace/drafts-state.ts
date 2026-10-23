@@ -47,8 +47,9 @@ const DRAFTS_STORE = 'stores';
  * a restored draft over a freshly seeded one so a drifted member is dropped or
  * re-seeded rather than rendered.
  */
-// 2: a draft is keyed by the tab address, and that grammar changed with
-// ADR 0042 — so every persisted draft is filed under a key nothing will ask for.
+// 2: a draft is keyed by the tab address, and that grammar changed when the
+// address became the taxonomy serialized — so every persisted draft is filed
+// under a key nothing will ask for.
 export const DRAFTS_VERSION = 2;
 
 const emptyDrafts: Pick<DraftsState, 'drafts'> = { drafts: {} };

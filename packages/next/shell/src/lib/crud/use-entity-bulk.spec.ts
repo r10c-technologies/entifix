@@ -62,7 +62,7 @@ describe('useEntityBulk', () => {
   });
 
   /**
-   * #121: "the selection is still there afterwards". The operator's next act is
+   * "The selection is still there afterwards". The operator's next act is
    * usually to retry the failures or run a second verb on the same rows, and
    * re-ticking forty rows to do it is the cost the bulk bar exists to remove.
    */

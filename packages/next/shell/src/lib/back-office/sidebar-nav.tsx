@@ -103,8 +103,8 @@ function ItemLink({
 /**
  * The back office's primary navigation: screen type › domain › destination.
  *
- * The top tier is the **type**, not the domain (ADR 0033). Four fixed entries
- * against the eleven domains ADR 0022 fixes for v1, so a new operator has one
+ * The top tier is the **type**, not the domain. Four fixed entries
+ * against however many domains a host has, so a new operator has one
  * place to look; the daily operator's speed is the command palette's job.
  *
  * **Collapsed mode deliberately does not nest.** The icon column stays flat and

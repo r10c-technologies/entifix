@@ -19,8 +19,7 @@ export interface ServiceProxyRouteOptions {
    *
    * Caught on the live lab rather than by any check, and the symptom is exactly
    * the one this proxy exists to prevent — the SSE stream 404s, a pending write
-   * never settles, and every probe stays green
-   * ([ADR 0036](../../../../../../docs/adr/0036-the-reactive-stream-is-server-sent-and-same-origin.md)).
+   * never settles, and every probe stays green.
    */
   readonly pathPrefix?: string;
 }
@@ -53,7 +52,7 @@ export interface ServiceProxyRouteOptions {
  * A factory, because a host mounts one of these per backend it talks to, and
  * back-office-app now talks to two: marketplace-admin-service for the catalog a
  * vendor authors, marketplace-service for the platform vocabulary it is
- * classified in (ADR 0022).
+ * classified in.
  */
 /**
  * Response headers that must survive the rebuild.
@@ -72,7 +71,7 @@ const CACHE_HEADERS = ['etag', 'cache-control', 'vary'] as const;
  * forever and delivers nothing — no error, no timeout, and the browser's
  * `EventSource` sits in `CONNECTING` while the service is happily emitting.
  * It is the most likely way to build the reactive stream, see silence, and go
- * looking in the wrong service (ADR 0036).
+ * looking in the wrong service.
  */
 const isStreamed = (upstream: Response): boolean =>
   upstream.headers.get('content-type')?.startsWith('text/event-stream') ===

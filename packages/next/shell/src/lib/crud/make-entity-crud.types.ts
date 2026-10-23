@@ -24,9 +24,9 @@ import type { ReactElement, ReactNode } from 'react';
  * catalog: an entity whose subtree has no `form.editTitle`/`form.newTitle`
  * cannot be handed to {@link makeEntityCrud} at all, and adding a reference
  * entity therefore starts by adding its copy to both locales. That is the whole
- * i18n gate for this factory — `@r10c/i18n-check` scans only
- * `packages/business/ts` for `@useCase()` decorators and never `.tsx`, so a
- * runtime key here would be checked by nothing.
+ * i18n gate for this factory — a host's catalog check typically scans its
+ * domain packages for `@useCase()` decorators and never `.tsx`, so a runtime
+ * key here would be checked by nothing.
  *
  * `label`/`plural` joined the condition when {@link EntityCrud} began carrying
  * them, so that a workspace tab and a nav entry derived from this descriptor
@@ -145,8 +145,7 @@ export interface EntityCrudOptions<TAdapters, TEntity extends Entity> {
    * Its own option rather than more `columns`, though both end up as
    * `EntityTable` children and the slots are sorted by component identity: a
    * toolbar filed under a columns prop is a name that lies, and the first thing
-   * to go here is a link into a wizard, which is not a column by any reading
-   * ([ADR 0045](../../../../../../docs/adr/0045-the-wizard-a-step-graph-and-a-submit-that-hands-off.md)).
+   * to go here is a link into a wizard, which is not a column by any reading.
    */
   readonly toolbar?: ReactNode;
   /** Frozen at factory time — see `use-entity-link-sources.ts`. */
@@ -154,7 +153,7 @@ export interface EntityCrudOptions<TAdapters, TEntity extends Entity> {
   /**
    * Where the entity's served affordances come from — `GET /api/<entity>/$metadata`.
    *
-   * Supplying it is what turns on everything ADR 0026 and ADR 0035 describe:
+   * Supplying it is what turns on every served affordance:
    * Save and Delete filtered against the caller's real grants, the declared
    * verbs on the form, the row overflow menu, and the bulk bar. Omitting it
    * keeps the pre-0026 behaviour exactly, which is what every generated catalog
@@ -193,11 +192,11 @@ export interface EntityCrudOptions<TAdapters, TEntity extends Entity> {
    * Runs an `entity`-bound verb on the record the single view is showing.
    *
    * The sibling of {@link runBulkUseCase}, and it had to exist for the same
-   * reason: `EntityForm` has rendered these buttons since ADR 0035, and
+   * reason: `EntityForm` has rendered these buttons for a long time, and
    * `EntityCrudForm` has accepted an `onUseCase` for as long — but nothing ever
    * passed one, so a generated screen showed a declared, granted, served verb
    * that did nothing when clicked. Measured on `ProductOffering`'s `publish`,
-   * which passed every `@r10c/slices` invariant and appeared nowhere.
+   * which passed every check its host's register ran and appeared nowhere.
    *
    * Resolving means the record changed, and the page reloads it: a verb that
    * moves a lifecycle leaves the form showing the old state otherwise, which
@@ -234,8 +233,7 @@ export interface EntityCrudSingleViewProps {
  * What the factory returns: a **named descriptor**, not four loose components.
  *
  * The identity fields are here so the workspace registry and the nav are derived
- * from a list of these rather than from the hand-written const maps they replace
- * (#141).
+ * from a list of these rather than from the hand-written const maps they replace.
  */
 export interface EntityCrud<TEntity extends Entity> {
   readonly entityConstructor: EntityConstructor<TEntity>;

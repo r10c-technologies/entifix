@@ -48,8 +48,7 @@ export interface EntityTabScreens {
  * **The list and the record are not different kinds.** They are the same screen
  * with and without a record, which is exactly what the optional id in the
  * payload says — three kinds (`catalog:`, `entity:`, `system:`) collapsed into
- * one for that reason, and the prefix names the *taxonomy* now
- * ([ADR 0042](../../../../../../../docs/adr/0042-the-workspace-address-is-the-taxonomy-serialized.md)).
+ * one for that reason, and the prefix names the *taxonomy* now.
  *
  * A factory over the {@link ScreenType} rather than a constant, and that is the
  * whole of what makes an Operaciones screen addressable. It was written inline
