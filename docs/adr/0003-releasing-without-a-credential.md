@@ -4,6 +4,7 @@
 - Date: 2026-09-16
 - Revised: 2026-09-16 by [#2](https://github.com/r10c-technologies/entifix/issues/2) — a release pull request superseded by a new version is closed
 - Revised: 2026-10-20 by [ADR 0005](0005-content-an-entity-describes.md) — `@entifix/static` is a 24th package, bootstrapped by hand like the first 23
+- Revised: 2026-10-24 — a commit's scope no longer narrows its bump: `useCommitScope` is off, because in a fixed group it silently demoted a breaking change to a patch
 - Area: platform
 - Read when: cutting a release, wondering why the release workflow cannot be renamed, or why a merge did not publish anything — the version is derived from commit messages and nothing in this repository can publish to npm
 
@@ -83,6 +84,18 @@ channel and `0.2.0` is the breaking channel. Nx's
 `adjustSemverBumpsForZeroMajorVersion` implements exactly that and is its
 default; `nx.json` states it anyway, because a default a future version could
 flip is a poor place to keep a rule a record depends on.
+
+> **2026-10-24.** ⚠️ **A commit's scope must not decide its bump, and by default
+> it did.** Nx's `conventionalCommits.useCommitScope` is on unless switched off:
+> a scoped commit counts as _direct_ only for the project its scope names, and
+> every other project in the group takes an _indirect_ bump — which Nx caps at
+> `patch` **even for a breaking change**. `feat(source)!:` names the workspace
+> root, which is in no release group, so two breaking commits resolved to
+> `0.4.3` with both listed under "Breaking Changes" in the same pull request.
+> `feat!:` with no scope had cut `0.4.0` correctly, which is why nothing caught
+> it earlier. Under fixed versioning a scope cannot select anything — every
+> package takes one version — so `nx.json` sets `useCommitScope: false`, and a
+> scope is a label again rather than a filter.
 
 **Commit conventions are checked in CI, not only by a hook.** `.husky/commit-msg`
 runs on one machine and is skipped by `--no-verify`, by a clone where
