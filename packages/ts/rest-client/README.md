@@ -10,6 +10,26 @@ It also reads the entity metadata a service serves, and the status of a write th
 pnpm add @entifix/rest effect
 ```
 
+## Use
+
+An adapter is built with the configuration it resolves URLs through, so the repository it makes requires nothing from its environment:
+
+```ts
+const options: BuildEntityRestOptions = {
+  uriConfig: { key: 'service-domain.[entity]' },
+  configuration, // a ConfigurationClient, e.g. new ConfigurationClientRestClient()
+};
+
+const repository = Context.make(EntityRepositoryTag, {
+  get: buildEntityRestAdapterGet(Book, options),
+  load: buildEntityRestAdapterLoad(Book, options),
+  save: buildEntityRestAdapterSave(Book, options),
+  delete: buildEntityRestAdapterDelete(Book, options),
+});
+
+const status = buildTransactionStatusReader(options); // a TransactionStatusReader
+```
+
 ## Entry points
 
 | Import          | What it holds                                                                                                                                          |

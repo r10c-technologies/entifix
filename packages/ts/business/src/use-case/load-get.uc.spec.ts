@@ -1,5 +1,4 @@
 import type {
-  ConfigurationClient,
   Entity,
   EntityId,
   EntityLoadRequest,
@@ -62,16 +61,8 @@ function makeRepositoryDouble(options: {
   return { repository, calls };
 }
 
-/**
- * The repository contract leaves `ConfigurationRepositoryTag` on every method's
- * requirement channel (real adapters read their base URL from it), so the
- * use-cases inherit it and it must be discharged here. The doubles never read
- * it.
- */
 const testContext = (repository: EntityRepository) =>
-  Context.make(EntityRepositoryTag, repository).pipe(
-    Context.add(ConfigurationRepositoryTag, {} as ConfigurationClient),
-  );
+  Context.make(EntityRepositoryTag, repository);
 
 describe('loadUCFactory', () => {
   it('passes the request from EntityLoadRequestTag straight through', () => {

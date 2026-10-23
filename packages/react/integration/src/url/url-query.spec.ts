@@ -1,4 +1,4 @@
-import { runRepository } from '@entifix/testing-unit';
+import { run } from '@entifix/testing-unit';
 import { makeInMemoryEntityRepository } from '@entifix/testing-unit';
 import { describe, expect, it } from 'vitest';
 
@@ -18,7 +18,7 @@ const query = defineUrlQuery({
 });
 
 const ids = async (search: string, locale: 'en' | 'es' = 'en') => {
-  const page = await runRepository(
+  const page = await run(
     makeInMemoryEntityRepository(NOTES).load<Note>({
       ...query.request<Note>(query.parse(search), locale),
       pageSize: 100,
@@ -128,7 +128,7 @@ describe('a sort parameter', () => {
   });
 
   const sortedIds = async (search: string) => {
-    const page = await runRepository(
+    const page = await run(
       makeInMemoryEntityRepository(NOTES).load<Note>({
         ...sortable.request<Note>(sortable.parse(search), undefined),
         pageSize: 100,

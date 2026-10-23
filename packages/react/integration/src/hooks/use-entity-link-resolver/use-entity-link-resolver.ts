@@ -1,5 +1,4 @@
 import {
-  type ConfigurationRepositoryTag,
   createEntityLinkResolver,
   type EntityLinkRegistration,
   type EntityLinkResolverTag,
@@ -22,7 +21,6 @@ export { createEntityLinkResolver };
  * here so existing client call sites keep one import.
  */
 export function useEntityLinkResolver(
-  configurationStore: Context.Context<ConfigurationRepositoryTag>,
   registrations: ReadonlyArray<EntityLinkRegistration>,
 ): Context.Context<EntityLinkResolverTag> {
   // Registrations are a static list per page; key the memo on the registered
@@ -33,8 +31,8 @@ export function useEntityLinkResolver(
     .join('|');
 
   return useMemo(
-    () => createEntityLinkResolver(configurationStore, registrations),
+    () => createEntityLinkResolver(registrations),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [configurationStore, registrationKey],
+    [registrationKey],
   );
 }

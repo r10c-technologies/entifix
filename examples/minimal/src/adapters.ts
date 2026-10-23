@@ -1,7 +1,4 @@
-import {
-  ConfigurationRepositoryTag,
-  EntityRepositoryTag,
-} from '@entifix/business';
+import { EntityRepositoryTag } from '@entifix/business';
 import { ConfigurationClientInMemory } from '@entifix/core';
 import { Book } from '@entifix/example-minimal-domain';
 import {
@@ -23,7 +20,10 @@ const configuration = new ConfigurationClientInMemory({
   restUri: [{ key: 'book', value: '/api/book' }],
 });
 
-const REST: BuildEntityRestOptions = { uriConfig: { key: '[entity]' } };
+const REST: BuildEntityRestOptions = {
+  uriConfig: { key: '[entity]' },
+  configuration,
+};
 
 const ADAPTERS = {
   books: Context.make(EntityRepositoryTag, {
@@ -32,7 +32,6 @@ const ADAPTERS = {
     save: buildEntityRestAdapterSave(Book, REST),
     delete: buildEntityRestAdapterDelete(Book, REST),
   }),
-  configuration: Context.make(ConfigurationRepositoryTag, configuration),
 };
 
 export type ExampleAdapters = typeof ADAPTERS;

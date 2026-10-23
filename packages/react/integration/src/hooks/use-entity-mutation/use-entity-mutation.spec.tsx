@@ -1,14 +1,10 @@
 import {
-  ConfigurationRepositoryTag,
   deleteUCFactory,
   EntityRepositoryTag,
   saveUCFactory,
 } from '@entifix/business';
 import { EntifixConnError, type Entity } from '@entifix/core';
-import {
-  makeInMemoryEntityRepository,
-  makeStubConfigurationClient,
-} from '@entifix/testing-unit';
+import { makeInMemoryEntityRepository } from '@entifix/testing-unit';
 import { act, renderHook } from '@testing-library/react';
 import { Context } from 'effect';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -23,18 +19,11 @@ let repository: ReturnType<typeof makeInMemoryEntityRepository>;
 
 const renderMutation = () =>
   renderHook(() =>
-    useEntityMutation<Widget, ConfigurationRepositoryTag | EntityRepositoryTag>(
-      {
-        saveUc: saveUCFactory<Widget>(),
-        deleteUc: deleteUCFactory<Widget>(),
-        ctx: Context.make(EntityRepositoryTag, repository).pipe(
-          Context.add(
-            ConfigurationRepositoryTag,
-            makeStubConfigurationClient(),
-          ),
-        ),
-      },
-    ),
+    useEntityMutation<Widget, EntityRepositoryTag>({
+      saveUc: saveUCFactory<Widget>(),
+      deleteUc: deleteUCFactory<Widget>(),
+      ctx: Context.make(EntityRepositoryTag, repository).pipe(),
+    }),
   );
 
 beforeEach(() => {

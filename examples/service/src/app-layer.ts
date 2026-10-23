@@ -1,7 +1,5 @@
 import { AmqpHealthProbeLayer, AmqpLayer } from '@entifix/amqp';
 import { AmqpEventBusLayer } from '@entifix/amqp/transactions';
-import { ConfigurationRepositoryTag } from '@entifix/business';
-import { ConfigurationClientInMemory } from '@entifix/core';
 import {
   MongoDatabaseLayer,
   MongoDatabaseTag,
@@ -45,10 +43,6 @@ export const makeDomainLayer = (settings: ServiceSettings) => {
   const infra = Layer.mergeAll(
     FixedTokenServiceLayer(),
     AllowAllPolicyLayer,
-    Layer.succeed(
-      ConfigurationRepositoryTag,
-      new ConfigurationClientInMemory(),
-    ),
     Layer.succeed(EventSourceTag, ORDERS_SLICE),
     Layer.succeed(OutboxMaxAttempts, 5),
   );

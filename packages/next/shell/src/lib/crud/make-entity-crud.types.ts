@@ -1,7 +1,4 @@
-import type {
-  ConfigurationRepositoryTag,
-  EntityRepositoryTag,
-} from '@entifix/business';
+import type { EntityRepositoryTag } from '@entifix/business';
 import type {
   BulkOutcome,
   Entity,
@@ -133,10 +130,6 @@ export interface EntityCrudOptions<TAdapters, TEntity extends Entity> {
   readonly catalogKey: EntityCatalogKey;
   /** Which adapter holds this entity's own repository. */
   readonly repository: AdapterKey<TAdapters, Context<EntityRepositoryTag>>;
-  readonly configuration: AdapterKey<
-    TAdapters,
-    Context<ConfigurationRepositoryTag>
-  >;
   /**
    * Members the form keeps but does not show — `id` always, plus anything a
    * transaction assigns. A hidden member still round-trips: it is dropped from

@@ -5,7 +5,7 @@ import {
   type EntityId,
   serializeEntity,
 } from '@entifix/core';
-import { runRepository, runRepositoryExit } from '@entifix/testing-unit';
+import { run, runExit } from '@entifix/testing-unit';
 import {
   ContractWidget,
   describeEntityRepositoryContract,
@@ -59,7 +59,7 @@ describe('makeMongoRepository', () => {
       makeContractWidget('w-1', 'Alpha', 10),
     ]);
 
-    await runRepository(repository.load<ContractWidget>({}));
+    await run(repository.load<ContractWidget>({}));
 
     expect(fake.operations.every(op => op.collection === COLLECTION)).toBe(
       true,
@@ -70,7 +70,7 @@ describe('makeMongoRepository', () => {
     const fake = makeFakeMongoDb({});
     const repository = makeMongoRepository(fake.db as Db, UnkeyedWidget);
 
-    await runRepository(repository.load<UnkeyedWidget>({}));
+    await run(repository.load<UnkeyedWidget>({}));
 
     expect(fake.operations.every(op => op.collection === 'UnkeyedWidget')).toBe(
       true,
@@ -85,7 +85,7 @@ describe('makeMongoRepository', () => {
     });
     const repository = makeMongoRepository(fake.db as Db, ContractWidget);
 
-    const found = await runRepository(repository.get<ContractWidget>('w-1'));
+    const found = await run(repository.get<ContractWidget>('w-1'));
 
     expect(found).toBeInstanceOf(ContractWidget);
     expect(found).not.toHaveProperty('_id');
@@ -98,7 +98,7 @@ describe('makeMongoRepository', () => {
       makeContractWidget('w-3', 'Gamma', 30),
     ]);
 
-    const page = await runRepository(
+    const page = await run(
       repository.load<ContractWidget>({ page: 1, pageSize: 2 }),
     );
 
@@ -109,7 +109,7 @@ describe('makeMongoRepository', () => {
   it('upserts on save so a create and an update take the same path', async () => {
     const { fake, repository } = withFakeDb();
 
-    await runRepository(
+    await run(
       repository.save<ContractWidget>(makeContractWidget('w-1', 'Alpha', 10)),
     );
 
@@ -122,7 +122,7 @@ describe('makeMongoRepository', () => {
   it('writes the minted id into the document, not only onto the entity', async () => {
     const { fake, repository } = withFakeDb();
 
-    const saved = await runRepository(
+    const saved = await run(
       repository.save<ContractWidget>(
         makeContractWidget(undefined, 'Alpha', 10),
       ),
@@ -139,7 +139,7 @@ describe('makeMongoRepository', () => {
     ]);
     fake.failWith(new Error('connection refused'));
 
-    const exit = await runRepositoryExit(repository.load<ContractWidget>({}));
+    const exit = await runExit(repository.load<ContractWidget>({}));
 
     expect(Exit.isFailure(exit)).toBe(true);
   });
@@ -176,9 +176,7 @@ describe('makeMongoRepository', () => {
       const { fake, repository } = withFakeDb(seed);
       fake.failOn(operation, new Error('connection refused'));
 
-      expect(Exit.isFailure(await runRepositoryExit(run(repository)))).toBe(
-        true,
-      );
+      expect(Exit.isFailure(await runExit(run(repository)))).toBe(true);
     });
   });
 });

@@ -1,4 +1,3 @@
-import { ConfigurationRepositoryTag } from '@entifix/business';
 import {
   Entity,
   EntityConstructor,
@@ -14,15 +13,14 @@ import { BuildEntityRestOptions } from '../types.js';
 export const buildEntityRestAdapterGet =
   <TEntity extends Entity>(
     entityConstructor: EntityConstructor<TEntity>,
-    { uriConfig }: BuildEntityRestOptions,
+    { uriConfig, configuration }: BuildEntityRestOptions,
   ) =>
   <TEntity extends Entity>(entityId: string) =>
     Effect.gen(function* () {
-      const configurationStore = yield* ConfigurationRepositoryTag;
       const metaEntity = extractMetaEntity(entityConstructor);
 
       const entityUrl = yield* adapterMixins.buildEntityBaseUrl(
-        configurationStore,
+        configuration,
         { uriConfig },
         metaEntity.key ?? metaEntity.name,
         entityId,

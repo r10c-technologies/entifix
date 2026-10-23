@@ -1,8 +1,5 @@
-import {
-  ConfigurationRepositoryTag,
-  EntityRepositoryTag,
-} from '@entifix/business';
-import { ConfigurationClientInMemory, type Entity } from '@entifix/core';
+import { EntityRepositoryTag } from '@entifix/business';
+import type { Entity } from '@entifix/core';
 import { makeInMemoryEntityRepository } from '@entifix/testing-unit';
 import { Context } from 'effect';
 
@@ -38,10 +35,6 @@ export const resetRepositories = (): void => {
 export const exampleAdapters = {
   customers: Context.make(EntityRepositoryTag, repositories.customers),
   invoices: Context.make(EntityRepositoryTag, repositories.invoices),
-  configuration: Context.make(
-    ConfigurationRepositoryTag,
-    new ConfigurationClientInMemory({}),
-  ),
 };
 
 export type ExampleAdapters = typeof exampleAdapters;

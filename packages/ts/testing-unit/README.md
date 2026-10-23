@@ -24,7 +24,7 @@ protocol does not.
 ## Entry points
 
 ```ts
-import { makeInMemoryEntityRepository, runRepository } from '@entifix/testing-unit';
+import { makeInMemoryEntityRepository, run } from '@entifix/testing-unit';
 import { makeFakeMongoDb } from '@entifix/testing-unit/drivers';
 import { entityRestHandlers, setupEntifixServer } from '@entifix/testing-unit/http';
 import { describeEntityRepositoryContract } from '@entifix/testing-unit/contracts';

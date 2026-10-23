@@ -1,4 +1,3 @@
-import { ConfigurationRepositoryTag } from '@entifix/business';
 import {
   EntifixLogicError,
   Entity,
@@ -29,11 +28,10 @@ function toEntityId(entityOrId: EntityId | Entity): EntityId {
 export const buildEntityRestAdapterDelete =
   <TEntity extends Entity>(
     entityConstructor: EntityConstructor<TEntity>,
-    { uriConfig }: BuildEntityRestOptions,
+    { uriConfig, configuration }: BuildEntityRestOptions,
   ) =>
   <TEntity extends Entity>(entityOrId: EntityId | TEntity) =>
     Effect.gen(function* () {
-      const configurationStore = yield* ConfigurationRepositoryTag;
       const metaEntity = extractMetaEntity(entityConstructor);
       const id = toEntityId(entityOrId);
 
@@ -48,7 +46,7 @@ export const buildEntityRestAdapterDelete =
       }
 
       const url = yield* adapterMixins.buildEntityBaseUrl(
-        configurationStore,
+        configuration,
         { uriConfig },
         metaEntity.key ?? metaEntity.name,
         String(id),

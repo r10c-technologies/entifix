@@ -38,8 +38,8 @@ function toEntityId(entityOrId: EntityId | Entity): EntityId {
 /**
  * Builds an {@link EntityRepository} for a single entity type, backed by a live
  * mongodb {@link Db}. The `db` and `entityConstructor` are captured in closures,
- * so every method's Effect has no outstanding requirements (`R = never`) and is
- * assignable to the interface's `ConfigurationRepositoryTag` channel.
+ * so every method's Effect has no outstanding requirements (`R = never`), which
+ * is exactly what the interface asks.
  *
  * Collection name = the entity's `key` (falling back to its class name). Reads
  * reuse the shared entifix deserializer (rebuilding links from embedded objects
@@ -142,9 +142,8 @@ export function makeMongoRepository<TEntity extends Entity>(
       });
     });
 
-  // The interface types each method's requirement channel as
-  // `ConfigurationRepositoryTag`; these effects require nothing (`never`), which
-  // is assignable. Cast through the interface to keep the generic signatures.
+  // Cast through the interface to keep its generic signatures: each method here
+  // is written against this entity's type, the interface against any entity's.
   return {
     load,
     get,

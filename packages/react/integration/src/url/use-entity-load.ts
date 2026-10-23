@@ -1,12 +1,10 @@
 import {
-  ConfigurationRepositoryTag,
   EntityLoadRequestTag,
   type EntityRepository,
   EntityRepositoryTag,
   loadAllUCFactory,
 } from '@entifix/business';
 import {
-  ConfigurationClientInMemory,
   type Entity,
   type EntityLoadRequest,
   type EntityPage,
@@ -30,19 +28,13 @@ const IDLE = { status: 'idle' } as const;
 
 /**
  * Every record a request keeps, through the `loadAll` use case: a filter
- * never pages. A source's repository reads no configuration here, but the
- * port leaves `ConfigurationRepositoryTag` on every method's requirement
- * channel, so an empty one discharges it.
+ * never pages.
  */
 async function loadEvery<TEntity extends Entity>(
   repository: EntityRepository,
   request: EntityLoadRequest<TEntity>,
 ): Promise<EntityPage<TEntity>> {
   const context = Context.make(EntityRepositoryTag, repository).pipe(
-    Context.add(
-      ConfigurationRepositoryTag,
-      new ConfigurationClientInMemory({}),
-    ),
     Context.add(EntityLoadRequestTag, request as unknown as EntityLoadRequest),
   );
   const items = await Effect.runPromise(

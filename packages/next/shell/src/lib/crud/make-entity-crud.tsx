@@ -1,7 +1,6 @@
 'use client';
 
 import {
-  type ConfigurationRepositoryTag,
   deleteUCFactory,
   type EntityRepositoryTag,
   getUCFactory,
@@ -65,30 +64,23 @@ const TARGET_NAME_PROPERTY = 'name';
  * rebuilding the union at each such call site is how one of them ends up
  * missing `TransactionSinkTag` and quietly losing its optimistic treatment.
  */
-export type CrudContext =
-  EntityRepositoryTag | ConfigurationRepositoryTag | TransactionSinkTag;
+export type CrudContext = EntityRepositoryTag | TransactionSinkTag;
 
 /**
- * Merges the configuration adapter with one repository adapter into the context
- * the use-cases run against.
+ * Adds the pending-write sink to one repository adapter, giving the context the
+ * use-cases run against.
  *
- * The casts are the price of naming adapters by key: `AdapterKey` narrows which
+ * The cast is the price of naming adapters by key: `AdapterKey` narrows which
  * names may be *offered*, but TypeScript will not carry that narrowing through
- * an index access on a generic record. The alternative is every call site
- * passing two `Context` values per entity — the duplication this factory exists
- * to remove.
+ * an index access on a generic record.
  */
 export function mergeCrudContext<TAdapters>(
   adapters: TAdapters,
-  configuration: keyof TAdapters,
   repository: keyof TAdapters,
   sink: TransactionSink,
 ): Context.Context<CrudContext> {
   return Context.add(
-    Context.merge(
-      adapters[configuration] as Context.Context<ConfigurationRepositoryTag>,
-      adapters[repository] as Context.Context<EntityRepositoryTag>,
-    ),
+    adapters[repository] as Context.Context<EntityRepositoryTag>,
     TransactionSinkTag,
     sink,
   );
@@ -141,7 +133,6 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     basePath,
     catalogKey,
     repository,
-    configuration,
     hiddenFields = [],
     columns,
     toolbar,
@@ -231,7 +222,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
 
     const pager = useDataLoading<TEntity, CrudContext>({
       uc: loadUCFactory<TEntity>(),
-      ctx: mergeCrudContext(adapters, configuration, repository, pending),
+      ctx: mergeCrudContext(adapters, repository, pending),
       // Scoped rather than left to the per-instance fallback, which is correct
       // but unshared: with the entity's own scope one invalidation refreshes
       // every page and filter of it, which is what a bulk run needs — and it is
@@ -351,7 +342,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     );
     const id = slugToEntityId(slug ?? params.slug);
 
-    const ctx = mergeCrudContext(adapters, configuration, repository, pending);
+    const ctx = mergeCrudContext(adapters, repository, pending);
 
     const {
       entity,
@@ -386,12 +377,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
         entityConstructor: plan.entityConstructor,
         loadUc: loadUCFactory(),
         getUc: getUCFactory(),
-        ctx: mergeCrudContext(
-          adapters,
-          configuration,
-          plan.repository,
-          pending,
-        ),
+        ctx: mergeCrudContext(adapters, plan.repository, pending),
       },
     }));
 

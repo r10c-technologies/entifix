@@ -17,7 +17,6 @@ import {
   parseLoadRequestParams,
 } from '@entifix/core';
 import { makeMongoRepository } from '@entifix/mongo';
-import { stubConfigurationLayer } from '@entifix/testing-unit';
 import {
   type FakeMongoDb,
   makeFakeMongoDb,
@@ -103,14 +102,9 @@ export const makeEntityBackend = <TEntity extends Entity>(
     entityConstructor,
   );
 
-  /** Both use-cases need a configuration store in their requirement channel. */
   const run = <TValue, TError>(
     effect: Effect.Effect<TValue, TError, never>,
   ): Promise<TValue> => Effect.runPromise(effect);
-
-  const provided = <TValue, TError, TContext>(
-    effect: Effect.Effect<TValue, TError, TContext>,
-  ) => Effect.provide(effect, stubConfigurationLayer());
 
   return {
     key,
@@ -136,11 +130,9 @@ export const makeEntityBackend = <TEntity extends Entity>(
 
       try {
         const page = await run(
-          provided(
-            loadUCFactory<TEntity>().pipe(
-              Effect.provideService(EntityRepositoryTag, repository),
-              Effect.provideService(EntityLoadRequestTag, request),
-            ),
+          loadUCFactory<TEntity>().pipe(
+            Effect.provideService(EntityRepositoryTag, repository),
+            Effect.provideService(EntityLoadRequestTag, request),
           ),
         );
 
@@ -164,12 +156,11 @@ export const makeEntityBackend = <TEntity extends Entity>(
 
     get: async id => {
       const entity = await run(
-        provided(
-          getUCFactory<TEntity>().pipe(
-            Effect.provideService(EntityRepositoryTag, repository),
-            Effect.provideService(EntityIdTag, id),
-          ),
-        ).pipe(Effect.option),
+        getUCFactory<TEntity>().pipe(
+          Effect.provideService(EntityRepositoryTag, repository),
+          Effect.provideService(EntityIdTag, id),
+          Effect.option,
+        ),
       );
 
       return entity._tag === 'None'

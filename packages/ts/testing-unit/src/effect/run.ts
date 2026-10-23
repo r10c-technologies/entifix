@@ -1,7 +1,4 @@
-import type { ConfigurationRepositoryTag } from '@entifix/business';
 import { Cause, Effect, Exit, type Layer, Option } from 'effect';
-
-import { stubConfigurationLayer } from '../doubles/configuration.js';
 
 /**
  * Runs an Effect that still requires `TContext`, providing it from `layer`.
@@ -46,29 +43,19 @@ export const expectFailure = async <TValue, TError, TContext>(
 };
 
 /**
- * Runs a repository Effect.
+ * Runs an Effect that requires nothing, returning its value.
  *
- * Every `EntityRepository` method declares `ConfigurationRepositoryTag` in its
- * requirement channel — the REST-backed adapters resolve their endpoints
- * through it — so even a repository that needs no configuration has to be given
- * one. `configuration` supplies it for the adapters that do.
+ * Every repository method is one of these: an adapter binds what it needs when
+ * it is built, so a spec runs a repository call with no layer at all.
  */
-export const runRepository = <TValue, TError>(
-  effect: Effect.Effect<TValue, TError, ConfigurationRepositoryTag>,
-  configuration: Layer.Layer<ConfigurationRepositoryTag> = stubConfigurationLayer(),
-): Promise<TValue> => Effect.runPromise(Effect.provide(effect, configuration));
-
-/** {@link runRepository}, for an Effect expected to fail. */
-export const runRepositoryExit = <TValue, TError>(
-  effect: Effect.Effect<TValue, TError, ConfigurationRepositoryTag>,
-  configuration: Layer.Layer<ConfigurationRepositoryTag> = stubConfigurationLayer(),
-): Promise<Exit.Exit<TValue, TError>> =>
-  Effect.runPromiseExit(Effect.provide(effect, configuration));
-
-/** Runs an Effect that requires nothing, returning its value. */
 export const run = <TValue, TError>(
   effect: Effect.Effect<TValue, TError>,
 ): Promise<TValue> => Effect.runPromise(effect);
+
+/** {@link run}, keeping the exit so a spec can assert on a failure. */
+export const runExit = <TValue, TError>(
+  effect: Effect.Effect<TValue, TError>,
+): Promise<Exit.Exit<TValue, TError>> => Effect.runPromiseExit(effect);
 
 /** Runs an Effect that requires nothing and returns its typed error. */
 export const runFailure = async <TValue, TError>(

@@ -7,7 +7,6 @@ import { Effect } from 'effect';
 
 import {
   type ExampleAdapters,
-  exampleAdapters,
   repositories,
   useExampleAdapters,
 } from './adapters';
@@ -28,7 +27,6 @@ export const customerCrud = makeEntityCrud<Customer, ExampleAdapters>(
     basePath: '/customers',
     catalogKey: 'customer',
     repository: 'customers',
-    configuration: 'configuration',
     hiddenFields: ['id'],
     metadataSource,
   },
@@ -46,11 +44,7 @@ const issueInvoice = async (id: EntityId): Promise<void> => {
       return repositories.invoices.save(invoice);
     }),
   );
-  await Effect.runPromise(
-    program.pipe(
-      Effect.provide(exampleAdapters.configuration),
-    ) as Effect.Effect<unknown>,
-  );
+  await Effect.runPromise(program);
 };
 
 export const invoiceCrud = makeEntityCrud<Invoice, ExampleAdapters>(Invoice, {
@@ -58,7 +52,6 @@ export const invoiceCrud = makeEntityCrud<Invoice, ExampleAdapters>(Invoice, {
   basePath: '/invoices',
   catalogKey: 'invoice',
   repository: 'invoices',
-  configuration: 'configuration',
   hiddenFields: ['id'],
   // A plain id on the record, edited with a picker over the other repository.
   links: [

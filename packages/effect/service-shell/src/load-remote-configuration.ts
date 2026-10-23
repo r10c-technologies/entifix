@@ -127,8 +127,8 @@ export const loadRemoteConfiguration = (
 
 /**
  * Convenience: load the remote configuration and wrap it in a
- * {@link ConfigurationClientInMemory} ready to satisfy `ConfigurationRepositoryTag`
- * and to read the service's own parameters via `.in(group).getString(key)`.
+ * {@link ConfigurationClientInMemory}, to read the service's own parameters via
+ * `.in(group).getString(key)` or to hand to an adapter that is built with one.
  */
 export const loadRemoteConfigurationClient = (
   configApiUrl: string,

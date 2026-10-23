@@ -51,7 +51,6 @@
     }
   },
   "dependencies": {
-    "@entifix/business": "workspace:*",
     "@entifix/core": "workspace:*",
     "@entifix/transactions": "workspace:*",
     "@swc/helpers": "0.5.23"

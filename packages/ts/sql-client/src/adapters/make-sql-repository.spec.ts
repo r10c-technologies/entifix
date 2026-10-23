@@ -6,7 +6,7 @@ import {
   entity,
   type EntityId,
 } from '@entifix/core';
-import { runRepository, runRepositoryExit } from '@entifix/testing-unit';
+import { run, runExit } from '@entifix/testing-unit';
 import {
   type FakeSqlClient,
   makeFakeSqlClient,
@@ -98,7 +98,7 @@ const failureOf = (exit: Exit.Exit<unknown, unknown>) =>
 describe('makeSqlRepository', () => {
   describe('table naming', () => {
     it('names the table after the entity key', async () => {
-      await runRepository(repository.load<Widget>({}));
+      await run(repository.load<Widget>({}));
 
       expect(executed(SELECT)?.sql).toContain('FROM "widget"');
     });
@@ -109,7 +109,7 @@ describe('makeSqlRepository', () => {
         UnkeyedWidget,
       );
 
-      await runRepository(unkeyed.load<UnkeyedWidget>({}));
+      await run(unkeyed.load<UnkeyedWidget>({}));
 
       expect(executed(SELECT)?.sql).toContain('FROM "UnkeyedWidget"');
     });
@@ -117,7 +117,7 @@ describe('makeSqlRepository', () => {
 
   describe('load', () => {
     it('deserializes rows and reports the counted total', async () => {
-      const page = await runRepository(repository.load<Widget>({}));
+      const page = await run(repository.load<Widget>({}));
 
       expect(page.total).toBe(3);
       expect(page.items).toHaveLength(1);
@@ -128,13 +128,13 @@ describe('makeSqlRepository', () => {
     it('echoes the request it served on the page', async () => {
       const request = { page: 1, pageSize: 2 };
 
-      const page = await runRepository(repository.load<Widget>(request));
+      const page = await run(repository.load<Widget>(request));
 
       expect(page.request).toEqual(request);
     });
 
     it('omits WHERE and ORDER BY when nothing was asked for', async () => {
-      await runRepository(repository.load<Widget>({}));
+      await run(repository.load<Widget>({}));
 
       const { sql } = executed(SELECT) ?? { sql: '' };
       expect(sql).not.toContain('WHERE');
@@ -142,19 +142,19 @@ describe('makeSqlRepository', () => {
     });
 
     it('defaults to the first page of ten', async () => {
-      await runRepository(repository.load<Widget>({}));
+      await run(repository.load<Widget>({}));
 
       expect(executed(SELECT)?.params).toEqual([10, 0]);
     });
 
     it('turns a 1-based page into an offset', async () => {
-      await runRepository(repository.load<Widget>({ page: 3, pageSize: 25 }));
+      await run(repository.load<Widget>({ page: 3, pageSize: 25 }));
 
       expect(executed(SELECT)?.params).toEqual([25, 50]);
     });
 
     it('applies filtering to both the page and the count', async () => {
-      await runRepository(
+      await run(
         repository.load<Widget>({
           filtering: [{ property: 'name', operator: 'eq', value: 'Alpha' }],
         }),
@@ -165,7 +165,7 @@ describe('makeSqlRepository', () => {
     });
 
     it('applies sorting to the page only', async () => {
-      await runRepository(
+      await run(
         repository.load<Widget>({
           sorting: [{ 0: { property: 'size', type: 'desc' } }],
         }),
@@ -178,13 +178,13 @@ describe('makeSqlRepository', () => {
     it('reports zero when the count comes back empty', async () => {
       fake.respondTo(COUNT, []);
 
-      const page = await runRepository(repository.load<Widget>({}));
+      const page = await run(repository.load<Widget>({}));
 
       expect(page.total).toBe(0);
     });
 
     it('fails with a build error for a member the entity did not declare', async () => {
-      const exit = await runRepositoryExit(
+      const exit = await runExit(
         repository.load<Widget>({
           filtering: [
             { property: 'nope' as keyof Widget, operator: 'eq', value: 1 },
@@ -200,7 +200,7 @@ describe('makeSqlRepository', () => {
     it('maps a failing select to a connection error', async () => {
       fake.failOn(SELECT, 'select exploded');
 
-      const exit = await runRepositoryExit(repository.load<Widget>({}));
+      const exit = await runExit(repository.load<Widget>({}));
 
       expect(failureOf(exit)).toBeInstanceOf(EntifixConnError);
     });
@@ -209,7 +209,7 @@ describe('makeSqlRepository', () => {
       // Only the count fails, so the branch after a successful select is reached.
       fake.failOn(COUNT, 'count exploded');
 
-      const exit = await runRepositoryExit(repository.load<Widget>({}));
+      const exit = await runExit(repository.load<Widget>({}));
 
       expect(failureOf(exit)).toBeInstanceOf(EntifixConnError);
     });
@@ -217,7 +217,7 @@ describe('makeSqlRepository', () => {
 
   describe('get', () => {
     it('reads a single row by id', async () => {
-      const found = await runRepository(repository.get<Widget>('w-1'));
+      const found = await run(repository.get<Widget>('w-1'));
 
       expect(found.id).toBe('w-1');
       expect(found.name).toBe('Alpha');
@@ -228,7 +228,7 @@ describe('makeSqlRepository', () => {
     it('fails rather than resolving undefined for an unknown id', async () => {
       fake.respondTo(SELECT, []);
 
-      const exit = await runRepositoryExit(repository.get<Widget>('missing'));
+      const exit = await runExit(repository.get<Widget>('missing'));
 
       expect(failureOf(exit)).toBeInstanceOf(EntifixConnError);
     });
@@ -236,7 +236,7 @@ describe('makeSqlRepository', () => {
     it('maps a driver failure to a connection error', async () => {
       fake.failWith('read exploded');
 
-      const exit = await runRepositoryExit(repository.get<Widget>('w-1'));
+      const exit = await runExit(repository.get<Widget>('w-1'));
 
       expect(Exit.isFailure(exit)).toBe(true);
     });
@@ -244,7 +244,7 @@ describe('makeSqlRepository', () => {
 
   describe('save', () => {
     it('upserts on the id, overwriting every other column', async () => {
-      const saved = await runRepository(
+      const saved = await run(
         repository.save<Widget>(makeWidget('w-2', 'Renamed', 25)),
       );
 
@@ -261,7 +261,7 @@ describe('makeSqlRepository', () => {
     });
 
     it('mints an id when the entity has none, and writes it back', async () => {
-      const created = await runRepository(
+      const created = await run(
         repository.save<Widget>(makeWidget(undefined, 'Delta', 40)),
       );
 
@@ -279,7 +279,7 @@ describe('makeSqlRepository', () => {
       const widget = new UnkeyedWidget();
       widget.id = 'u-1';
 
-      await runRepository(unkeyed.save<UnkeyedWidget>(widget));
+      await run(unkeyed.save<UnkeyedWidget>(widget));
 
       const { sql } = executed('INSERT INTO') ?? { sql: '' };
       expect(sql).toContain('ON CONFLICT ("id") DO NOTHING');
@@ -289,7 +289,7 @@ describe('makeSqlRepository', () => {
     it('maps a driver failure to a connection error', async () => {
       fake.failWith('write exploded');
 
-      const exit = await runRepositoryExit(
+      const exit = await runExit(
         repository.save<Widget>(makeWidget('w-2', 'Renamed', 25)),
       );
 
@@ -299,7 +299,7 @@ describe('makeSqlRepository', () => {
 
   describe('delete', () => {
     it('deletes by id', async () => {
-      await runRepository(repository.delete<Widget>('w-1'));
+      await run(repository.delete<Widget>('w-1'));
 
       expect(executed('DELETE FROM')?.sql).toContain(
         'DELETE FROM "widget" WHERE "id" = $1',
@@ -308,9 +308,7 @@ describe('makeSqlRepository', () => {
     });
 
     it('deletes by entity, using its id', async () => {
-      await runRepository(
-        repository.delete<Widget>(makeWidget('w-3', 'Gamma', 30)),
-      );
+      await run(repository.delete<Widget>(makeWidget('w-3', 'Gamma', 30)));
 
       expect(executed('DELETE FROM')?.params).toEqual(['w-3']);
     });
@@ -318,7 +316,7 @@ describe('makeSqlRepository', () => {
     it('maps a driver failure to a connection error', async () => {
       fake.failWith('delete exploded');
 
-      const exit = await runRepositoryExit(repository.delete<Widget>('w-1'));
+      const exit = await runExit(repository.delete<Widget>('w-1'));
 
       expect(failureOf(exit)).toBeInstanceOf(EntifixConnError);
     });

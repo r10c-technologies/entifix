@@ -3,7 +3,7 @@ import { accessor, type Entity, entity, type EntityId } from '@entifix/core';
 import { Exit } from 'effect';
 import { describe, expect, it } from 'vitest';
 
-import { runRepository, runRepositoryExit } from '../effect/run.js';
+import { run, runExit } from '../effect/run.js';
 
 /**
  * The entity every implementation of the contract is exercised against. It is
@@ -109,26 +109,22 @@ export const describeEntityRepositoryReadContract = (
 
     it('keeps a record unchanged when a read instance is mutated without a save', async () => {
       await withRepository(async repository => {
-        const read = await runRepository(repository.get<ContractWidget>('w-1'));
+        const read = await run(repository.get<ContractWidget>('w-1'));
         read.name = 'Mutated';
 
-        const again = await runRepository(
-          repository.get<ContractWidget>('w-1'),
-        );
+        const again = await run(repository.get<ContractWidget>('w-1'));
         expect(again.name).toBe('Alpha');
 
-        const page = await runRepository(repository.load<ContractWidget>({}));
+        const page = await run(repository.load<ContractWidget>({}));
         page.items[0]!.name = 'Mutated';
-        const reloaded = await runRepository(
-          repository.load<ContractWidget>({}),
-        );
+        const reloaded = await run(repository.load<ContractWidget>({}));
         expect(reloaded.items[0]!.name).toBe('Alpha');
       });
     });
 
     it('loads every stored entity with its total', async () => {
       await withRepository(async repository => {
-        const page = await runRepository(repository.load<ContractWidget>({}));
+        const page = await run(repository.load<ContractWidget>({}));
 
         expect(page.total).toBe(3);
         expect(page.items.map(item => item.name)).toEqual([
@@ -142,9 +138,7 @@ export const describeEntityRepositoryReadContract = (
     it('echoes the request it served on the page', async () => {
       await withRepository(async repository => {
         const request = { page: 1, pageSize: 2 };
-        const page = await runRepository(
-          repository.load<ContractWidget>(request),
-        );
+        const page = await run(repository.load<ContractWidget>(request));
 
         expect(page.request).toEqual(request);
       });
@@ -152,7 +146,7 @@ export const describeEntityRepositoryReadContract = (
 
     it('pages with a 1-based page number', async () => {
       await withRepository(async repository => {
-        const page = await runRepository(
+        const page = await run(
           repository.load<ContractWidget>({ page: 2, pageSize: 2 }),
         );
 
@@ -165,7 +159,7 @@ export const describeEntityRepositoryReadContract = (
 
     it('filters by an equality operator', async () => {
       await withRepository(async repository => {
-        const page = await runRepository(
+        const page = await run(
           repository.load<ContractWidget>({
             filtering: [{ property: 'name', operator: 'eq', value: 'Beta' }],
           }),
@@ -179,7 +173,7 @@ export const describeEntityRepositoryReadContract = (
 
     it('filters by a range operator', async () => {
       await withRepository(async repository => {
-        const page = await runRepository(
+        const page = await run(
           repository.load<ContractWidget>({
             filtering: [
               { property: 'size', operator: 'between', start: 15, end: 35 },
@@ -193,7 +187,7 @@ export const describeEntityRepositoryReadContract = (
 
     it('matches `like` case-insensitively on a substring', async () => {
       await withRepository(async repository => {
-        const page = await runRepository(
+        const page = await run(
           repository.load<ContractWidget>({
             filtering: [{ property: 'name', operator: 'like', value: 'et' }],
           }),
@@ -206,7 +200,7 @@ export const describeEntityRepositoryReadContract = (
     it('matches `in` and `nin` against any element of an array member', async () => {
       await withRepository(
         async repository => {
-          const tagged = await runRepository(
+          const tagged = await run(
             repository.load<ContractWidget>({
               filtering: [
                 { property: 'tags', operator: 'in', values: ['blue', 'red'] },
@@ -215,7 +209,7 @@ export const describeEntityRepositoryReadContract = (
           );
           expect(tagged.items.map(item => item.id)).toEqual(['w-1', 'w-3']);
 
-          const untagged = await runRepository(
+          const untagged = await run(
             repository.load<ContractWidget>({
               filtering: [
                 { property: 'tags', operator: 'nin', values: ['blue', 'red'] },
@@ -244,7 +238,7 @@ export const describeEntityRepositoryReadContract = (
       };
       await withRepository(
         async repository => {
-          const found = await runRepository(
+          const found = await run(
             repository.load<ContractWidget>({
               filtering: [
                 {
@@ -257,7 +251,7 @@ export const describeEntityRepositoryReadContract = (
           );
           expect(found.items.map(item => item.id)).toEqual(['w-2']);
 
-          const sorted = await runRepository(
+          const sorted = await run(
             repository.load<ContractWidget>({
               sorting: [
                 {
@@ -289,7 +283,7 @@ export const describeEntityRepositoryReadContract = (
 
     it('sorts descending when asked to', async () => {
       await withRepository(async repository => {
-        const page = await runRepository(
+        const page = await run(
           repository.load<ContractWidget>({
             sorting: [{ 0: { property: 'size', type: 'desc' } }],
           }),
@@ -301,9 +295,7 @@ export const describeEntityRepositoryReadContract = (
 
     it('reads a single entity by id', async () => {
       await withRepository(async repository => {
-        const found = await runRepository(
-          repository.get<ContractWidget>('w-2'),
-        );
+        const found = await run(repository.get<ContractWidget>('w-2'));
 
         expect(found.id).toBe('w-2');
         expect(found.name).toBe('Beta');
@@ -312,9 +304,7 @@ export const describeEntityRepositoryReadContract = (
 
     it('fails rather than resolving undefined for an unknown id', async () => {
       await withRepository(async repository => {
-        const exit = await runRepositoryExit(
-          repository.get<ContractWidget>('missing'),
-        );
+        const exit = await runExit(repository.get<ContractWidget>('missing'));
 
         expect(Exit.isFailure(exit)).toBe(true);
       });
@@ -322,7 +312,7 @@ export const describeEntityRepositoryReadContract = (
 
     it('loads an empty page from an empty store', async () => {
       await withRepository(async repository => {
-        const page = await runRepository(repository.load<ContractWidget>({}));
+        const page = await run(repository.load<ContractWidget>({}));
 
         expect(page.items).toEqual([]);
         expect(page.total).toBe(0);
@@ -353,21 +343,19 @@ export const describeEntityRepositoryWriteContract = (
     it('keeps a saved record unchanged when the saved instance is mutated afterwards', async () => {
       await withRepository(async repository => {
         const widget = makeContractWidget('w-9', 'Delta', 40);
-        const returned = await runRepository(repository.save(widget));
+        const returned = await run(repository.save(widget));
 
         widget.name = 'Mutated';
         returned.name = 'Mutated too';
 
-        const stored = await runRepository(
-          repository.get<ContractWidget>('w-9'),
-        );
+        const stored = await run(repository.get<ContractWidget>('w-9'));
         expect(stored.name).toBe('Delta');
       });
     });
 
     it('mints an id when saving an entity that has none', async () => {
       await withRepository(async repository => {
-        const created = await runRepository(
+        const created = await run(
           repository.save<ContractWidget>(
             makeContractWidget(undefined, 'Delta', 40),
           ),
@@ -375,56 +363,54 @@ export const describeEntityRepositoryWriteContract = (
 
         expect(created.id).toBeDefined();
 
-        const page = await runRepository(repository.load<ContractWidget>({}));
+        const page = await run(repository.load<ContractWidget>({}));
         expect(page.total).toBe(4);
       });
     });
 
     it('overwrites in place when saving an entity that already has an id', async () => {
       await withRepository(async repository => {
-        await runRepository(
+        await run(
           repository.save<ContractWidget>(
             makeContractWidget('w-2', 'Renamed', 25),
           ),
         );
 
-        const found = await runRepository(
-          repository.get<ContractWidget>('w-2'),
-        );
+        const found = await run(repository.get<ContractWidget>('w-2'));
         expect(found.name).toBe('Renamed');
 
-        const page = await runRepository(repository.load<ContractWidget>({}));
+        const page = await run(repository.load<ContractWidget>({}));
         expect(page.total).toBe(3);
       });
     });
 
     it('deletes by id', async () => {
       await withRepository(async repository => {
-        await runRepository(repository.delete<ContractWidget>('w-1'));
+        await run(repository.delete<ContractWidget>('w-1'));
 
-        const page = await runRepository(repository.load<ContractWidget>({}));
+        const page = await run(repository.load<ContractWidget>({}));
         expect(page.items.map(item => item.id)).toEqual(['w-2', 'w-3']);
       });
     });
 
     it('deletes by entity', async () => {
       await withRepository(async repository => {
-        await runRepository(
+        await run(
           repository.delete<ContractWidget>(
             makeContractWidget('w-3', 'Gamma', 30),
           ),
         );
 
-        const page = await runRepository(repository.load<ContractWidget>({}));
+        const page = await run(repository.load<ContractWidget>({}));
         expect(page.items.map(item => item.id)).toEqual(['w-1', 'w-2']);
       });
     });
 
     it('treats deleting an unknown id as a no-op', async () => {
       await withRepository(async repository => {
-        await runRepository(repository.delete<ContractWidget>('missing'));
+        await run(repository.delete<ContractWidget>('missing'));
 
-        const page = await runRepository(repository.load<ContractWidget>({}));
+        const page = await run(repository.load<ContractWidget>({}));
         expect(page.total).toBe(3);
       });
     });
