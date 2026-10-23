@@ -17,12 +17,12 @@ its own. They stayed there: they are one connected body, supersessions run
 across them, and the reasoning behind a shell is inseparable from the
 application it was drawn for.
 
-entifix source still cites those records, and the appendix of
-[ADR 0001](0001-the-tier-contract-and-the-host-seam.md) maps every cited number
-to a one-line summary — so a reader who meets `ADR 0030` in a source comment is
-not stranded when that repository turns private. A citation is rewritten to a
-record in _this_ collection by the record that replaces what it pointed at,
-rather than in a batch.
+entifix source does not cite them. Every `ADR NNNN` in this repository names a
+record here — `@entifix/docs-check` fails on one that does not, and on any
+reference to that repository from source — so a number in a comment never needs
+a second collection to make sense. ⚠️ The two collections share the numbers
+0001–0007, which is the reason the check reads the number rather than trusting
+it ([ADR 0001](0001-the-tier-contract-and-the-host-seam.md) has the history).
 
 ## Status lifecycle
 
