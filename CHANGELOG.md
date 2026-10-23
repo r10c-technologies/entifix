@@ -1,3 +1,20 @@
+## 0.7.0 (2026-10-23)
+
+### 🚀 Features
+
+- **core:** an entity can declare a parent, and the table renders the tree ([#77](https://github.com/r10c-technologies/entifix/pull/77))
+- ⚠️ **react-controls:** link-based pagination a server component can render ([#76](https://github.com/r10c-technologies/entifix/pull/76))
+- ⚠️ **react-integration:** page parameters in defineUrlQuery, and a React-free entry ([#75](https://github.com/r10c-technologies/entifix/pull/75))
+
+### ⚠️ Breaking Changes
+
+- **react-controls:** link-based pagination a server component can render ([#76](https://github.com/r10c-technologies/entifix/pull/76))
+- **react-integration:** page parameters in defineUrlQuery, and a React-free entry ([#75](https://github.com/r10c-technologies/entifix/pull/75))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.6.0 (2026-10-23)
 
 ### 🚀 Features
