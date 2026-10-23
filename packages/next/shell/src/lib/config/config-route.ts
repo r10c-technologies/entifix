@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import { SERVICE_TOKEN_HEADER, serviceToken } from './service-token.js';
+import type { ConfigurationSource } from './configuration-source.js';
 
 /** A group of parameters as `ConfigurationPlain` carries them. */
 type PlainConfiguration = Record<
@@ -37,46 +37,26 @@ export const rewriteServiceDomains = (
   ),
 });
 
-/**
- * Where config-service answers, for the callers that reach it directly.
- *
- * One declaration rather than two: this route is no longer the only server-side
- * caller — the storefront's server components read their own configuration from
- * config-service without a route in between, because a Next app cannot fetch
- * its own `/api/config` while prerendering itself.
- */
-export const configApiUrl = (): string =>
-  process.env['CONFIG_API_URL'] ?? 'http://localhost:3190';
-
 export interface ConfigRouteOptions {
-  /** This app's key in the `configuration` table, e.g. `back-office-app`. */
-  readonly service: string;
+  /** Where this app's configuration is fetched from, and with what headers. */
+  readonly source: ConfigurationSource;
   /** Service domains to rewrite to same-origin proxy paths. */
   readonly proxies?: Readonly<Record<string, string>>;
-  /** Overrides `CONFIG_API_URL`; mainly for tests. */
-  readonly configApiUrl?: string;
 }
 
 /**
  * Builds the `GET /api/config` route handler every Next app exposes: fetch this
- * app's configuration from config-service, rewrite the proxied domains, and hand
- * the result to the browser.
- *
- * Shared because all three apps did the same thing, and because the shared-token
- * header is the kind of detail that goes stale in one copy out of three.
+ * app's configuration from its source, rewrite the proxied domains, and hand the
+ * result to the browser.
  */
 export const createConfigRoute = ({
-  service,
+  source,
   proxies = {},
-  configApiUrl: configApiUrlOverride,
 }: ConfigRouteOptions) =>
   async function GET(): Promise<Response> {
-    const baseUrl = configApiUrlOverride ?? configApiUrl();
+    const { url, headers } = source();
 
-    const response = await fetch(`${baseUrl}/api/config/${service}`, {
-      cache: 'no-store',
-      headers: { [SERVICE_TOKEN_HEADER]: serviceToken() },
-    });
+    const response = await fetch(url, { cache: 'no-store', headers });
 
     if (!response.ok) {
       return NextResponse.json(

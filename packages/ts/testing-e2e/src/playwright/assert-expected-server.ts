@@ -1,7 +1,7 @@
 import { type E2eEnv, isMockProfile } from '../profile/profile.js';
 
 /** Opts out of the guard, for a developer who knows what they are attaching to. */
-export const ALLOW_DEV_SERVER_VAR = 'R10C_E2E_ALLOW_DEV_SERVER';
+export const ALLOW_DEV_SERVER_VAR = 'ENTIFIX_E2E_ALLOW_DEV_SERVER';
 
 /**
  * Liveness, not the config's `readyPath`: every app answers it, it answers from

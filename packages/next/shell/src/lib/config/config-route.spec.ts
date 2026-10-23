@@ -4,6 +4,12 @@ import { createConfigRoute, rewriteServiceDomains } from './config-route.js';
 
 const CONFIG_URL = 'http://config.test';
 
+let token = 'a-fleet-secret';
+const source = (app: string) => () => ({
+  url: `${CONFIG_URL}/api/config/${app}`,
+  headers: { 'x-fleet-token': token },
+});
+
 const okConfig = (body: unknown) =>
   new Response(JSON.stringify(body), {
     status: 200,
@@ -12,7 +18,7 @@ const okConfig = (body: unknown) =>
 
 afterEach(() => {
   vi.unstubAllGlobals();
-  delete process.env.CONFIG_SERVICE_TOKEN;
+  token = 'a-fleet-secret';
 });
 
 describe('rewriteServiceDomains', () => {
@@ -90,9 +96,8 @@ describe('createConfigRoute', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const response = await createConfigRoute({
-      service: 'marketplace-admin-app',
+      source: source('marketplace-admin-app'),
       proxies: { 'config-service-domain': '/api/system' },
-      configApiUrl: CONFIG_URL,
     })();
 
     expect(response.status).toBe(200);
@@ -105,20 +110,18 @@ describe('createConfigRoute', () => {
     );
   });
 
-  it('presents the shared service token, since the lookup is gated', async () => {
-    process.env.CONFIG_SERVICE_TOKEN = 'from-env';
+  // The source is read per request, so a rotated secret is sent at once.
+  it('sends the headers its source names, read on each request', async () => {
+    token = 'rotated';
     const fetchMock = vi.fn((..._args: Parameters<typeof fetch>) =>
       Promise.resolve(okConfig({})),
     );
     vi.stubGlobal('fetch', fetchMock);
 
-    await createConfigRoute({
-      service: 'auth-app',
-      configApiUrl: CONFIG_URL,
-    })();
+    await createConfigRoute({ source: source('auth-app') })();
 
     expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
-      headers: { 'x-service-token': 'from-env' },
+      headers: { 'x-fleet-token': 'rotated' },
     });
   });
 
@@ -134,10 +137,7 @@ describe('createConfigRoute', () => {
       ),
     );
 
-    const response = await createConfigRoute({
-      service: 'auth-app',
-      configApiUrl: CONFIG_URL,
-    })();
+    const response = await createConfigRoute({ source: source('auth-app') })();
 
     expect(await response.json()).toEqual({
       uri: [{ key: 'auth-service-domain', value: 'http://a' }],
@@ -150,45 +150,11 @@ describe('createConfigRoute', () => {
       vi.fn(() => Promise.resolve(new Response('nope', { status: 500 }))),
     );
 
-    const response = await createConfigRoute({
-      service: 'auth-app',
-      configApiUrl: CONFIG_URL,
-    })();
+    const response = await createConfigRoute({ source: source('auth-app') })();
 
     expect(response.status).toBe(502);
     expect(await response.json()).toEqual({
       error: 'Failed to load configuration',
     });
-  });
-
-  it('defaults to the local config-service when nothing is configured', async () => {
-    const fetchMock = vi.fn((..._args: Parameters<typeof fetch>) =>
-      Promise.resolve(okConfig({})),
-    );
-    vi.stubGlobal('fetch', fetchMock);
-    const previous = process.env.CONFIG_API_URL;
-    delete process.env.CONFIG_API_URL;
-
-    await createConfigRoute({ service: 'auth-app' })();
-
-    expect(fetchMock.mock.calls[0]?.[0]).toBe(
-      'http://localhost:3190/api/config/auth-app',
-    );
-    if (previous !== undefined) process.env.CONFIG_API_URL = previous;
-  });
-
-  it('falls back to CONFIG_API_URL when no url is passed', async () => {
-    const fetchMock = vi.fn((..._args: Parameters<typeof fetch>) =>
-      Promise.resolve(okConfig({})),
-    );
-    vi.stubGlobal('fetch', fetchMock);
-    process.env.CONFIG_API_URL = 'http://from-env.test';
-
-    await createConfigRoute({ service: 'auth-app' })();
-
-    expect(fetchMock.mock.calls[0]?.[0]).toBe(
-      'http://from-env.test/api/config/auth-app',
-    );
-    delete process.env.CONFIG_API_URL;
   });
 });
