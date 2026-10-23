@@ -1,3 +1,13 @@
+## 0.5.1 (2026-10-23)
+
+### 🩹 Fixes
+
+- **next-shell:** answer 502 when a proxied service cannot be reached ([#63](https://github.com/r10c-technologies/entifix/pull/63))
+
+### ❤️ Thank You
+
+- Herber Colop
+
 ## 0.5.0 (2026-10-23)
 
 ### 🚀 Features
