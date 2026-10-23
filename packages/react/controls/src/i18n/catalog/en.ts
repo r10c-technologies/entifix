@@ -19,6 +19,8 @@ export const controls: EsControls = {
     error: 'Could not load records',
     selection: 'Selection',
     selectRow: 'Select {{record}}',
+    expandRow: 'Expand {{record}}',
+    collapseRow: 'Collapse {{record}}',
     selectAllOnPage: 'Select all on this page',
     selectAllMatching_one: 'Select {{count}} match',
     selectAllMatching_other: 'Select all {{count}} matches',

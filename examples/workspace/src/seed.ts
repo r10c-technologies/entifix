@@ -20,6 +20,7 @@ export const CUSTOMER_SEED: ReadonlyArray<{
   name: string;
   email: string;
   tier: CustomerTier;
+  parentId?: string;
 }> = [
   {
     id: 'c-1',
@@ -38,6 +39,15 @@ export const CUSTOMER_SEED: ReadonlyArray<{
     name: 'Grace Hopper',
     email: 'grace@example.com',
     tier: 'preferred',
+  },
+  // A branch of Grace Hopper's account: the one customer with a parent, so
+  // the list renders as a tree.
+  {
+    id: 'c-4',
+    name: 'Hopper Labs',
+    email: 'labs@example.com',
+    tier: 'standard',
+    parentId: 'c-3',
   },
 ];
 

@@ -39,3 +39,29 @@ test('lists the seed, edits a record and shows the edit in the list', async ({
   await table.waitForRows();
   expect(await table.columnValues('Nombre')).toContain('Alan M. Turing');
 });
+
+/**
+ * `Customer` declares a parent, so the generated table is a tree: a branch
+ * nests under its account and folds away with it. Nothing in the example
+ * asks for that — the entity's metadata is the whole configuration.
+ */
+test('nests a branch under its account, and folds it away', async ({
+  page,
+}) => {
+  failOnPageErrors(page);
+  await page.goto('/es/customers');
+
+  const table = new EntityTablePage(page);
+  await table.waitForRows();
+  const names = await table.columnValues('Nombre');
+  expect(names.indexOf('Hopper Labs')).toBe(names.indexOf('Grace Hopper') + 1);
+
+  await page
+    .getByRole('button', { name: 'Contraer Grace Hopper' })
+    .first()
+    .click();
+  await expect(
+    page.getByRole('button', { name: 'Expandir Grace Hopper' }).first(),
+  ).toHaveAttribute('aria-expanded', 'false');
+  expect(await table.columnValues('Nombre')).not.toContain('Hopper Labs');
+});
