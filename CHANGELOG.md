@@ -1,3 +1,13 @@
+## 0.4.2 (2026-10-23)
+
+### 🚀 Features
+
+- resolve the metadata source and the settlement reader from composition ([#55](https://github.com/r10c-technologies/entifix/pull/55))
+
+### ❤️ Thank You
+
+- Herber Colop
+
 ## 0.4.1 (2026-10-21)
 
 ### 🩹 Fixes
