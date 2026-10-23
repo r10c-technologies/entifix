@@ -57,8 +57,8 @@ import { resolveEntityFormFields } from './use-entity-form-fields.js';
  * have to be a typed relation: when the target lives in **another slice's
  * store**, an `EntityLink` would be an illegal edge and a storage-layer join
  * across a store boundary, so the member is a plain id and the relation exists
- * only in the operator's head (ADR 0022, and `ProductSpecification.brandId` is
- * the live case). Nothing about the editor cares which of the two it is —
+ * only in the operator's head — a cross-store reference is an id, never a
+ * link. Nothing about the editor cares which of the two it is —
  * `EntityLinkInput` writes `String(target.id)` into the draft either way, and
  * the *only* place `link`-ness still matters is `applyEntityLinks` at submit,
  * which skips a non-`link` descriptor and so leaves the id as the truth.
@@ -268,7 +268,7 @@ export function EntityForm<TEntity extends Entity>({
       onClick={() => invoke(descriptor)}
     >
       {/* A descriptor's labels are *runtime* catalog keys — they never resolve
-          at compile time, which is why `@r10c/i18n-check` is what catches a
+          at compile time, which is why a host's catalog check is what catches a
           typo here rather than the type system. */}
       {translateKey(descriptor.labelKey)}
     </Button>
@@ -586,7 +586,7 @@ function assertLinkSourcesAreEditable<TEntity extends Entity>(
       `EntityForm was given a link source for an owned collection: ${owned.join(', ')}. ` +
         'A `composition` is not a reference — its rows have no life outside this ' +
         'record and are never picked from existing ones, so there is nothing for a ' +
-        'picker to look up. The detail grid that edits them is #122.',
+        'picker to look up. The detail grid is what edits them.',
       undefined,
       { fields: owned },
     );
@@ -653,7 +653,7 @@ function FieldRow<TEntity extends Entity>({
   );
 
   // Members with no editor of their own here: a to-one `link` whose picker was
-  // never wired, a `linkCollection` (#26) and a `composition` (#122). All three
+  // never wired, a `linkCollection` (#26) and a `composition`. All three
   // fall back to the read display, which is honest — a disabled text box
   // holding `[object Object]` is not.
   const isRelation =

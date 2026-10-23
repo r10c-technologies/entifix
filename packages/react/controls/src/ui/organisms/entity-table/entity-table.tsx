@@ -143,7 +143,7 @@ export function EntityTable<TEntity extends Entity>({
 }: EntityTableProps<TEntity>) {
   const t = useT();
   // A descriptor's label is a runtime catalog key — the typed gate cannot see
-  // it, which is why `@r10c/i18n-check` is what catches a typo.
+  // it, which is why a host's catalog check is what catches a typo.
   const translateKey = useTranslateKey();
   const errorMessage = useErrorMessage();
   const metaEntity = extractMetaEntity(entityConstructor);
@@ -153,7 +153,7 @@ export function EntityTable<TEntity extends Entity>({
   /**
    * A verb waiting to be confirmed, and what it will act on.
    *
-   * ⚠️ **The table had no confirmation flow at all** until #216 moved a
+   * ⚠️ **The table had no confirmation flow at all** until a change moved a
    * destructive verb onto it. It read `confirm.tone` — only to pick a tone for
    * a button or a menu item — and then fired on the first click. `unpublish` is
    * declared `destructive`, so a verb reachable from a row menu without this

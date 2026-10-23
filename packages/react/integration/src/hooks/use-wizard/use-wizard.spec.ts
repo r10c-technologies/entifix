@@ -173,7 +173,7 @@ describe('the per-step draft store', () => {
 
   it('omits `draft` entirely for a step nothing has answered', () => {
     // A fresh `{}` per call re-seeds the form on every render, which is the
-    // `Maximum update depth exceeded` hang ADR 0038 measured.
+    // `Maximum update depth exceeded` hang measured on the master-detail form.
     const { result, rerender } = renderHook(() =>
       useWizard({ definition: productSetup }),
     );

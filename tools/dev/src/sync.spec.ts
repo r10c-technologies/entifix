@@ -98,7 +98,7 @@ const installed = (
 beforeEach(() => {
   scratch = mkdtempSync(join(tmpdir(), 'dev-sync-'));
   entifix = join(scratch, 'entifix');
-  consumer = join(scratch, 'r10c');
+  consumer = join(scratch, 'consumer');
   mkdirSync(join(consumer, 'node_modules', '.pnpm'), { recursive: true });
   writeFileSync(
     join(consumer, 'node_modules', '.pnpm', 'lock.yaml'),
@@ -375,7 +375,7 @@ describe('syncPackage', () => {
       expect(readdirSync(copy).sort()).toEqual(['dist', 'package.json']);
     }
     expect(lines).toEqual([
-      expect.stringMatching(/synced @entifix\/core → r10c \(2 copies/),
+      expect.stringMatching(/synced @entifix\/core → consumer \(2 copies/),
     ]);
   });
 
@@ -544,7 +544,7 @@ describe('reset', () => {
     expect(installs).toEqual([consumer]);
     expect(existsSync(join(store, '@entifix+core@0.1.1'))).toBe(false);
     expect(existsSync(join(store, '@entifix+rest@0.1.1'))).toBe(true);
-    expect(lines.at(-1)).toBe('restored 2 synced entries in r10c');
+    expect(lines.at(-1)).toBe('restored 2 synced entries in consumer');
   });
 
   it('leaves a consumer with nothing synced alone', () => {
@@ -557,6 +557,6 @@ describe('reset', () => {
       ),
     ).toBe(0);
     expect(installs).toEqual([]);
-    expect(lines).toEqual(['nothing synced in r10c']);
+    expect(lines).toEqual(['nothing synced in consumer']);
   });
 });

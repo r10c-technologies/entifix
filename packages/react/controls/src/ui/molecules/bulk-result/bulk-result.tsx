@@ -110,8 +110,8 @@ export function BulkResult({
               {/* The reason is a *code*, resolved through the shared `errors`
                   catalog — the same vocabulary a service's `{ error, code }`
                   body is rendered from, so a new failure reason is
-                  translatable rather than English, and `@r10c/i18n-check`
-                  fails the build on one the catalog lacks. `unexpected` is the
+                  translatable rather than English, and a host's catalog
+                  check fails the build on one the catalog lacks. `unexpected` is the
                   browser-side fallback the catalog already carries. */}
               {translateKey(`errors:${outcome.code ?? 'unexpected'}`)}
             </li>

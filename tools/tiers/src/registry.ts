@@ -187,7 +187,8 @@ export interface SidewaysEdge {
  * Tier order alone permits any sideways edge, and most of them would be wrong:
  * a Mongo adapter reaching into the SQL one, `react-controls` and
  * `react-integration` importing each other, one shell mounting another. The
- * tag ordering this repository inherited from r10c used to forbid those, and
+ * tag ordering this repository inherited at extraction used to forbid those,
+ * and
  * issue #6 retired it in favour of this list — which names the handful of
  * sideways edges the framework actually takes, each with its reason, so a new
  * one is a decision somebody wrote down.

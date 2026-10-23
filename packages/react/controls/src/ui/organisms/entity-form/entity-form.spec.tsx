@@ -532,7 +532,7 @@ describe('EntityForm', () => {
 
     // A foreign key into another slice's store cannot be a typed `link` — the
     // import would be an illegal edge and the resolution a cross-store join
-    // (ADR 0022) — so the member is a plain `string` and the picker has to work
+    // — so the member is a plain `string` and the picker has to work
     // over it. Nothing about the editor changes; only the type test in front.
     it('edits a scalar foreign key through the same picker', async () => {
       const onLinkChange = vi.fn();
@@ -820,10 +820,10 @@ describe('EntityForm', () => {
 });
 
 /**
- * #119 — the action row is driven by served metadata rather than hardcoded.
+ * The action row is driven by served metadata rather than hardcoded.
  *
  * Note what these do NOT assert: that hiding a button prevents anything. It does
- * not. The route guard is the authorization boundary (ADR 0002); this is about
+ * not. The route guard is the authorization boundary; this is about
  * not offering an action the service will refuse.
  */
 describe('EntityForm actions from served metadata', () => {
@@ -982,7 +982,7 @@ describe('EntityForm actions from served metadata', () => {
               key: 'compare',
               binding: 'entity',
               // Needs a selection to act on, which a single-record form has not
-              // got — that is the bulk bar's job (#121).
+              // got — that is the bulk bar's job.
               placement: 'context-dependent',
               labelKey: 'entity:gadget.useCases.compare',
             },
@@ -1009,9 +1009,9 @@ describe('EntityForm actions from served metadata', () => {
 
   /**
    * `collection` + `determining` is the one cell no surface owns, and it now
-   * costs the render rather than vanishing. Before ADR 0035 this descriptor was
-   * dropped in silence: the verb was declared, granted, exported, passed every
-   * `@r10c/slices` invariant and simply never appeared, which reads to its
+   * costs the render rather than vanishing. Before the placement map this
+   * descriptor was dropped in silence: the verb was declared, granted,
+   * exported, passed every check a register runs and simply never appeared, which reads to its
    * author as a permission bug and sends them looking in the wrong place.
    */
   it('refuses a verb no surface can render, rather than dropping it', () => {

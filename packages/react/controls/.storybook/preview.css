@@ -30,7 +30,7 @@
 @import '@entifix/style/presets/midnight.css';
 
 /* Scan the controls source so Tailwind detects the utility classes the
-   components emit (they are consumed as source via @r10c/source). */
+   components emit (they are consumed as source via @entifix/source). */
 @source '../src';
 
 :root {

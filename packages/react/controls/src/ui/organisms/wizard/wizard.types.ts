@@ -62,7 +62,7 @@ export interface WizardProps {
    * The submit is in flight.
    *
    * It stays in flight: `onFinish` hands off and returns before the write is
-   * terminal ([ADR 0043](../../../../../../../docs/adr/0043-the-optimistic-mutation-contract.md)),
+   * terminal,
    * so what this disables is a second submit — it is not a spinner waiting for
    * a resolution the caller never gets.
    */
@@ -73,7 +73,7 @@ export interface WizardProps {
    *
    * Persistence gives "continue" for free; what it does not give is remembering
    * what you had answered, which is the known failure of a long flow restored
-   * mid-way ([#111](https://github.com/r10c-technologies/r10c/issues/111)).
+   * mid-way.
    */
   recap?: ReactNode;
   /** Dismiss the recap. Omit and it has no dismiss control. */

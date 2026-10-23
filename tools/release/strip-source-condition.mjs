@@ -9,7 +9,8 @@
  * its own `src/index.ts`, so specs and examples run without a build. The
  * tarball ships `dist` and not `src`, so in a published manifest the same line
  * names a file that does not exist — and a consumer whose toolchain sets the
- * condition (as r10c's did while entifix lived in its tree) resolves every
+ * condition (as the original host's did while entifix lived in its tree)
+ * resolves every
  * `@entifix/*` import to nothing (#32).
  *
  * It rewrites the checkout the release job publishes from, never a commit: the

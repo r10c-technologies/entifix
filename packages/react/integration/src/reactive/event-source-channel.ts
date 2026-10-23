@@ -14,9 +14,9 @@ import type {
  * no headers — so a socket would need a second class of bearer token handed to
  * client JavaScript, which is the one thing `httpOnly` protects against. An
  * `EventSource` against the app's own proxy path sends the cookie the way every
- * other call in the repo does (ADR 0036).
+ * other call in the repo does.
  *
- * What it also gets for free is the half #137 would otherwise hand-write:
+ * What it also gets for free is the half a hand-written client would need:
  * `EventSource` reconnects on its own with backoff and re-sends `Last-Event-ID`.
  * The server accepts that header and ignores it — the stream is a hint that
  * something changed, and the record behind it is the truth.

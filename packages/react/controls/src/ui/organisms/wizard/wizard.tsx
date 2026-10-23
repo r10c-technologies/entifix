@@ -21,7 +21,7 @@ const SKELETON_STEP_COUNT = 4;
  *
  * `t(\`wizard.status.${status}\`)` would work and would be untyped — the
  * augmentation cannot see a template literal, so the only thing left checking
- * it would be `@r10c/i18n-check`, which does not read `.tsx`. Four literals
+ * it would be a host's catalog check, which typically does not read `.tsx`. Four literals
  * cost nothing and stay compile-checked.
  */
 const STATUS_KEY = {
@@ -53,8 +53,7 @@ const LABEL_CLASS: Record<WizardStepStatus, string> = {
  * draft and no router — `activeStep` is a prop and `onStepChange` reports a
  * click, the same rule that made `hrefFor` a prop, so URL synchronisation stays
  * the shell's job and this control can be told to render step four by a route,
- * a workspace tab, or a Storybook arg without knowing which
- * ([ADR 0045](../../../../../../../docs/adr/0045-the-wizard-a-step-graph-and-a-submit-that-hands-off.md)).
+ * a workspace tab, or a Storybook arg without knowing which.
  *
  * ⚠️ **The stepper is an ordered list, not a tablist.** `TabStrip` is the
  * nearest-looking thing in this package and is the wrong precedent: a

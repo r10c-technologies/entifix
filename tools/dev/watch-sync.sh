@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Keep a consumer's installed @entifix/* in step with this checkout while you work.
 #
-#   ENTIFIX_CONSUMERS=$PWD/../r10c pnpm nx run @entifix/source:dev-sync
+#   ENTIFIX_CONSUMERS=$PWD/../my-app pnpm nx run @entifix/source:dev-sync
 #
 # Builds every publishable package once and syncs all of them, so the consumer
 # starts current, then rebuilds and re-syncs each package as it changes. The copy
@@ -36,7 +36,7 @@ set -euo pipefail
 cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 if [[ -z "${ENTIFIX_CONSUMERS:-}" ]]; then
-  echo 'dev-sync: set ENTIFIX_CONSUMERS to the repositories to sync into, e.g. ENTIFIX_CONSUMERS=$PWD/../r10c' >&2
+  echo 'dev-sync: set ENTIFIX_CONSUMERS to the repositories to sync into, e.g. ENTIFIX_CONSUMERS=$PWD/../my-app' >&2
   exit 1
 fi
 
