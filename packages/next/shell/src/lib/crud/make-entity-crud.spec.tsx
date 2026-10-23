@@ -11,6 +11,7 @@ import {
   entity,
   type EntityDraft,
   type EntityId,
+  type EntityMetadataSource,
 } from '@entifix/core';
 import { EntityColumn } from '@entifix/react-controls';
 import {
@@ -188,6 +189,7 @@ interface TestAdapters {
   brandRest: Context.Context<EntityRepositoryTag>;
   productRest: Context.Context<EntityRepositoryTag>;
   configurationStore: Context.Context<ConfigurationRepositoryTag>;
+  brandMetadata: EntityMetadataSource;
 }
 
 /**
@@ -210,6 +212,7 @@ const useAdapters = (): TestAdapters => ({
     ConfigurationRepositoryTag,
     makeStubConfigurationClient(),
   ),
+  brandMetadata: { fetchMetadata: () => fetchMetadata() },
 });
 
 const brandCrud = makeEntityCrud<Brand, TestAdapters>(Brand, {
@@ -278,6 +281,21 @@ const verbBrandCrud = makeEntityCrud<Brand, TestAdapters>(Brand, {
   runUseCase: (key, id) => runVerb(key, id),
 });
 
+/**
+ * The same opt-in as `verbBrandCrud`, with the source named by adapter key
+ * rather than built here — the shape a module that must not import a transport
+ * uses.
+ */
+const keyedBrandCrud = makeEntityCrud<Brand, TestAdapters>(Brand, {
+  useAdapters,
+  basePath: '/catalog/brand',
+  catalogKey: 'product-brand',
+  repository: 'brandRest',
+  configuration: 'configurationStore',
+  hiddenFields: ['id', 'code'],
+  metadata: 'brandMetadata',
+});
+
 const makeBrand = (id: string, name: string, code?: string) => {
   const brand = new Brand(name);
   brand.id = id;
@@ -313,6 +331,22 @@ describe('makeEntityCrud, at factory time', () => {
         configuration: 'configurationStore',
       }),
     ).toThrow(EntifixBuildError);
+  });
+
+  // Two answers to where the served document comes from, and nothing to say
+  // which one the screens would use.
+  it('rejects a metadata source given both directly and by adapter key', () => {
+    expect(() =>
+      makeEntityCrud<Brand, TestAdapters>(Brand, {
+        useAdapters,
+        basePath: '/catalog/product-brand',
+        catalogKey: 'product-brand',
+        repository: 'brandRest',
+        configuration: 'configurationStore',
+        metadataSource: { fetchMetadata: () => fetchMetadata() },
+        metadata: 'brandMetadata',
+      }),
+    ).toThrow(/both metadataSource and metadata/);
   });
 
   // `MetaEntityOptions` makes both keys optional, and a screen generated without
@@ -1277,5 +1311,35 @@ describe('the context the generated pages run their use-cases in', () => {
 
     await waitFor(() => expect(seen).toBeDefined());
     expect(Option.isSome(seen!)).toBe(true);
+  });
+});
+
+describe('makeEntityCrud, with the metadata source named by adapter key', () => {
+  it('reads the served document through the host’s adapters', async () => {
+    slug = 'b-1';
+    fetchMetadata
+      .mockReset()
+      .mockResolvedValue({ actions: ['read'], useCases: [] });
+
+    renderPage(<keyedBrandCrud.SingleViewPage />);
+
+    await waitFor(() => expect(screen.getByText('Acme')).toBeInTheDocument());
+    expect(fetchMetadata).toHaveBeenCalled();
+    expect(
+      screen.queryByRole('button', { name: /guardar/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('filters the list against the same document', async () => {
+    fetchMetadata
+      .mockReset()
+      .mockResolvedValue({ actions: ['read'], useCases: [] });
+
+    renderPage(<keyedBrandCrud.ListPage />);
+
+    await waitFor(() =>
+      expect(screen.getAllByText('Acme').length).toBeGreaterThan(0),
+    );
+    expect(fetchMetadata).toHaveBeenCalled();
   });
 });

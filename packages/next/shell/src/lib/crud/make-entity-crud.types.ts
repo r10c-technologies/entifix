@@ -173,6 +173,17 @@ export interface EntityCrudOptions<TAdapters, TEntity extends Entity> {
    */
   readonly metadataSource?: EntityMetadataSource;
   /**
+   * Which adapter holds this entity's {@link EntityMetadataSource} — the same
+   * source as {@link metadataSource}, resolved from the host's composition
+   * instead of built by the caller.
+   *
+   * Prefer it: a source is a transport, and naming it by key keeps the module
+   * that generates the screens free of the adapter that fetches, exactly as
+   * {@link repository} already does for records. Supplying both is a build
+   * error — two answers to where the document comes from.
+   */
+  readonly metadata?: AdapterKey<TAdapters, EntityMetadataSource>;
+  /**
    * Runs a `collection`-bound verb over a selection, and reports **per row**.
    *
    * Supplying it opts the list into the selection column and the bulk bar.
