@@ -172,7 +172,7 @@ describe('makeAmqpConnector', () => {
 
   // The first phase of a graceful shutdown. Cancelling is what makes the
   // difference between "the handlers finished" and "the broker redelivers
-  // whatever was in flight" (ADR 0030).
+  // whatever was in flight".
   it('cancels every tag its consumers reported', async () => {
     const fake = makeFakeConnection();
     connect.mockResolvedValue(fake.connection);

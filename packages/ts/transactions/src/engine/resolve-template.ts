@@ -25,8 +25,7 @@ const readPath = (root: unknown, path: string): unknown => {
  * template no longer matches its participant's response shape would otherwise
  * `DELETE /api/reservation/undefined`, get a `404`, and be recorded as a
  * compensation that ran — leaving the hold in place and the saga reporting that
- * it was reversed. That is the "failed and stranded" state ADR 0039 says nobody
- * plans for, arrived at by string interpolation.
+ * it was reversed. That is the "failed and stranded" state nobody plans for, arrived at by string interpolation.
  *
  * Values are URI-encoded: a participant's id is data, and a path segment is not
  * the place to discover it contained a slash.
@@ -63,7 +62,7 @@ const WHOLE_PLACEHOLDER = /^\{([^{}]+)\}$/;
  * with a payment attached to nothing.
  *
  * ⚠️ **The template lives in the caller's `inputs`, never in the definition.**
- * That is ADR 0039's constraint, not an accident: a definition that carried
+ * That is a constraint, not an accident: a definition that carried
  * domain payloads would be importing the shape of another domain's entity, which
  * is the class of thing that has no legal home. The definition stays a list of
  * verbs and addresses; what to send is the caller's, and this only lets the

@@ -425,7 +425,7 @@ describe('completeTransaction', () => {
 
   // The recorded event's `error` is `execute`'s, so without this log the
   // compensation's own failure reaches nothing at all and an operator reading
-  // `FAILED` concludes the write was undone when it was not (ADR 0039).
+  // `FAILED` concludes the write was undone when it was not.
   it('logs the compensation failure it has to discard', () => {
     const world = makeWorld({
       execute: new EntifixTransactionError('write failed'),

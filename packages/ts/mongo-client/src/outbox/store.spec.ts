@@ -94,7 +94,7 @@ describe('reviveQuarantined', () => {
    * With `quarantined` in the **update** rather than the filter, a walk running
    * at every boot would re-send every already-delivered announcement in the
    * fleet and un-quarantine genuine poison each time — the re-drive loop
-   * ADR 0030 closed deliberately.
+   * quarantine exists to close.
    */
   it('only ever matches a quarantined entry', async () => {
     const { db, calls } = spyingDb(1);

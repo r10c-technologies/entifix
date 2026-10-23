@@ -3,8 +3,8 @@ import { Context } from 'effect';
 /**
  * A write the browser has started and the server has not finished.
  *
- * The `transactionId` is also the stored entity's id — ADR 0028 makes the
- * client's minted id the primary key — so this is enough to find the record
+ * The `transactionId` is also the stored entity's id — the client's minted id
+ * is the primary key — so this is enough to find the record
  * later without holding a copy of it.
  */
 export interface PendingTransaction {
@@ -23,7 +23,8 @@ export type PendingEntry = PendingTransaction & {
    * has one.
    *
    * ⚠️ **In memory only — never persisted.** The store's `partialize` strips it,
-   * for ADR 0032's reason: a class instance does not survive a JSON round trip,
+   * for the reason an autosaved draft gives: a class instance does not survive
+   * a JSON round trip,
    * it comes back as something else. So a refresh keeps the *watch* and loses
    * the row, which is the documented behaviour — past a refresh, server truth
    * plus an honest notice beats a record rebuilt from a blob.
@@ -37,7 +38,7 @@ export type PendingEntry = PendingTransaction & {
    *
    * ⚠️ Diagnostic only — never the headline of anything a user reads. A
    * transaction's failure carries no error *code*, so the message shown has to
-   * be a catalog key and this is the detail beside it (ADR 0043's residual).
+   * be a catalog key and this is the detail beside it.
    */
   readonly reason?: string;
 };
@@ -97,7 +98,7 @@ export const NoopTransactionSink: TransactionSink = {
  * retire them. Two interfaces rather than one because they are consumed from
  * opposite sides of a tier boundary — a T3 package may not import a T4 shell,
  * so the store is handed in as a prop, the way `EntityDraftStore` already is for
- * autosave (ADR 0032).
+ * autosave.
  */
 export interface PendingTransactionStore extends TransactionSink {
   readonly entries: readonly PendingEntry[];

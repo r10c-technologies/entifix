@@ -77,7 +77,7 @@ describe('SqlHealthProbeLayer', () => {
 
     expect(fake.lastExecution?.sql).toBe('SELECT 1');
   });
-  // What `GET /api/$service` reports (ADR 0031): the Store's register name, not
+  // What `GET /api/$service` reports: the Store's register name, not
   // the database, and never the connection string.
   it('declares the stores it was given, as a datastore', async () => {
     const probes = await probesOver(makeFakeSqlClient());

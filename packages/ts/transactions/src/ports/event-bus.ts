@@ -7,7 +7,7 @@ import { Context, type Effect } from 'effect';
 
 /**
  * How a subscriber's queue is shaped, which is a property of the *workload*
- * rather than of the transport (ADR 0030).
+ * rather than of the transport.
  *
  * - `work` — a named, durable queue that survives the consumer's restart and
  *   accumulates while it is gone. Replicas share it, so each message reaches
@@ -18,7 +18,7 @@ import { Context, type Effect } from 'effect';
  *   only when the replicas differ from one another — a socket push holding
  *   different clients per process.
  *
- * ADR 0029 built the exclusive queue for every subscriber and gave a stated
+ * The bus first built the exclusive queue for every subscriber, with a stated
  * reason: a shared queue delivers each event to one replica, "which reads as
  * flakiness rather than as a design". That reasoning is right for `broadcast`
  * and wrong for `work`; it picked broadcast semantics for a workload that is
@@ -40,8 +40,7 @@ export interface Subscription {
    * name.
    *
    * Deliberately not `EventSourceTag`, which is the *emitting* slice: one
-   * deployment hosts several slices (ADR 0021 co-deploys `transaction` inside
-   * marketplace-admin-service), so a process-wide "my slice" would attribute a
+   * deployment may host several slices, so a process-wide "my slice" would attribute a
    * consumer's queue to whichever slice happened to publish from the same
    * process.
    */
@@ -71,8 +70,8 @@ export interface Subscription {
  * what happened; interested slices subscribe to the names they declared.
  *
  * Typed on {@link DomainEvent} rather than on any one publisher's payload: a bus
- * that only knew `TransactionEvent` had nothing for ADR 0009's catalog
- * publication to travel in, which would have meant a second framing and a second
+ * that only knew `TransactionEvent` had nothing for a publication event to
+ * travel in, which would have meant a second framing and a second
  * transport for the same job.
  *
  * The port stays event-typed rather than envelope-typed — the adapter owns the
@@ -94,7 +93,7 @@ export interface EventBus {
    * retries — a message that cannot be deserialized never becomes
    * deserializable, and retrying it only spends the budget of the messages
    * behind it. A *business* failure is neither: that message was processed
-   * successfully and already produced its own event (ADR 0030).
+   * successfully and already produced its own event.
    */
   subscribe(
     subscription: Subscription,

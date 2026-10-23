@@ -59,10 +59,8 @@ export interface TransactionHandler {
    * stays true now that the multi-step engine exists beside it. A saga's
    * compensation is dispatched by `runSaga` with **its own call's** recorded
    * outcome (`SagaStepOutcome`), because reversing a reservation needs the
-   * reservation's id and a delete-if-exists does not — see
-   * [ADR 0052](../../../../../../docs/adr/0052-the-checkout-saga.md). A
-   * single-step handler is untouched by that, which is what ADR 0039 meant by
-   * "grows a second shape and keeps the first".
+   * reservation's id and a delete-if-exists does not. A single-step handler is
+   * untouched by that: the contract grows a second shape and keeps the first.
    */
   rollback(
     command: TransactionCommand,
