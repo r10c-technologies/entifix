@@ -7,7 +7,7 @@ import {
 } from './reactive-channel.js';
 
 // The whole message, not the payload alone: the correlation id, the timestamp
-// and the sequence live one level up rather than on the change (ADR 0036).
+// and the sequence live one level up rather than on the change.
 const event: DomainEvent<EntityChangeEvent> = {
   name: 'transaction.completed',
   id: 'txn-1:completed',

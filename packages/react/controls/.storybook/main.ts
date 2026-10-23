@@ -4,7 +4,7 @@ import type { StorybookConfig } from '@storybook/react-vite';
  * Storybook for the agnostic design-system components. It reproduces the app
  * runtime so stories render exactly like production:
  *  - the Tailwind v4 CSS-first pipeline (see `preview.css` + `postcss.config.cjs`),
- *  - the `@r10c/source` resolution condition so workspace packages resolve to
+ *  - the `@entifix/source` resolution condition so workspace packages resolve to
  *    their TypeScript `src` (a single `MetaEntity` registry, no prior build).
  *
  * Stories **do** instantiate decorated entities — `EntityTable`, `EntityForm`
@@ -23,7 +23,6 @@ const config: StorybookConfig = {
   viteFinal: viteConfig => {
     viteConfig.resolve ??= {};
     viteConfig.resolve.conditions = [
-      '@r10c/source',
       '@entifix/source',
       ...(viteConfig.resolve.conditions ?? [
         'browser',

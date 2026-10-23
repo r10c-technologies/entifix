@@ -66,7 +66,7 @@ export interface EntityFormProps<TEntity extends Entity> {
    *
    * A **`string`** field with a source gets the same editor, because a foreign
    * key whose target lives in another slice's store cannot be a typed `link` at
-   * all and is a plain id member (ADR 0022). The editor does not know the
+   * all and is a plain id member. The editor does not know the
    * difference — it writes the target's id into the draft either way.
    *
    * A key naming any other member throws: `linkCollection` has no editor
@@ -111,7 +111,7 @@ export interface EntityFormProps<TEntity extends Entity> {
   /**
    * What this caller may do with the entity, as served by
    * `GET /api/<entity>/$metadata` and already filtered against the verified
-   * principal (ADR 0026).
+   * principal.
    *
    * **Optional, and absent means "as before".** Without it the form renders Save
    * and Delete exactly as it always has, so a call site that has not migrated is

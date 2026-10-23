@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 
 /**
  * Marks the nav anchor of the section in view with `aria-current`: an
- * enhancement over anchors that already work (ADR 0008). Renders nothing.
+ * enhancement over anchors that already work. Renders nothing.
  *
  * A section counts as in view while it crosses the band just above the
  * viewport's middle; over the hero, none does.

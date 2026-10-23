@@ -613,7 +613,7 @@ describe('useEntityForm', () => {
   /**
    * The autosave seam. It lives in the hook rather than in each page because
    * every page that wanted it used to hand-write the same effect, and the two
-   * that never did — brand and category — had no autosave at all (#131).
+   * that never did had no autosave at all.
    */
   it('persists the draft once a field is edited', () => {
     const store = draftStore();

@@ -83,7 +83,8 @@ export interface UseWizardResult {
    * reference, so a step that has not changed re-seeds nothing. Building either
    * fresh per render is the write-amplification `useEntityDraft` documents, and
    * a fresh `{}` for an unanswered step is worse — it re-seeds the form every
-   * render, which is the `Maximum update depth exceeded` hang ADR 0038 measured.
+   * render, which is the `Maximum update depth exceeded` hang measured on the
+   * master-detail form.
    */
   draftStoreFor(stepId: string): EntityDraftStore;
   /** Record a non-form step's answer — a choice, a table selection. */

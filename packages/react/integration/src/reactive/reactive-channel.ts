@@ -9,7 +9,7 @@ export type { EntityChangeEvent };
  * It receives the whole message, not just the payload: the transaction id, the
  * emission time and the sequence a consumer needs are `meta.event.correlationId`,
  * `.at` and `.id`, and duplicating them onto {@link EntityChangeEvent} is how
- * two sources of one fact drift (ADR 0036). `#137` settles an optimistic write
+ * two sources of one fact drift. `#137` settles an optimistic write
  * on the correlation id; `useReactiveInvalidation` reads only `data.entity`.
  */
 export type EntityChangeListener = (
@@ -27,7 +27,7 @@ export interface ReactiveChannel {
    * Runs whenever the stream is (re)connected — and **immediately if it is
    * already connected when the listener registers**.
    *
-   * The stream does not replay, by design (ADR 0036), so a consumer that missed
+   * The stream does not replay, by design, so a consumer that missed
    * an outcome while disconnected has to go and ask. This is the signal that
    * tells it when to: `#137` re-queries every pending transaction id here.
    *
@@ -80,7 +80,7 @@ export interface InMemoryReactiveChannel extends ReactiveChannel {
  * A synchronous in-memory channel: `emit` fans out to every live subscriber.
  *
  * It backs specs. It is no longer what the workspace runs on — that is
- * `makeEventSourceReactiveChannel`, and until ADR 0036 landed a transport this
+ * `makeEventSourceReactiveChannel`, and until a transport landed this
  * one was mounted in its place, emitting nothing, so a reader of the workspace
  * could not tell "the transport is missing" from "nothing changed".
  */

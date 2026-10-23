@@ -488,7 +488,7 @@ describe('EntityTable bulk bar', () => {
     // ⚠️ `retire` declares `confirm: { tone: 'destructive' }` and this bar used
     // to fire on the first click anyway — it read the tone only to colour the
     // button. A verb that asks to be confirmed is now confirmed wherever it
-    // renders (#216).
+    // renders.
     const onBulkUseCase = vi.fn();
     const { user } = renderTable({
       selection: { mode: 'ids', ids: new Set(['1']) },
@@ -827,11 +827,11 @@ describe('EntityTable row menu', () => {
   );
 
   /**
-   * The cell ADR 0026 declared and no surface rendered: an entity-bound verb
+   * The cell the descriptor declared and no surface rendered: an entity-bound verb
    * that needs a row to act on.
    */
   it('renders context-dependent entity verbs per row, and confirms a destructive one', async () => {
-    // `archive` is declared destructive. Before #216 the menu read that only to
+    // `archive` is declared destructive. The menu once read that only to
     // colour the entry and then fired on the first click — a one-click archive
     // with a red label explaining what had already happened.
     const onUseCase = vi.fn();

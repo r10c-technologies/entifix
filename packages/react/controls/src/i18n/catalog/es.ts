@@ -250,7 +250,7 @@ export const controls = {
     finish: 'Finalizar',
     /**
      * Un envío que **no** resuelve. El asistente entrega el trabajo y vuelve
-     * antes de que la escritura termine (ADR 0043), así que dice "enviando" y
+     * antes de que la escritura termine, así que dice "enviando" y
      * nunca "guardado": lo segundo sería una afirmación que el control no puede
      * comprobar.
      */
