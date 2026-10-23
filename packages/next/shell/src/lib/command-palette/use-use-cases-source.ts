@@ -22,13 +22,29 @@ import { useMemo } from 'react';
 /** How a declared verb is actually carried out, keyed by the verb. */
 export type UseCaseHandlers = Readonly<Record<string, () => Promise<void>>>;
 
-/** One entity whose served affordances contribute palette commands. */
-export interface UseCaseCommandEntity<TEntity extends Entity = Entity> {
+/**
+ * One entity whose served affordances contribute palette commands.
+ *
+ * The source comes one of two ways, and exactly one: built and handed over, or
+ * read from the host's composition by a hook — typically
+ * `() => useHostAdapters().userMetadata` — so the module declaring the entries
+ * need not import the transport that fetches.
+ */
+export type UseCaseCommandEntity<TEntity extends Entity = Entity> = {
   readonly entityConstructor: EntityConstructor<TEntity>;
-  /** Where `GET /api/<entity>/$metadata` is reached. */
-  readonly metadataSource: EntityMetadataSource;
   readonly handlers: UseCaseHandlers;
-}
+} & (
+  | {
+      /** Where `GET /api/<entity>/$metadata` is reached. */
+      readonly metadataSource: EntityMetadataSource;
+      readonly useMetadataSource?: never;
+    }
+  | {
+      /** Resolves the source from composition. Called as a hook, once per render. */
+      readonly useMetadataSource: () => EntityMetadataSource;
+      readonly metadataSource?: never;
+    }
+);
 
 /**
  * The `unbound` verbs this caller may invoke, as one group.
@@ -55,9 +71,12 @@ function useUseCasesSource(
 ): CommandSource {
   const t = useT('shell');
   const translateKey = useTranslateKey();
+  // The entries are module-scope, so which branch an entity takes never changes
+  // between renders and the hook count stays fixed.
+  const useSource = entity.useMetadataSource ?? (() => entity.metadataSource);
   const { metadata, isLoading } = useEntityUseCases(
     entity.entityConstructor,
-    entity.metadataSource,
+    useSource(),
   );
 
   // Outside the memo: `useCasesForSurface` is a plain filter, but the name reads

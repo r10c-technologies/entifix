@@ -88,6 +88,29 @@ class Boundary extends Component<
 }
 
 describe('useUseCaseSources', () => {
+  it('reads the source from a hook when the entry names one', async () => {
+    const metadataSource: EntityMetadataSource = {
+      fetchMetadata: async () => document([SIGN_OUT]),
+    };
+    const useMetadataSource = vi.fn(() => metadataSource);
+    const entities: readonly UseCaseCommandEntity[] = [
+      {
+        entityConstructor: PaletteSubject,
+        useMetadataSource,
+        handlers: { 'sign-out-others': noop },
+      },
+    ];
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <EntifixQueryProvider>{children}</EntifixQueryProvider>
+    );
+    const { result } = renderHook(() => useUseCaseSources(entities, ''), {
+      wrapper,
+    });
+
+    await waitFor(() => expect(options(result.current)).toHaveLength(1));
+    expect(useMetadataSource).toHaveBeenCalled();
+  });
+
   it('renders the verbs the service says this caller may invoke', async () => {
     const run = vi.fn(noop);
     const { result } = sourceFor([SIGN_OUT], { 'sign-out-others': run });

@@ -15,6 +15,7 @@ import {
   EntifixLogicError,
   type Entity,
   type EntityConstructor,
+  type EntityMetadataSource,
   envelopeEntityName,
   extractMetaEntity,
 } from '@entifix/core';
@@ -145,10 +146,23 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     columns,
     toolbar,
     links = [],
-    metadataSource,
+    metadataSource: givenMetadataSource,
+    metadata,
     runBulkUseCase,
     runUseCase,
   } = options;
+
+  if (givenMetadataSource !== undefined && metadata !== undefined) {
+    throw new EntifixBuildError(
+      `${entityConstructor.name} was given both metadataSource and metadata; pass one`,
+    );
+  }
+  // An adapter value, so it is resolved per render from the same `useAdapters()`
+  // the records come from — the host's composition, never the caller's module.
+  const metadataSourceOf = (adapters: TAdapters) =>
+    metadata === undefined
+      ? givenMetadataSource
+      : (adapters[metadata] as EntityMetadataSource);
 
   const meta = extractMetaEntity(entityConstructor);
   if (meta.key !== catalogKey) {
@@ -206,6 +220,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
 
     const queryClient = useQueryClient();
     const scope = entityQueryScope(entityConstructor);
+    const metadataSource = metadataSourceOf(adapters);
     const affordances = useEntityAffordances(entityConstructor, metadataSource);
     const renderLink = useCrudRenderLink(catalogKey);
 
@@ -324,6 +339,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     draft,
   }: EntityCrudSingleViewProps = {}) {
     const adapters = useAdapters();
+    const metadataSource = metadataSourceOf(adapters);
     const pending = usePendingTransactions();
     const router = useRouter();
     const withLocale = useLocaleHref();
