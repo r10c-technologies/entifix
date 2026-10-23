@@ -6,6 +6,7 @@
 - Revised: 2026-09-16 by [ADR 0004](0004-the-examples-are-the-composability-proof.md) — the examples are decided there
 - Revised: 2026-10-20 by [ADR 0005](0005-content-an-entity-describes.md) — locales are a host value now, and `@entifix/static` is a 24th package
 - Revised: 2026-10-23 by [ADR 0006](0006-the-public-contract-is-entities-use-cases-and-ports.md) — what a package's public API may ask of its caller
+- Revised: 2026-10-23 — the source citations of r10c's records are rewritten and a check keeps them out; the appendix that mapped them is removed
 - Area: platform
 - Read when: adding a package, adding a dependency between two, deciding whether something is public API, or about to bake a host's value into framework code — a downward edge can still be illegal, and the seam takes values rather than paths
 
@@ -272,13 +273,24 @@ run across them and the reasoning behind `@entifix/next-shell` is inseparable fr
 the back office it was drawn for. Two collections numbering from a shared origin
 would collide on the next decision either side took.
 
-entifix source cites **42** of those records, **337** times. Those citations are
-rewritten to this collection's own records as it writes them, one commit at a
-time, rather than migrated in a batch: a citation is rewritten by the record that
-replaces what it points at, and there is nothing to point at yet. The appendix
-below is what stands in until then, and it is load-bearing — r10c is public now
-and private later, so a bare `ADR 0030` in a source comment becomes a dead
-reference to a repository a reader cannot open.
+entifix source cited **42** of those records, **337** times, at extraction. A
+citation of that kind is a dead reference for any reader who cannot open the
+other repository, and the plan here was to rewrite each one as this collection
+wrote the record that replaced it, with an appendix mapping every number to a
+one-line summary in the meantime.
+
+> **2026-10-23.** The rewrite was done as one pass rather than as a long tail:
+> each citation now carries the reasoning it stood for, or points at a record
+> here. Two facts made the pass necessary rather than tidy. The appendix was
+> about to stop covering the citations, because r10c's records **0001–0007
+> share numbers with this collection's**, and a comment written before these
+> existed — "ADR 0007's second ceiling" — read as a citation of the wrong
+> record. And a stated rule is one the next comment written in a hurry skips.
+> So `@entifix/docs-check` now fails on any r10c reference in `packages/`,
+> `examples/` or `tools/`, on any `ADR NNNN` that is not a record here, and on a
+> link into `docs/adr/` that does not resolve. The documents may still tell this
+> history, and an attributed "r10c's ADR 0059" is allowed in them and nowhere
+> else. The appendix is removed.
 
 ## Consequences
 
@@ -295,10 +307,8 @@ reference to a repository a reader cannot open.
   scan can only say what the code currently does; the point of a register is to
   say what it is _allowed_ to do. Adding a package means adding a line, and
   forgetting is a build failure rather than a silent pass.
-- **The citation rewrite is a long tail.** 337 references do not clear in one
-  pass, and every one still pointing at r10c is a reference that goes dark when
-  that repository turns private. The appendix bounds the damage; it does not
-  remove it.
+- **No source cites a record it cannot reach.** The citations are rewritten,
+  and `@entifix/docs-check` keeps a new one from landing.
 
 ## What this record does not decide
 
@@ -306,53 +316,3 @@ The publishing mechanism (npm provenance, the release workflow), the local
 development loop between this repository and its consumers, and the three example
 applications. Each is its own decision in this collection — the examples are
 [ADR 0004](0004-the-examples-are-the-composability-proof.md).
-
-## Appendix — the r10c records entifix source cites
-
-One line each, so a reader who meets `ADR 0030` in a source comment is not
-stranded. Counts are citations in `packages/entifix` at extraction.
-
-| r10c ADR | ×   | What it decided                                                                             |
-| -------- | --- | ------------------------------------------------------------------------------------------- |
-| 0036     | 24  | The reactive stream is server-sent, same-origin, scoped per connection — SSE, not a socket. |
-| 0026     | 23  | The use-case descriptor, served from `$metadata` filtered by the verified principal.        |
-| 0039     | 22  | Multi-step sagas are orchestrated per flow from a declarative definition.                   |
-| 0030     | 20  | Failure, retry and quarantine on the bus — three failure classes, `work` vs `broadcast`.    |
-| 0032     | 18  | What may live in an autosaved draft — JSON round-trippable only, keyed per principal.       |
-| 0052     | 18  | The checkout saga: the definition is data, and a fan-out compensates only what succeeded.   |
-| 0031     | 16  | A service describes its own wiring; `/api/$service` diffs it against the register.          |
-| 0033     | 16  | The screen taxonomy: Definiciones, Operaciones, Asistentes, Consultas.                      |
-| 0035     | 15  | Entity actions: where a verb appears, and what a bulk action acts on.                       |
-| 0045     | 14  | The wizard — a step graph that is data, a draft above the forms, a submit that hands off.   |
-| 0023     | 13  | A service reaching tenant storage for another party names the organization explicitly.      |
-| 0028     | 13  | The transaction id is the client's, and its event is written to the outbox with the write.  |
-| 0043     | 12  | The optimistic mutation contract — a `202`, and reconciliation is a re-query.               |
-| 0055     | 11  | A coordinator resumes from its own record; a dispatch needs no outbox.                      |
-| 0040     | 10  | The record search aggregator fans out per request and ranks nothing.                        |
-| 0034     | 9   | Composition metadata: an entity can declare that it owns a collection.                      |
-| 0042     | 9   | The workspace address is the taxonomy serialized — `master:<key>[:<id>]`.                   |
-| 0022     | 7   | The v1 marketplace's final domain, store and slice boundaries.                              |
-| 0029     | 7   | The event envelope and a routed bus; the dedup key is `event.id`.                           |
-| 0010     | 6   | Stock as a movement ledger; a purchase reserves rather than decrements.                     |
-| 0059     | 6   | entifix leaves the repo, and r10c becomes one of its consumers. (This record's other half.) |
-| 0007     | 4   | The access model: planes, platform roles, tenant-defined roles, entitlements.               |
-| 0009     | 4   | Catalog authoring in the tenant plane, publication into a platform read model.              |
-| 0020     | 4   | Stores and Slices: the unit of data ownership and the unit of deployment.                   |
-| 0021     | 4   | Consolidating the fleet into five deployments.                                              |
-| 0027     | 4   | Two scales, a density mode, and the type system — one token set, two scales.                |
-| 0001     | 3   | Observability and platform tooling — the Effect→tooling bridge, metrics and sinks.          |
-| 0038     | 3   | Master-detail: a record and the rows it owns, edited in one write.                          |
-| 0054     | 3   | Capture is the pivot, and the bus carries what follows.                                     |
-| 0006     | 2   | Multitenancy: three planes, ambient tenancy, storage per organization.                      |
-| 0012     | 2   | Operator cross-tenant access is an audited crossing, never a bypass. _(Proposed, unbuilt.)_ |
-| 0016     | 2   | Zitadel authenticates; r10c authorizes and mints its own tokens.                            |
-| 0019     | 2   | A user deactivated at the provider loses their r10c sessions.                               |
-| 0037     | 2   | Entitlements ride the access token, and navigation reads them.                              |
-| 0058     | 2   | The order after payment: fulfil, cancel, refund, and a capability at rest as a digest.      |
-| 0002     | 1   | Authorization: role aspects behind an ABAC-shaped port; grants never come from the token.   |
-| 0014     | 1   | Vendor-authored entity specifications, pinned per instance. _(Proposed, unbuilt.)_          |
-| 0015     | 1   | Asymmetric access tokens, and the party role as a claim rather than a grant.                |
-| 0017     | 1   | Back-channel logout: the provider can end a session.                                        |
-| 0041     | 1   | The sidebar renders the taxonomy, and a shell may ask about the viewport.                   |
-| 0044     | 1   | The command palette owns no index, and its depth is a page stack.                           |
-| 0048     | 1   | Announcing a publication, and a shared contract to announce it with.                        |

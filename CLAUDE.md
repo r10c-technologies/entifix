@@ -123,8 +123,9 @@ tests need no build. A consumer resolves `dist`.
 - [0006](docs/adr/0006-the-public-contract-is-entities-use-cases-and-ports.md) **A package's public contract is entities, use cases and ports** — read when adding an export to a `.` entry, adding an option that takes an adapter's product, or a consumer cannot ban a mechanism because it shares an entry point with a contract.
 - [0007](docs/adr/0007-the-host-supplies-the-role-ladder.md) **The host supplies the role ladder; the screen taxonomy is entifix's** _(Proposed)_ — read when adding a role, changing who may assign whom, building a second host on `@entifix/authz`, or about to add a fifth screen type.
 
-A source comment citing a higher number (`ADR 0030`) means an r10c record; the
-appendix of ADR 0001 maps each one. ⚠️ So did some citing a **lower** one: r10c's
-records 0001–0007 predate these and share their numbers, and a source comment
-written before this collection existed — "ADR 0007's entitlements", say — names
-r10c's record, not this one. Read the sentence, not the number.
+**Cite this collection or nothing.** Every `ADR NNNN` in the repository names a
+record above, and nothing under `packages/`, `examples/` or `tools/` names r10c —
+not its records, its issues or its tools. `@entifix/docs-check` fails on either,
+because r10c's records 0001–0007 share these numbers and a citation that only
+_looks_ right is worse than one that is plainly broken. Write the reasoning
+into the comment instead.
