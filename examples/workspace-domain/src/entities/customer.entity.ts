@@ -22,6 +22,7 @@ export class Customer implements Entity {
   #name = '';
   #email?: string;
   #tier: CustomerTier = 'standard';
+  #parentId?: string;
 
   @accessor({ type: 'id', labelKey: 'entity:customer.fields.id' })
   get id(): EntityId {
@@ -66,5 +67,20 @@ export class Customer implements Entity {
   }
   set tier(value: CustomerTier) {
     this.#tier = value;
+  }
+
+  // The account this one is a branch of, so customers form a tree and the
+  // table nests them. Not `hidden`: a hidden member is never serialized, and a
+  // parent that does not travel is a tree that arrives flat.
+  @accessor({
+    type: 'id',
+    labelKey: 'entity:customer.fields.parent',
+    parent: true,
+  })
+  get parentId(): string | undefined {
+    return this.#parentId;
+  }
+  set parentId(value: string | undefined) {
+    this.#parentId = value;
   }
 }

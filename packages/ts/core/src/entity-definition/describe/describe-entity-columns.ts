@@ -62,6 +62,8 @@ export interface EntityFieldDescriptor {
   maxItems?: number;
   /** The `date` member this one may not precede. */
   notBefore?: string;
+  /** This member holds the parent record's id: the entity forms a tree. */
+  parent?: boolean;
 }
 
 /** Types whose values are scalars a user can meaningfully sort/filter on. */
@@ -173,6 +175,64 @@ function assertNotBefore(descriptors: readonly EntityFieldDescriptor[]) {
   }
 }
 
+/**
+ * A parent is one record's id, so it is an `id` or a `string` member — a
+ * number or a date cannot name a record, and a collection would be two
+ * parents. Checked per member, since the type is only known once inferred.
+ */
+function assertParentType(metaAccessor: MetaAccessor, type: MetaAccessorType) {
+  if (metaAccessor.parent !== true) return;
+  if (type === 'id' || type === 'string') return;
+  throw new EntifixBuildError(
+    `"${String(metaAccessor.name)}" is a ${type} and cannot be the parent member — a parent is one record's id, so it is an id or a string.`,
+  );
+}
+
+/**
+ * One parent member per entity. Two would be two trees over the same records,
+ * and which one a table indents by would depend on declaration order.
+ */
+export function assertOneParent(
+  members: readonly {
+    readonly name: string | symbol;
+    readonly parent?: boolean;
+  }[],
+) {
+  const parents = members.filter(member => member.parent === true);
+  if (parents.length > 1) {
+    throw new EntifixBuildError(
+      `An entity declares one parent member at most; found ${parents.map(member => `"${String(member.name)}"`).join(', ')}.`,
+    );
+  }
+}
+
+/**
+ * ⚠️ **A parent member must travel.** The serializer skips a `hidden` or
+ * `readonly` member in both directions, so the parent key would not survive a
+ * single trip over the wire and the tree would arrive flat, with nothing
+ * failing. Hide it from a table or a form with a slot instead. Checked before
+ * hidden members are dropped, since a hidden parent is exactly the one
+ * describing would never see.
+ */
+export function assertParentVisible(
+  members: readonly {
+    readonly name: string | symbol;
+    readonly parent?: boolean;
+    readonly hidden?: boolean;
+    readonly readonly?: boolean;
+  }[],
+) {
+  const stuck = members.find(
+    member =>
+      member.parent === true &&
+      (member.hidden === true || member.readonly === true),
+  );
+  if (stuck === undefined) return;
+  throw new EntifixBuildError(
+    `"${String(stuck.name)}" is the parent member and is ${stuck.hidden === true ? 'hidden' : 'readonly'} — such a member is never serialized, so the tree would arrive flat. Hide it with a slot instead.`,
+  );
+}
+
 function toDescriptor(
   metaAccessor: MetaAccessor,
   index: number,
@@ -184,6 +244,7 @@ function toDescriptor(
     inferType(name, (sample as Record<string, unknown> | undefined)?.[name]);
   assertNotQueryable(metaAccessor, type);
   assertItemCounts(metaAccessor, type);
+  assertParentType(metaAccessor, type);
   // A localized member is queried one locale at a time (`name.en`), which
   // makes it as queryable as the text each locale holds.
   const isScalar = SCALAR_TYPES.includes(type) || type === 'localized';
@@ -210,6 +271,7 @@ function toDescriptor(
     minItems: metaAccessor.minItems,
     maxItems: metaAccessor.maxItems,
     notBefore: metaAccessor.notBefore,
+    parent: metaAccessor.parent ?? false,
   };
 }
 
@@ -235,6 +297,7 @@ export function describeEntityColumns<TTarget extends object>(
   sample?: TTarget,
 ): EntityFieldDescriptor[] {
   const seen = new Set<string>();
+  assertParentVisible(extractMetaAccessors(entityConstructor));
 
   const descriptors = extractMetaAccessors(entityConstructor)
     .filter(metaAccessor => {
@@ -247,5 +310,6 @@ export function describeEntityColumns<TTarget extends object>(
     .map((metaAccessor, index) => toDescriptor(metaAccessor, index, sample))
     .sort((left, right) => left.order - right.order);
   assertNotBefore(descriptors);
+  assertOneParent(descriptors);
   return descriptors;
 }

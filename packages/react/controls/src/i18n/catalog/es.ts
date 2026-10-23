@@ -22,6 +22,8 @@ export const controls = {
      */
     selection: 'Selección',
     selectRow: 'Seleccionar {{record}}',
+    expandRow: 'Expandir {{record}}',
+    collapseRow: 'Contraer {{record}}',
     selectAllOnPage: 'Seleccionar todo en esta página',
     /**
      * La segunda selección — la que el servidor evalúa — lleva el número

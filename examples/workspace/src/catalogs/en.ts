@@ -12,6 +12,7 @@ export const en: ExampleCatalog = {
         name: 'Name',
         email: 'Email',
         tier: 'Tier',
+        parent: 'Branch of',
       },
       values: {
         tier: { standard: 'Standard', preferred: 'Preferred' },

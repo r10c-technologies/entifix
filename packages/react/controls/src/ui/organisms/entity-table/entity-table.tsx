@@ -9,12 +9,13 @@ import {
   type EntitySorting,
   extractMetaEntity,
   type FilterGroup,
+  hierarchyOf,
   isSelected,
   selectionSize,
   toggleSelected,
   type UseCaseDescriptor,
 } from '@entifix/core';
-import { Fragment, type ReactNode, useRef, useState } from 'react';
+import { Fragment, type ReactNode, useMemo, useRef, useState } from 'react';
 
 import { useErrorMessage, useT, useTranslateKey } from '../../../i18n/index.js';
 import {
@@ -53,6 +54,7 @@ import type {
   EntityTableProps,
 } from './entity-table.types.js';
 import { readEntityTableSlots } from './entity-table-slots.js';
+import { shownTreeRows, TreeCell, treeRows } from './entity-table-tree.js';
 import { useEntityTableColumns } from './use-entity-table-columns.js';
 
 /**
@@ -289,6 +291,30 @@ export function EntityTable<TEntity extends Entity>({
    */
   const anchorIndex = useRef<number | undefined>(undefined);
 
+  /**
+   * An entity that declares a parent renders as a tree: the page arranged
+   * depth first, its first column indented, and a subtree hidden while its
+   * record is collapsed. Collapsing is view state, so it lives here and is
+   * forgotten with the table, like the shift-click anchor above.
+   */
+  const treeKeys = useMemo(
+    () => hierarchyOf(entityConstructor),
+    [entityConstructor],
+  );
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+  const rows = useMemo(() => treeRows(items, treeKeys), [items, treeKeys]);
+  const shown = shownTreeRows(rows, collapsed);
+  const shownItems = shown.map(row => row.item);
+  const toggleCollapsed = (key: string) =>
+    setCollapsed(current => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+
   const setSelection = (next: EntitySelection<TEntity>) =>
     onSelectionChange?.(next);
 
@@ -304,7 +330,8 @@ export function EntityTable<TEntity extends Entity>({
     const [start, end] = from <= index ? [from, index] : [index, from];
 
     let next = current;
-    for (const row of items.slice(start, end + 1)) {
+    // The rows as shown: in a tree the order on screen is not the load's.
+    for (const row of shownItems.slice(start, end + 1)) {
       next = toggleSelected(next, row.id, checked);
     }
 
@@ -735,7 +762,7 @@ export function EntityTable<TEntity extends Entity>({
                 {emptyMessage}
               </TableMessageRow>
             )}
-            {items.map((item, index) =>
+            {shown.map(({ item, depth, hasChildren }, index) =>
               slots.row ? (
                 // A Fragment carries the key without wrapping the custom row in
                 // an element `<tbody>` would reject.
@@ -749,9 +776,26 @@ export function EntityTable<TEntity extends Entity>({
                       {selectionCell(item, index, selectionState)}
                     </TableCell>
                   )}
-                  {visibleColumns.map(column => (
+                  {visibleColumns.map((column, columnIndex) => (
                     <TableCell key={column.name}>
-                      {renderCell(column, item)}
+                      {treeKeys !== undefined && columnIndex === 0 ? (
+                        <TreeCell
+                          depth={depth}
+                          hasChildren={hasChildren}
+                          expanded={!collapsed.has(treeKeys.idOf(item))}
+                          label={t(
+                            collapsed.has(treeKeys.idOf(item))
+                              ? 'table.expandRow'
+                              : 'table.collapseRow',
+                            { record: rowLabel(item) },
+                          )}
+                          onToggle={() => toggleCollapsed(treeKeys.idOf(item))}
+                        >
+                          {renderCell(column, item)}
+                        </TreeCell>
+                      ) : (
+                        renderCell(column, item)
+                      )}
                     </TableCell>
                   ))}
                   {hasRowAction && <TableCell>{recordAction(item)}</TableCell>}
@@ -781,7 +825,7 @@ export function EntityTable<TEntity extends Entity>({
         {!isLoading && items.length === 0 && (
           <p className="text-step-sm text-content-muted">{emptyMessage}</p>
         )}
-        {items.map((item, index) => (
+        {shown.map(({ item }, index) => (
           <EntityRecordCard
             key={String(item.id ?? index)}
             columns={visibleColumns}

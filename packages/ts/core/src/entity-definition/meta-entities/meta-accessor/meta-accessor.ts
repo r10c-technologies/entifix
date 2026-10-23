@@ -152,6 +152,18 @@ export interface MetaAccessorOptions {
    * be `date`s, or describing the entity fails.
    */
   notBefore?: string;
+  /**
+   * This member holds the id of the record's **parent**, another record of
+   * the same entity — so the entity forms a tree. At most one member per
+   * entity, and it must be an `id` or a `string`; describing the entity fails
+   * otherwise.
+   *
+   * An id rather than a `link` on purpose. A tree is always built from the
+   * whole set of its records ({@link buildTree}), never by resolving one parent
+   * at a time, so a link's lazy resolution would be a fetch per node that
+   * nothing needs. Absent means a root.
+   */
+  parent?: boolean;
 }
 
 export class MetaAccessor {
@@ -179,6 +191,7 @@ export class MetaAccessor {
   readonly minItems?: number;
   readonly maxItems?: number;
   readonly notBefore?: string;
+  readonly parent?: boolean;
 
   //#endregion
 
@@ -210,6 +223,7 @@ export class MetaAccessor {
     this.minItems = options?.minItems;
     this.maxItems = options?.maxItems;
     this.notBefore = options?.notBefore;
+    this.parent = options?.parent;
   }
   //#endregion
 

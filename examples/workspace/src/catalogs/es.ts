@@ -17,6 +17,7 @@ export const es = {
         name: 'Nombre',
         email: 'Correo',
         tier: 'Categoría',
+        parent: 'Sucursal de',
       },
       values: {
         tier: { standard: 'Estándar', preferred: 'Preferente' },
