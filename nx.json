@@ -126,6 +126,9 @@
         "tag": false,
         "push": false
       }
+    },
+    "conventionalCommits": {
+      "useCommitScope": false
     }
   },
   "analytics": true

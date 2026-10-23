@@ -71,7 +71,9 @@ tests need no build. A consumer resolves `dist`.
   both bump the **patch**, and only a breaking change (`feat!:` or a
   `BREAKING CHANGE:` footer) bumps the minor — `adjustSemverBumpsForZeroMajorVersion`
   in `nx.json`. `build`/`ci`/`chore`/`docs`/`test` release nothing. Pick the type for what
-  it does to an adopter, not for how the diff feels.
+  it does to an adopter, not for how the diff feels. The scope is a label, not a
+  filter: `useCommitScope` is off, because with it on a scoped breaking change
+  released as a patch.
   [ADR 0003](docs/adr/0003-releasing-without-a-credential.md).
 - **Never rename `.github/workflows/release.yml`, and never add an npm
   credential.** Every package's npm trusted-publisher claim names that file and
