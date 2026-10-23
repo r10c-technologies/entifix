@@ -16,7 +16,8 @@ import {
   AllowAllPolicyLayer,
   FixedTokenServiceLayer,
 } from '@entifix/testing-auth';
-import { EventSourceTag, startSagaResume } from '@entifix/transactions';
+import { EventSourceTag } from '@entifix/transactions';
+import { startSagaResume } from '@entifix/transactions/engine';
 import { Effect, Layer } from 'effect';
 
 import { startOrderStatsProjection } from './order-stats.projection.ts';
