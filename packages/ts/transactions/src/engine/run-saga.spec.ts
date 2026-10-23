@@ -174,7 +174,7 @@ describe('runSaga — the happy path', () => {
   });
 
   /**
-   * ⚠️ ADR 0028's rule, extended from events to commands: a coordinator that
+   * ⚠️ The outbox's rule, extended from events to commands: a coordinator that
    * marks a step in flight only *after* calling has the dual write that record
    * exists to close.
    */
@@ -223,7 +223,7 @@ describe('runSaga — the happy path', () => {
 
 describe('runSaga — compensation', () => {
   /**
-   * ⚠️ The case ADR 0052 built `SagaStepOutcome.calls` for. Two holds taken,
+   * ⚠️ The case `SagaStepOutcome.calls` was built for. Two holds taken,
    * the order write refused: **both** holds come back, each addressed by its
    * own recorded id.
    */
@@ -342,7 +342,7 @@ describe('runSaga — compensation', () => {
 
 describe('runSaga — a stranded saga is surfaced, never swallowed', () => {
   /**
-   * ⚠️ ADR 0039 calls this the failure class nobody plans for, and it is the
+   * ⚠️ This is the failure class nobody plans for, and it is the
    * state that leaves a reservation held and — once payment lands — a customer
    * charged. `COMPENSATED` and `STRANDED` must not collapse into one `FAILED`.
    */
@@ -838,7 +838,7 @@ describe('resumeSaga — where it re-enters the walk', () => {
   /**
    * ⚠️ The window between `recordOutcome` and the next `beginStep`. Starting at
    * `stepIndex` here would take a second pair of holds against the same lines —
-   * the oversell ADR 0052 built the command inbox to prevent, reintroduced by
+   * the oversell the command inbox exists to prevent, reintroduced by
    * the coordinator rather than by a redelivery.
    */
   it('starts after a step whose outcome was already recorded', async () => {
@@ -891,7 +891,7 @@ describe('resumeSaga — where it re-enters the walk', () => {
   });
 
   /**
-   * ⚠️ The rule ADR 0054 added to the in-process walk, now on the resumed one.
+   * ⚠️ The pivot rule of the in-process walk, now on the resumed one.
    * A capture that committed is money taken; unwinding behind it would delete
    * the order and put the goods back on sale.
    */

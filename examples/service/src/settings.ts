@@ -2,8 +2,8 @@
  * Everything the service reads from its environment, with local defaults that
  * match `examples/compose.yaml`.
  *
- * Static on purpose: entifix needs no configuration service. r10c resolves these
- * from one at boot, and nothing below `main.ts` would change if this did too.
+ * Static on purpose: entifix needs no configuration service. A host may resolve
+ * these from one at boot, and nothing below `main.ts` would change if this did.
  */
 export interface ServiceSettings {
   readonly port: number;

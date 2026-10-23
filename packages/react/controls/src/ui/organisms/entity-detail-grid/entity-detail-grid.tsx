@@ -37,7 +37,7 @@ const SKELETON_ROW_COUNT = 3;
  *
  * A `composition` — an order and its lines — where the rows have no life outside
  * the master and go out in the same write
- * ([ADR 0034](../../../../../../../docs/adr/0034-composition-metadata.md)). Not
+ *. Not
  * a `linkCollection`, which is association to records that exist on their own
  * and save separately; that editor is still #26.
  *
@@ -70,7 +70,7 @@ const SKELETON_ROW_COUNT = 3;
  * **one** summary above it, which is the only `role="alert"` in the component.
  * A live region per cell would announce the whole grid on every keystroke, and
  * a message rendered only in the cell is unreachable when the failing row is
- * scrolled out — which is the case #110 names.
+ * scrolled out — the case a long grid always meets.
  */
 export function EntityDetailGrid({
   descriptor,

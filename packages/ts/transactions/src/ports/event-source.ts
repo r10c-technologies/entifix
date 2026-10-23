@@ -7,9 +7,9 @@ import { Context } from 'effect';
  * deployment: co-deploying two slices into one process is reversible, and a
  * `source` that changed when a process moved would rewrite history for a fact
  * that did not change. Not the domain either: a slice may hold several, so the
- * domain does not identify the publisher. The slice is ADR 0020's ownership
- * noun and is already executable in `tools/slices/`, which is what lets the
- * register be checked against what the bus actually carries.
+ * domain does not identify the publisher. The slice is the unit that owns a
+ * store, and a host that keeps a register of them can check it against what
+ * the bus actually carries.
  *
  * Provided at each composition root beside the other environment facts
  * (`TenantDatabasePrefix`, `SagaDatabaseName`) rather than read from an

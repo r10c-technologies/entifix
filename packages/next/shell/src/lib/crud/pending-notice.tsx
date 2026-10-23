@@ -21,7 +21,7 @@ export interface PendingNoticeProps {
  * `master:<key>` is the list and there is no address for a record that does not
  * exist yet. A badge keyed on a pending record id would therefore be unreachable
  * by construction, which is exactly the "declared, styled, never produced"
- * defect ADR 0043 was written about. It renders here instead, where
+ * defect the optimistic mutation contract exists to prevent. It renders here instead, where
  * `afterSave()` actually puts the operator.
  *
  * `role="status"`, not `role="alert"` — the `BulkResult` reasoning: an outcome
@@ -30,7 +30,7 @@ export interface PendingNoticeProps {
  * The failure headline is a catalog key and never `entry.reason`, which is free
  * text from whatever threw, in whatever language that code was written in. The
  * reason is kept as secondary, explicitly-unlocalized detail; a translatable
- * failure needs an error *code* on the event, which is ADR 0043's residual.
+ * failure needs an error *code* on the event, which the event does not carry yet.
  */
 export function PendingNotice({
   entries,

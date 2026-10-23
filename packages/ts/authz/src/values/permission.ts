@@ -28,8 +28,8 @@ export type Action = EntityAction;
  * Per-entity and open, rather than one global union every domain appends to:
  * that would make an unrelated domain's verb assignable everywhere and grow
  * without bound. The check that a verb exists is therefore at runtime, in
- * {@link permissionForUseCase}, and in the source scan `@r10c/slices` runs
- * ([ADR 0026](../../../../../docs/adr/0026-the-use-case-descriptor-and-served-entity-metadata.md)).
+ * {@link permissionForUseCase}, and in whatever source scan a host's register
+ * runs.
  */
 export type UseCaseVerb = string;
 

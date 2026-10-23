@@ -133,7 +133,7 @@ const clampLimit = (raw: string | null, fallback: number): number => {
 
 /**
  * `GET /api/search` — records matching a term, across every source this host
- * mounts (ADR 0040).
+ * mounts.
  *
  * The caller's own session is the only credential that crosses: each source is
  * asked over the same guarded route its screens use, so what comes back is

@@ -503,8 +503,8 @@ describe('exchangeCode', () => {
 });
 
 /**
- * The provider ending a session it owns, which is the only way an r10c session
- * can be revoked from outside r10c. Everything here is about refusing tokens
+ * The provider ending a session it owns, which is the only way a host's
+ * session can be revoked from outside the host. Everything here is about refusing tokens
  * that verify — a forged one is caught by the shared key check above.
  */
 describe('verifyLogoutToken', () => {

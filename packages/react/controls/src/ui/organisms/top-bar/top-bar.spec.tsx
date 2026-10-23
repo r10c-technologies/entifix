@@ -7,8 +7,8 @@ describe('TopBar', () => {
   it('renders its slots as a banner', () => {
     render(
       <TopBar>
-        <TopBar.Brand>r10c</TopBar.Brand>
-        <TopBar.Context>marketplace-admin</TopBar.Context>
+        <TopBar.Brand>Acme</TopBar.Brand>
+        <TopBar.Context>back office</TopBar.Context>
         <TopBar.Actions>
           <button type="button">Menu</button>
         </TopBar.Actions>
@@ -16,8 +16,8 @@ describe('TopBar', () => {
     );
 
     expect(screen.getByRole('banner')).toBeInTheDocument();
-    expect(screen.getByText('r10c')).toBeInTheDocument();
-    expect(screen.getByText('marketplace-admin')).toBeInTheDocument();
+    expect(screen.getByText('Acme')).toBeInTheDocument();
+    expect(screen.getByText('back office')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Menu' })).toBeInTheDocument();
   });
 

@@ -19,8 +19,7 @@ export interface ServiceProxyRouteOptions {
    *
    * Caught on the live lab rather than by any check, and the symptom is exactly
    * the one this proxy exists to prevent — the SSE stream 404s, a pending write
-   * never settles, and every probe stays green
-   * ([ADR 0036](../../../../../../docs/adr/0036-the-reactive-stream-is-server-sent-and-same-origin.md)).
+   * never settles, and every probe stays green.
    */
   readonly pathPrefix?: string;
 }
@@ -53,7 +52,7 @@ export interface ServiceProxyRouteOptions {
  * A factory, because a host mounts one of these per backend it talks to, and
  * back-office-app now talks to two: marketplace-admin-service for the catalog a
  * vendor authors, marketplace-service for the platform vocabulary it is
- * classified in (ADR 0022).
+ * classified in.
  */
 /**
  * Response headers that must survive the rebuild.
@@ -72,11 +71,22 @@ const CACHE_HEADERS = ['etag', 'cache-control', 'vary'] as const;
  * forever and delivers nothing — no error, no timeout, and the browser's
  * `EventSource` sits in `CONNECTING` while the service is happily emitting.
  * It is the most likely way to build the reactive stream, see silence, and go
- * looking in the wrong service (ADR 0036).
+ * looking in the wrong service.
  */
 const isStreamed = (upstream: Response): boolean =>
   upstream.headers.get('content-type')?.startsWith('text/event-stream') ===
   true;
+
+/**
+ * The code a proxy answers when the service behind it could not be reached.
+ *
+ * `502`, never the `500` an unhandled rejection becomes: the host did nothing
+ * wrong, and a `500` sends whoever reads it looking for a bug in the app rather
+ * than for a process that is not running. A **code, not a sentence**, so the
+ * browser can render it through the host's own `errors` catalog like every
+ * other refusal in the framework.
+ */
+export const UPSTREAM_UNAVAILABLE = 'upstreamUnavailable';
 
 const passThrough = (upstream: Response): Record<string, string> => {
   const headers: Record<string, string> = {};
@@ -111,15 +121,23 @@ export const createServiceProxyRoute = ({
     }
 
     const hasBody = request.method !== 'GET' && request.method !== 'DELETE';
+    const body = hasBody ? await request.text() : undefined;
+    // Only the connection is caught. A service that answers — with anything,
+    // a `500` included — is passed through below exactly as it answered.
     const upstream = await fetch(
       `${baseUrl}/api/${[pathPrefix, ...path].filter(Boolean).join('/')}${search}`,
-      {
-        method: request.method,
-        headers,
-        body: hasBody ? await request.text() : undefined,
-        cache: 'no-store',
-      },
-    );
+      { method: request.method, headers, body, cache: 'no-store' },
+    ).catch(() => undefined);
+
+    if (upstream === undefined) {
+      return NextResponse.json(
+        {
+          error: 'the service behind this route could not be reached',
+          code: UPSTREAM_UNAVAILABLE,
+        },
+        { status: 502, headers: { 'cache-control': 'no-store' } },
+      );
+    }
 
     const passed = passThrough(upstream);
 

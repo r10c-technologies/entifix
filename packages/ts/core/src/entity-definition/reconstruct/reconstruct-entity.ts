@@ -95,7 +95,7 @@ function applyEntityComposition(
  * `composition` is excluded for the reason `linkCollection` is: it has no
  * editor yet, so a draft never holds its rows and writing one would mean
  * writing `undefined` over the master's own lines on every save. The rows'
- * write path lands with the detail control (#122). `scalarCollection` is *not*
+ * write path lands with the detail control. `scalarCollection` is *not*
  * excluded — it is a scalar as far as this walk is concerned, because its
  * comma-list draft coerces losslessly back to a `string[]`.
  */

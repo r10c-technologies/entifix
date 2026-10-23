@@ -1255,8 +1255,7 @@ describe('makeFakeSqlClient', () => {
  *
  * These are exercised through `apps/stock-service`, whose e2e `mock` profile
  * runs the real routes over this fake — so an operator that silently did
- * nothing here would report a green suite for a ledger that never moved
- * ([ADR 0010](../../../../../../docs/adr/0010-stock-ledger-reservations-and-concurrency.md)).
+ * nothing here would report a green suite for a ledger that never moved.
  */
 describe('makeFakeMongoDb ledger operations', () => {
   const stocked = () =>

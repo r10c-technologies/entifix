@@ -47,8 +47,8 @@ const router = HttpRouter.addAll([
  * The grant table this spec authorizes against.
  *
  * ⚠️ **The shell's own, not an application's.** These specs used to authorize
- * through r10c's `ROLE_PERMISSIONS`, which is exactly the coupling the split
- * removes: a shell is supposed to take a grant table, so its tests supply one.
+ * through a host's grant table, which is exactly the coupling a framework must
+ * not have: a shell is supposed to take a grant table, so its tests supply one.
  */
 const GRANTS = {
   admin: ['authn:user-identity:read'],
@@ -56,7 +56,7 @@ const GRANTS = {
 } as const;
 
 const definition = {
-  name: '@r10c/spec-auth-service',
+  name: 'spec-auth-service',
   port: 0,
   slices: ['test'],
   router,
@@ -96,7 +96,7 @@ describe('requirePrincipal', () => {
     });
   });
 
-  // ADR 0036: a held-open response has no next request to fail verification,
+  // A held-open stream has no next request to fail verification,
   // so the stream route reads this and closes the connection itself.
   it('carries the token expiry through to the principal', async () => {
     await withService(async baseUrl => {

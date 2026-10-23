@@ -34,7 +34,7 @@ import {
 /**
  * ⌘K **and** ⌘⇧P, and neither is load-bearing.
  *
- * #112 argued for ⌘⇧P alone because Chrome and Firefox claim ⌘K for address-bar
+ * The case for ⌘⇧P alone was that Chrome and Firefox claim ⌘K for address-bar
  * search. That is half the picture: ⌘⇧P / Ctrl+Shift+P is Firefox's private
  * window, so **both** candidates collide somewhere. ⌘K is also what Linear,
  * GitHub, Slack and Vercel trained people on, so leaving it unbound costs a

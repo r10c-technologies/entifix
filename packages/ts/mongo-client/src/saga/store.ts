@@ -13,7 +13,8 @@ import { MongoDatabaseTag } from '../mongo-database/mongo-database.js';
 
 /**
  * Saga instances: one document per flow, the durable record a coordinator
- * resumes from (r10c ADR 0055).
+ * resumes from, so where to resume is derived from the outcomes rather than
+ * stored beside them.
  */
 export const SAGA_COLLECTION = 'saga_instances';
 

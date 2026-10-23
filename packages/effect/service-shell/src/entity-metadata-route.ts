@@ -32,8 +32,7 @@ import { requirePrincipal } from './auth/index.js';
  * `id === "$metadata"`, misses, and answers its own `404`. The endpoint would
  * read as "this entity has no metadata" while appearing mounted. A literal wins
  * regardless of registration order, which is why the base exports a route for
- * one entity and each service registers it for each of its own
- * ([ADR 0026](../../../../../docs/adr/0026-the-use-case-descriptor-and-served-entity-metadata.md)).
+ * one entity and each service registers it for each of its own.
  *
  * Deliberately **not** behind `requireOrganization`, even on a tenant-plane
  * service: the document describes the model, not tenant data, and resolving a

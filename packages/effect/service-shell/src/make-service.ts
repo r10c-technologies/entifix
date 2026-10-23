@@ -58,9 +58,9 @@ export interface ServiceDefinition<RRoutes> {
    * The slices this process hosts, by their `tools/slices/` name.
    *
    * It cannot be derived. `EventSourceTag` names only the *emitting* slice, and
-   * one deployment may host several: ADR 0021 co-deploys `transaction` inside
-   * marketplace-admin-service. `dev-infra:map` checks each name against the
-   * register's own `deployments`, so a wrong one fails the diff rather than
+   * one deployment may host several, and a host that co-deploys two slices in
+   * one process names both. A host that registers its deployments can check
+   * each name against that register, so a wrong one fails the diff rather than
    * quietly mislabelling the fleet.
    */
   readonly slices: readonly string[];
@@ -136,7 +136,7 @@ export const makeServerLayer = <RRoutes>(
     ),
   );
 
-  // The graceful shutdown, and its **position** is the mechanism (ADR 0030).
+  // The graceful shutdown, and its **position** is the mechanism.
   // Build order is `appLayer` → this → `serve`, so release order is the
   // reverse: the drain runs after the server has stopped taking requests and
   // *before* the connections it needs are closed. A signal handler could not
@@ -176,7 +176,7 @@ export const makeServerLayer = <RRoutes>(
  * finalizer's, because only layer ordering can guarantee the connections are
  * still open while it happens.
  *
- * The `preStop` grace period ADR 0030 also names is **not** here and could not
+ * A `preStop` grace period is **not** here and could not
  * be: Kubernetes runs it before it sends SIGTERM, and this repo declares no
  * Deployment for a service. It lands with the first one.
  */

@@ -9,9 +9,8 @@
  * configured in one bundle would never reach the others: the middleware would
  * look for one name while a route wrote another, and the only symptom is being
  * signed out. So the names are fixed and shared, and every reader imports them
- * from here instead of re-declaring a literal — which is how r10c had five
- * separate copies of `r10c_at` that nothing kept in step
- * ([ADR 0059](../../../../../../docs/adr/0059-entifix-leaves-the-repo.md)).
+ * from here instead of re-declaring a literal — which is how one host once had
+ * five separate copies of its access-cookie name that nothing kept in step.
  *
  * Host-scoped in dev, where localhost shares cookies across ports, so every app
  * and service in a local fleet reads the same session.

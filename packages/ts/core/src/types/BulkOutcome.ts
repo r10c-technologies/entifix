@@ -12,8 +12,7 @@ import type { EntityId } from './Entity.js';
  * `code` is an **error code**, never a sentence. Services answer
  * `{ error, code, detail }` and the browser renders the code through the
  * `errors` catalog, so a failure reason stays translatable and a new one fails
- * `@r10c/i18n-check` rather than reaching a user in English
- * ([docs/I18N.md](../../../../../../docs/I18N.md)).
+ * a host's catalog check rather than reaching a user in English.
  */
 export interface BulkOutcome {
   id: EntityId;

@@ -2,7 +2,8 @@ import type { SubscriptionMode } from '@entifix/transactions';
 import { Metric } from 'effect';
 
 /**
- * The bus half of ADR 0001's first metric set.
+ * The bus half of the framework's first metric set; the outbox half is in
+ * `@entifix/mongo`.
  *
  * Counters rather than logs because a quarantined message that is only ever a
  * log line is indistinguishable from a dropped one when the question is *how

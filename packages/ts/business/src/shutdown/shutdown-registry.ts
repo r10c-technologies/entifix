@@ -1,7 +1,7 @@
 import { Cause, Context, Effect } from 'effect';
 
 /**
- * The order a shutdown runs in (ADR 0030).
+ * The order a shutdown runs in.
  *
  * **`stop-intake`** stops the process taking new work — cancelling the bus's
  * consumers, interrupting a polling daemon. **`flush`** carries out what is

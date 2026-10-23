@@ -45,7 +45,7 @@ export interface FakeAmqpChannel {
    * The arguments *are* the delivery policy — `x-queue-type`,
    * `x-delivery-limit`, `x-dead-letter-exchange` — so a fake that swallowed
    * them would let a queue with no retry ceiling and no dead-letter path pass
-   * every test, which is the exact defect ADR 0030 exists to close.
+   * every test, which is the exact defect a quarantine path exists to close.
    */
   readonly queues: ReadonlyArray<{
     queue: string;
@@ -71,7 +71,7 @@ export interface FakeAmqpChannel {
    * The consumer tags cancelled, in order.
    *
    * Recorded rather than merely accepted because a graceful shutdown's first
-   * phase *is* the cancel (ADR 0030): a connector that dropped the tag on the
+   * phase *is* the cancel: a connector that dropped the tag on the
    * floor would pass every test while leaving the broker delivering into a
    * process that is closing its connection.
    */

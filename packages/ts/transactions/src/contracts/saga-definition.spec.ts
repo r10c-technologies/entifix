@@ -39,9 +39,9 @@ describe('defineSaga validates at load', () => {
   });
 
   /**
-   * ⚠️ The case ADR 0052 had to settle, and the reason this test carries the
-   * reasoning rather than just the assertion: checkout is entirely pre-pivot
-   * until payment lands in M4. A validator demanding exactly one pivot would
+   * ⚠️ The case the first real definition had to settle, and the reason this
+   * test carries the reasoning rather than just the assertion: a checkout is
+   * entirely pre-pivot until a payment step exists. A validator demanding exactly one pivot would
    * push the order write into a role it would have to be removed from later.
    */
   it('accepts a definition with no pivot at all', () => {

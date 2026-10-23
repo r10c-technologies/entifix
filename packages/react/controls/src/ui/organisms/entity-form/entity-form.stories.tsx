@@ -195,7 +195,8 @@ export const OverflowActions: Story = {
 
 /**
  * Absent metadata is the un-migrated call site, and it renders exactly as it did
- * before ADR 0026: Save and Delete unconditional, no declared verbs. Hiding a
+ * before affordances were served: Save and Delete unconditional, no declared
+ * verbs. Hiding a
  * button protects nothing either way — the route guard is the boundary.
  */
 export const WithoutMetadata: Story = { render: () => <Demo mode="edit" /> };

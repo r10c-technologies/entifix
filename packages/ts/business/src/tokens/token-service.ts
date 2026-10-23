@@ -63,7 +63,7 @@ export interface TokenClaims {
   readonly partyId?: string;
   /**
    * The business domains the acting organization is provisioned for — the
-   * second assignment ceiling (ADR 0007), carried so a server-rendered menu can
+   * second assignment ceiling beside the role, carried so a server-rendered menu can
    * shape itself without a lookup on every render.
    *
    * Absent for a session with no organization, and that is **not** the same as

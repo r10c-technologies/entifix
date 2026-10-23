@@ -25,7 +25,7 @@ import { useTabsState } from '../workspace/tabs-state.js';
  * a plain route would navigate somewhere the person did not ask to be.
  *
  * Selecting one is a **deep link**, not a store call: `?tab=` is the tab's
- * address (ADR 0042), so the workspace focuses it on arrival and the palette
+ * address, so the workspace focuses it on arrival and the palette
  * does not have to be inside the workspace tree to reach the store's actions.
  */
 export function useTabsSource(term: string): CommandSource {

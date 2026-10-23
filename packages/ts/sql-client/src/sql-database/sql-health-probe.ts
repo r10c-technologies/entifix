@@ -20,7 +20,7 @@ export const SQL_PROBE_NAME = 'postgres';
  *
  * `stores` names the Stores this connection backs, by their register name in
  * `tools/slices/`. See {@link MongoHealthProbeLayer} for why it is the
- * composition root's to supply and why it is a list (ADR 0031).
+ * composition root's to supply and why it is a list.
  */
 export const SqlHealthProbeLayer = (
   stores: readonly string[],

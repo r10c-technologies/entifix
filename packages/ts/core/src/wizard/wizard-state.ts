@@ -9,9 +9,8 @@ import type { EntityDraft } from '../types/EntityDraft.js';
  * members, which would let a form step carry ids nothing would ever read.
  *
  * ⚠️ A selection holds `readonly string[]`, **never a `ReadonlySet`**. A `Set`
- * serializes to `{}` and does it silently, which is the fault
- * [ADR 0035](../../../../../../docs/adr/0035-entity-actions-selection-and-bulk.md)
- * named for the wire — and a wizard's state goes through `createJSONStorage` on
+ * serializes to `{}` and does it silently, which is the fault a bulk
+ * selection meets on the wire — and a wizard's state goes through `createJSONStorage` on
  * every keystroke, so it would be met far more often here than there.
  */
 export type WizardStepValue =
@@ -27,13 +26,11 @@ export type WizardStepValue =
  * **A `type`, never an `interface`.** This is persisted through
  * `createJSONStorage` and therefore has to satisfy `JsonValue`, and TypeScript
  * gives an interface no implicit index signature — the resulting "Index
- * signature for type 'string' is missing" explains nothing about the real cause
- * ([ADR 0032](../../../../../../docs/adr/0032-what-may-live-in-an-autosaved-draft.md)).
+ * signature for type 'string' is missing" explains nothing about the real cause.
  *
  * `history` is **the path actually taken**, and it is what Back pops. A branch's
  * inverse is ambiguous once an earlier answer changes, so a computed `previous`
- * would walk the operator back through a path they were never on
- * ([ADR 0045](../../../../../../docs/adr/0045-the-wizard-a-step-graph-and-a-submit-that-hands-off.md)).
+ * would walk the operator back through a path they were never on.
  *
  * `steps` is deliberately **not** pruned when a branch is abandoned. It is the
  * record of what was typed, and {@link wizardPath} decides what counts — so

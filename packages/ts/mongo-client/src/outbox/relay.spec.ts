@@ -134,7 +134,7 @@ describe('drainOutbox', () => {
   });
 
   /**
-   * The ordering guarantee that predates ADR 0030 and still holds: a broker
+   * The ordering guarantee that predates quarantine and still holds: a broker
    * outage must not let `completed` overtake its own `accepted`.
    */
   it('stops at a failure it may still retry, leaving the order intact', async () => {
@@ -160,7 +160,7 @@ describe('drainOutbox', () => {
   });
 
   /**
-   * The defect #179 exists for: before this, an entry that could never publish
+   * The defect quarantine exists for: before it, an entry that could never publish
    * held its tenant's outbox head-of-line forever, with nothing to look at.
    */
   it('quarantines an entry at the ceiling and lets the queue move past it', async () => {
@@ -187,9 +187,9 @@ describe('drainOutbox', () => {
   });
 
   /**
-   * #186 will count these. Until the meter provider exists, the log is the
-   * whole of "visible without a mongosh session" — and a quarantined entry
-   * nobody can see is indistinguishable from a dropped one.
+   * The outbox's metrics count these, and the log names each one — together
+   * they are what "visible without a mongosh session" means, and a quarantined
+   * entry nobody can see is indistinguishable from a dropped one.
    */
   it('logs the quarantine with the tenant and the reason', async () => {
     const { outbox } = recordingOutbox([anEntry('tx-1:accepted', 2)]);
@@ -201,8 +201,7 @@ describe('drainOutbox', () => {
       {
         message: 'outbox entry quarantined',
         // Structured fields, so an operator can find *which* tenant is stuck
-        // without reading a rendered string — the whole of "visible without a
-        // mongosh session" until #186 counts them.
+        // without reading a rendered string, and without a mongosh session.
         annotations: {
           database: 'tenant_acme',
           eventId: 'tx-1:accepted',

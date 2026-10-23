@@ -15,10 +15,11 @@ import { WORKSPACE_DB } from './tabs-state.js';
  * and drafts belong to the workspace and are scoped by `WorkspaceShell`; a
  * pending write is not, because a create happens at `/<basePath>/new` on the
  * plain route, outside any `WorkspaceShell` (a generated list still uses plain
- * `href`s — ADR 0042's own residual). A store mounted inside the workspace would
+ * `href`s — a known residual of the address grammar). A store mounted inside
+ * the workspace would
  * be written to by nothing, or — worse — written to *before* `persist.setOptions`
- * had scoped it, which is the unscoped cross-account restore ADR 0032 exists to
- * prevent. So `PendingTransactionsProvider` sits at the authenticated layout
+ * had scoped it, which is the unscoped cross-account restore that keying a
+ * draft per principal exists to prevent. So `PendingTransactionsProvider` sits at the authenticated layout
  * instead, above both.
  *
  * It shares the workspace's IndexedDB database because it is the same browser
@@ -36,7 +37,7 @@ export interface PendingState {
 /**
  * ⚠️ **`record` is stripped before persisting.** It is a class instance, and a
  * draft-style JSON round trip does not preserve one — it returns as something
- * else, silently (ADR 0032). So a refresh keeps the *watch* and loses the row,
+ * else, silently. So a refresh keeps the *watch* and loses the row,
  * which is the documented behaviour: past a refresh, server truth plus an honest
  * notice beats a record rebuilt from a blob.
  */

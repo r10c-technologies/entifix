@@ -9,9 +9,9 @@ import { type Permission, permissionMatches } from '../values/permission.js';
  * `string` rather than a closed `Role` union for the same reason: a host with
  * roles of its own must be able to name them.
  *
- * A host keeps the strictness it wants on its own side — r10c declares the table
- * as `Record<Role, readonly Permission[]>`, so a typo there is still a compile
- * error where it is written.
+ * A host keeps the strictness it wants on its own side — declaring the table
+ * as `Record<Role, readonly Permission[]>` over its own role ladder makes a
+ * typo there a compile error where it is written.
  */
 export type GrantTable = Readonly<Record<string, readonly Permission[]>>;
 

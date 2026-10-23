@@ -14,7 +14,7 @@ import {
  * Catalogs of this spec's own.
  *
  * ⚠️ **This package ships none.** It used to import five namespaces, two of
- * which were r10c product copy, and the whole point of the change is that it
+ * which were a host's product copy, and the whole point of the change is that it
  * now takes them as a value. So its own tests supply the smallest catalog that
  * exercises the machinery: two locales, two namespaces, one interpolation.
  */

@@ -19,7 +19,7 @@ const router = HttpRouter.addAll([
 ]);
 
 const definition = {
-  name: '@r10c/spec-service',
+  name: 'spec-service',
   port: 0,
   slices: ['test'],
   router,
@@ -33,7 +33,7 @@ describe('serveTestService', () => {
     const health = await fetch(`${service.baseUrl}/api/health`);
     expect(await health.json()).toEqual({
       status: 'ok',
-      service: '@r10c/spec-service',
+      service: 'spec-service',
     });
 
     // The domain route resolves its dependency from `appLayer`, proving the

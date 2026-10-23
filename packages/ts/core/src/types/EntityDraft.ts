@@ -11,14 +11,13 @@ import type { EntityRowDraft } from './EntityRowDraft.js';
  * A **`composition`** member's value is an `EntityRowDraft[]` — rows the master
  * owns, each a string map carrying its own `ROW_KEY`. That is the whole reason
  * this is a union and not `string`: rows have no lossless string form, and the
- * two shapes a draft can hold are exactly the two ADR 0034 named.
+ * two shapes a draft can hold are exactly the two composition metadata names.
  *
  * A **`localized`** member's value is an {@link EntityLocalizedDraft}, a text per
  * locale.
  *
  * **Exactly three shapes, and the union says so rather than `JsonValue`.** Both
- * are JSON — a workspace autosaves a draft through `createJSONStorage`
- * ([ADR 0032](../../../../../../docs/adr/0032-what-may-live-in-an-autosaved-draft.md)),
+ * are JSON — a workspace autosaves a draft through `createJSONStorage`,
  * so a class instance, an `EntityLink` or a `Date` does not degrade, it returns
  * as something else, silently — but `JsonValue` would say more than is true. A
  * member whose value is neither a string nor a row list has no editor, no

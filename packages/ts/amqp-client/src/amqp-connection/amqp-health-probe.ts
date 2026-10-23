@@ -33,7 +33,7 @@ export const AmqpHealthProbeLayer: Layer.Layer<
       kind: 'broker',
       // The exchange itself is the logical name, and it is the same for every
       // service — so unlike a store this one needs no argument from the
-      // composition root (ADR 0031).
+      // composition root.
       targets: [EVENTS_EXCHANGE],
       check: Effect.tryPromise(() =>
         connector.withChannel(channel =>

@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { createServiceProxyRoute } from './service-proxy-route.js';
+import {
+  createServiceProxyRoute,
+  UPSTREAM_UNAVAILABLE,
+} from './service-proxy-route.js';
 
 const SERVICE_URL = 'http://marketplace-service.test';
 
@@ -38,7 +41,7 @@ afterEach(() => {
 
 describe('createServiceProxyRoute', () => {
   // The whole point: reading this body to completion holds the request open
-  // forever and delivers nothing, with no error and no timeout (ADR 0036).
+  // forever and delivers nothing, with no error and no timeout.
   it('pipes an event stream through instead of buffering it', async () => {
     const frames = new ReadableStream<Uint8Array>({
       start(controller) {
@@ -287,7 +290,7 @@ describe('pathPrefix', () => {
    * `/api/events` — a path that exists nowhere — because the proxy's namespace
    * and the upstream's route name are the same word. The symptom was the one
    * this proxy exists to prevent: the SSE stream 404s, a pending write never
-   * settles, and every probe stays green (ADR 0036).
+   * settles, and every probe stays green.
    */
   it('puts the segment back in front of the forwarded path', async () => {
     const fetchMock = answering('{}', 200);
@@ -317,5 +320,33 @@ describe('pathPrefix', () => {
     );
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe(`${SERVICE_URL}/api/stock-item`);
+  });
+
+  it('answers 502 with a code when the service cannot be reached', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.reject(new TypeError('fetch failed'))),
+    );
+
+    const response = await forward(
+      new Request('http://app/api/order/product-order'),
+      params(['product-order']),
+    );
+
+    expect(response.status).toBe(502);
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    expect(await response.json()).toMatchObject({ code: UPSTREAM_UNAVAILABLE });
+  });
+
+  it('still passes an upstream 500 through as the service answered it', async () => {
+    vi.stubGlobal('fetch', answering('{"code":"boom"}', 500));
+
+    const response = await forward(
+      new Request('http://app/api/order/product-order'),
+      params(['product-order']),
+    );
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({ code: 'boom' });
   });
 });

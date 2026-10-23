@@ -13,8 +13,8 @@ import { STUB_CLAIMS, stubAccessToken } from './stub-principal.js';
  * not check a signature, so wiring this into anything reachable from a network
  * is an open door. It exists so an example can serve `$metadata` without an
  * identity provider — and it does that by replacing the *port*, not by adding
- * an unauthenticated branch to `entity-metadata-route.ts`. ADR 0026's point is
- * that the descriptor is filtered by the verified principal; a hole punched in
+ * an unauthenticated branch to `entity-metadata-route.ts`. The point of serving
+ * the descriptor is that it is filtered by the verified principal; a hole punched in
  * the route for a demo would become the adoption pattern.
  */
 export const makeFixedTokenService = (

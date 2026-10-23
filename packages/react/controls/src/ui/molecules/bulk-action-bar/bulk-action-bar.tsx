@@ -13,7 +13,7 @@ export interface BulkActionBarProps {
    * The collection-bound verbs this caller may run, already filtered against
    * the verified principal by the service. The bar renders what it is given and
    * re-checks nothing — hiding an action protects nothing, the route guard is
-   * the enforcement (ADR 0026).
+   * the enforcement.
    */
   useCases: readonly UseCaseDescriptor[];
   /**
@@ -33,7 +33,7 @@ export interface BulkActionBarProps {
    * The caller has to know whether the verb asked to be confirmed, and the bar
    * is already holding the answer. Passing the key alone forced a lookup back
    * into the same list — a branch for "not found" that cannot happen, since
-   * every key here came from this array (#216).
+   * every key here came from this array.
    */
   onUseCase: (useCase: UseCaseDescriptor) => void;
   /** Disables every verb while one is running. */
@@ -103,7 +103,7 @@ export function BulkActionBar({
           onClick={() => onUseCase(descriptor)}
         >
           {/* A descriptor's label is a *runtime* catalog key — the type system
-              cannot see a typo here, `@r10c/i18n-check` is what does. */}
+              cannot see a typo here, a host's catalog check is what does. */}
           {translateKey(descriptor.labelKey)}
         </Button>
       ))}

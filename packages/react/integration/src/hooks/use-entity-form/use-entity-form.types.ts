@@ -27,8 +27,7 @@ import type { EntityDraftMessages } from './use-entity-form.helpers.js';
  * hook — so the port stays beside the options it joins.
  *
  * Everything it carries is JSON round-trippable, because a draft is written
- * through `createJSONStorage`
- * ([ADR 0032](../../../../../../../docs/adr/0032-what-may-live-in-an-autosaved-draft.md)).
+ * through `createJSONStorage`.
  * `EntityDraft` is that guarantee's compile-time half.
  */
 export interface EntityDraftStore {
@@ -95,7 +94,7 @@ export interface UseEntityFormOptions<TEntity extends Entity> {
    *
    * The submit therefore receives a **partial** draft. Merging the steps and
    * rebuilding the entity is the host's job, exactly as it already is for one
-   * form ([ADR 0045](../../../../../../../docs/adr/0045-the-wizard-a-step-graph-and-a-submit-that-hands-off.md)).
+   * form.
    *
    * A fresh array literal per render is fine: the memo behind it keys on the
    * names rather than the array's identity.

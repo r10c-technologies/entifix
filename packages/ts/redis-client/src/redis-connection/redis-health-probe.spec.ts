@@ -70,7 +70,7 @@ describe('RedisHealthProbeLayer', () => {
 
     expect(report).toEqual({ ready: false, failing: [REDIS_PROBE_NAME] });
   });
-  // What `GET /api/$service` reports (ADR 0031) — a Store's register name, never
+  // What `GET /api/$service` reports — a Store's register name, never
   // the Redis URI.
   it('declares the stores it was given, as a datastore', async () => {
     const probes = await probesWith(

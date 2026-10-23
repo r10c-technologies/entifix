@@ -12,8 +12,7 @@ import type {
  * `COMPENSATED` and `STRANDED` are deliberately different terminal states:
  * "failed and reversed" and "failed with something still held" are the two
  * outcomes an operator has to be able to tell apart, and a single `FAILED`
- * would make the second look like the first
- * ([ADR 0039](../../../../../../docs/adr/0039-multi-step-sagas-are-orchestrated.md)).
+ * would make the second look like the first.
  */
 export const SAGA_STATES = [
   'RUNNING',
@@ -42,15 +41,14 @@ export interface SagaInstance {
    * than a report on one. Without it a resumed walk knows which step is next
    * and has nothing to dispatch it with: a fan-out step's cardinality is its
    * input's length, and a body template resolves against `inputs` before it
-   * resolves against earlier outcomes
-   * ([ADR 0055](../../../../../../docs/adr/0055-a-coordinator-resumes-from-its-own-record.md)).
+   * resolves against earlier outcomes.
    */
   readonly inputs: SagaInputs;
   /**
    * How many times a sweep has picked this instance up, which is the ceiling
    * that stops a resume loop.
    *
-   * It plays the part ADR 0030's `attempts` plays on an outbox entry, on the
+   * It plays the part `attempts` plays on an outbox entry, on the
    * record that already exists rather than on a second one beside it. Past the
    * ceiling the instance is settled `STRANDED` and logged — surfaced rather
    * than retried forever, because a coordinator spinning on a permanent failure
@@ -68,7 +66,7 @@ export interface SagaInstance {
  * A saga instance is a transaction's state with steps in it, so it belongs in
  * the store that already holds transaction state — no new store, and the
  * `transaction` slice keeps `domains: []`, because orchestration is a mechanism
- * rather than a business domain (ADR 0039).
+ * rather than a business domain.
  */
 export interface SagaStore {
   start(
@@ -77,7 +75,7 @@ export interface SagaStore {
   /**
    * Persist that a step is about to be dispatched.
    *
-   * ⚠️ **Before the dispatch, never after.** ADR 0028's rule extended from
+   * ⚠️ **Before the dispatch, never after.** The outbox's rule extended from
    * events to commands: a coordinator that marks a step in flight only after
    * calling has the dual write that record exists to close, with the same
    * consequence — a crash between the two leaves a step that either ran twice

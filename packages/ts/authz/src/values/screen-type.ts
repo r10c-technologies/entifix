@@ -1,17 +1,18 @@
 /**
- * What shape a back-office screen takes — the taxonomy of
- * [ADR 0033](../../../../../../docs/adr/0033-the-screen-taxonomy.md).
+ * What shape a back-office screen takes — the framework's back-office model,
+ * [ADR 0007](../../../../../../docs/adr/0007-the-host-supplies-the-role-ladder.md).
  *
- * | Value       | Rendered   | The record came from | Lifecycle | Verbs        |
- * | ----------- | ---------- | -------------------- | --------- | ------------ |
- * | `master`    | Definiciones | *you* authored it  | none      | CRUD         |
- * | `operation` | Operaciones  | a *process* made it| yes       | domain verbs |
- * | `wizard`    | Asistentes   | guided, multi-step | ends      | next/finish  |
- * | `report`    | Consultas    | nothing — aggregate| n/a       | read only    |
+ * | Value       | The record came from         | Lifecycle | Verbs        |
+ * | ----------- | ---------------------------- | --------- | ------------ |
+ * | `master`    | a person authored it         | none      | CRUD         |
+ * | `operation` | a process produced it        | yes       | domain verbs |
+ * | `wizard`    | a guided, multi-step entry   | ends      | next/finish  |
+ * | `report`    | nothing — it is an aggregate | n/a       | read only    |
  *
+ * The rendered names are the host's, through {@link SCREEN_TYPE_LABEL_KEYS}.
  * The order is the sidebar's top tier, which is the **type** rather than the
- * domain: four fixed entries against eleven domains, so "where do I add a
- * courier" has one answer whoever owns couriers. The daily operator's speed is
+ * domain: four fixed entries against however many domains a host has, so
+ * "where does this screen go" has one answer whoever owns it. The daily operator's speed is
  * the command palette's job, not the sidebar's.
  *
  * The identifiers are English because every other identifier here is, but two of
@@ -21,9 +22,9 @@
  * consequence is that the code word and the screen word differ for three of the
  * four, and {@link SCREEN_TYPE_LABEL_KEYS} is the one place that reconciles them.
  *
- * "Publish" is an **action on a `master` screen**, not a fifth value. Since
- * ADR 0026 gave every entity a way to declare verbs, treating a verb as grounds
- * for promotion to `operation` would promote all of them.
+ * "Publish" is an **action on a `master` screen**, not a fifth value. Every
+ * entity can declare verbs, so treating a verb as grounds for promotion to
+ * `operation` would promote all of them.
  */
 export const ScreenTypes = ['master', 'operation', 'wizard', 'report'] as const;
 export type ScreenType = (typeof ScreenTypes)[number];

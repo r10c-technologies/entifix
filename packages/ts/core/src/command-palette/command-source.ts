@@ -14,8 +14,8 @@ export type CommandUnavailableSeverity = 'scope' | 'reachability';
 /**
  * A source that produced no options, and why.
  *
- * The two severities must not be conflated, which is the same split ADR 0040's
- * `RecordSearchUnavailableReason` draws and the reason this member is not a
+ * The two severities must not be conflated, which is the same split the record
+ * search's `RecordSearchUnavailableReason` draws and the reason this member is not a
  * bare string. `scope` is the **normal** state for some callers — an operator
  * holds no membership, so every tenant-plane search answers `409` on every
  * keystroke — while `reachability` means something is actually wrong. Rendering
@@ -91,7 +91,7 @@ export interface CommandGroup {
  *
  * Several groups, not one, because the record search fans out over four entities
  * and each is its own heading — flattening them here would make the palette
- * re-derive what ADR 0040 already grouped.
+ * re-derive what the record search already grouped.
  */
 export interface CommandSource {
   readonly key: string;

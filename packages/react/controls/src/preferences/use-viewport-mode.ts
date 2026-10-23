@@ -29,7 +29,6 @@ const modeFor = (width: number): ViewportMode => {
  * with `flex-wrap`/`flex-basis`/`gap`, and `Sidebar` still does. Choosing
  * between a drawer and a persistent rail is not laying out a box — it is picking
  * a navigation *mode*, and no amount of intrinsic sizing produces a focus trap.
- * See ADR 0041.
  *
  * It lives beside the UI preferences rather than in `ui/` because it belongs to
  * the same decision: what the viewport allows and what the person chose are the

@@ -12,7 +12,7 @@ import { requireSharedToken, type SharedToken } from './auth/shared-token.js';
  * `find-my-way-ts`, where a static segment beats a parametric one but there is
  * no backtracking once a parametric branch has matched. A `/api/:something`
  * route registered anywhere in the same router would otherwise swallow this one
- * and answer its own `404` — the failure ADR 0026 hit with `$metadata`.
+ * and answer its own `404` — the failure the `$metadata` route hit first.
  */
 export const SERVICE_DESCRIPTION_PATH = '/api/$service';
 
@@ -30,13 +30,13 @@ export interface DescribedTarget {
  * Shape, not values — `/api/config` is the sibling that serves the parameters a
  * service was given, redacted. Keeping them apart is deliberate: one is redacted
  * because it holds credentials, the other gated because it holds a map, and
- * merging them forces the stricter rule onto both (ADR 0031).
+ * merging them forces the stricter rule onto both.
  */
 export interface ServiceDescription {
   readonly service: string;
   /**
    * The slices this process hosts. More than one means co-deployment
-   * (ADR 0021) — `marketplace-admin-service` runs the `transaction` slice too.
+   * — `marketplace-admin-service` runs the `transaction` slice too.
    */
   readonly slices: readonly string[];
   readonly stores: readonly DescribedTarget[];

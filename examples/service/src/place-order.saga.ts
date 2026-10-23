@@ -235,7 +235,8 @@ const orders =
           .collection(ORDER_COLLECTION)
           .insertOne({ ...serializeEntity(Order, order) }, { session });
         // Written in the order's own transaction: the event and the write it
-        // announces land together or not at all (r10c ADR 0028).
+        // announces land together or not at all — a relay that publishes from
+        // the outbox can then never announce a write that rolled back.
         await db.collection(OUTBOX_COLLECTION).insertOne(
           outboxDocument({
             name: ORDER_PLACED,

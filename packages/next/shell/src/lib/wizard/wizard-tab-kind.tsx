@@ -18,8 +18,7 @@ export interface WizardTabScreen {
  * opens it at a step.
  *
  * The third segment is a **step** here and a record under `master:`, which is
- * the one thing [ADR 0045](../../../../../../../docs/adr/0045-the-wizard-a-step-graph-and-a-submit-that-hands-off.md)
- * changed about the address grammar — `screenAddress` and `parseScreenPayload`
+ * the one thing the wizard changed about the address grammar — `screenAddress` and `parseScreenPayload`
  * already produced and accepted the shape.
  *
  * **The caption is the wizard's name and not the step's**, deliberately: a tab
