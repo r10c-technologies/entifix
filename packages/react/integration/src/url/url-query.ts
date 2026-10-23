@@ -1,10 +1,11 @@
-import type {
-  Entity,
-  EntityFilter,
-  EntityFiltering,
-  EntityLoadRequest,
-  EntitySorting,
-  FilterGroup,
+import {
+  EntifixLogicError,
+  type Entity,
+  type EntityFilter,
+  type EntityFiltering,
+  type EntityLoadRequest,
+  type EntitySorting,
+  type FilterGroup,
 } from '@entifix/core';
 
 /**
@@ -49,13 +50,35 @@ export interface SelectParam {
   readonly allowed?: readonly string[];
 }
 
+/**
+ * A parameter that picks the page of the answer: `?page=3`, `pageSize` records
+ * at a time. It holds one positive integer, and page 1 is written as no value
+ * at all, so `?page=1` and the bare URL are one address rather than two
+ * cached copies of the same answer.
+ *
+ * A page belongs to one answer. Changing a filter or the sort changes the
+ * answer, so {@link UrlQuery.withParam} and {@link UrlQuery.withoutFilters}
+ * drop it: page 4 of a narrower result is usually past its end.
+ */
+export interface PageParam {
+  readonly pageSize: number;
+}
+
 export type UrlParam<TContext> =
-  FilterParam<TContext> | SortParam | SelectParam;
+  FilterParam<TContext> | SortParam | SelectParam | PageParam;
 
 /** Whether a parameter orders the answer rather than filters it. */
 function isSortParam<TContext>(param: UrlParam<TContext>): param is SortParam {
   return 'sorting' in param;
 }
+
+/** Whether a parameter picks the page of the answer. */
+function isPageParam<TContext>(param: UrlParam<TContext>): param is PageParam {
+  return 'pageSize' in param;
+}
+
+/** A page number as a URL writes it: a positive integer, without a sign or zeros. */
+const PAGE_NUMBER = /^[1-9]\d*$/;
 
 /** Whether a parameter picks a record rather than asks the load anything. */
 function isSelectParam<TContext>(
@@ -79,13 +102,29 @@ export interface UrlQuery<TKey extends string, TContext> {
   /** Whether any parameter that filters has a value; a sort alone does not. */
   isFiltering(state: UrlState<TKey>): boolean;
   /**
-   * Whether the state asks the load anything: a filter or a sort. A
+   * Whether the state asks the load anything: a filter, a sort or a page. A
    * selection alone does not.
    */
   isAsking(state: UrlState<TKey>): boolean;
-  /** The state with every filter emptied, and its sort and selection kept. */
+  /**
+   * The state with every filter emptied, its sort and selection kept, and its
+   * page dropped.
+   */
   withoutFilters(state: UrlState<TKey>): UrlState<TKey>;
-  /** The load request the state stands for: one condition per parameter set. */
+  /**
+   * The state with one parameter set to `values`, checked the way `parse`
+   * checks them. Setting a filter or the sort also drops the page, because
+   * it changes the answer the page was a page of.
+   */
+  withParam(
+    state: UrlState<TKey>,
+    key: TKey,
+    values: readonly string[],
+  ): UrlState<TKey>;
+  /**
+   * The load request the state stands for: one condition per parameter set,
+   * the sort, and — when a page parameter is declared — `page` and `pageSize`.
+   */
   request<TEntity extends Entity>(
     state: UrlState<TKey>,
     context: TContext,
@@ -112,17 +151,45 @@ export function defineUrlQuery<TKey extends string, TContext = undefined>({
 }: UrlQueryOptions<TKey, TContext>): UrlQuery<TKey, TContext> {
   const keys = Object.keys(params) as TKey[];
   const filterKeys = keys.filter(
-    key => !isSortParam(params[key]) && !isSelectParam(params[key]),
+    key =>
+      !isSortParam(params[key]) &&
+      !isSelectParam(params[key]) &&
+      !isPageParam(params[key]),
   );
   const askingKeys = keys.filter(key => !isSelectParam(params[key]));
+  const pageKeys = keys.filter(key => isPageParam(params[key]));
+  // Two would be two answers to "which page", and the request has one.
+  if (pageKeys.length > 1) {
+    throw new EntifixLogicError(
+      `A URL query declares one page parameter at most; found ${pageKeys.join(', ')}.`,
+      undefined,
+      { pageKeys },
+    );
+  }
+  const [pageKey] = pageKeys;
+  const pageSize =
+    pageKey === undefined ? undefined : (params[pageKey] as PageParam).pageSize;
+  if (pageSize !== undefined && !(Number.isInteger(pageSize) && pageSize > 0)) {
+    throw new EntifixLogicError(
+      `The page parameter "${pageKey}" needs a positive integer pageSize; got ${pageSize}.`,
+      undefined,
+      { pageKey, pageSize },
+    );
+  }
   const stateOf = (values: (key: TKey) => readonly string[]) =>
     Object.fromEntries(
       keys.map(key => [key, values(key)]),
     ) as unknown as UrlState<TKey>;
   const empty = stateOf(() => []);
 
-  const accepted = (key: TKey, values: string[]) => {
+  const accepted = (key: TKey, values: readonly string[]) => {
     const param = params[key];
+    if (isPageParam(param)) {
+      // Page 1 is the bare URL, so it is dropped rather than kept as a second
+      // spelling of the same address.
+      const [first] = values.filter(value => PAGE_NUMBER.test(value));
+      return first === undefined || first === '1' ? [] : [first];
+    }
     const { allowed, single } = isSortParam(param)
       ? { allowed: Object.keys(param.sorting), single: true }
       : isSelectParam(param)
@@ -160,7 +227,19 @@ export function defineUrlQuery<TKey extends string, TContext = undefined>({
       return askingKeys.some(key => state[key].length > 0);
     },
     withoutFilters(state) {
-      return stateOf(key => (filterKeys.includes(key) ? [] : state[key]));
+      return stateOf(key =>
+        filterKeys.includes(key) || key === pageKey ? [] : state[key],
+      );
+    },
+    withParam(state, key, values) {
+      const resetsPage = key !== pageKey && !isSelectParam(params[key]);
+      return stateOf(other =>
+        other === key
+          ? accepted(key, values)
+          : other === pageKey && resetsPage
+            ? []
+            : state[other],
+      );
     },
     request<TEntity extends Entity>(state: UrlState<TKey>, context: TContext) {
       const filtering = filterKeys.flatMap(key => {
@@ -177,7 +256,12 @@ export function defineUrlQuery<TKey extends string, TContext = undefined>({
           : [];
       });
       const sorting = chosen[0] ?? defaultSorting;
+      const [page] = pageKey === undefined ? [] : state[pageKey];
       return {
+        ...(pageSize !== undefined && {
+          page: page === undefined ? 1 : Number(page),
+          pageSize,
+        }),
         ...(filtering.length > 0 && {
           filtering: filtering as unknown as EntityFiltering<TEntity>[],
         }),

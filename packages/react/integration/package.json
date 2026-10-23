@@ -50,6 +50,12 @@
       "import": "./dist/url.js",
       "default": "./dist/url.js"
     },
+    "./url-query": {
+      "@entifix/source": "./src/url-query.ts",
+      "types": "./dist/url-query.d.ts",
+      "import": "./dist/url-query.js",
+      "default": "./dist/url-query.js"
+    },
     "./event-source": {
       "@entifix/source": "./src/event-source.ts",
       "types": "./dist/event-source.d.ts",
