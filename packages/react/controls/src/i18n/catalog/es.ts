@@ -63,6 +63,7 @@ export const controls = {
     loading: 'Cargando…',
   },
   pagination: {
+    label: 'Páginas',
     summary: 'Página {{current}} de {{total}} · {{items}} registros',
     rows: 'Filas',
     previous: 'Anterior',
