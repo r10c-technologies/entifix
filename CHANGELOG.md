@@ -1,3 +1,23 @@
+## 0.6.0 (2026-10-23)
+
+### 🚀 Features
+
+- ⚠️ **authz:** the host supplies the role ladder ([#72](https://github.com/r10c-technologies/entifix/pull/72))
+- ⚠️ **next-shell:** stop shipping one application's back-office copy ([#71](https://github.com/r10c-technologies/entifix/pull/71))
+
+### 🩹 Fixes
+
+- **next-shell:** answer 502 when a proxied service cannot be reached ([#63](https://github.com/r10c-technologies/entifix/pull/63))
+
+### ⚠️ Breaking Changes
+
+- **authz:** the host supplies the role ladder ([#72](https://github.com/r10c-technologies/entifix/pull/72))
+- **next-shell:** stop shipping one application's back-office copy ([#71](https://github.com/r10c-technologies/entifix/pull/71))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.5.0 (2026-10-23)
 
 ### 🚀 Features
