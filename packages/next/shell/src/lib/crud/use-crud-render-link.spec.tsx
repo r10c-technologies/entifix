@@ -35,6 +35,12 @@ function Links() {
         children: 'Volver',
         intent: { kind: 'back' },
       })}
+      {renderLink({
+        href: '/es/invoices?page=2',
+        className: 'link',
+        children: '2',
+        intent: { kind: 'page', page: 2 },
+      })}
     </>
   );
 }
@@ -86,6 +92,21 @@ describe('useCrudRenderLink', () => {
 
     click('Volver');
     expect(nav.toList).toHaveBeenCalledWith('invoice');
+  });
+
+  // Another page of the list on screen is that list's own address: there is
+  // no tab to open, so the link is followed even under a tab host.
+  it('follows a page link under a tab host', () => {
+    const nav = makeNav();
+    render(
+      <EntityNavProvider value={nav}>
+        <Links />
+      </EntityNavProvider>,
+    );
+
+    expect(click('2').defaultPrevented).toBe(false);
+    expect(nav.toList).not.toHaveBeenCalled();
+    expect(nav.toEntity).not.toHaveBeenCalled();
   });
 
   // Middle-click, ⌘-click and friends ask for the route in a new browser tab.

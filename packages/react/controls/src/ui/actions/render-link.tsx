@@ -5,15 +5,17 @@ import type { ReactNode } from 'react';
  * What a navigation control means, so a host can do something other than follow
  * the `href`.
  *
- * `open` goes to a record, `new` to its create form, `back` to the list. A
- * workspace tab needs to know which, because it answers each by opening a tab —
- * and a URL alone does not say what it points at without the host parsing its
- * own routes back.
+ * `open` goes to a record, `new` to its create form, `back` to the list, and
+ * `page` to another page of the listing already on screen. A workspace tab
+ * needs to know which, because it answers each by opening a tab — and a URL
+ * alone does not say what it points at without the host parsing its own routes
+ * back.
  */
 export type NavigationIntent =
   | { readonly kind: 'open'; readonly id: EntityId }
   | { readonly kind: 'new' }
-  | { readonly kind: 'back' };
+  | { readonly kind: 'back' }
+  | { readonly kind: 'page'; readonly page: number };
 
 export interface RenderLinkProps {
   /** Always a real URL: middle-click and "open in new tab" must keep working. */

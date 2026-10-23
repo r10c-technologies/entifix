@@ -52,6 +52,7 @@ export const controls: EsControls = {
     loading: 'Loading…',
   },
   pagination: {
+    label: 'Pages',
     summary: 'Page {{current}} of {{total}} · {{items}} items',
     rows: 'Rows',
     previous: 'Previous',

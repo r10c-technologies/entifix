@@ -39,7 +39,15 @@ export function useCrudRenderLink(entityKey: string): RenderLink {
         href={href}
         className={className}
         onClick={event => {
-          if (host === undefined || !isPlainClick(event)) return;
+          // A page of the listing on screen is that listing's own address, so
+          // there is nothing for a tab host to open: the link is followed.
+          if (
+            host === undefined ||
+            !isPlainClick(event) ||
+            intent.kind === 'page'
+          ) {
+            return;
+          }
           event.preventDefault();
           if (intent.kind === 'open') {
             host.toEntity(entityKey, String(intent.id));

@@ -5,6 +5,7 @@ import { Button } from '../../atoms/button/index.js';
 import { Select } from '../../atoms/field/index.js';
 import { Text } from '../../atoms/text/index.js';
 import { cn } from '../../utils/cn.js';
+import { pageCount } from './page-math.js';
 
 export const DEFAULT_PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
 
@@ -18,7 +19,12 @@ export interface PaginationProps {
   className?: string;
 }
 
-/** Page stepper plus an optional page-size selector. */
+/**
+ * Page stepper plus an optional page-size selector, driven by callbacks.
+ *
+ * For a listing whose pages are addresses (server-rendered, crawlable, working
+ * without JavaScript) use {@link PaginationLinks} instead.
+ */
 export function Pagination({
   currentPage,
   pageSize,
@@ -29,7 +35,7 @@ export function Pagination({
   className,
 }: PaginationProps) {
   const t = useT();
-  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const totalPages = pageCount(totalItems, pageSize);
 
   return (
     <div
