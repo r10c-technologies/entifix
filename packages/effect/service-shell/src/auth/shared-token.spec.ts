@@ -3,18 +3,19 @@ import { HttpRouter, HttpServerResponse } from 'effect/http';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { serveTestService } from '../serve-test-service.js';
-import {
-  DEV_SERVICE_TOKEN,
-  requireServiceToken,
-  SERVICE_TOKEN_HEADER,
-  serviceToken,
-} from './service-token.js';
+import { requireSharedToken, type SharedToken } from './shared-token.js';
+
+const HEADER = 'x-fleet-token';
+const TOKEN = 'a-fleet-secret';
+
+let current = TOKEN;
+const shared: SharedToken = { header: HEADER, token: () => current };
 
 const router = HttpRouter.addAll([
   HttpRouter.route(
     'GET',
     '/api/config/auth-service',
-    requireServiceToken(HttpServerResponse.json({ mongo: [] })),
+    requireSharedToken(shared)(HttpServerResponse.json({ mongo: [] })),
   ),
 ]);
 
@@ -22,7 +23,7 @@ const withService = async (
   use: (baseUrl: string) => Promise<void>,
 ): Promise<void> => {
   const service = await serveTestService({
-    name: '@r10c/spec-config-service',
+    name: 'spec-config-service',
     port: 0,
     slices: ['test'],
     router,
@@ -36,26 +37,14 @@ const withService = async (
 };
 
 afterEach(() => {
-  delete process.env.CONFIG_SERVICE_TOKEN;
+  current = TOKEN;
 });
 
-describe('serviceToken', () => {
-  it('falls back to the documented dev token', () => {
-    expect(serviceToken()).toBe(DEV_SERVICE_TOKEN);
-  });
-
-  it('reads the environment on each call, not at module load', () => {
-    process.env.CONFIG_SERVICE_TOKEN = 'from-env';
-
-    expect(serviceToken()).toBe('from-env');
-  });
-});
-
-describe('requireServiceToken', () => {
+describe('requireSharedToken', () => {
   it('serves the route when the token matches', async () => {
     await withService(async baseUrl => {
       const res = await fetch(`${baseUrl}/api/config/auth-service`, {
-        headers: { [SERVICE_TOKEN_HEADER]: DEV_SERVICE_TOKEN },
+        headers: { [HEADER]: TOKEN },
       });
 
       expect(res.status).toBe(200);
@@ -79,7 +68,7 @@ describe('requireServiceToken', () => {
     await withService(async baseUrl => {
       const res = await fetch(`${baseUrl}/api/config/auth-service`, {
         headers: {
-          [SERVICE_TOKEN_HEADER]: 'x'.repeat(DEV_SERVICE_TOKEN.length),
+          [HEADER]: 'x'.repeat(TOKEN.length),
         },
       });
 
@@ -92,10 +81,22 @@ describe('requireServiceToken', () => {
     // it must answer 401 rather than 500.
     await withService(async baseUrl => {
       const res = await fetch(`${baseUrl}/api/config/auth-service`, {
-        headers: { [SERVICE_TOKEN_HEADER]: 'short' },
+        headers: { [HEADER]: 'short' },
       });
 
       expect(res.status).toBe(401);
+    });
+  });
+
+  // The token is asked for per request, so a rotation takes effect at once.
+  it('reads the expected token on each request', async () => {
+    await withService(async baseUrl => {
+      current = 'rotated-secret';
+      const res = await fetch(`${baseUrl}/api/config/auth-service`, {
+        headers: { [HEADER]: 'rotated-secret' },
+      });
+
+      expect(res.status).toBe(200);
     });
   });
 

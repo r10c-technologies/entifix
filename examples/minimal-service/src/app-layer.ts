@@ -1,5 +1,5 @@
 import { PgClient } from '@effect/sql-pg';
-import { makeObservabilityLayer } from '@entifix/service-shell';
+import { makeObservabilityLayer } from '@entifix/service-shell/observability';
 import { SqlHealthProbeLayer } from '@entifix/sql';
 import {
   AllowAllPolicyLayer,

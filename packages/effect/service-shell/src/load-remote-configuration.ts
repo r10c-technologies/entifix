@@ -5,8 +5,6 @@ import {
 } from '@entifix/core';
 import { Context, Effect, Schedule } from 'effect';
 
-import { SERVICE_TOKEN_HEADER, serviceToken } from './auth/service-token.js';
-
 /**
  * DI tag carrying the raw {@link ConfigurationPlain} a service loaded at boot,
  * so a `GET /api/config` introspection route can expose it (redacted).
@@ -67,10 +65,23 @@ export interface LoadRemoteConfigurationOptions {
 }
 
 /**
- * Fetches a service's configuration from the central config-service
- * (`GET {configApiUrl}/api/config/{service}`) and returns it as a
- * {@link ConfigurationPlain}. Backends call this at boot to resolve their own
- * parameters (e.g. `mongo.uri`) instead of hardcoding them.
+ * Where a service's configuration is fetched from, and what the request
+ * carries.
+ *
+ * Both are the host's: the path a configuration service answers on and the
+ * credential it asks for are that deployment's protocol, so the framework takes
+ * the finished URL and headers rather than composing either.
+ */
+export interface RemoteConfigurationSource {
+  /** The full URL, e.g. `http://config:3190/api/config/order-service`. */
+  readonly url: string;
+  readonly headers?: Readonly<Record<string, string>>;
+}
+
+/**
+ * Fetches a service's configuration from a configuration service and returns
+ * it as a {@link ConfigurationPlain}. Backends call this at boot to resolve
+ * their own parameters (e.g. `mongo.uri`) instead of hardcoding them.
  *
  * Uses Node's global `fetch` (same transport approach as the REST client); any
  * network/parse/non-2xx failure becomes an {@link EntifixConnError}. Each
@@ -80,11 +91,10 @@ export interface LoadRemoteConfigurationOptions {
  * one that reaches a socket nobody is answering gives up rather than hanging.
  */
 export const loadRemoteConfiguration = (
-  configApiUrl: string,
-  service: string,
+  source: RemoteConfigurationSource,
   options: LoadRemoteConfigurationOptions = {},
 ): Effect.Effect<ConfigurationPlain, EntifixConnError> => {
-  const url = `${configApiUrl.replace(/\/+$/, '')}/api/config/${service}`;
+  const { url } = source;
   const attemptTimeoutMs =
     options.attemptTimeoutMs ?? defaultConfigAttemptTimeoutMs;
 
@@ -92,31 +102,29 @@ export const loadRemoteConfiguration = (
     try: async () => {
       const response = await fetch(url, {
         cache: 'no-store',
-        headers: { [SERVICE_TOKEN_HEADER]: serviceToken() },
+        headers: source.headers,
         signal: AbortSignal.timeout(attemptTimeoutMs),
       }).catch((error: unknown) => {
         // Rewritten because the raw abort says `This operation was aborted`,
         // which reads like a bug in the caller rather than a silent peer.
         if (error instanceof Error && error.name === 'TimeoutError') {
           throw new Error(
-            `config-service did not answer within ${attemptTimeoutMs}ms at ${url}`,
+            `the configuration source did not answer within ${attemptTimeoutMs}ms at ${url}`,
           );
         }
         throw error;
       });
       if (!response.ok) {
         throw new Error(
-          `config-service responded ${response.status} for ${url}`,
+          `the configuration source responded ${response.status} for ${url}`,
         );
       }
       return (await response.json()) as ConfigurationPlain;
     },
     catch: error =>
-      new EntifixConnError(
-        `Failed to load configuration for "${service}" from config-service`,
-        error,
-        { url, service },
-      ),
+      new EntifixConnError(`Failed to load configuration from ${url}`, error, {
+        url,
+      }),
   });
 
   return Effect.retry(
@@ -131,10 +139,9 @@ export const loadRemoteConfiguration = (
  * `.in(group).getString(key)` or to hand to an adapter that is built with one.
  */
 export const loadRemoteConfigurationClient = (
-  configApiUrl: string,
-  service: string,
+  source: RemoteConfigurationSource,
   options: LoadRemoteConfigurationOptions = {},
 ): Effect.Effect<ConfigurationClientInMemory, EntifixConnError> =>
-  loadRemoteConfiguration(configApiUrl, service, options).pipe(
+  loadRemoteConfiguration(source, options).pipe(
     Effect.map(plain => new ConfigurationClientInMemory(plain)),
   );

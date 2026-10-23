@@ -27,6 +27,24 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./runtime": {
+      "@entifix/source": "./src/runtime.ts",
+      "types": "./dist/runtime.d.ts",
+      "import": "./dist/runtime.js",
+      "default": "./dist/runtime.js"
+    },
+    "./observability": {
+      "@entifix/source": "./src/observability.ts",
+      "types": "./dist/observability.d.ts",
+      "import": "./dist/observability.js",
+      "default": "./dist/observability.js"
+    },
+    "./testing": {
+      "@entifix/source": "./src/testing.ts",
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.js",
+      "default": "./dist/testing.js"
     }
   },
   "nx": {
@@ -51,26 +69,59 @@
     }
   },
   "dependencies": {
-    "@effect/opentelemetry": "4.0.5",
-    "@effect/platform-node": "4.0.5",
     "@entifix/authz": "workspace:*",
     "@entifix/business": "workspace:*",
     "@entifix/core": "workspace:*",
     "@entifix/tooling": "workspace:*",
+    "@swc/helpers": "0.5.23"
+  },
+  "devDependencies": {
+    "@effect/opentelemetry": "4.0.5",
+    "@effect/platform-node": "4.0.5",
+    "@entifix/testing-unit": "workspace:*",
+    "@opentelemetry/api": "1.9.1",
     "@opentelemetry/context-async-hooks": "2.12.0",
     "@opentelemetry/exporter-metrics-otlp-http": "0.223.0",
     "@opentelemetry/exporter-trace-otlp-http": "0.223.0",
     "@opentelemetry/sdk-metrics": "2.12.0",
     "@opentelemetry/sdk-trace-base": "2.12.0",
-    "@swc/helpers": "0.5.23"
-  },
-  "devDependencies": {
-    "@entifix/testing-unit": "workspace:*",
-    "@opentelemetry/api": "1.9.1",
     "effect": "4.0.5"
   },
   "peerDependencies": {
+    "@effect/opentelemetry": "^4.0.5",
+    "@effect/platform-node": "^4.0.5",
     "@opentelemetry/api": ">=1.9 <2",
+    "@opentelemetry/context-async-hooks": ">=2.12 <3",
+    "@opentelemetry/exporter-metrics-otlp-http": ">=0.223 <0.224",
+    "@opentelemetry/exporter-trace-otlp-http": ">=0.223 <0.224",
+    "@opentelemetry/sdk-metrics": ">=2.12 <3",
+    "@opentelemetry/sdk-trace-base": ">=2.12 <3",
     "effect": "^4.0.5"
+  },
+  "peerDependenciesMeta": {
+    "@effect/opentelemetry": {
+      "optional": true
+    },
+    "@effect/platform-node": {
+      "optional": true
+    },
+    "@opentelemetry/api": {
+      "optional": true
+    },
+    "@opentelemetry/context-async-hooks": {
+      "optional": true
+    },
+    "@opentelemetry/exporter-metrics-otlp-http": {
+      "optional": true
+    },
+    "@opentelemetry/exporter-trace-otlp-http": {
+      "optional": true
+    },
+    "@opentelemetry/sdk-metrics": {
+      "optional": true
+    },
+    "@opentelemetry/sdk-trace-base": {
+      "optional": true
+    }
   }
 }

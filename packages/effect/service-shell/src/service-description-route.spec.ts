@@ -3,16 +3,14 @@ import { Effect, Layer } from 'effect';
 import { HttpRouter, HttpServerResponse } from 'effect/http';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import {
-  DEV_SERVICE_TOKEN,
-  SERVICE_TOKEN_HEADER,
-} from './auth/service-token.js';
+import type { SharedToken } from './auth/shared-token.js';
 import type { RunningTestService } from './serve-test-service.js';
 import { serveTestService } from './serve-test-service.js';
 import type { ServiceDescription } from './service-description-route.js';
 import { SERVICE_DESCRIPTION_PATH } from './service-description-route.js';
 
-const SERVICE_NAME = '@r10c/wiring-test-service';
+const SERVICE_NAME = 'wiring-test-service';
+const GUARD: SharedToken = { header: 'x-fleet-token', token: () => 'a-secret' };
 const SLICES = ['marketplace-admin', 'transaction'];
 
 let running: RunningTestService | undefined;
@@ -64,9 +62,14 @@ const wiringLayer = Layer.effectDiscard(
  * that matched first would answer its own `404` and the endpoint would read as
  * "this service has no description" while appearing mounted (ADR 0026's lesson).
  */
-const serve = async (): Promise<string> => {
+// `null` rather than `undefined` for "no guard": passing `undefined` to a
+// defaulted parameter triggers the default, which would mount the route.
+const serve = async (
+  description: SharedToken | null = GUARD,
+): Promise<string> => {
   running = await serveTestService({
     name: SERVICE_NAME,
+    description: description ?? undefined,
     port: 0,
     slices: SLICES,
     router: HttpRouter.addAll([
@@ -85,7 +88,7 @@ const describeService = async (
   baseUrl: string,
 ): Promise<ServiceDescription> => {
   const response = await fetch(`${baseUrl}${SERVICE_DESCRIPTION_PATH}`, {
-    headers: { [SERVICE_TOKEN_HEADER]: DEV_SERVICE_TOKEN },
+    headers: { [GUARD.header]: GUARD.token() },
   });
   expect(response.status).toBe(200);
   return (await response.json()) as ServiceDescription;
@@ -97,6 +100,20 @@ afterEach(async () => {
 });
 
 describe('serviceDescriptionRoute', () => {
+  // No guard means no route, never an open one: the document is a map of the
+  // service's wiring.
+  it('is not mounted when the service names no guard', async () => {
+    const baseUrl = await serve(null);
+
+    const response = await fetch(`${baseUrl}${SERVICE_DESCRIPTION_PATH}`, {
+      headers: { [GUARD.header]: GUARD.token() },
+    });
+
+    // The parametric sibling answers instead — the description is simply
+    // not there to win.
+    expect(await response.json()).toEqual({ from: 'the parametric route' });
+  });
+
   it('answers 401 without the service token', async () => {
     const baseUrl = await serve();
 
@@ -113,7 +130,7 @@ describe('serviceDescriptionRoute', () => {
     const baseUrl = await serve();
 
     const response = await fetch(`${baseUrl}${SERVICE_DESCRIPTION_PATH}`, {
-      headers: { [SERVICE_TOKEN_HEADER]: 'not-the-token' },
+      headers: { [GUARD.header]: 'not-the-token' },
     });
 
     expect(response.status).toBe(401);

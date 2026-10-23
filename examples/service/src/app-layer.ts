@@ -11,7 +11,7 @@ import {
   OutboxMaxAttempts,
   startOutboxRelay,
 } from '@entifix/mongo/transactions';
-import { makeObservabilityLayer } from '@entifix/service-shell';
+import { makeObservabilityLayer } from '@entifix/service-shell/observability';
 import {
   AllowAllPolicyLayer,
   FixedTokenServiceLayer,
