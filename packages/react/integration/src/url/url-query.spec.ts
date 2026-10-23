@@ -199,3 +199,121 @@ describe('a selection parameter', () => {
     });
   });
 });
+
+describe('a page parameter', () => {
+  const paged = defineUrlQuery({
+    params: {
+      tag: { condition: anyOf('tags') },
+      sort: {
+        sorting: { newest: [{ 0: { property: 'writtenAt', type: 'desc' } }] },
+      },
+      note: { select: true },
+      page: { pageSize: 2 },
+    },
+  });
+
+  it('keeps one positive integer, and writes page 1 as no value', () => {
+    expect(paged.parse('?page=3&page=4').page).toEqual(['3']);
+    expect(paged.parse('?page=1').page).toEqual([]);
+    expect(paged.parse('?page=0').page).toEqual([]);
+    expect(paged.parse('?page=-2').page).toEqual([]);
+    expect(paged.parse('?page=02').page).toEqual([]);
+    expect(paged.parse('?page=two').page).toEqual([]);
+  });
+
+  it('asks for its page and the declared size', () => {
+    expect(paged.request(paged.parse('?page=3'), undefined)).toEqual({
+      page: 3,
+      pageSize: 2,
+    });
+  });
+
+  it('asks for page 1 when the URL names none', () => {
+    expect(paged.request(paged.empty, undefined)).toEqual({
+      page: 1,
+      pageSize: 2,
+    });
+  });
+
+  it('pages the answer the repository gives', async () => {
+    const first = await run(
+      makeInMemoryEntityRepository(NOTES).load<Note>(
+        paged.request<Note>(paged.parse(''), undefined),
+      ),
+    );
+    const second = await run(
+      makeInMemoryEntityRepository(NOTES).load<Note>(
+        paged.request<Note>(paged.parse('?page=2'), undefined),
+      ),
+    );
+
+    expect(first.items).toHaveLength(2);
+    expect(second.items.map(note => note.id)).not.toContain(first.items[0]?.id);
+  });
+
+  it('is asking, and is not filtering', () => {
+    const state = paged.parse('?page=2');
+    expect(paged.isAsking(state)).toBe(true);
+    expect(paged.isFiltering(state)).toBe(false);
+  });
+
+  describe('withParam', () => {
+    const onPage3 = paged.parse('?tag=web&sort=newest&note=a&page=3');
+
+    it('drops the page when a filter changes', () => {
+      expect(paged.withParam(onPage3, 'tag', ['data'])).toEqual({
+        tag: ['data'],
+        sort: ['newest'],
+        note: ['a'],
+        page: [],
+      });
+    });
+
+    it('drops the page when the sort changes', () => {
+      expect(paged.withParam(onPage3, 'sort', []).page).toEqual([]);
+    });
+
+    it('keeps the page when only the selection changes', () => {
+      expect(paged.withParam(onPage3, 'note', ['b']).page).toEqual(['3']);
+    });
+
+    it('sets the page itself, checked the way parse checks it', () => {
+      expect(paged.withParam(onPage3, 'page', ['5']).page).toEqual(['5']);
+      expect(paged.withParam(onPage3, 'page', ['1']).page).toEqual([]);
+      expect(paged.withParam(onPage3, 'page', ['x']).page).toEqual([]);
+    });
+
+    it('checks a filter value too', () => {
+      const allowed = defineUrlQuery({
+        params: { tag: { allowed: ['web'], condition: anyOf('tags') } },
+      });
+      expect(allowed.withParam(allowed.empty, 'tag', ['gone', 'web'])).toEqual({
+        tag: ['web'],
+      });
+    });
+  });
+
+  it('is dropped with the filters', () => {
+    expect(
+      paged.withoutFilters(paged.parse('?tag=web&sort=newest&page=3')),
+    ).toEqual({ tag: [], sort: ['newest'], note: [], page: [] });
+  });
+
+  it('leaves a query without one unpaged', () => {
+    expect(query.request(query.empty, 'en')).not.toHaveProperty('page');
+  });
+
+  describe('refuses a definition it cannot answer', () => {
+    it('with two page parameters', () => {
+      expect(() =>
+        defineUrlQuery({ params: { a: { pageSize: 2 }, b: { pageSize: 3 } } }),
+      ).toThrow(/one page parameter at most/);
+    });
+
+    it.each([0, -1, 2.5, Number.NaN])('with a pageSize of %s', size => {
+      expect(() =>
+        defineUrlQuery({ params: { page: { pageSize: size } } }),
+      ).toThrow(/positive integer pageSize/);
+    });
+  });
+});
