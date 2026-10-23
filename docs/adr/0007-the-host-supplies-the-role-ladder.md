@@ -1,6 +1,6 @@
 # 7. The host supplies the role ladder; the screen taxonomy is entifix's
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-23
 - Area: platform
 - Read when: adding a role, changing who may assign whom, building a second host on `@entifix/authz`, or about to add a fifth screen type — the ladder's rungs are the host's and only the rule over them is the framework's, while the four screen types are the framework's own back-office model
@@ -106,9 +106,10 @@ grammar every saved tab is written in.
 - **Breaking, in `authz`.** The release that removes the constants is a minor on
   the 0.x channel. A host replaces each import with its own ladder, defined once
   in whichever package its grant table lives in.
-- The examples define their own ladder. That is the composability proof
-  [ADR 0004](0004-the-examples-are-the-composability-proof.md) asks for: a
-  second ladder compiles and runs against the same guard.
+- `authz`'s own spec defines a ladder of its own and a second one with other
+  rungs, and the rule holds over both. That is the proof the rule is not one
+  ladder's. The examples carry no authorization at all, so a ladder there would
+  be a value nothing reads.
 - `screen-type.ts` loses its product names and keeps its reasoning, which this
   record now holds.
 
@@ -119,9 +120,10 @@ ladder is one ordering of strings, and what a rung may reach is the grant table'
 business. Nor whether a host needs several ladders: one is what every consumer
 has needed so far.
 
-## Trigger
+## Status
 
-This record is **Proposed** until the release that removes the constants. The
-pull request that adds `defineRoleLadder` flips it to Accepted. The taxonomy half
-is reopened by one thing only: a host that needs a screen type the four do not
-describe, and cannot express as an action on one of them.
+Accepted with the change that added `defineRoleLadder` and removed the
+constants, released in **0.6.0**.
+
+The taxonomy half is reopened by one thing only: a host that needs a screen type
+the four do not describe, and cannot express as an action on one of them.

@@ -121,7 +121,7 @@ tests need no build. A consumer resolves `dist`.
 - [0004](docs/adr/0004-the-examples-are-the-composability-proof.md) **The examples are the composability proof** — read when adding an example or an e2e journey, putting an entity class inside a Next application, or a `@useCase()` verb never appears on screen.
 - [0005](docs/adr/0005-content-an-entity-describes.md) **Content an entity describes** — read when declaring locales, holding text in several languages, writing a validation rule a consumer keeps repeating, publishing an entity narrower than it is stored, serving records that arrive as JSON, or about to write a second in-memory filter.
 - [0006](docs/adr/0006-the-public-contract-is-entities-use-cases-and-ports.md) **A package's public contract is entities, use cases and ports** — read when adding an export to a `.` entry, adding an option that takes an adapter's product, or a consumer cannot ban a mechanism because it shares an entry point with a contract.
-- [0007](docs/adr/0007-the-host-supplies-the-role-ladder.md) **The host supplies the role ladder; the screen taxonomy is entifix's** _(Proposed)_ — read when adding a role, changing who may assign whom, building a second host on `@entifix/authz`, or about to add a fifth screen type.
+- [0007](docs/adr/0007-the-host-supplies-the-role-ladder.md) **The host supplies the role ladder; the screen taxonomy is entifix's** — read when adding a role, changing who may assign whom, building a second host on `@entifix/authz`, or about to add a fifth screen type.
 
 **Cite this collection or nothing.** Every `ADR NNNN` in the repository names a
 record above, and nothing under `packages/`, `examples/` or `tools/` names r10c —
