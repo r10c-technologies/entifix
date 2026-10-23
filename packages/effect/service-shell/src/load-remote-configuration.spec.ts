@@ -110,7 +110,7 @@ describe('loadRemoteConfiguration', () => {
     expect(result).toEqual(plain);
   });
 
-  // #84: `fetch` has no timeout of its own, so a socket that is accepted and
+  // `fetch` has no timeout of its own, so a socket that is accepted and
   // never answered used to hang the boot forever — the retry above never saw a
   // failure to act on, and the service sat there with its port bound serving
   // nothing. The deadline is what turns that into an ordinary failure.

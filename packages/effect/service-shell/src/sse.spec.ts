@@ -95,7 +95,7 @@ describe('sseResponse', () => {
 
   // The bound every REST route gets implicitly: verification is stateless, so
   // the next call after `exp` fails. A held-open response has no next call, so
-  // it has to close itself (ADR 0036).
+  // it has to close itself.
   it('closes the connection when the token expires', async () => {
     const closing = Effect.gen(function* () {
       const reading = yield* Effect.forkChild(

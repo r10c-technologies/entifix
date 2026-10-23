@@ -281,7 +281,7 @@ export const makeFakeMongoDb = (
    * other's uncommitted insert and each create a row. The index is what makes
    * the fold singular, and a fake that accepted `createIndex` as a no-op would
    * report a service as covered while the property the index exists for went
-   * untested (ADR 0010).
+   * untested.
    */
   const uniqueIndexes = new Map<string, string[][]>();
 
@@ -737,7 +737,7 @@ export const makeFakeMongoDb = (
    * runs concurrently with the body and a "race" here resolves in the order it
    * was written: a concurrency property — two writers contending for the last
    * unit — is green under this fake no matter what the code does, and belongs
-   * in a `*.live.spec.ts` against real Mongo (ADR 0010).
+   * in a `*.live.spec.ts` against real Mongo.
    *
    * What it *does* model is the abort path, which is worth having: a body that
    * throws leaves the store exactly as it found it, so a conditional write that

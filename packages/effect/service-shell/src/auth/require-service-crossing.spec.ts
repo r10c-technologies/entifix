@@ -22,8 +22,8 @@ const EXPECTED = 'spec-crossing-token';
 /**
  * The crossings this spec's fleet is configured for.
  *
- * The four it grants and the two it withholds are the shape r10c happens to
- * have, kept because the withheld pair is what the tests below are *about* —
+ * The four it grants and the two it withholds are a real fleet's shape, kept
+ * because the withheld pair is what the tests below are *about* —
  * `stock-item:write` and `payment:delete` are refused with a valid token, which
  * is the whole point of a permission table separate from the token check.
  */
@@ -70,7 +70,7 @@ const router = HttpRouter.addAll([
   // right example rather than an invented permission: every other crossing
   // write is paired with its reversal, and this one deliberately has none — a
   // refund is a new record with its own money movement, not the absence of a
-  // capture (ADR 0054). A grant appearing here would authorize erasing the
+  // capture. A grant appearing here would authorize erasing the
   // evidence that a customer was charged.
   HttpRouter.route(
     'POST',
@@ -85,7 +85,7 @@ const withService = async (
   use: (baseUrl: string) => Promise<void>,
 ): Promise<void> => {
   const service = await serveTestService({
-    name: '@r10c/spec-crossing-service',
+    name: 'spec-crossing-service',
     port: 0,
     slices: ['test'],
     router,

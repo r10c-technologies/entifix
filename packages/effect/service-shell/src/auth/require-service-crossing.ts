@@ -12,8 +12,7 @@ import { HttpServerRequest, HttpServerResponse } from 'effect/http';
  * configuration *read*, this one a tenant-data *write* for any organization the
  * caller names. Sharing the header name is how a proxy configured to forward the
  * fleet token ends up presenting it to a route that writes stock, and how a
- * copy-pasted value looks right while being the wrong secret entirely
- * ([ADR 0023](../../../../../../docs/adr/0023-service-to-service-tenant-crossing.md)).
+ * copy-pasted value looks right while being the wrong secret entirely.
  */
 export const CROSSING_TOKEN_HEADER = 'x-crossing-token';
 
@@ -89,11 +88,10 @@ const organizationRequired = HttpServerResponse.json(
  * be a far worse breach than the problem it solved.
  *
  * There is no third path, no fallback and no operator branch. A request
- * satisfying neither guard simply never reaches a tenant handle
- * ([ADR 0023](../../../../../../docs/adr/0023-service-to-service-tenant-crossing.md);
- * ADR 0012's operator crossing is a *different* mechanism — a person choosing an
- * organization, which needs a human's permission, a time box and a `Crossing`
- * record).
+ * satisfying neither guard simply never reaches a tenant handle. An operator
+ * reaching into a tenant is a *different* mechanism — a person choosing an
+ * organization, which needs a human's permission, a time box and a record of
+ * the crossing — and does not belong in this guard.
  *
  * ⚠️ **This guard reads no cookie and no `Authorization` header, and that is
  * the design.** A route guarded here accepts the crossing token and nothing
@@ -111,7 +109,7 @@ const organizationRequired = HttpServerResponse.json(
  *    fleet membership is not a capability;
  * 3. the organization header, non-blank → `400`.
  *
- * **The recorded residual** (ADR 0023, not argued away here): a shared secret
+ * **The residual, stated rather than argued away**: a shared secret
  * means any process holding it can name any organization. What bounds it is the
  * permission above, the fact that only the slices needing it are configured with
  * the key, and the request log. What would remove it is an RS256 service token
@@ -160,7 +158,7 @@ export const requireServiceCrossing =
  * and **no session is accepted**. A saga step is not a person's act — the buyer
  * behind a checkout holds no grant over the order the coordinator is writing on
  * their behalf, and accepting their session here would make the weaker
- * credential the security level ([ADR 0052](../../../../../../docs/adr/0052-the-checkout-saga.md)).
+ * credential the security level.
  *
  * The recorded residual carries over verbatim: a shared secret means any process
  * holding it can act, bounded by the permission and by which slices are

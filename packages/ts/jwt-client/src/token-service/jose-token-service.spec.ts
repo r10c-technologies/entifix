@@ -31,8 +31,8 @@ const foreignPair = await generatePem();
 const options: JoseTokenServiceOptions = {
   ...pair,
   keyId: 'test-key',
-  issuer: 'r10c-auth',
-  audience: 'r10c-fleet',
+  issuer: 'spec-issuer',
+  audience: 'spec-audience',
 };
 
 const claims: TokenClaims = {
@@ -55,8 +55,8 @@ describe('jose token service', () => {
     expect(verified.sessionId).toBe('sess-1');
     expect(verified.roles).toEqual(['admin']);
     expect(verified.partyRole).toBe('vendor');
-    expect(verified['iss']).toBe('r10c-auth');
-    expect(verified['aud']).toBe('r10c-fleet');
+    expect(verified['iss']).toBe('spec-issuer');
+    expect(verified['aud']).toBe('spec-audience');
   });
 
   it('stamps the key id, so a verifier can tell which key signed', async () => {

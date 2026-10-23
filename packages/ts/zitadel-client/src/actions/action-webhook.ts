@@ -22,7 +22,7 @@ export const ACTION_SIGNATURE_HEADER = 'zitadel-signature';
 export const ACTION_SIGNATURE_TOLERANCE_SECONDS = 300;
 
 /**
- * The user-lifecycle events that must end an r10c session.
+ * The user-lifecycle events that must end a host's session.
  *
  * All three are `user` aggregate events, so `aggregateID` is the Zitadel user id
  * in every case — the same value that arrives as `sub` in an `id_token` and is
@@ -119,7 +119,7 @@ const signaturesMatch = (expected: Buffer, candidate: string): boolean => {
  *
  * The endpoint it guards is unauthenticated by necessity — the caller is a
  * server holding no cookie — exactly as the back-channel logout route is
- * (ADR 0017). There the token's own signature is the authentication; here it is
+ *. There the token's own signature is the authentication; here it is
  * this HMAC, computed the way Zitadel's `pkg/actions/signing.go` computes it:
  * `HMAC-SHA256(signingKey, "<unix timestamp>.<raw body>")`, hex.
  *
