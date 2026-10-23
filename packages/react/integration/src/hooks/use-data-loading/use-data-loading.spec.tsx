@@ -1,18 +1,11 @@
-import {
-  ConfigurationRepositoryTag,
-  EntityRepositoryTag,
-  loadUCFactory,
-} from '@entifix/business';
+import { EntityRepositoryTag, loadUCFactory } from '@entifix/business';
 import {
   EntifixConnError,
   type Entity,
   type EntityLoadRequest,
   type FilterGroup,
 } from '@entifix/core';
-import {
-  makeInMemoryEntityRepository,
-  makeStubConfigurationClient,
-} from '@entifix/testing-unit';
+import { makeInMemoryEntityRepository } from '@entifix/testing-unit';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { Context } from 'effect';
 import type { ReactNode } from 'react';
@@ -38,16 +31,13 @@ const widgets = (count: number): Widget[] =>
 
 let repository: ReturnType<typeof makeInMemoryEntityRepository>;
 
-const makeContext = () =>
-  Context.make(EntityRepositoryTag, repository).pipe(
-    Context.add(ConfigurationRepositoryTag, makeStubConfigurationClient()),
-  );
+const makeContext = () => Context.make(EntityRepositoryTag, repository).pipe();
 
 /** The whole stack a page runs: the real UC over the in-memory repository. */
 const renderLoading = (initialPageSize?: number) =>
   renderHook(
     () =>
-      useDataLoading<Widget, ConfigurationRepositoryTag | EntityRepositoryTag>({
+      useDataLoading<Widget, EntityRepositoryTag>({
         uc: loadUCFactory<Widget>(),
         ctx: makeContext(),
         ...(initialPageSize === undefined ? {} : { initialPageSize }),
@@ -230,10 +220,7 @@ describe('useDataLoading filtering and sorting', () => {
   it('ANDs a base restriction into every request without showing it', async () => {
     const { result } = renderHook(
       () =>
-        useDataLoading<
-          Widget,
-          ConfigurationRepositoryTag | EntityRepositoryTag
-        >({
+        useDataLoading<Widget, EntityRepositoryTag>({
           uc: loadUCFactory<Widget>(),
           ctx: makeContext(),
           baseFiltering: filterByName('Widget 7'),
@@ -256,10 +243,11 @@ describe('useDataLoading filtering and sorting', () => {
   it('holds the request back while disabled', async () => {
     const { result, rerender } = renderHook(
       ({ enabled }: { enabled: boolean }) =>
-        useDataLoading<
-          Widget,
-          ConfigurationRepositoryTag | EntityRepositoryTag
-        >({ uc: loadUCFactory<Widget>(), ctx: makeContext(), enabled }),
+        useDataLoading<Widget, EntityRepositoryTag>({
+          uc: loadUCFactory<Widget>(),
+          ctx: makeContext(),
+          enabled,
+        }),
       { wrapper, initialProps: { enabled: false } },
     );
 

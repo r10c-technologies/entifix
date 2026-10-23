@@ -1,6 +1,5 @@
 import {
   accessor,
-  ConfigurationClientInMemory,
   EntifixConnError,
   EntifixLogicError,
   type Entity,
@@ -10,7 +9,6 @@ import {
 import { Cause, Context, Effect, Exit, Option } from 'effect';
 import { describe, expect, it } from 'vitest';
 
-import { ConfigurationRepositoryTag } from './config.repository.js';
 import { EntityRepositoryTag } from './entity.repository.js';
 import {
   createEntityLinkResolver,
@@ -60,11 +58,6 @@ const makeBrand = (id: string, name: string) => {
   return brand;
 };
 
-const configuration = Context.make(
-  ConfigurationRepositoryTag,
-  new ConfigurationClientInMemory({}),
-);
-
 /**
  * A hand-rolled double rather than `makeInMemoryEntityRepository` from
  * `@entifix/testing-unit`: that package depends on **this** one for its
@@ -102,12 +95,11 @@ const resolve = (
   );
 
 describe('createEntityLinkResolver', () => {
-  // Each registration's `get` is closed over the configuration context here, so
-  // the resolver's effects have no outstanding requirements — which is what
-  // lets a core `EntityLink` run them without knowing about Effect tags.
-  it('discharges the configuration requirement so the resolver needs nothing', async () => {
+  // A repository requires nothing, so neither do the resolver's effects — which
+  // is what lets a core `EntityLink` run them without knowing about Effect tags.
+  it('resolves a registered target with nothing left to provide', async () => {
     const exit = await resolve(
-      createEntityLinkResolver(configuration, registrations()),
+      createEntityLinkResolver(registrations()),
       Brand,
       'b-1',
     );
@@ -117,14 +109,14 @@ describe('createEntityLinkResolver', () => {
   });
 
   it('routes each target to its own repository', async () => {
-    const context = createEntityLinkResolver(configuration, registrations());
+    const context = createEntityLinkResolver(registrations());
 
     expect(Exit.isFailure(await resolve(context, Category, 'b-1'))).toBe(true);
   });
 
   it('rejects an unregistered target as a logic error', async () => {
     const exit = await resolve(
-      createEntityLinkResolver(configuration, [
+      createEntityLinkResolver([
         [Brand, repositoryFor([makeBrand('b-1', 'Acme')])],
       ]),
       Category,
@@ -141,7 +133,7 @@ describe('createEntityLinkResolver', () => {
 
   it('propagates a not-found from the underlying repository', async () => {
     const exit = await resolve(
-      createEntityLinkResolver(configuration, registrations()),
+      createEntityLinkResolver(registrations()),
       Brand,
       'missing',
     );
@@ -150,11 +142,7 @@ describe('createEntityLinkResolver', () => {
   });
 
   it('registers nothing when handed an empty list', async () => {
-    const exit = await resolve(
-      createEntityLinkResolver(configuration, []),
-      Brand,
-      'b-1',
-    );
+    const exit = await resolve(createEntityLinkResolver([]), Brand, 'b-1');
 
     expect(Exit.isFailure(exit)).toBe(true);
   });

@@ -7,7 +7,6 @@ import {
 } from '@entifix/core';
 import { Context, Effect } from 'effect';
 
-import { ConfigurationRepositoryTag } from './config.repository.js';
 import { EntityRepositoryTag } from './entity.repository.js';
 
 /**
@@ -30,9 +29,8 @@ export type EntityLinkRegistration = readonly [
 
 /**
  * Assembles an {@link EntityLinkResolverTag} context from repository adapters
- * that already exist. Each registration's `get` is closed over the
- * configuration context, so the resulting resolver effects have no outstanding
- * requirements.
+ * that already exist. A repository requires nothing from its environment, so
+ * neither does the resolver built from them.
  *
  * It lives here, beside the tag, rather than with React's `useEntityLinkResolver`
  * — which is only a `useMemo` around it — because nothing about it is React.
@@ -41,7 +39,6 @@ export type EntityLinkRegistration = readonly [
  * a server module. Framework-free code belongs at a framework-free layer.
  */
 export function createEntityLinkResolver(
-  configurationStore: Context.Context<ConfigurationRepositoryTag>,
   registrations: ReadonlyArray<EntityLinkRegistration>,
 ): Context.Context<EntityLinkResolverTag> {
   const repositoryByConstructor = new Map(
@@ -68,10 +65,7 @@ export function createEntityLinkResolver(
           ),
         );
       }
-      return Effect.provide(
-        repository.get(id),
-        configurationStore,
-      ) as Effect.Effect<never, EntifixError>;
+      return repository.get(id) as Effect.Effect<never, EntifixError>;
     },
   };
 

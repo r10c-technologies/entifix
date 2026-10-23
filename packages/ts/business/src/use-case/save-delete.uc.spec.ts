@@ -1,7 +1,6 @@
-import type { ConfigurationClient, Entity, EntityId } from '@entifix/core';
+import type { Entity, EntityId } from '@entifix/core';
 import { Context, Effect } from 'effect';
 
-import { ConfigurationRepositoryTag } from '../repository/config.repository.js';
 import type { EntityRepository } from '../repository/entity.repository.js';
 import { EntityRepositoryTag } from '../repository/entity.repository.js';
 import {
@@ -39,16 +38,8 @@ function makeRepositoryDouble(saveResult?: Widget) {
   return { repository, calls };
 }
 
-/**
- * The repository contract types every method's requirement channel as
- * `ConfigurationRepositoryTag` (real adapters read their base URL from it), so
- * the use-cases inherit that requirement and it has to be discharged here too.
- * The doubles never touch it.
- */
 const testContext = (repository: EntityRepository) =>
-  Context.make(EntityRepositoryTag, repository).pipe(
-    Context.add(ConfigurationRepositoryTag, {} as ConfigurationClient),
-  );
+  Context.make(EntityRepositoryTag, repository);
 
 describe('saveUCFactory', () => {
   it('passes the entity from EntityTag to the repository', () => {

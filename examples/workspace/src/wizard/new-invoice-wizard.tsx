@@ -1,6 +1,6 @@
 'use client';
 
-import { loadUCFactory } from '@entifix/business';
+import { type EntityRepositoryTag, loadUCFactory } from '@entifix/business';
 import {
   assertWizardDefinition,
   emptyWizardState,
@@ -33,7 +33,7 @@ import {
   Wizard,
 } from '@entifix/react-controls';
 import { useDataLoading } from '@entifix/react-integration';
-import { Context, Effect } from 'effect';
+import { Effect } from 'effect';
 import { useCallback, useState } from 'react';
 
 import { repositories, useExampleAdapters } from '../adapters';
@@ -137,9 +137,9 @@ export function NewInvoiceWizard({ step, onCreated }: NewInvoiceWizardProps) {
   );
   useFollowWizardStepUrl({ activeStep, entryStep: ENTRY_STEP, goTo });
 
-  const customers = useDataLoading<Customer, unknown>({
+  const customers = useDataLoading<Customer, EntityRepositoryTag>({
     uc: loadUCFactory<Customer>(),
-    ctx: Context.merge(adapters.customers, adapters.configuration) as never,
+    ctx: adapters.customers,
     initialPageSize: 50,
     queryKey: ['customer', 'new-invoice-wizard'],
   });
@@ -212,9 +212,7 @@ export function NewInvoiceWizard({ step, onCreated }: NewInvoiceWizardProps) {
       }),
     );
     const saved = await Effect.runPromise(
-      repositories.invoices
-        .save(invoice as Entity)
-        .pipe(Effect.provide(adapters.configuration)) as Effect.Effect<Entity>,
+      repositories.invoices.save(invoice as Entity),
     );
     setSaving(false);
     draft.clear();

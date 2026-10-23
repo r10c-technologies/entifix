@@ -42,8 +42,7 @@ function toEntityId(entityOrId: EntityId | Entity): EntityId {
  * Builds an {@link EntityRepository} for a single entity type, backed by an
  * `@effect/sql` client. The `sql` client and `entityConstructor` are captured in
  * closures, so every method's Effect has no outstanding requirements
- * (`R = never`) and is assignable to the interface's `ConfigurationRepositoryTag`
- * channel.
+ * (`R = never`), which is exactly what the interface asks.
  *
  * This is the relational mirror of `makeMongoRepository`, and it is short for the
  * same reason: the entifix serializer is store-agnostic. `serializeEntity` emits
@@ -210,9 +209,8 @@ export function makeSqlRepository<TEntity extends Entity>(
       );
     });
 
-  // The interface types each method's requirement channel as
-  // `ConfigurationRepositoryTag`; these effects require nothing (`never`), which
-  // is assignable. Cast through the interface to keep the generic signatures.
+  // Cast through the interface to keep its generic signatures: each method here
+  // is written against this entity's type, the interface against any entity's.
   return {
     load,
     get,

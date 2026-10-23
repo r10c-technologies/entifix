@@ -1,4 +1,3 @@
-import { ConfigurationRepositoryTag } from '@entifix/business';
 import type { EntifixError } from '@entifix/core';
 import {
   readTransactionRecordEnvelope,
@@ -37,34 +36,33 @@ const TRANSACTION_PATH = 'transaction';
  * read as "no such transaction".
  */
 export const buildTransactionStatusReader = (
-  options: BuildEntityRestOptions,
-): Effect.Effect<TransactionStatusReader, never, ConfigurationRepositoryTag> =>
-  Effect.gen(function* () {
-    const configurationStore = yield* ConfigurationRepositoryTag;
+  options: Pick<BuildEntityRestOptions, 'uriConfig' | 'configuration'>,
+): TransactionStatusReader => {
+  const { configuration } = options;
 
-    return {
-      read: (
-        transactionId: string,
-      ): Effect.Effect<TransactionRecord | undefined, EntifixError> =>
-        Effect.gen(function* () {
-          const url = yield* adapterMixins.buildEntityBaseUrl(
-            configurationStore,
-            options,
-            TRANSACTION_PATH,
-            transactionId,
-          );
+  return {
+    read: (
+      transactionId: string,
+    ): Effect.Effect<TransactionRecord | undefined, EntifixError> =>
+      Effect.gen(function* () {
+        const url = yield* adapterMixins.buildEntityBaseUrl(
+          configuration,
+          options,
+          TRANSACTION_PATH,
+          transactionId,
+        );
 
-          const response = yield* performHttpRequestThroughFetch(
-            adapterMixins.buildEntityRequest({ method: 'GET', url }),
-          );
+        const response = yield* performHttpRequestThroughFetch(
+          adapterMixins.buildEntityRequest({ method: 'GET', url }),
+        );
 
-          return yield* readTransactionRecordEnvelope(response.body);
-        }).pipe(
-          Effect.catch(error =>
-            error.details?.['status'] === 404
-              ? Effect.succeed(undefined)
-              : Effect.fail(error),
-          ),
+        return yield* readTransactionRecordEnvelope(response.body);
+      }).pipe(
+        Effect.catch(error =>
+          error.details?.['status'] === 404
+            ? Effect.succeed(undefined)
+            : Effect.fail(error),
         ),
-    };
-  });
+      ),
+  };
+};

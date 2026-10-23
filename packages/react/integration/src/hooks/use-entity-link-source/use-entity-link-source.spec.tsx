@@ -1,5 +1,4 @@
 import {
-  ConfigurationRepositoryTag,
   EntityRepositoryTag,
   getUCFactory,
   loadUCFactory,
@@ -15,10 +14,7 @@ import {
   type EntityId,
   EntityLink,
 } from '@entifix/core';
-import {
-  makeInMemoryEntityRepository,
-  makeStubConfigurationClient,
-} from '@entifix/testing-unit';
+import { makeInMemoryEntityRepository } from '@entifix/testing-unit';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { Context } from 'effect';
 import type { ReactNode } from 'react';
@@ -110,14 +106,11 @@ const wrapper = ({ children }: { children: ReactNode }) => (
   <EntifixQueryProvider>{children}</EntifixQueryProvider>
 );
 
-type Ctx = ConfigurationRepositoryTag | EntityRepositoryTag;
+type Ctx = EntityRepositoryTag;
 
 let repository: ReturnType<typeof makeInMemoryEntityRepository>;
 
-const makeContext = () =>
-  Context.make(EntityRepositoryTag, repository).pipe(
-    Context.add(ConfigurationRepositoryTag, makeStubConfigurationClient()),
-  );
+const makeContext = () => Context.make(EntityRepositoryTag, repository).pipe();
 
 /** The real use-cases over the in-memory repository — no adapter mocked out. */
 const renderSource = (

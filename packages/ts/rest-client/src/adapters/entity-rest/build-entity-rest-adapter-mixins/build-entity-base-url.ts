@@ -7,7 +7,7 @@ const DEFAULT_URI_GROUP = 'restUri';
 
 export const buildEntityBaseUrl = (
   configurationStore: ConfigurationClient,
-  options: BuildEntityRestOptions,
+  options: Pick<BuildEntityRestOptions, 'uriConfig'>,
   entityName: string,
   entityId?: string,
 ) =>

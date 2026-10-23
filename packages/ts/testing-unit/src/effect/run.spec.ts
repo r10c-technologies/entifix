@@ -3,22 +3,12 @@ import { EntifixConnError } from '@entifix/core';
 import { Effect, Exit, Layer } from 'effect';
 import { describe, expect, it } from 'vitest';
 
-import {
-  stubConfigurationLayer,
-  stubUriConfigurationLayer,
-} from '../doubles/configuration.js';
-import {
-  expectFailure,
-  run,
-  runFailure,
-  runRepository,
-  runRepositoryExit,
-  runUC,
-} from './run.js';
+import { stubUriConfigurationLayer } from '../doubles/configuration.js';
+import { expectFailure, run, runExit, runFailure, runUC } from './run.js';
 
 const failure = new EntifixConnError('unreachable');
 
-/** An Effect that needs the configuration tag, as every repository method does. */
+/** An Effect that needs something from its environment, for `runUC` to provide. */
 const needsConfiguration = Effect.gen(function* () {
   const store = yield* ConfigurationRepositoryTag;
   return yield* store.in('uri').getString('service');
@@ -71,50 +61,17 @@ describe('expectFailure', () => {
   });
 });
 
-describe('runRepository', () => {
-  it('discharges the configuration requirement with a stub by default', async () => {
-    expect(
-      await runRepository(
-        Effect.succeed('value') as Effect.Effect<
-          string,
-          never,
-          ConfigurationRepositoryTag
-        >,
-      ),
-    ).toBe('value');
-  });
-
-  it('accepts an explicit configuration', async () => {
-    expect(
-      await runRepository(
-        needsConfiguration,
-        stubUriConfigurationLayer(
-          { service: 'http://svc' },
-          { keyTemplate: '[entity]', group: 'uri' },
-        ),
-      ),
-    ).toBe('http://svc');
-  });
-
-  it('surfaces a failure through the stub configuration', async () => {
-    const exit = await runRepositoryExit(
-      Effect.fail(failure) as Effect.Effect<
-        never,
-        EntifixConnError,
-        ConfigurationRepositoryTag
-      >,
-    );
+describe('runExit', () => {
+  it('keeps a failure as an exit rather than rejecting', async () => {
+    const exit = await runExit(Effect.fail(failure));
 
     expect(Exit.isFailure(exit)).toBe(true);
   });
 
-  it('accepts an explicit configuration for the exit variant', async () => {
-    const exit = await runRepositoryExit(
-      needsConfiguration,
-      stubConfigurationLayer(),
-    );
+  it('keeps a success as an exit too', async () => {
+    const exit = await runExit(Effect.succeed(7));
 
-    expect(Exit.isFailure(exit)).toBe(true);
+    expect(Exit.isSuccess(exit) && exit.value).toBe(7);
   });
 });
 

@@ -906,9 +906,6 @@ importers:
 
   packages/ts/rest-client:
     dependencies:
-      '@entifix/business':
-        specifier: workspace:*
-        version: link:../business
       '@entifix/core':
         specifier: workspace:*
         version: link:../core

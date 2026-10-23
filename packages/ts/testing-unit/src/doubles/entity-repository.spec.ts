@@ -11,7 +11,7 @@ import {
   describeEntityRepositoryContract,
   makeContractWidget,
 } from '../contracts/entity-repository.contract.js';
-import { runRepository, runRepositoryExit } from '../effect/run.js';
+import { run, runExit } from '../effect/run.js';
 import { makeInMemoryEntityRepository } from './entity-repository.js';
 
 describeEntityRepositoryContract('in-memory fake', {
@@ -45,15 +45,11 @@ describe('makeInMemoryEntityRepository', () => {
     }
     const repository = makeInMemoryEntityRepository([new Plain() as never]);
 
-    const read = await runRepository(
-      repository.get<Plain & { id: string }>('p-1'),
-    );
+    const read = await run(repository.get<Plain & { id: string }>('p-1'));
     read.label = 'mutated';
 
     expect(read).toBeInstanceOf(Plain);
-    const again = await runRepository(
-      repository.get<Plain & { id: string }>('p-1'),
-    );
+    const again = await run(repository.get<Plain & { id: string }>('p-1'));
     expect(again.label).toBe('original');
   });
 
@@ -62,7 +58,7 @@ describe('makeInMemoryEntityRepository', () => {
     const failure = new EntifixConnError('backend down');
     repository.failNext(failure);
 
-    const exit = await runRepositoryExit(repository.load<ContractWidget>({}));
+    const exit = await runExit(repository.load<ContractWidget>({}));
 
     expect(Exit.isFailure(exit)).toBe(true);
   });
@@ -71,8 +67,8 @@ describe('makeInMemoryEntityRepository', () => {
     const repository = makeInMemoryEntityRepository(seeded());
     repository.failNext(new EntifixConnError('transient'));
 
-    await runRepositoryExit(repository.load<ContractWidget>({}));
-    const page = await runRepository(repository.load<ContractWidget>({}));
+    await runExit(repository.load<ContractWidget>({}));
+    const page = await run(repository.load<ContractWidget>({}));
 
     expect(page.total).toBe(2);
   });
@@ -83,7 +79,7 @@ describe('makeInMemoryEntityRepository', () => {
       makeContractWidget('w-2', 'Alpha', 20),
     ]);
 
-    const page = await runRepository(
+    const page = await run(
       repository.load<ContractWidget>({
         filtering: [
           { property: 'name', operator: 'eq', value: 'Alpha' },
@@ -102,7 +98,7 @@ describe('makeInMemoryEntityRepository', () => {
       makeContractWidget('w-3', 'Gamma', 30),
     ]);
 
-    const page = await runRepository(
+    const page = await run(
       repository.load<ContractWidget>({
         filtering: [
           {
@@ -125,7 +121,7 @@ describe('makeInMemoryEntityRepository', () => {
       makeContractWidget('w-2', 'Beta', undefined as unknown as number),
     ]);
 
-    const page = await runRepository(
+    const page = await run(
       repository.load<ContractWidget>({
         sorting: [{ 0: { property: 'size', type: 'asc' } }],
       }),
@@ -148,7 +144,7 @@ describe('makeInMemoryEntityRepository filtering', () => {
     ]);
 
   const matching = async (filtering: unknown) => {
-    const page = await runRepository(
+    const page = await run(
       seeded().load<ContractWidget>({
         filtering: filtering as never,
       }),
@@ -253,7 +249,7 @@ describe('makeInMemoryEntityRepository filtering', () => {
       makeContractWidget('w-2', 'axb', 20),
     ]);
 
-    const page = await runRepository(
+    const page = await run(
       repository.load<ContractWidget>({
         filtering: [
           { property: 'name', operator: 'like', value: 'a.b' },
@@ -274,7 +270,7 @@ describe('makeInMemoryEntityRepository sorting', () => {
     ]);
 
   const ordered = async (sorting: unknown) => {
-    const page = await runRepository(
+    const page = await run(
       seeded().load<ContractWidget>({ sorting: sorting as never }),
     );
     return page.items.map(item => item.id);
@@ -310,7 +306,7 @@ describe('makeInMemoryEntityRepository sorting', () => {
       makeContractWidget('w-2', 'Alpha', 10),
     ]);
 
-    const page = await runRepository(
+    const page = await run(
       repository.load<ContractWidget>({
         sorting: [
           {
@@ -335,7 +331,7 @@ describe('makeInMemoryEntityRepository value comparison', () => {
   };
 
   const ordered = async (items: ContractWidget[]) => {
-    const page = await runRepository(
+    const page = await run(
       makeInMemoryEntityRepository(items).load<ContractWidget>({
         sorting: [{ 0: { property: 'size', type: 'asc' } }] as never,
       }),
@@ -418,7 +414,7 @@ describe('makeInMemoryEntityRepository value comparison', () => {
     ]);
     const ids = async (filtering: object[]) =>
       (
-        await runRepository(
+        await run(
           repository.load<Note & { id: string }>({
             filtering: filtering as never,
           }),

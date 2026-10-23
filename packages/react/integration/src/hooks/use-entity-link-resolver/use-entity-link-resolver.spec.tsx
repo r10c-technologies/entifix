@@ -1,13 +1,6 @@
-import {
-  ConfigurationRepositoryTag,
-  EntityLinkResolverTag,
-  EntityRepositoryTag,
-} from '@entifix/business';
+import { EntityLinkResolverTag, EntityRepositoryTag } from '@entifix/business';
 import { accessor, type Entity, entity, type EntityId } from '@entifix/core';
-import {
-  makeInMemoryEntityRepository,
-  makeStubConfigurationClient,
-} from '@entifix/testing-unit';
+import { makeInMemoryEntityRepository } from '@entifix/testing-unit';
 import { renderHook } from '@testing-library/react';
 import { Context, Effect, Exit } from 'effect';
 import { describe, expect, it } from 'vitest';
@@ -59,11 +52,6 @@ const makeBrand = (id: string, name: string) => {
   return brand;
 };
 
-const configuration = Context.make(
-  ConfigurationRepositoryTag,
-  makeStubConfigurationClient(),
-);
-
 const repositoryFor = (items: Entity[]) =>
   Context.make(EntityRepositoryTag, makeInMemoryEntityRepository(items));
 
@@ -87,7 +75,7 @@ describe('useEntityLinkResolver', () => {
   // render — the memo is keyed on the registered names instead.
   it('keeps the same context across renders of the same registrations', () => {
     const { result, rerender } = renderHook(() =>
-      useEntityLinkResolver(configuration, registrations()),
+      useEntityLinkResolver(registrations()),
     );
     const first = result.current;
 
@@ -99,7 +87,7 @@ describe('useEntityLinkResolver', () => {
   it('rebuilds when the registered targets change', () => {
     const { result, rerender } = renderHook(
       ({ list }: { list: EntityLinkRegistration[] }) =>
-        useEntityLinkResolver(configuration, list),
+        useEntityLinkResolver(list),
       {
         initialProps: { list: [registrations()[0] as EntityLinkRegistration] },
       },
@@ -112,9 +100,7 @@ describe('useEntityLinkResolver', () => {
   });
 
   it('resolves through the memoized context', async () => {
-    const { result } = renderHook(() =>
-      useEntityLinkResolver(configuration, registrations()),
-    );
+    const { result } = renderHook(() => useEntityLinkResolver(registrations()));
 
     const exit = await resolve(result.current, Brand, 'b-1');
 

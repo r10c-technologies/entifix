@@ -1,4 +1,3 @@
-import { ConfigurationRepositoryTag } from '@entifix/business';
 import {
   Entity,
   EntityConstructor,
@@ -41,20 +40,19 @@ import { BuildEntityRestOptions } from '../types.js';
 export const buildEntityRestAdapterSave =
   <TEntity extends Entity>(
     entityConstructor: EntityConstructor<TEntity>,
-    { uriConfig, create = 'entity' }: BuildEntityRestOptions,
+    { uriConfig, create = 'entity', configuration }: BuildEntityRestOptions,
   ) =>
   // Deliberately not shadowing `TEntity` here (as the read builders do): the
   // envelope has to be built against the *constructor's* entity type, which a
   // shadowed parameter would make unreachable.
   <TInput extends Entity>(entity: TInput) =>
     Effect.gen(function* () {
-      const configurationStore = yield* ConfigurationRepositoryTag;
       const metaEntity = extractMetaEntity(entityConstructor);
       const key = metaEntity.key ?? metaEntity.name;
       const isCreate = entity.id == null;
 
       const url = yield* adapterMixins.buildEntityBaseUrl(
-        configurationStore,
+        configuration,
         { uriConfig },
         key,
         isCreate ? undefined : String(entity.id),

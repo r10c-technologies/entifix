@@ -1,13 +1,6 @@
-import {
-  ConfigurationRepositoryTag,
-  EntityRepositoryTag,
-  getUCFactory,
-} from '@entifix/business';
+import { EntityRepositoryTag, getUCFactory } from '@entifix/business';
 import { type Entity, type EntityId } from '@entifix/core';
-import {
-  makeInMemoryEntityRepository,
-  makeStubConfigurationClient,
-} from '@entifix/testing-unit';
+import { makeInMemoryEntityRepository } from '@entifix/testing-unit';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { Context } from 'effect';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -20,21 +13,16 @@ interface Widget extends Entity {
 
 let repository: ReturnType<typeof makeInMemoryEntityRepository>;
 
-const makeContext = () =>
-  Context.make(EntityRepositoryTag, repository).pipe(
-    Context.add(ConfigurationRepositoryTag, makeStubConfigurationClient()),
-  );
+const makeContext = () => Context.make(EntityRepositoryTag, repository).pipe();
 
 const renderRecord = (id: EntityId) =>
   renderHook(
     ({ recordId }: { recordId: EntityId }) =>
-      useEntityRecord<Widget, ConfigurationRepositoryTag | EntityRepositoryTag>(
-        {
-          uc: getUCFactory<Widget>(),
-          ctx: makeContext(),
-          id: recordId,
-        },
-      ),
+      useEntityRecord<Widget, EntityRepositoryTag>({
+        uc: getUCFactory<Widget>(),
+        ctx: makeContext(),
+        id: recordId,
+      }),
     { initialProps: { recordId: id } },
   );
 

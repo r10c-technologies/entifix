@@ -1,5 +1,4 @@
 import type {
-  ConfigurationClient,
   Entity,
   EntityConstructor,
   EntityId,
@@ -16,7 +15,6 @@ import {
 import { Context, Effect, Exit } from 'effect';
 import { describe, expect, it } from 'vitest';
 
-import { ConfigurationRepositoryTag } from '../repository/config.repository.js';
 import type { EntityRepository } from '../repository/entity.repository.js';
 import { EntityRepositoryTag } from '../repository/entity.repository.js';
 import { EntityLinkResolverTag } from '../repository/entity-link-resolver.repository.js';
@@ -69,7 +67,6 @@ const loadAll = (
     Effect.provide(
       loadAllUCFactory<Tag>(pageSize),
       Context.make(EntityRepositoryTag, repository).pipe(
-        Context.add(ConfigurationRepositoryTag, {} as ConfigurationClient),
         Context.add(EntityLoadRequestTag, request),
       ),
     ),

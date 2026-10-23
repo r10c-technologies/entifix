@@ -5,7 +5,7 @@ import {
   type EntityId,
   type EntityLoadRequest,
 } from '@entifix/core';
-import { stubUriConfigurationLayer } from '@entifix/testing-unit';
+import { makeStubUriConfigurationClient } from '@entifix/testing-unit';
 import {
   entityRestHandlers,
   http,
@@ -66,12 +66,11 @@ const BASE_URL = 'http://service/api/widget';
 
 const restOptions: BuildEntityRestOptions = {
   uriConfig: { key: 'service-domain.[entity]', group: 'uri' },
+  configuration: makeStubUriConfigurationClient(
+    { widget: BASE_URL, Unkeyed: 'http://service/api/Unkeyed' },
+    { keyTemplate: 'service-domain.[entity]', group: 'uri' },
+  ),
 };
-
-const configuration = stubUriConfigurationLayer(
-  { widget: BASE_URL, Unkeyed: 'http://service/api/Unkeyed' },
-  { keyTemplate: 'service-domain.[entity]', group: 'uri' },
-);
 
 const makeWidget = (id: EntityId, name: string): Widget => {
   const widget = new Widget();
@@ -107,27 +106,14 @@ const recordRequests = () => {
 // adapter re-declares its entity generic, so its parameter resolves to the base
 // `Entity` and would not accept a filter naming a Widget member.
 const runLoad = (request: EntityLoadRequest<Widget>) =>
-  Effect.runPromise(
-    buildEntityRestAdapterLoad(
-      Widget,
-      restOptions,
-    )(request).pipe(Effect.provide(configuration)),
-  );
+  Effect.runPromise(buildEntityRestAdapterLoad(Widget, restOptions)(request));
 
 const runGet = (id: string): Promise<Widget> =>
-  Effect.runPromise(
-    buildEntityRestAdapterGet(
-      Widget,
-      restOptions,
-    )<Widget>(id).pipe(Effect.provide(configuration)),
-  );
+  Effect.runPromise(buildEntityRestAdapterGet(Widget, restOptions)<Widget>(id));
 
 const runDelete = (entityOrId: EntityId | Widget) =>
   Effect.runPromise(
-    buildEntityRestAdapterDelete(
-      Widget,
-      restOptions,
-    )(entityOrId).pipe(Effect.provide(configuration)),
+    buildEntityRestAdapterDelete(Widget, restOptions)(entityOrId),
   );
 
 describe('buildEntityRestAdapterLoad', () => {
@@ -146,10 +132,7 @@ describe('buildEntityRestAdapterLoad', () => {
     );
 
     await Effect.runPromise(
-      buildEntityRestAdapterLoad(
-        Unkeyed,
-        restOptions,
-      )({}).pipe(Effect.provide(configuration)),
+      buildEntityRestAdapterLoad(Unkeyed, restOptions)({}),
     );
 
     expect(requests).toContainEqual({
@@ -276,7 +259,7 @@ describe('buildEntityRestAdapterLoad', () => {
       buildEntityRestAdapterLoad(
         Widget,
         restOptions,
-      )(request).pipe(Effect.provide(configuration), Effect.flip),
+      )(request).pipe(Effect.flip),
     );
 
   it('carries a failure code from the response body onto the error', async () => {
@@ -425,10 +408,7 @@ describe('the entity key fallback', () => {
     );
 
     await Effect.runPromise(
-      buildEntityRestAdapterGet(
-        Unkeyed,
-        restOptions,
-      )('u-1').pipe(Effect.provide(configuration)),
+      buildEntityRestAdapterGet(Unkeyed, restOptions)('u-1'),
     );
 
     expect(requests).toContainEqual({
@@ -441,10 +421,7 @@ describe('the entity key fallback', () => {
     const requests = recordRequests();
 
     await Effect.runPromise(
-      buildEntityRestAdapterDelete(
-        Unkeyed,
-        restOptions,
-      )('u-1').pipe(Effect.provide(configuration)),
+      buildEntityRestAdapterDelete(Unkeyed, restOptions)('u-1'),
     );
 
     expect(requests).toContainEqual({
@@ -458,10 +435,7 @@ describe('the entity key fallback', () => {
     const unkeyed = new Unkeyed();
 
     await Effect.runPromise(
-      buildEntityRestAdapterSave(
-        Unkeyed,
-        restOptions,
-      )(unkeyed).pipe(Effect.provide(configuration)),
+      buildEntityRestAdapterSave(Unkeyed, restOptions)(unkeyed),
     );
 
     expect(requests).toContainEqual({ method: 'POST', url: UNKEYED_URL });
@@ -473,32 +447,29 @@ describe('the URI configuration group', () => {
   // an adapter configured without one must still find its base URL.
   it('defaults to restUri when none is declared', async () => {
     const requests = recordRequests();
-    const defaultGroupConfiguration = stubUriConfigurationLayer(
-      { widget: BASE_URL },
-      { keyTemplate: 'service-domain.[entity]' },
-    );
-
     await Effect.runPromise(
       buildEntityRestAdapterLoad(Widget, {
         uriConfig: { key: 'service-domain.[entity]' },
-      })({}).pipe(Effect.provide(defaultGroupConfiguration)),
+        configuration: makeStubUriConfigurationClient(
+          { widget: BASE_URL },
+          { keyTemplate: 'service-domain.[entity]' },
+        ),
+      })({}),
     );
 
     expect(requests).toContainEqual({ method: 'GET', url: BASE_URL });
   });
 
   it('fails when the configured key is absent', async () => {
-    const emptyConfiguration = stubUriConfigurationLayer(
-      {},
-      { keyTemplate: 'service-domain.[entity]', group: 'uri' },
-    );
-
     await expect(
       Effect.runPromise(
-        buildEntityRestAdapterLoad(
-          Widget,
-          restOptions,
-        )({}).pipe(Effect.provide(emptyConfiguration)),
+        buildEntityRestAdapterLoad(Widget, {
+          ...restOptions,
+          configuration: makeStubUriConfigurationClient(
+            {},
+            { keyTemplate: 'service-domain.[entity]', group: 'uri' },
+          ),
+        })({}),
       ),
     ).rejects.toThrow(/not found/);
   });

@@ -1,5 +1,5 @@
 import { accessor, type Entity, entity, type EntityId } from '@entifix/core';
-import { stubUriConfigurationLayer } from '@entifix/testing-unit';
+import { makeStubUriConfigurationClient } from '@entifix/testing-unit';
 import {
   entityRestHandlers,
   http,
@@ -42,12 +42,11 @@ const BASE_URL = 'http://service/api/widget';
 
 const restOptions: BuildEntityRestOptions = {
   uriConfig: { key: 'service-domain.[entity]', group: 'uri' },
+  configuration: makeStubUriConfigurationClient(
+    { widget: BASE_URL },
+    { keyTemplate: 'service-domain.[entity]', group: 'uri' },
+  ),
 };
-
-const configuration = stubUriConfigurationLayer(
-  { widget: BASE_URL },
-  { keyTemplate: 'service-domain.[entity]', group: 'uri' },
-);
 
 // Every request goes through MSW, so what is asserted is the wire: the method,
 // the URL, and the envelope — not that some function was handed an object.
@@ -71,12 +70,7 @@ const recordRequests = () => {
 };
 
 const runSave = (widget: Widget) =>
-  Effect.runPromise(
-    buildEntityRestAdapterSave(
-      Widget,
-      restOptions,
-    )(widget).pipe(Effect.provide(configuration)),
-  );
+  Effect.runPromise(buildEntityRestAdapterSave(Widget, restOptions)(widget));
 
 /** The same adapter, opted into the transactional (CQRS) create path. */
 const commandOptions: BuildEntityRestOptions = {
@@ -85,12 +79,7 @@ const commandOptions: BuildEntityRestOptions = {
 };
 
 const runCommandSave = (widget: Widget) =>
-  Effect.runPromise(
-    buildEntityRestAdapterSave(
-      Widget,
-      commandOptions,
-    )(widget).pipe(Effect.provide(configuration)),
-  );
+  Effect.runPromise(buildEntityRestAdapterSave(Widget, commandOptions)(widget));
 
 /**
  * The same again, with something watching for pending writes.
@@ -110,7 +99,7 @@ const runCommandSaveWatchedBy =
             began: pending => {
               sink.push(pending);
             },
-          }).pipe(Layer.merge(configuration)),
+          }),
         ),
       ),
     );
@@ -381,7 +370,7 @@ describe('buildEntityRestAdapterSave, transactional create', () => {
             began: pending => {
               announced.push(pending);
             },
-          }).pipe(Layer.merge(configuration)),
+          }),
         ),
       ),
     );

@@ -42,10 +42,6 @@ export const makeStubUriConfigurationClient = (
     })),
   });
 
-/** Provides {@link ConfigurationRepositoryTag} from a plain configuration. */
-export const stubConfigurationLayer = (plain: ConfigurationPlain = {}) =>
-  Layer.succeed(ConfigurationRepositoryTag, makeStubConfigurationClient(plain));
-
 /** Provides {@link ConfigurationRepositoryTag} from an entity-to-URI mapping. */
 export const stubUriConfigurationLayer = (
   entities: Record<string, string>,

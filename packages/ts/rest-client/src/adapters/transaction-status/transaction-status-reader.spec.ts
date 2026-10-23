@@ -1,4 +1,4 @@
-import { stubUriConfigurationLayer } from '@entifix/testing-unit';
+import { makeStubUriConfigurationClient } from '@entifix/testing-unit';
 import {
   http,
   HttpResponse,
@@ -13,16 +13,15 @@ import { buildTransactionStatusReader } from './build-transaction-status-reader/
 const BASE_URL = 'http://service/api/transaction';
 const TX = '3f2504e0-4f89-41d3-9a0c-0305e82c3301';
 
-const options: BuildEntityRestOptions = {
-  uriConfig: { key: 'service-domain.[entity]', group: 'uri' },
-};
-
 // The tracker is reached through the same config-driven URL composition every
 // entity uses; `transaction` is simply the path segment.
-const configuration = stubUriConfigurationLayer(
-  { transaction: BASE_URL },
-  { keyTemplate: 'service-domain.[entity]', group: 'uri' },
-);
+const options: BuildEntityRestOptions = {
+  uriConfig: { key: 'service-domain.[entity]', group: 'uri' },
+  configuration: makeStubUriConfigurationClient(
+    { transaction: BASE_URL },
+    { keyTemplate: 'service-domain.[entity]', group: 'uri' },
+  ),
+};
 
 const server = setupEntifixServer();
 
@@ -38,11 +37,7 @@ const aRecord = (state: string) => ({
 });
 
 const read = (transactionId = TX) =>
-  Effect.runPromise(
-    Effect.flatMap(buildTransactionStatusReader(options), reader =>
-      reader.read(transactionId),
-    ).pipe(Effect.provide(configuration)),
-  );
+  Effect.runPromise(buildTransactionStatusReader(options).read(transactionId));
 
 describe('buildTransactionStatusReader', () => {
   it('reads a tracked record by its transaction id', async () => {

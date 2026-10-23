@@ -7,7 +7,7 @@ import {
   type EntityId,
   RecordValidationError,
 } from '@entifix/core';
-import { runRepository, runRepositoryExit } from '@entifix/testing-unit';
+import { run, runExit } from '@entifix/testing-unit';
 import {
   ContractWidget,
   describeEntityRepositoryReadContract,
@@ -34,12 +34,10 @@ describe('makeStaticRepository', () => {
 
   it('refuses to save or delete, naming the entity and the verb', async () => {
     const saved = failureOf(
-      await runRepositoryExit(
-        repository.save(makeContractWidget('w-2', 'Beta', 20)),
-      ),
+      await runExit(repository.save(makeContractWidget('w-2', 'Beta', 20))),
     );
     const deleted = failureOf(
-      await runRepositoryExit(repository.delete<ContractWidget>('w-1')),
+      await runExit(repository.delete<ContractWidget>('w-1')),
     );
 
     expect(saved).toBeInstanceOf(EntifixLogicError);
@@ -56,7 +54,7 @@ describe('makeStaticRepository', () => {
       label: 'widgets.json',
     });
     const failure = failureOf(
-      await runRepositoryExit(labelled.get<ContractWidget>('nope')),
+      await runExit(labelled.get<ContractWidget>('nope')),
     );
 
     expect(failure).toBeInstanceOf(EntifixConnError);
@@ -76,7 +74,7 @@ describe('makeStaticRepository', () => {
     const original = new Bare('b-1', 'Plain');
     const bare = makeStaticRepository(Bare, [original]);
 
-    const found = await runRepository(bare.get<Bare>('b-1'));
+    const found = await run(bare.get<Bare>('b-1'));
 
     expect(found).toBeInstanceOf(Bare);
     expect(found).toEqual(original);
@@ -122,7 +120,7 @@ describe('staticRepositoryFromRecords', () => {
       { id: 'e-2', name: 'Retro', at: '2026-02-01' },
     ]);
 
-    const page = await runRepository(
+    const page = await run(
       repository.load<Event>({
         filtering: [
           { property: 'at', operator: 'gt', value: new Date('2026-01-15') },

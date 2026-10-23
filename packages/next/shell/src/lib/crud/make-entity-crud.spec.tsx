@@ -1,7 +1,4 @@
-import {
-  ConfigurationRepositoryTag,
-  EntityRepositoryTag,
-} from '@entifix/business';
+import { EntityRepositoryTag } from '@entifix/business';
 import {
   accessor,
   EntifixBuildError,
@@ -18,10 +15,7 @@ import {
   EntifixQueryProvider,
   makeQueryClient,
 } from '@entifix/react-integration';
-import {
-  makeInMemoryEntityRepository,
-  makeStubConfigurationClient,
-} from '@entifix/testing-unit';
+import { makeInMemoryEntityRepository } from '@entifix/testing-unit';
 import type { TransactionSink } from '@entifix/transactions';
 import { TransactionSinkTag } from '@entifix/transactions';
 import {
@@ -188,7 +182,6 @@ class Product implements Entity {
 interface TestAdapters {
   brandRest: Context.Context<EntityRepositoryTag>;
   productRest: Context.Context<EntityRepositoryTag>;
-  configurationStore: Context.Context<ConfigurationRepositoryTag>;
   brandMetadata: EntityMetadataSource;
 }
 
@@ -208,10 +201,6 @@ let repositories: {
 const useAdapters = (): TestAdapters => ({
   brandRest: Context.make(EntityRepositoryTag, repositories.brand),
   productRest: Context.make(EntityRepositoryTag, repositories.product),
-  configurationStore: Context.make(
-    ConfigurationRepositoryTag,
-    makeStubConfigurationClient(),
-  ),
   brandMetadata: { fetchMetadata: () => fetchMetadata() },
 });
 
@@ -220,7 +209,6 @@ const brandCrud = makeEntityCrud<Brand, TestAdapters>(Brand, {
   basePath: '/catalog/product-brand',
   catalogKey: 'product-brand',
   repository: 'brandRest',
-  configuration: 'configurationStore',
   hiddenFields: ['id', 'code'],
   columns: (
     <EntityColumn<Brand>
@@ -236,7 +224,6 @@ const productCrud = makeEntityCrud<Product, TestAdapters>(Product, {
   basePath: '/catalog/product',
   catalogKey: 'product-specification',
   repository: 'productRest',
-  configuration: 'configurationStore',
   hiddenFields: ['id'],
   links: [
     { field: 'brandId', entityConstructor: Brand, repository: 'brandRest' },
@@ -257,7 +244,6 @@ const bulkBrandCrud = makeEntityCrud<Brand, TestAdapters>(Brand, {
   basePath: '/catalog/brand',
   catalogKey: 'product-brand',
   repository: 'brandRest',
-  configuration: 'configurationStore',
   hiddenFields: ['id', 'code'],
   metadataSource: { fetchMetadata: () => fetchMetadata() },
   runBulkUseCase: (key, selection) => runBulk(key, selection),
@@ -275,7 +261,6 @@ const verbBrandCrud = makeEntityCrud<Brand, TestAdapters>(Brand, {
   basePath: '/catalog/brand',
   catalogKey: 'product-brand',
   repository: 'brandRest',
-  configuration: 'configurationStore',
   hiddenFields: ['id', 'code'],
   metadataSource: { fetchMetadata: () => fetchMetadata() },
   runUseCase: (key, id) => runVerb(key, id),
@@ -291,7 +276,6 @@ const keyedBrandCrud = makeEntityCrud<Brand, TestAdapters>(Brand, {
   basePath: '/catalog/brand',
   catalogKey: 'product-brand',
   repository: 'brandRest',
-  configuration: 'configurationStore',
   hiddenFields: ['id', 'code'],
   metadata: 'brandMetadata',
 });
@@ -328,7 +312,6 @@ describe('makeEntityCrud, at factory time', () => {
         basePath: '/catalog/product-brand',
         catalogKey: 'product-category',
         repository: 'brandRest',
-        configuration: 'configurationStore',
       }),
     ).toThrow(EntifixBuildError);
   });
@@ -342,7 +325,6 @@ describe('makeEntityCrud, at factory time', () => {
         basePath: '/catalog/product-brand',
         catalogKey: 'product-brand',
         repository: 'brandRest',
-        configuration: 'configurationStore',
         metadataSource: { fetchMetadata: () => fetchMetadata() },
         metadata: 'brandMetadata',
       }),
@@ -372,7 +354,6 @@ describe('makeEntityCrud, at factory time', () => {
         basePath: '/catalog/product-category',
         catalogKey: 'product-category',
         repository: 'brandRest',
-        configuration: 'configurationStore',
       }),
     ).toThrow(/labelKey and pluralKey/);
   });
@@ -387,7 +368,6 @@ describe('makeEntityCrud, at factory time', () => {
         basePath: '/catalog/product',
         catalogKey: 'product-specification',
         repository: 'productRest',
-        configuration: 'configurationStore',
         links: [
           {
             field: 'vendorId',
@@ -758,16 +738,9 @@ describe('the generated form', () => {
     // on showing the old state — which reads as "the button did nothing".
     runVerb.mockImplementation(async () => {
       await Effect.runPromise(
-        repositories.brand
-          .save(makeBrand('b-1', 'Acme Publicada', 'brand-001'))
-          .pipe(
-            // The in-memory adapter threads the configuration requirement it
-            // never uses on this path, the same as every other caller here.
-            Effect.provideService(
-              ConfigurationRepositoryTag,
-              makeStubConfigurationClient(),
-            ),
-          ),
+        repositories.brand.save(
+          makeBrand('b-1', 'Acme Publicada', 'brand-001'),
+        ),
       );
     });
 

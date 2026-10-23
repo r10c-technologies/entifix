@@ -16,7 +16,6 @@ export const bookCrud = makeEntityCrud<Book, ExampleAdapters>(Book, {
   basePath: '/books',
   catalogKey: 'book',
   repository: 'books',
-  configuration: 'configuration',
   hiddenFields: ['id'],
   metadataSource: makeEntityMetadataSource({
     url: name => `/api/${name}/$metadata`,
