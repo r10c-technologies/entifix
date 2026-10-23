@@ -8,10 +8,11 @@ import { controlsCatalogs } from '../catalog/index.js';
  * ⚠️ **`entity` and `errors` are fixtures here, not shipped catalogs.** Both are
  * *host* namespaces now: `entity` names the adopter's entities and `errors` is
  * the code vocabulary their services answer with, so a framework shipping either
- * would be shipping product copy — which is exactly what
- * [ADR 0059](../../../../../../docs/adr/0059-entifix-leaves-the-repo.md)
- * removes. What these specs prove is that a `labelKey` resolves against whatever
- * catalog is installed, and a fixture proves that as well as r10c's did.
+ * would be shipping product copy — which
+ * [ADR 0001](../../../../../../docs/adr/0001-the-tier-contract-and-the-host-seam.md)
+ * calls a defect. What these specs prove is that a `labelKey` resolves against
+ * whatever catalog is installed, and a fixture proves that as well as a host's
+ * would.
  *
  * The keys below are the ones the specs actually name, kept verbatim so the
  * assertions still read as sentences rather than as placeholders.

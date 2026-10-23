@@ -38,7 +38,7 @@ afterEach(() => {
 
 describe('createServiceProxyRoute', () => {
   // The whole point: reading this body to completion holds the request open
-  // forever and delivers nothing, with no error and no timeout (ADR 0036).
+  // forever and delivers nothing, with no error and no timeout.
   it('pipes an event stream through instead of buffering it', async () => {
     const frames = new ReadableStream<Uint8Array>({
       start(controller) {
@@ -287,7 +287,7 @@ describe('pathPrefix', () => {
    * `/api/events` — a path that exists nowhere — because the proxy's namespace
    * and the upstream's route name are the same word. The symptom was the one
    * this proxy exists to prevent: the SSE stream 404s, a pending write never
-   * settles, and every probe stays green (ADR 0036).
+   * settles, and every probe stays green.
    */
   it('puts the segment back in front of the forwarded path', async () => {
     const fetchMock = answering('{}', 200);

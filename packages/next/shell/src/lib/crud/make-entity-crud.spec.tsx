@@ -415,9 +415,9 @@ describe('the generated list page', () => {
 });
 
 /**
- * The adopt half: a generated catalog only gains the ADR 0026/0035 surfaces
- * when it is handed the two options. Before they existed every generated page
- * ran the pre-0026 behaviour, and omitting them still does.
+ * The adopt half: a generated catalog only gains the served-affordance
+ * surfaces when it is handed the two options. Before they existed every
+ * generated page ran without them, and omitting them still does.
  */
 describe('the generated list page, opted into affordances', () => {
   const RETIRE = {
@@ -435,7 +435,7 @@ describe('the generated list page, opted into affordances', () => {
   });
 
   /**
-   * The row half of #216: the same verb the form header runs, reached from a
+   * The row half: the same verb the form header runs, reached from a
    * row's overflow menu. `EntityTable` hands back the whole record and
    * `runUseCase` takes an id, so the list adapts between them.
    */
@@ -605,11 +605,12 @@ describe('the generated list page, opted into affordances', () => {
       }),
     );
     // The served document arrives asynchronously — which is the accepted cost
-    // ADR 0026 recorded: rendering an action is a fetch where rendering a field
+    // of serving affordances: rendering an action is a fetch where rendering a field
     // is not. So the verb appears a tick after the selection does.
     // "Retirar", not the key: this verb's copy is in the real catalog, so the
-    // runtime `labelKey` resolves — which is the half `@r10c/i18n-check` exists
-    // to keep true, since the type system cannot see a `translateKey` argument.
+    // runtime `labelKey` resolves — which is the half a host's catalog check
+    // exists to keep true, since the type system cannot see a `translateKey`
+    // argument.
     await user.click(await screen.findByRole('button', { name: 'Retirar' }));
 
     await waitFor(() => expect(runBulk).toHaveBeenCalled());
@@ -655,7 +656,7 @@ describe('the generated form', () => {
   });
 
   // `entity` is undefined until the record lands, so testing it alone titled a
-  // loading edit form "New" and then relabelled it (#139).
+  // loading edit form "New" and then relabelled it.
   it('does not title a loading edit form as a create', async () => {
     slug = 'b-1';
     repositories.brand.failNext(new EntifixConnError('unreachable'));
@@ -670,7 +671,7 @@ describe('the generated form', () => {
    * `stock-item` answers `["read"]` — no role holds `stock-item:write` and the
    * service serves no save route — so Save was correctly withheld while
    * `onHand` and `reserved` still rendered as enabled number inputs. A vendor
-   * could type into the very field ADR 0010 forbids writing, and nothing would
+   * could type into a field only a ledger moves, and nothing would
    * happen and nothing would say why.
    *
    * The record's values stay visible; what goes away is the ability to change
@@ -712,7 +713,7 @@ describe('the generated form', () => {
 
   /**
    * ⚠️ The defect this option exists for, measured live on `ProductOffering`:
-   * `EntityForm` has rendered these buttons since ADR 0035 and `EntityCrudForm`
+   * `EntityForm` has rendered these buttons for a long time and `EntityCrudForm`
    * has accepted an `onUseCase` for as long, but `makeEntityCrud` never passed
    * one — so a declared, granted, `$metadata`-served verb appeared on the form
    * and did nothing at all when clicked.

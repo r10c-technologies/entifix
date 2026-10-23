@@ -7,8 +7,7 @@
  * the *permission* built from an action and re-exports these as `Actions` /
  * `Action`; `@entifix/react-controls` reads the same triple off a served
  * `EntityMetadataDocument` to decide whether to render Save and Delete, and
- * a T3 package may not depend on `@entifix/authz` (T4)
- * ([ADR 0026](../../../../../../docs/adr/0026-the-use-case-descriptor-and-served-entity-metadata.md)).
+ * a T3 package may not depend on `@entifix/authz` (T4).
  */
 export const ENTITY_ACTIONS = ['read', 'write', 'delete'] as const;
 export type EntityAction = (typeof ENTITY_ACTIONS)[number];

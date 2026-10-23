@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 /**
- * The enforceable half of the loading contract (issue #108, adopted in #139).
+ * The enforceable half of the loading contract.
  *
  * A lint rule for "this control supports a skeleton" is not writable — the
  * shape of a placeholder is not something ESLint can see. What *is* checkable

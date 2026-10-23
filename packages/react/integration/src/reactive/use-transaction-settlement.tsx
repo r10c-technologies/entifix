@@ -67,7 +67,7 @@ const readerOf = (
  * - **The stream**, the fast path: `transaction.completed` and
  *   `transaction.failed` carry the correlation id, so an outcome lands in the
  *   moment it happens.
- * - **`onConnect`**, because the stream does not replay (ADR 0036). It fires on
+ * - **`onConnect`**, because the stream does not replay. It fires on
  *   every open *including for a listener registered while already connected*, so
  *   a page load holding a restored pending set and an in-session reconnect take
  *   one path rather than two.
@@ -170,7 +170,8 @@ export function useTransactionSettlement({
       if (event.name === 'transaction.failed') {
         // The frame carries no reason: `EntityChangeEvent` collapses four states
         // into created/deleted and holds no `error`. So the record is re-read
-        // rather than the payload widened (ADR 0036's hint-versus-record split).
+        // rather than the payload widened: a stream frame is a hint, and the
+        // record is the truth.
         void reconcile(entry);
       }
     });

@@ -64,6 +64,6 @@ describe('requireLiveUrl', () => {
   });
 
   it('reads process.env when no environment is passed', () => {
-    expect(() => requireLiveUrl('R10C_DEFINITELY_UNSET_URL')).toThrow();
+    expect(() => requireLiveUrl('SPEC_DEFINITELY_UNSET_URL')).toThrow();
   });
 });

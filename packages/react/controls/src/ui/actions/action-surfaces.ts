@@ -8,13 +8,13 @@ import {
 /**
  * Where a declared verb is rendered.
  *
- * ADR 0026 gave a use case two independent axes and then built only one
+ * The use-case descriptor has two independent axes, and at first only one
  * surface, so four of the nine cells had nowhere to go: `EntityForm` filtered
  * `binding === 'entity' && placement !== 'context-dependent'` and everything
  * else was dropped without a word. This is the map that closes it —
  * **placement decides the surface, binding decides the payload** — and it lives
  * in one module so no surface re-derives it and the two axes cannot drift
- * apart again ([ADR 0035](../../../../../../docs/adr/0035-entity-actions-selection-and-bulk.md)).
+ * apart again.
  */
 export const ACTION_SURFACES = [
   'form-header',
@@ -34,7 +34,7 @@ export type ActionSurface = (typeof ACTION_SURFACES)[number];
  * page* — it is the footer that ends an object page — and a list screen has no
  * such thing to finalize, which is Fiori's own rule. Dropping it silently is
  * the fault this repo already writes an assertion against elsewhere: the verb
- * would be declared, granted, exported, pass every `@r10c/slices` invariant,
+ * would be declared, granted, exported, pass every check a register runs,
  * and simply never appear, which reads to its author as "the permission is
  * wrong" and sends them looking in the wrong place entirely.
  */
@@ -88,7 +88,7 @@ function surfaceForCell(
  *
  * ⚠️ **A verb may name more than one cell**, and that is what makes publishing
  * reachable from a form header, a row menu and a selection without becoming
- * three permissions (#216). The primary `binding` + `placement` come first, then
+ * three permissions. The primary `binding` + `placement` come first, then
  * whatever `alsoAt` adds, and each is validated the same way — an illegal cell
  * in `alsoAt` throws exactly as one in the primary pair does.
  *

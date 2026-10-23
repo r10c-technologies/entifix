@@ -1,6 +1,6 @@
 /**
  * The half of this package that needs `@entifix/transactions`: the
- * transactional outbox ADR 0028 writes inside the entity's own Mongo
+ * transactional outbox written inside the entity's own Mongo
  * transaction, and the inbox that makes a redelivered command idempotent.
  *
  * Behind a subpath so entity CRUD over Mongo does not arrive with the saga

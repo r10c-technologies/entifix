@@ -32,12 +32,12 @@ const descriptor = (
 });
 
 /**
- * The enforceable half of the action model (issue #109, ADR 0035).
+ * The enforceable half of the action model.
  *
  * `binding` and `placement` are independent unions, so their product is the
  * real surface area — nine cells today, twelve the moment either union gains a
  * member. The failure this guards against is not a crash: it is a verb that is
- * declared, granted, exported, passes every `@r10c/slices` invariant and then
+ * declared, granted, exported, passes every check a register runs and then
  * never renders, which reads to its author as a permission problem and sends
  * them looking in the wrong place.
  *
@@ -146,12 +146,12 @@ describe('useCasesForSurface', () => {
 
 describe('a verb that names more than one cell', () => {
   /**
-   * Publishing an offering, as #216 wanted it: from the form it is open in,
+   * Publishing a record, as it was wanted: from the form it is open in,
    * from a row menu in the list, and over a selection. One act, one permission,
    * three ways to reach it.
    *
-   * The alternative was three `@useCase()` classes, which `@r10c/slices`
-   * refuses anyway — a verb key is the third segment of one permission and two
+   * The alternative was three `@useCase()` classes, which a host's register
+   * would refuse anyway — a verb key is the third segment of one permission and two
    * classes cannot share a key — so it would have meant three permissions, and
    * a grant that let somebody publish one offering but not twenty.
    */

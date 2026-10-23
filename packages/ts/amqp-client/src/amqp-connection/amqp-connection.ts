@@ -15,8 +15,8 @@ import { Context, Effect, Layer } from 'effect';
  * Fanout meant every subscriber received every publisher's traffic and threw
  * away what it did not want, in its own handler. That put the routing rule in
  * the one place no register can check it, and it does not survive a second
- * publisher: ADR 0009's catalog projection would have been folding transaction
- * events to find its own.
+ * publisher: a projection consuming its own event would have been folding
+ * transaction events to find it.
  */
 export const EVENTS_EXCHANGE = 'entifix.events';
 
@@ -26,7 +26,7 @@ export const EVENTS_EXCHANGE = 'entifix.events';
  * **`direct`**, not topic: it routes on the *queue's* name rather than on the
  * event's, because a quarantine is per queue. One shared quarantine would mean
  * a replay redelivers another subscriber's messages — a recovery step that
- * causes a second incident (ADR 0030).
+ * causes a second incident.
  *
  * Declared beside the event exchange rather than inside `subscribe`, so it is
  * restored on every reconnect and a publisher-only service still agrees with
@@ -74,7 +74,7 @@ export interface AmqpConnector {
    * Stop delivering. Cancels every registered consumer and latches the
    * connector so a reconnect does not quietly re-arm them.
    *
-   * The first phase of a graceful shutdown (ADR 0030): the messages already
+   * The first phase of a graceful shutdown: the messages already
    * being handled are still being handled — cancelling only stops *new*
    * deliveries — so the caller waits for those separately before the connection
    * closes. Without this a rollout kills handlers mid-flight and the broker

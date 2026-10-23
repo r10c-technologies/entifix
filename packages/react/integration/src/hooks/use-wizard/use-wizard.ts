@@ -27,8 +27,7 @@ import type { UseWizardOptions, UseWizardResult } from './use-wizard.types.js';
  * calls in one component — and it unmounts when it is not the active step. What
  * makes Back safe is therefore not keeping the step mounted but keeping its
  * values out of it: {@link UseWizardResult.draftStoreFor} hands the step an
- * `EntityDraftStore` viewing this state, and the step is free to come and go
- * ([ADR 0045](../../../../../../../docs/adr/0045-the-wizard-a-step-graph-and-a-submit-that-hands-off.md)).
+ * `EntityDraftStore` viewing this state, and the step is free to come and go.
  *
  * It holds no router and performs no submit. `onStepChange` reports where the
  * operator went so a shell can write the URL, and finishing is the host's — this
@@ -89,7 +88,7 @@ export function useWizard({
   /**
    * A persisted wizard is adopted **once, and only while untouched**.
    *
-   * The store hydrates from an effect (`skipHydration`, ADR 0032), so it arrives
+   * The store hydrates from an effect (`skipHydration`), so it arrives
    * after the first render and cannot be a `useState` initializer. Adopting it
    * more than once would let a later hydration overwrite what the operator has
    * since typed, and adopting it after a first edit would do the same on the
@@ -136,7 +135,8 @@ export function useWizard({
       return {
         // The stored reference, and the key is **omitted** when the step holds
         // no draft — a fresh `{}` per render would re-seed the form every render,
-        // which is the `Maximum update depth exceeded` hang ADR 0038 measured.
+        // which is the `Maximum update depth exceeded` hang measured on the
+        // master-detail form.
         ...(value?.kind === 'form' ? { draft: value.values } : {}),
         save: store.save,
         clear: store.clear,

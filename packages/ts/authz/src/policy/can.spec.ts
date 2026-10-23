@@ -6,8 +6,8 @@ import { can, type GrantTable, permissionsOf } from './can.js';
 /**
  * A grant table of this package's own.
  *
- * ⚠️ **Deliberately not r10c's.** This spec used to import `ROLE_PERMISSIONS`
- * and `CATALOG_DOMAIN`, which meant the framework's authorization test asserted
+ * ⚠️ **Deliberately not a host's.** This spec used to import a host's grant
+ * table and catalog domain, which meant the framework's authorization test asserted
  * against one application's business rules — so a marketplace decision about
  * who may read a product could fail the framework's build, and the framework
  * could not be tested at all without that application present.

@@ -20,7 +20,7 @@ const encoder = new TextEncoder();
  * `id:` carries the message's own id — `<transactionId>:<step>` for a
  * transaction event — so the `Last-Event-ID` a browser re-sends on reconnect
  * names a message that actually exists, rather than a counter invented for the
- * wire. The server does not replay it (ADR 0036); the client reconciles by
+ * wire. The server does not replay it; the client reconciles by
  * re-reading the record.
  *
  * `data:` is a full `event` envelope, which is what keeps the stream from
@@ -36,7 +36,7 @@ export interface SseResponseOptions {
    * A held-open response has no next request to fail verification, so the bound
    * every REST route gets implicitly has to be applied explicitly here. The
    * browser reconnects with the cookie the app refreshed in the meantime
-   * (ADR 0036). Omitted, the stream runs until the client goes away.
+   *. Omitted, the stream runs until the client goes away.
    */
   readonly expiresAt?: number;
   /** Injectable for tests; defaults to the wall clock. */

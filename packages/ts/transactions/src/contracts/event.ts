@@ -38,7 +38,7 @@ export type TransactionStep = 'accepted' | 'completed' | 'failed';
  * consumer of these: for a single-step write it dispatches nothing and only
  * records what the events tell it, which is what keeps such a write
  * choreographed. A flow spanning slices is orchestrated instead, from a
- * declarative definition (ADR 0039), and its coordinator both reads these and
+ * declarative definition, and its coordinator both reads these and
  * issues the next step — but that engine is not built, and single-step writes
  * stay exactly as described here when it is.
  *
@@ -64,9 +64,9 @@ export interface TransactionEvent {
   at: string;
   /**
    * Whose organization this happened in — the per-connection scoping key for
-   * the reactive stream (ADR 0036).
+   * the reactive stream.
    *
-   * In `data` rather than in `meta`, under ADR 0029's rule: `meta` describes the
+   * In `data` rather than in `meta`, under the envelope's rule: `meta` describes the
    * message, `data` describes the occurrence, and which vendor's catalog a
    * record was written in is a fact about what happened.
    *

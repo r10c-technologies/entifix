@@ -62,7 +62,7 @@ describe('MongoHealthProbeLayer', () => {
   });
 
   /**
-   * The Stores this connection backs, for `GET /api/$service` (ADR 0031). It is
+   * The Stores this connection backs, for `GET /api/$service`. It is
    * a list because one Mongo client routinely serves several — marketplace-
    * admin-service opens one for `catalog` and the co-deployed `transaction`
    * slice's `saga` — and it is an argument because a client package cannot know

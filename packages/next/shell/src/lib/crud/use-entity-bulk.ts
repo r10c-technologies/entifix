@@ -51,8 +51,8 @@ export interface EntityBulkTableProps<TEntity extends Entity> {
  * very navigation used to add to it would make "select rows across pages"
  * impossible.
  *
- * Two behaviours worth not re-deriving. **The selection survives the action**
- * (#121): after a run the rows stay ticked, because the operator's next act is
+ * Two behaviours worth not re-deriving. **The selection survives the action**:
+ * after a run the rows stay ticked, because the operator's next act is
  * usually to retry the failures or to run a second verb on the same rows, and
  * re-selecting forty rows to do it is the whole cost the bulk bar exists to
  * remove. And **a retry re-runs only the failures**, as an `ids` selection

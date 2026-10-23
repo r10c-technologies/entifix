@@ -17,7 +17,7 @@ const ID_MEMBER = 'id';
  * **A draft in and a draft out**, rather than an instance in and an instance
  * out, and that is the whole reason this composes with the rest of the form
  * layer. A form's state is a `Record<string, string>` that a workspace
- * autosaves (ADR 0032), so a clone that returned an instance would have to be
+ * autosaves, so a clone that returned an instance would have to be
  * re-seeded back into a draft by the caller — through `seedFieldValue`, which
  * lives in a package above this one. Staying in the draft keeps the operation
  * on one side of that boundary, and `reconstructEntity` is still what turns the

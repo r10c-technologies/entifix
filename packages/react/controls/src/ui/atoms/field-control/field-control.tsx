@@ -51,7 +51,7 @@ const INPUT_TYPE: Partial<Record<MetaAccessorType, string>> = {
  * picker in one level up from its `linkSources`, so the member does get an
  * editor, just not from here. A `linkCollection` has no editor anywhere yet
  * (#26), and read-only is all it gets. A `composition` is the same: its rows
- * need a detail grid (#122), and a text box holding `[object Object]` would be
+ * need a detail grid, and a text box holding `[object Object]` would be
  * strictly worse than an honest disabled field.
  *
  * A `scalarCollection` is the exception among the collections and falls through

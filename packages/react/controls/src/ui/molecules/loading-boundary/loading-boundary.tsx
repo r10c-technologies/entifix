@@ -25,7 +25,7 @@ export interface LoadingBoundaryProps {
  * a non-sighted caller is told nothing at all while a region is pending.
  *
  * It is not an error boundary and does not catch anything. Rendering actions
- * became asynchronous when affordances moved behind `$metadata` (ADR 0026);
+ * became asynchronous when affordances moved behind `$metadata`;
  * this is where that wait is shown.
  */
 export function LoadingBoundary({

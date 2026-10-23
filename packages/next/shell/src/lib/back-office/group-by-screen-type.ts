@@ -6,7 +6,7 @@ import type { NavSection, NavTier } from './nav.js';
  * Group sections into the sidebar's top tier — the screen type — preserving the
  * order sections were contributed in within each group.
  *
- * The tier is the **type** and the domain sits beneath it (ADR 0033). Four fixed
+ * The tier is the **type** and the domain sits beneath it. Four fixed
  * entries against eleven domains, so "where do I go to add a courier" has one
  * answer whoever owns couriers; the daily operator's speed is the command
  * palette's job rather than the sidebar's.
@@ -18,7 +18,7 @@ import type { NavSection, NavTier } from './nav.js';
  *
  * There is no third level: a `NavItem` has no children, so the depth cap lives
  * in the type rather than in a convention. An arbitrary tree scans badly and
- * rots, and every case ADR 0022's eleven domains present fits three tiers.
+ * rots, and every case a back office with a dozen domains presents fits three tiers.
  */
 export function groupByScreenType(sections: NavSection[]): NavTier[] {
   const tiers: NavTier[] = [];

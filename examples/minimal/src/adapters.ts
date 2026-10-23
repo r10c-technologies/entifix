@@ -13,7 +13,7 @@ import { Context } from 'effect';
 /**
  * Where each entity's REST resource is, as static configuration: `book` is
  * served at `/api/book` on this origin, which `app/api/book` proxies to the
- * service. r10c resolves the same keys from a configuration service; nothing
+ * service. A larger host resolves the same keys from a configuration service; nothing
  * that reads them can tell the difference.
  */
 const configuration = new ConfigurationClientInMemory({

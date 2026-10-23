@@ -50,7 +50,7 @@ export interface DrainOptions {
  * - A **still-deliverable** failure returns immediately rather than continuing.
  *   The entries behind this one keep their order relative to it, which is what
  *   stops a terminal event overtaking the `accepted` for the same transaction.
- * - A **quarantined** failure continues. That is ADR 0030's deliberate
+ * - A **quarantined** failure continues. That is the deliberate
  *   skip-so-the-head-moves: an entry that can never publish must stop blocking
  *   every entry behind it forever.
  */

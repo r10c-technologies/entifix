@@ -156,8 +156,8 @@ export function EntityCrudForm<TEntity extends Entity>({
    * the stock surface: `stock-item` answers `["read"]` — no role holds
    * `stock-item:write` and there is no save route — so Save was correctly
    * absent while `onHand` and `reserved` still rendered as **enabled number
-   * inputs**. A vendor could type a new quantity into the very field ADR 0010
-   * forbids writing, and nothing would happen and nothing would say why.
+   * inputs**. A vendor could type a new quantity into a field that is only ever
+   * moved by a ledger, and nothing would happen and nothing would say why.
    *
    * A create is exempt: there is no record yet, so there is nothing to read and
    * a `read` mode would render an empty form with no way to fill it.
@@ -193,7 +193,7 @@ export function EntityCrudForm<TEntity extends Entity>({
       backHref={backHref}
       renderLink={renderLink}
       // `entity` is undefined until the record lands, so testing it alone
-      // titled a loading edit form "New" and then relabelled it (#139).
+      // titled a loading edit form "New" and then relabelled it.
       title={et(
         entity || isLoading
           ? `${catalogKey}.form.editTitle`

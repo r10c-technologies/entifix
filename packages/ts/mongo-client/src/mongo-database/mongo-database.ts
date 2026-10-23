@@ -39,7 +39,7 @@ export interface MongoDatabaseSettings extends MongoClientSettings {
  * This is the layer to reach for when a service names **no** database at boot —
  * one that resolves every handle per request (tenant storage) or holds several
  * named stores in one process. Naming a database it never writes would put a
- * phantom store in the register, which is the thing ADR 0020 forbids.
+ * phantom store in the host's register — a store nothing writes.
  *
  * {@link MongoDatabaseLayer} builds on this rather than connecting again: two
  * layers over the same URI would mean two pools.

@@ -15,8 +15,8 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
   render: () => (
     <TopBar>
-      <TopBar.Brand>◈ r10c</TopBar.Brand>
-      <TopBar.Context>marketplace-admin</TopBar.Context>
+      <TopBar.Brand>◈ Acme</TopBar.Brand>
+      <TopBar.Context>back office</TopBar.Context>
       <TopBar.Actions>
         <Menu>
           <Menu.Trigger>◍ Jordan ▾</Menu.Trigger>

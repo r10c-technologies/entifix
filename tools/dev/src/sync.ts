@@ -65,7 +65,7 @@ export const parseConsumers = (value: string | undefined): string[] => {
   if (consumers.length === 0) {
     throw new SyncError(
       'ENTIFIX_CONSUMERS is not set. Point it at the repositories to sync into, ' +
-        'separated by ":" — e.g. ENTIFIX_CONSUMERS=$PWD/../r10c',
+        'separated by ":" — e.g. ENTIFIX_CONSUMERS=$PWD/../my-app',
     );
   }
   for (const consumer of consumers) {

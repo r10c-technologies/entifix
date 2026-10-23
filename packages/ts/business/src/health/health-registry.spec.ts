@@ -6,7 +6,7 @@ import { HealthRegistryLayer, HealthRegistryTag } from './health-registry.js';
 
 /**
  * A probe with the `kind`/`targets` these cases do not care about filled in.
- * Readiness ignores both; they exist for `GET /api/$service` (ADR 0031), and a
+ * Readiness ignores both; they exist for `GET /api/$service`, and a
  * spec that spelled them out on every registration would be asserting they are
  * *not* consulted here by repeating them fifteen times.
  */
@@ -94,7 +94,7 @@ describe('HealthRegistry', () => {
 
   /**
    * `probes` is what makes readiness and `GET /api/$service` generate from one
-   * registration instead of from two lists that drift (ADR 0031).
+   * registration instead of from two lists that drift.
    */
   it('reads the registrations back, in registration order', async () => {
     const registered = await withRegistry(registry =>

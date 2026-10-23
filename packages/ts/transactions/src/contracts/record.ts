@@ -27,7 +27,7 @@ export interface TransactionRecord {
    * The `saga` store is control-plane and single-partition — it holds every
    * organization's records by design — so isolation on the read routes has to be
    * this filter. A record written before the member existed carries none and is
-   * therefore readable by nobody, which is the direction to fail (ADR 0036).
+   * therefore readable by nobody, which is the direction to fail.
    */
   organizationId?: string;
 }
@@ -46,7 +46,7 @@ export interface TransactionStore {
   ): Effect.Effect<TransactionRecord | undefined, EntifixConnError>;
   // There is deliberately no `list`. The `saga` store is control-plane and
   // single-partition, so an unfiltered index is every organization's
-  // transactions — which is the surface #194 deleted `GET /api/transaction` for.
+  // transactions — which is why there is no `GET /api/transaction` list.
   // Anything that needs a set of records asks for one narrow enough to scope,
   // the way `findStale` does.
   /** Non-terminal records not updated within `olderThanMs` — recovery input. */
@@ -58,7 +58,7 @@ export interface TransactionStore {
    * How many records sit in each state — the recovery sweep samples it.
    *
    * ⚠️ **This is a count, and is not the `list` above.** It returns no record,
-   * no id and no organization, so it does not reopen the surface #194 deleted
+   * no id and no organization, so it does not reopen the list surface removed
    * `GET /api/transaction` for: an unfiltered *listing* of this store is every
    * organization's transactions, while a total of how many are `STALE` is a
    * fleet health number that names nobody. The distinction is the whole reason
@@ -88,8 +88,7 @@ export class TransactionStoreTag extends Context.Service<
  * entity id, and no code, because the write has not run. Framing it as a record
  * meant the browser's accept-shape assertion was checking a name that the
  * by-id route and the bus payload also answered to, so it asserted nothing it
- * claimed to (#176,
- * [ADR 0055](../../../../../../docs/adr/0055-a-coordinator-resumes-from-its-own-record.md)).
+ * claimed to.
  */
 export interface TransactionAccepted {
   transactionId: string;
@@ -146,7 +145,7 @@ export function readTransactionRecordEnvelope(
  * published and this answers `404`. That is a write in perfect health, and a
  * caller that rolls back on it un-renders a record that is about to appear, at
  * exactly the moment nobody can tell a UI bug from an outage. Only `FAILED` and
- * `STALE` are terminal (ADR 0043).
+ * `STALE` are terminal.
  */
 export interface TransactionStatusReader {
   read(

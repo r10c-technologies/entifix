@@ -198,7 +198,7 @@ describe('event builders', () => {
     });
   });
 
-  // ADR 0036: the stream scopes per connection off this member, so every step
+  // The reactive stream scopes per connection off this member, so every step
   // has to carry it — a `failed` that lost it would reach nobody, and the
   // browser that optimistically rendered the row would never take it back.
   it('carries the command’s organization onto all three steps', () => {
@@ -275,7 +275,7 @@ describe('the accept envelope reader', () => {
     });
   });
 
-  // ⚠️ The assertion #176 existed for. While one discriminant meant the accept
+  // ⚠️ The assertion the split exists for. While one discriminant meant the accept
   // body, the record and the event, this call *passed* — the accept-shape check
   // in the browser's save adapter accepted a by-id record as proof that a write
   // had been accepted.

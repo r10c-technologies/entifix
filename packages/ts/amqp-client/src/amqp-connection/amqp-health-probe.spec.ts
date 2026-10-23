@@ -84,8 +84,7 @@ describe('AmqpHealthProbeLayer', () => {
   });
   /**
    * The exchange is the logical name, and it is the same for every service — so
-   * unlike a store this probe needs no argument from the composition root
-   * (ADR 0031).
+   * unlike a store this probe needs no argument from the composition root.
    */
   it('declares the shared exchange, as a broker', async () => {
     const probes = await probesWith(

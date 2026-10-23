@@ -27,7 +27,7 @@ import {
  * returns one, so the level is pinned per level here instead.
  */
 const runLogging = async <A>(effect: Effect.Effect<A>) => {
-  const observability = makeInMemoryObservabilityLayer('@r10c/spec-service');
+  const observability = makeInMemoryObservabilityLayer('spec-service');
   await Effect.runPromise(
     effect.pipe(
       // Effect's own minimum is `Info`, so a `logDebug` is dropped before any
@@ -110,7 +110,7 @@ describe('the Effect log bridge', () => {
 });
 
 /**
- * The metric half of the same wiring. Until #185 `NodeSdk` was built with an
+ * The metric half of the same wiring. `NodeSdk` was once built with an
  * `OTLPTraceExporter` and nothing else — no `MeterProvider`, no metric reader —
  * so a service could call `Metric.*` and the value went nowhere while logs and
  * traces reached the Collector. That is a failure with no symptom at the call
@@ -133,7 +133,7 @@ const isSum = (metric: MetricData): metric is SumMetricData =>
 
 describe('the metric pipeline', () => {
   it('exports a counter incremented inside the layer', async () => {
-    const observability = makeInMemoryObservabilityLayer('@r10c/spec-service');
+    const observability = makeInMemoryObservabilityLayer('spec-service');
     const requests = Metric.counter('spec_requests_total', {
       description: 'requests handled, for the pipeline spec',
     });
@@ -159,7 +159,7 @@ describe('the metric pipeline', () => {
   // metric arriving under a different `service.name` than its spans would make
   // every dashboard that joins the two silently empty.
   it('stamps the metrics with the service name', async () => {
-    const observability = makeInMemoryObservabilityLayer('@r10c/spec-service');
+    const observability = makeInMemoryObservabilityLayer('spec-service');
     const errors = Metric.counter('spec_errors_total');
 
     await Effect.runPromise(
@@ -169,7 +169,7 @@ describe('the metric pipeline', () => {
     const collected = await observability.collectMetrics();
 
     expect(collected.at(-1)?.resource.attributes['service.name']).toBe(
-      '@r10c/spec-service',
+      'spec-service',
     );
   });
 });
@@ -190,7 +190,7 @@ describe('an observability layer with no OTLP endpoint', () => {
     'treats %o as no destination and still boots',
     async endpoint => {
       const layer = makeObservabilityLayer({
-        serviceName: '@r10c/spec-service',
+        serviceName: 'spec-service',
         level: 'debug',
         sink: 'otlp',
         otelEndpoint: endpoint,
@@ -205,7 +205,7 @@ describe('an observability layer with no OTLP endpoint', () => {
   it('builds, runs and still logs', async () => {
     const records: LogRecord[] = [];
     const layer = makeObservabilityLayerWith({
-      serviceName: '@r10c/spec-service',
+      serviceName: 'spec-service',
       level: 'debug',
       sink: { emit: record => records.push(record) },
     });
@@ -239,7 +239,7 @@ describe('the OTLP log sink', () => {
 
     // Nothing listens on this port, so the sink's flush fails for real.
     const layer = makeObservabilityLayer({
-      serviceName: '@r10c/spec-service',
+      serviceName: 'spec-service',
       level: 'debug',
       sink: 'otlp',
       otelEndpoint: 'http://127.0.0.1:1',
@@ -279,7 +279,7 @@ describe('the OTLP log sink', () => {
  */
 describe('the in-memory observability handle', () => {
   it('exposes the spans the layer exported', async () => {
-    const observability = makeInMemoryObservabilityLayer('@r10c/spec-service');
+    const observability = makeInMemoryObservabilityLayer('spec-service');
 
     const names = await Effect.runPromise(
       Effect.gen(function* () {
@@ -317,7 +317,7 @@ describe('observabilityFromConfiguration', () => {
     );
 
     const layer = await Effect.runPromise(
-      observabilityFromConfiguration(store, '@r10c/spec-service'),
+      observabilityFromConfiguration(store, 'spec-service'),
     );
 
     await expect(
@@ -337,7 +337,7 @@ describe('observabilityFromConfiguration', () => {
     ]);
 
     const layer = await Effect.runPromise(
-      observabilityFromConfiguration(store, '@r10c/spec-service'),
+      observabilityFromConfiguration(store, 'spec-service'),
     );
     const emit = vi.spyOn(process.stdout, 'write').mockImplementation(chunk => {
       records.push(JSON.parse(String(chunk)) as LogRecord);
@@ -365,9 +365,7 @@ describe('observabilityFromConfiguration', () => {
     ]);
 
     await expect(
-      Effect.runPromise(
-        observabilityFromConfiguration(store, '@r10c/spec-service'),
-      ),
+      Effect.runPromise(observabilityFromConfiguration(store, 'spec-service')),
     ).resolves.toBeDefined();
   });
 
@@ -383,9 +381,7 @@ describe('observabilityFromConfiguration', () => {
     );
 
     await expect(
-      Effect.runPromise(
-        observabilityFromConfiguration(store, '@r10c/spec-service'),
-      ),
+      Effect.runPromise(observabilityFromConfiguration(store, 'spec-service')),
     ).rejects.toThrow();
   });
 });
@@ -401,7 +397,7 @@ describe('observabilityFromConfiguration', () => {
  */
 describe('the log bridge at the edges of the level set', () => {
   const runAtTrace = async (effect: Effect.Effect<void>) => {
-    const observability = makeInMemoryObservabilityLayer('@r10c/spec-service');
+    const observability = makeInMemoryObservabilityLayer('spec-service');
     await Effect.runPromise(
       effect.pipe(
         Effect.provideService(References.MinimumLogLevel, 'All'),
@@ -445,7 +441,7 @@ describe('the log bridge at the edges of the level set', () => {
  */
 describe('a log message that is not an array', () => {
   it('stringifies a bare value', async () => {
-    const observability = makeInMemoryObservabilityLayer('@r10c/spec-service');
+    const observability = makeInMemoryObservabilityLayer('spec-service');
 
     await Effect.runPromise(
       Effect.gen(function* () {

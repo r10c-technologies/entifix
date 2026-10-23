@@ -46,7 +46,7 @@ const WORK: Subscription = {
   maxAttempts: 5,
 };
 
-/** The same interest, shaped for a consumer every replica must receive (#136). */
+/** The same interest, shaped for a consumer every replica must receive. */
 const BROADCAST: Subscription = { ...WORK, mode: 'broadcast' };
 
 /** What `WORK` resolves to, spelled once so the expectations agree. */
@@ -158,8 +158,8 @@ describe('makeAmqpEventBus', () => {
     await Effect.runPromise(bus.subscribe(WORK, () => Effect.void));
 
     // Durable and quorum-backed, so an event published while this consumer is
-    // restarting is still there when it comes back — the hop ADR 0028's
-    // durability chain was missing. The ceiling is a queue argument, so the
+    // restarting is still there when it comes back — the hop the outbox
+    // relay's durability chain was missing. The ceiling is a queue argument, so the
     // broker counts a redelivery after a crash as well as one after a nack.
     expect(fake.queues).toContainEqual({
       queue: WORK_QUEUE,
@@ -201,14 +201,14 @@ describe('makeAmqpEventBus', () => {
     ]);
   });
 
-  it('keeps a broadcast subscription on the exclusive queue ADR 0029 built', async () => {
+  it('keeps a broadcast subscription on an exclusive queue', async () => {
     const { fake, bus } = withFakeChannel();
 
     await Effect.runPromise(bus.subscribe(BROADCAST, () => Effect.void));
 
     // No name, no durability, no dead-letter path: every replica receives
     // every event and nothing is retained. Right only when the replicas
-    // genuinely differ, which is #136's socket push and nothing else today.
+    // genuinely differ, as a per-connection push does.
     expect(fake.queues).toEqual([
       { queue: 'amq.gen-fake', options: { exclusive: true } },
     ]);
@@ -384,9 +384,9 @@ describe('makeAmqpEventBus', () => {
   });
 
   /**
-   * ADR 0031 — what the process actually did, recorded where it did it. A source
-   * scan cannot see emission, which is why `tools/slices/` has been able to
-   * declare `catalog.published` with nothing publishing it.
+   * What the process actually did, recorded where it did it. A source scan
+   * cannot see emission, which is how a host's register can declare an event
+   * with nothing publishing it.
    */
   it('records the event names it published', async () => {
     const { bus, wiring } = withFakeChannel();

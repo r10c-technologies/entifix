@@ -208,12 +208,10 @@ const runStep = (
  * ⚠️ This is the whole reason an outcome is kept per fan-out element. Five lines
  * with three holds taken and the fourth refused must release exactly three:
  * compensating the step as a unit would either release nothing or attempt to
- * release two holds that were never taken
- * ([ADR 0052](../../../../../../docs/adr/0052-the-checkout-saga.md)).
+ * release two holds that were never taken.
  *
  * Never fails: a compensation's own failure is reported by the caller and must
- * not stop the compensations after it, for the reason ADR 0039 gives — a
- * stranded saga nobody is told about is the same as a lost one.
+ * not stop the compensations after it, because a stranded saga nobody is told about is the same as a lost one.
  */
 const compensateStep = (
   step: SagaStep,
@@ -259,8 +257,8 @@ const compensateStep = (
       // coordinator can retry it, and a participant answering "no such record"
       // on the second delivery is describing a flow that *was* reversed. Left
       // as a refusal it strands exactly the sagas that were cleaned up
-      // correctly, which is the failure ADR 0054 named on the conversion route
-      // and is the same one from the other side.
+      // correctly — the same failure a conversion route that refuses a
+      // redelivery has, from the other side.
       if (!result.ok && result.status !== 404) {
         failures.push(
           `compensation for '${step.id}' call ${String(call.index)} failed: ${String(
@@ -283,7 +281,7 @@ const compensateStep = (
  * a permanent failure while a customer's money sits captured.
  *
  * Durable retry across a coordinator restart is a different mechanism and is not
- * built: see #233, which makes a step dispatch an outbox entry whose relay
+ * built: the alternative makes a step dispatch an outbox entry whose relay
  * performs the POST.
  */
 const POST_PIVOT_RETRIES = 3;
@@ -294,8 +292,8 @@ const POST_PIVOT_RETRIES = 3;
  * ⚠️ **A retry re-dispatches the calls that already succeeded**, and that is
  * safe for exactly one reason: `sagaCommandId(sagaId, step.id, index)` is stable
  * across attempts, so a participant that is idempotent on the command id
- * recognises the replay. ADR 0052 states that requirement on the participant;
- * this is the code that depends on it.
+ * recognises the replay. That is a requirement on every participant a saga may
+ * retry; this is the code that depends on it.
  */
 const runStepWithRetries = (
   step: SagaStep,
@@ -422,7 +420,7 @@ const unwind = (
     if (failures.length > 0) {
       // ⚠️ Surfaced, never swallowed. This is the state that leaves a
       // reservation held and — once payment lands — a customer charged, and
-      // ADR 0039 names it as the failure class nobody plans for.
+      // it is the failure class nobody plans for.
       return yield* strand(
         store,
         sagaId,
@@ -441,8 +439,8 @@ const unwind = (
  * Dispatch the definition's steps from `startIndex` on, and unwind on a refusal.
  *
  * The state transition is persisted **before** each dispatch, so a crash leaves
- * a record that says what was actually attempted (ADR 0028, extended to
- * commands by ADR 0039).
+ * a record that says what was actually attempted — the outbox's rule, extended
+ * from events to commands.
  *
  * ⚠️ **Once the pivot has committed, nothing is unwound.** That is what a pivot
  * means, and the walk has to know it rather than the definition merely declaring
@@ -451,8 +449,7 @@ const unwind = (
  * silence and then delete the order behind it and release the holds behind that
  * — money taken, goods back on sale, every probe green. The step is retried
  * instead, and a saga that still cannot go forward is settled `STRANDED` and
- * logged, because ADR 0039 is explicit that a stranded saga nobody is told about
- * is the same as a lost one.
+ * logged, because a stranded saga nobody is told about is the same as a lost one.
  */
 const walk = (
   store: SagaStore,
@@ -558,7 +555,7 @@ export const runSaga = (
       stepIndex: 0,
       outcomes: [],
       // ⚠️ Persisted, because a resume has nothing to dispatch without it: a
-      // fan-out step's cardinality *is* its input's length (ADR 0055).
+      // fan-out step's cardinality *is* its input's length.
       inputs,
       resumeAttempts: 0,
       createdAt: new Date().toISOString(),
@@ -586,8 +583,7 @@ export interface ResumeSagaOptions {
  * - the step at `stepIndex` recorded no outcome — the process died during the
  *   dispatch, so **re-dispatch it**. Safe because `sagaCommandId` is stable
  *   across attempts and every participant claims it in its own command inbox,
- *   so calls that did land are recognised as replays rather than repeated
- *   (ADR 0052).
+ *   so calls that did land are recognised as replays rather than repeated.
  * - it recorded a successful outcome — the process died between
  *   `recordOutcome` and the next `beginStep`, so **start at the one after**.
  * - it recorded a refusal — the process died deciding what to do about it, so

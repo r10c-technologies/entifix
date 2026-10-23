@@ -11,12 +11,12 @@ import {
  * `409` rather than `403`: the caller is authenticated and permitted, but the
  * session names no organization, so there is no storage to read. An operator
  * hits this by design — crossing into a tenant is an explicit, audited
- * act-as-organization re-mint, never a widening of the default (ADR 0012) —
+ * act-as-organization re-mint, never a widening of the default —
  * and a member of several organizations hits it before choosing one. The `code`
  * is a key in the shared `errors` catalog, so a client renders "select an
- * organization" instead of "forbidden" — a claim `@r10c/i18n-check` now holds
- * to, because for a while it was simply false and the code reached the browser
- * as its own literal text.
+ * organization" instead of "forbidden" — a claim a host has to check its
+ * catalog against, because for a while it was simply false and the code
+ * reached the browser as its own literal text.
  */
 const noOrganization = HttpServerResponse.json(
   { error: 'no active organization', code: 'noActiveOrganization' },
@@ -28,13 +28,11 @@ const noOrganization = HttpServerResponse.json(
  * require that the session names an organization.
  *
  * **This is the first of exactly two ways a request resolves the organization
- * it acts for, and the only *user-facing* one**
- * ([ADR 0006](../../../../../../docs/adr/0006-multitenancy-planes-and-tenant-storage.md)).
+ * it acts for, and the only *user-facing* one**.
  * The second is {@link requireServiceCrossing}: an explicit `organizationId`
  * presented with a service token *and* a narrow route permission, for a
  * platform-plane caller acting for an organization it was handed rather than one
- * it picked
- * ([ADR 0023](../../../../../../docs/adr/0023-service-to-service-tenant-crossing.md)).
+ * it picked.
  *
  * There is no third path, no fallback and no operator branch. A request
  * satisfying neither guard never reaches a tenant handle at all, which is what

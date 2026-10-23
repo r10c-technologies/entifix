@@ -37,8 +37,8 @@ export type MetaAccessorType = (typeof MetaAccessorTypes)[number];
  * ⚠️ It is a **shape declaration, not a runtime constructor contract.** Children
  * arrive off the wire as plain objects — the serializer walks `instanceof
  * EntityLink`, not the declared type, so an embedded array passes straight
- * through — and ADR 0032 forbids a class instance inside an autosaved draft
- * anyway. Nothing may branch on `instanceof` against this constructor.
+ * through — and an autosaved draft may hold nothing that does not survive a
+ * JSON round trip anyway. Nothing may branch on `instanceof` against this constructor.
  */
 export type ChildConstructor<TChild extends object = object> = new (
   // Mirrors `EntityConstructor`: the arguments are the child's business, only
@@ -125,8 +125,8 @@ export interface MetaAccessorOptions {
    * Reset this member when the record is copied.
    *
    * It lives on the **accessor**, not on a use case's descriptor, and that is a
-   * decision already on file: ADR 0026 closed `UseCaseDescriptor` against
-   * per-verb payloads and named this exact case, because a descriptor that
+   * decision already made: `UseCaseDescriptor` is closed against per-verb
+   * payloads, and this is the exact case, because a descriptor that
    * grows a field per verb ends up a union of every verb's arguments. Which
    * members a copy must not carry is a property of the *member* — a unique
    * code, an audit stamp, a sequence number — and it is the same answer however

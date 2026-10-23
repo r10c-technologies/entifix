@@ -413,7 +413,7 @@ describe('collections', () => {
   });
 
   /**
-   * A composition has no editor yet (#122), so a draft never holds its rows.
+   * A composition has no editor yet, so a draft never holds its rows.
    * Writing the member anyway would blank a record's own lines on every save of
    * an unrelated field — which is why it is excluded from the scalar walk
    * rather than coerced to something.

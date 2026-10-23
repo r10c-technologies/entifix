@@ -8,7 +8,7 @@ import {
 } from './screen-type.js';
 
 describe('screen type values', () => {
-  it('is the four types of ADR 0033, in sidebar order', () => {
+  it('is the four screen types, in sidebar order', () => {
     expect(ScreenTypes).toEqual(['master', 'operation', 'wizard', 'report']);
   });
 

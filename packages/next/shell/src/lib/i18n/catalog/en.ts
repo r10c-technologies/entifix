@@ -131,7 +131,7 @@ export const shell: EsShell = {
     openInNewTab: 'Open {{label}} in a new tab',
     openInNewTabShort: 'Open in a new tab',
     /**
-     * The screen taxonomy (ADR 0033). Translated like every other string rather
+     * The screen taxonomy. Translated like every other string rather
      * than kept in Spanish: what that decision fixed was which *Spanish* word
      * ships to the default locale, not that the term is untranslatable.
      */

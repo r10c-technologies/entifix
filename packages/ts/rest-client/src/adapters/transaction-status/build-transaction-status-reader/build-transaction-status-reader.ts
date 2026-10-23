@@ -27,7 +27,7 @@ const TRANSACTION_PATH = 'transaction';
  * commits — the outbox is in the same Mongo transaction — while no event is ever
  * published and the tracker holds no record at all. A caller that treated this
  * as terminal would un-render a healthy write during a broker outage, which is
- * the moment nobody can tell a UI bug from an outage (ADR 0043). The route also
+ * the moment nobody can tell a UI bug from an outage. The route also
  * answers `404` for another tenant's record, deliberately, so it cannot be
  * walked to probe ids that are also primary keys — indistinguishable here, and
  * correctly so: neither is a record this caller may reconcile against.

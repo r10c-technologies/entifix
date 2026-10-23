@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 
 /**
- * Carries the section in view across the language switch (ADR 0008): a
+ * Carries the section in view across the language switch: a
  * fragment never reaches a server, so the switch's `href` is given one as it
  * is followed. Without scripting the visitor lands at the top of the other
  * locale. Renders nothing.

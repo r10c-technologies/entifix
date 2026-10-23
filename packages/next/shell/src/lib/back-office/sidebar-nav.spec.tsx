@@ -72,7 +72,7 @@ describe('SidebarNav', () => {
   });
 
   it('renders the screen type above the domain', () => {
-    // ADR 0033's tier. The label is `shell:` copy owned by
+    // The screen type is the top tier. The label is `shell:` copy owned by
     // `SCREEN_TYPE_LABEL_KEYS`, so it resolves here rather than in the host.
     render(<SidebarNav sections={sections} />);
     const nav = screen.getByRole('navigation', { name: 'Principal' });
@@ -84,7 +84,7 @@ describe('SidebarNav', () => {
   });
 
   it('gives an untyped section no tier heading', () => {
-    // The account surface is not a screen group at all (ADR 0033), so it gets
+    // The account surface is not a screen group at all, so it gets
     // no heading rather than an invented one.
     render(<SidebarNav sections={[sections[1] as NavSection]} />);
     const nav = screen.getByRole('navigation', { name: 'Principal' });

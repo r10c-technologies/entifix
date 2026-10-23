@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { RunningTestService } from './serve-test-service.js';
 import { serveTestService } from './serve-test-service.js';
 
-const SERVICE_NAME = '@r10c/probe-test-service';
+const SERVICE_NAME = 'probe-test-service';
 
 let running: RunningTestService | undefined;
 

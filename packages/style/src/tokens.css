@@ -19,7 +19,7 @@
  * The DEFAULT scale here is the fluid one: spacing and type generated with the
  * Utopia calculator (viewport 360..1240, base 18px/1.2 .. 20px/1.25). It is
  * built for reading, and the storefront keeps it. Dense operator UI imports
- * `presets/fixed-scale.css` instead — see ADR 0027.
+ * `presets/fixed-scale.css` instead.
  */
 
 @theme {

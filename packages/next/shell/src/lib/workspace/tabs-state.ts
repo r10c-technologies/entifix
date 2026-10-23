@@ -36,7 +36,7 @@ const WORKSPACE_STORE = 'stores';
  * so a drifted snapshot is a strip of broken tabs rather than an error anyone
  * can act on.
  */
-// 2: the tab address became `<screenType>:<key>[:<id>]` (ADR 0042), so every
+// 2: the tab address became `<screenType>:<key>[:<id>]`, so every
 // `catalog:` / `entity:` / `system:` param a previous build persisted addresses
 // a kind that no longer exists.
 export const TABS_VERSION = 2;

@@ -57,7 +57,7 @@ const describeMismatch = (baseURL: string): string =>
  * a production build every time. So the reuse stays and the *assumption* is
  * checked instead: the `mock` profile's whole claim is that it is hermetic, and
  * attached to a dev server it is not. Turning a silent wrong answer into a loud
- * failure is the trade — see issue #69.
+ * failure is the trade.
  *
  * `live` is exempt on purpose: it expects an already-running app and makes no
  * hermeticity claim, so which build answers is the operator's business.

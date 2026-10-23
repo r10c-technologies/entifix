@@ -16,7 +16,7 @@ const ACTIVITY_EVENTS = [
  * ⚠️ **Defaults, not policy.** These four used to be imported from the
  * application's own session package, which made a framework hook carry one
  * product's security decisions — and meant a second application could not use
- * the hook at all without adopting r10c's token lifetime. A host that has a
+ * the hook at all without adopting the first one's token lifetime. A host that has a
  * session policy passes it in; a host that has not yet thought about it gets
  * numbers that are defensible rather than absent.
  *

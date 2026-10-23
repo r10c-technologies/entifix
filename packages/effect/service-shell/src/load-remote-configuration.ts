@@ -35,8 +35,8 @@ export const defaultConfigRetrySchedule: Schedule.Schedule<unknown, unknown> =
  * listener dying mid-flight, a half-open socket — leaves it waiting forever.
  * The schedule never sees a failure, never retries, and the service hangs in its
  * boot layer with its port bound and nothing served: measured twice on
- * 2026-08-14, on auth-service and then marketplace-service, recovered only by a
- * full `dev:reset` ([#84](https://github.com/r10c-technologies/r10c/issues/84)).
+ * 2026-08-14, on two different services, and recovered only by recreating the
+ * datastores.
  *
  * So an attempt is deadlined, for the same reason a readiness probe is: a check
  * that hangs is a check that failed. The ordinary race this retry was written

@@ -148,7 +148,7 @@ export const shell = {
     openInNewTab: 'Abrir {{label}} en una pestaña nueva',
     openInNewTabShort: 'Abrir en una pestaña nueva',
     /**
-     * The screen taxonomy (ADR 0033) — the sidebar's top tier, above the
+     * The screen taxonomy — the sidebar's top tier, above the
      * domain. `Definiciones` rather than `Maestros` because the ERP term needs
      * the ERP background to parse, and rather than `Catálogos` or `Referencias`
      * because both already mean something else here: the product catalog, and a
@@ -162,7 +162,7 @@ export const shell = {
     },
   },
   /**
-   * La paleta de comandos (ADR 0044). Vive en `shell:` y no en `controls:`
+   * La paleta de comandos. Vive en `shell:` y no en `controls:`
    * porque el control es agnóstico —recibe copia ya resuelta— y quien la
    * arma es el back office.
    */

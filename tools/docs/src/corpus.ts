@@ -1,9 +1,9 @@
 /**
  * The documents these checks hold, and the small readers they share.
  *
- * Deliberately narrow. r10c's version of this project also asserted a store
- * register, a port table and an entity-name scan — facts about a marketplace
- * fleet, none of which exist here. What survives the move is the part that is
+ * Deliberately narrow. The version of this project in the repository entifix
+ * was extracted from also asserted a store register, a port table and an
+ * entity-name scan — facts about one fleet, none of which exist here. What survives the move is the part that is
  * true of any documentation set: a link that resolves, a record that carries
  * its own index headers, and a supersession that points both ways.
  */
