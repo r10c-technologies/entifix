@@ -1,3 +1,19 @@
+## 0.5.0 (2026-10-23)
+
+### 🚀 Features
+
+- ⚠️ **source:** an EntityRepository requires nothing from its environment ([#57](https://github.com/r10c-technologies/entifix/pull/57))
+- ⚠️ **source:** split the mixed entry points and stop shipping r10c's values ([#59](https://github.com/r10c-technologies/entifix/pull/59))
+
+### ⚠️ Breaking Changes
+
+- **source:** split the mixed entry points and stop shipping r10c's values ([#59](https://github.com/r10c-technologies/entifix/pull/59))
+- **source:** an EntityRepository requires nothing from its environment ([#57](https://github.com/r10c-technologies/entifix/pull/57))
+
+### ❤️ Thank You
+
+- Herber Colop
+
 ## 0.4.2 (2026-10-23)
 
 ### 🚀 Features
