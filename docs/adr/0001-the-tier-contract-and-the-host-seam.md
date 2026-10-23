@@ -5,6 +5,7 @@
 - Revised: 2026-09-16 by [#6](https://github.com/r10c-technologies/entifix/issues/6) — r10c's tag dimensions retired, and a same-tier edge must now be declared
 - Revised: 2026-09-16 by [ADR 0004](0004-the-examples-are-the-composability-proof.md) — the examples are decided there
 - Revised: 2026-10-20 by [ADR 0005](0005-content-an-entity-describes.md) — locales are a host value now, and `@entifix/static` is a 24th package
+- Revised: 2026-10-23 by [ADR 0006](0006-the-public-contract-is-entities-use-cases-and-ports.md) — what a package's public API may ask of its caller
 - Area: platform
 - Read when: adding a package, adding a dependency between two, deciding whether something is public API, or about to bake a host's value into framework code — a downward edge can still be illegal, and the seam takes values rather than paths
 
@@ -235,6 +236,11 @@ drift.
 Exported from `index.ts`, or reachable through a declared subpath export, is
 public. Everything else is internal and may change in a patch. Today that is 24
 packages and 24 subpaths.
+
+> **2026-10-23 ([ADR 0006](0006-the-public-contract-is-entities-use-cases-and-ports.md)).**
+> Exported is public, and public is also bounded: a contract entry exports
+> entities, use cases and ports, a mechanism lives at a subpath of its own, and
+> no contract makes its caller construct a mechanism.
 
 Neither versioning rule below means anything without this line: without it, every
 file in `src/` is API and no change is ever a patch.
