@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { createServiceProxyRoute } from './service-proxy-route.js';
+import {
+  createServiceProxyRoute,
+  UPSTREAM_UNAVAILABLE,
+} from './service-proxy-route.js';
 
 const SERVICE_URL = 'http://marketplace-service.test';
 
@@ -317,5 +320,33 @@ describe('pathPrefix', () => {
     );
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe(`${SERVICE_URL}/api/stock-item`);
+  });
+
+  it('answers 502 with a code when the service cannot be reached', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.reject(new TypeError('fetch failed'))),
+    );
+
+    const response = await forward(
+      new Request('http://app/api/order/product-order'),
+      params(['product-order']),
+    );
+
+    expect(response.status).toBe(502);
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    expect(await response.json()).toMatchObject({ code: UPSTREAM_UNAVAILABLE });
+  });
+
+  it('still passes an upstream 500 through as the service answered it', async () => {
+    vi.stubGlobal('fetch', answering('{"code":"boom"}', 500));
+
+    const response = await forward(
+      new Request('http://app/api/order/product-order'),
+      params(['product-order']),
+    );
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({ code: 'boom' });
   });
 });

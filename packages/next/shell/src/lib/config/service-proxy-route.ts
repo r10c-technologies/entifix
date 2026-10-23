@@ -78,6 +78,17 @@ const isStreamed = (upstream: Response): boolean =>
   upstream.headers.get('content-type')?.startsWith('text/event-stream') ===
   true;
 
+/**
+ * The code a proxy answers when the service behind it could not be reached.
+ *
+ * `502`, never the `500` an unhandled rejection becomes: the host did nothing
+ * wrong, and a `500` sends whoever reads it looking for a bug in the app rather
+ * than for a process that is not running. A **code, not a sentence**, so the
+ * browser can render it through the host's own `errors` catalog like every
+ * other refusal in the framework.
+ */
+export const UPSTREAM_UNAVAILABLE = 'upstreamUnavailable';
+
 const passThrough = (upstream: Response): Record<string, string> => {
   const headers: Record<string, string> = {};
   for (const name of CACHE_HEADERS) {
@@ -111,15 +122,23 @@ export const createServiceProxyRoute = ({
     }
 
     const hasBody = request.method !== 'GET' && request.method !== 'DELETE';
+    const body = hasBody ? await request.text() : undefined;
+    // Only the connection is caught. A service that answers — with anything,
+    // a `500` included — is passed through below exactly as it answered.
     const upstream = await fetch(
       `${baseUrl}/api/${[pathPrefix, ...path].filter(Boolean).join('/')}${search}`,
-      {
-        method: request.method,
-        headers,
-        body: hasBody ? await request.text() : undefined,
-        cache: 'no-store',
-      },
-    );
+      { method: request.method, headers, body, cache: 'no-store' },
+    ).catch(() => undefined);
+
+    if (upstream === undefined) {
+      return NextResponse.json(
+        {
+          error: 'the service behind this route could not be reached',
+          code: UPSTREAM_UNAVAILABLE,
+        },
+        { status: 502, headers: { 'cache-control': 'no-store' } },
+      );
+    }
 
     const passed = passThrough(upstream);
 
