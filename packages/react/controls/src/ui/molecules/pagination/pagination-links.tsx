@@ -1,9 +1,12 @@
 import type { Translate } from '../../../i18n/index.js';
-import { type RenderLink, renderAnchor } from '../../actions/render-link.js';
+import { renderAnchor,type RenderLink } from '../../actions/render-link.js';
 import { button } from '../../atoms/button/button-recipe.js';
 import { Text } from '../../atoms/text/index.js';
 import { cn } from '../../utils/cn.js';
 import { pageCount, pageWindow } from './page-math.js';
+
+/** A glyph, not copy: it reads the same in every locale, and it is aria-hidden. */
+const GAP = '…';
 
 export interface PaginationLinksProps {
   currentPage: number;
@@ -87,7 +90,7 @@ export function PaginationLinks({
         {pageWindow(currentPage, totalPages, radius).map(entry =>
           entry.kind === 'gap' ? (
             <li key={`gap-${entry.after}`} aria-hidden="true">
-              <Text tone="muted">…</Text>
+              <Text tone="muted">{GAP}</Text>
             </li>
           ) : (
             <li key={entry.page}>
