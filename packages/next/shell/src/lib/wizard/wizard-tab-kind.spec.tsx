@@ -6,7 +6,7 @@ const render = vi.fn((step: string | undefined) => <p>{step ?? 'first'}</p>);
 
 const kind = wizardTabKind({
   'product-setup': {
-    titleKey: 'shell:marketplaceAdmin.wizard.productSetup',
+    titleKey: 'app:wizard.productSetup',
     render,
   },
 });
@@ -54,7 +54,7 @@ describe('the wizard tab kind', () => {
       translate,
     );
 
-    expect(atFirst).toBe('«shell:marketplaceAdmin.wizard.productSetup»');
+    expect(atFirst).toBe('«app:wizard.productSetup»');
     expect(midFlow).toBe(atFirst);
   });
 
