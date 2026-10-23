@@ -4,8 +4,10 @@ import type {
   PendingTransactionStore,
   TransactionRecord,
   TransactionState,
+  TransactionStatusReader,
 } from '@entifix/transactions';
 import { renderHook, waitFor } from '@testing-library/react';
+import { Effect } from 'effect';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -249,5 +251,35 @@ describe('reconciling on an interval', () => {
     await vi.advanceTimersByTimeAsync(120_000);
 
     expect(read).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The port, handed over once from composition, settles exactly as the bare
+ * function does — it is the same read, run through the runtime here instead of
+ * at every call site.
+ */
+describe('reading through a TransactionStatusReader', () => {
+  it('settles a write the reader reports complete', async () => {
+    const reader = {
+      read: vi.fn<TransactionStatusReader['read']>(() =>
+        Effect.succeed(aRecord('COMPLETED')),
+      ),
+    } satisfies TransactionStatusReader;
+    const channel = makeInMemoryReactiveChannel();
+    const pending = makeStore([anEntry()]);
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <EntifixQueryProvider client={makeQueryClient()}>
+        {children}
+      </EntifixQueryProvider>
+    );
+
+    renderHook(() => useTransactionSettlement({ channel, pending, reader }), {
+      wrapper,
+    });
+    channel.emit(outcome('transaction.failed', TX));
+
+    await waitFor(() => expect(pending.settle).toHaveBeenCalledWith(TX));
+    expect(reader.read).toHaveBeenCalledWith(TX);
   });
 });

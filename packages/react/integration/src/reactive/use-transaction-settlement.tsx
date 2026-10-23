@@ -4,8 +4,10 @@ import type {
   PendingEntry,
   PendingTransactionStore,
   TransactionRecord,
+  TransactionStatusReader,
 } from '@entifix/transactions';
 import { useQueryClient } from '@tanstack/react-query';
+import { Effect } from 'effect';
 import { useCallback, useEffect, useRef } from 'react';
 
 import { entityQueryScopeFor } from '../query/entity-query-key.js';
@@ -14,7 +16,7 @@ import type { ReactiveChannel } from './reactive-channel.js';
 /** How often to re-ask while anything is pending. */
 const DEFAULT_POLL_MS = 30_000;
 
-export interface UseTransactionSettlementOptions {
+interface SettlementBase {
   /** The stream outcomes arrive on, and whose reconnects trigger a re-query. */
   channel: ReactiveChannel;
   /**
@@ -25,10 +27,37 @@ export interface UseTransactionSettlementOptions {
    * upward. Same seam, and the same reason, as `EntityDraftStore` for autosave.
    */
   pending: PendingTransactionStore;
-  /** Reads one record. `undefined` means *not tracked yet* — never *failed*. */
-  read: (transactionId: string) => Promise<TransactionRecord | undefined>;
   pollIntervalMs?: number;
 }
+
+/**
+ * How a record is read, and exactly one way.
+ *
+ * `reader` is the port, built once where the host composes its adapters, so the
+ * component calling this hook imports no transport. `read` is the same thing as
+ * a bare function, for a caller that already holds one.
+ */
+type RecordSource =
+  | {
+      /** Reads one record. `undefined` means *not tracked yet* — never *failed*. */
+      reader: TransactionStatusReader;
+      read?: never;
+    }
+  | {
+      /** Reads one record. `undefined` means *not tracked yet* — never *failed*. */
+      read: (transactionId: string) => Promise<TransactionRecord | undefined>;
+      reader?: never;
+    };
+
+export type UseTransactionSettlementOptions = SettlementBase & RecordSource;
+
+const readerOf = (
+  source: RecordSource,
+): ((transactionId: string) => Promise<TransactionRecord | undefined>) => {
+  if (source.reader === undefined) return source.read;
+  const { reader } = source;
+  return transactionId => Effect.runPromise(reader.read(transactionId));
+};
 
 /**
  * Settles the optimistic writes this browser started.
@@ -55,9 +84,10 @@ export interface UseTransactionSettlementOptions {
 export function useTransactionSettlement({
   channel,
   pending,
-  read,
   pollIntervalMs = DEFAULT_POLL_MS,
+  ...source
 }: UseTransactionSettlementOptions): void {
+  const read = readerOf(source);
   const queryClient = useQueryClient();
 
   // The store is rebuilt whenever an entry changes and `read` is typically
