@@ -22,7 +22,7 @@ import {
 /**
  * Which reasons are the caller's ordinary state, and which mean something broke.
  *
- * The split is ADR 0040's, restated as severity because that is what the palette
+ * The split is the record search's, restated as severity because that is what the palette
  * renders. An operator holds no membership, so every tenant-plane source answers
  * `409` on every keystroke — painting that as an outage teaches them to ignore
  * the row entirely, and then the `timeout` that does matter goes unread too.
@@ -63,7 +63,7 @@ const NOTHING_YET: RecordsState = { term: '', failed: false };
  * **No index, ever.** Every option here came back from `/api/search` for this
  * principal and this organization, on this keystroke. A prefetched client index
  * is the shape that surfaces another organization's record the first time a
- * session's scope moves under it, and ADR 0040 forecloses it permanently.
+ * session's scope moves under it, so there is none, ever.
  *
  * Below the two-character floor the group is present and **says why** rather
  * than being empty or absent: empty would claim nothing matched a search that

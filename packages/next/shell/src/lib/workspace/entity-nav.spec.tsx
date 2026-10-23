@@ -45,7 +45,7 @@ describe('useTabEntityNav', () => {
   it('opens list and entity tabs at one address grammar', () => {
     // One `master:` kind for both, not a `catalog:`/`entity:` pair — the list
     // and the record are the same screen type, so the id is what distinguishes
-    // them (ADR 0042).
+    // them.
     const { result } = renderHook(() => useTabEntityNav());
 
     result.current.toList('product');

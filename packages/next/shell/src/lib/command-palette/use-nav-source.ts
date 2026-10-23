@@ -20,9 +20,10 @@ const workspaceHref = (workspace: string) =>
  * Every destination this caller may reach, as one group.
  *
  * The nav is already the answer to "what may this person see": `visibleNav`
- * applies both of ADR 0037's ceilings server-side, and what reaches here is the
+ * applies both ceilings — the role and the organization's provisioning —
+ * server-side, and what reaches here is the
  * resolved, filtered tree the sidebar renders. So the palette holds no second
- * projection of navigation — the thing ADR 0037 deleted `GET /api/menu` for.
+ * projection of navigation, which is what a separate menu endpoint would be.
  *
  * A destination that can also be a workspace tab contributes a **second**
  * option rather than a modifier on the first. The palette runs on Enter and has
@@ -31,7 +32,7 @@ const workspaceHref = (workspace: string) =>
  *
  * The section's screen type is the option's hint, so Definiciones and
  * Operaciones stay distinguishable in a flat list — the sidebar's top tier
- * (ADR 0033) surviving the flattening rather than being dropped by it.
+ * surviving the flattening rather than being dropped by it.
  */
 export function useNavSource(
   sections: readonly NavSection[],

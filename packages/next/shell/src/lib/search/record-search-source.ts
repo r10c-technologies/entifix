@@ -14,8 +14,7 @@ import { Effect, Exit } from 'effect';
 import type { RecordSearchOption } from './record-search.types.js';
 
 /**
- * What a host declares in order to make one entity searchable from the palette
- * (ADR 0040).
+ * What a host declares in order to make one entity searchable from the palette.
  *
  * The search and label members are **declared**, not derived, and that is not an
  * oversight in the metadata: `linkSearchProperty`/`linkLabelProperty` are

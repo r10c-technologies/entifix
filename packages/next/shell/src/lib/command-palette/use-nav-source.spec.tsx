@@ -20,7 +20,7 @@ const sections: NavSection[] = [
       },
     ],
   },
-  // The account surface: the one section with no screen type (ADR 0033).
+  // The account surface: the one section with no screen type.
   {
     items: [
       { label: 'Perfil', href: '/account' },

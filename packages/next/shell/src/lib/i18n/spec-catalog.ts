@@ -4,11 +4,11 @@ import { registerFallbackCatalog } from '@entifix/react-controls';
  * An `entity` catalog for this package's own specs.
  *
  * ⚠️ **A fixture, not a shipped catalog.** `entity` names the *host's* entities,
- * so a framework shipping one would be shipping product copy — which is what
- * [ADR 0059](../../../../../../docs/adr/0059-entifix-leaves-the-repo.md)
- * removes. These specs assert that a nav entry, a palette command and a
+ * so a framework shipping one would be shipping product copy — which
+ * [ADR 0001](../../../../../../docs/adr/0001-the-tier-contract-and-the-host-seam.md)
+ * calls a defect. These specs assert that a nav entry, a palette command and a
  * workspace tab name a record in the catalog's own words; a fixture proves that
- * as well as r10c's copy did, and keeps the assertions readable as sentences.
+ * as well as a host's copy would, and keeps the assertions readable as sentences.
  */
 const es = {
   product: { label: 'Producto', plural: 'Productos' },

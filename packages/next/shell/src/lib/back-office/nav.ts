@@ -19,8 +19,7 @@ export interface NavSection {
   title?: string;
   items: NavItem[];
   /**
-   * What shape these screens are — the sidebar's **top tier**, above the domain
-   * ([ADR 0033](../../../../../../../docs/adr/0033-the-screen-taxonomy.md)).
+   * What shape these screens are — the sidebar's **top tier**, above the domain.
    *
    * A `ScreenType` rather than a translated string, unlike `title`: the four
    * names are one shipped vocabulary that `SCREEN_TYPE_LABEL_KEYS` maps into the

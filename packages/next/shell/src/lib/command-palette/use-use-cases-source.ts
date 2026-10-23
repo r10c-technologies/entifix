@@ -49,10 +49,10 @@ export type UseCaseCommandEntity<TEntity extends Entity = Entity> = {
 /**
  * The `unbound` verbs this caller may invoke, as one group.
  *
- * This is the surface ADR 0035 mapped and nothing rendered: all three
+ * This is the surface the action placement map named and nothing rendered: all three
  * `unbound:*` cells resolve to `'command-palette'`, and until now the palette
  * did not exist, so a verb declared there was granted, exported, passed every
- * `@r10c/slices` invariant and simply never appeared.
+ * check the host's register ran and simply never appeared.
  *
  * The descriptors are **served, not imported**: `$metadata` filters them through
  * `PolicyDecisionTag` against the verified principal, which is a stronger check

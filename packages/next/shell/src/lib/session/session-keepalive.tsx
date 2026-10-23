@@ -23,7 +23,7 @@ export interface SessionKeepaliveProps {
  * with its schedule, its idle gate, its countdown and a full spec, and was
  * referenced by nothing — no app, no shell, no layout. So no browser in the
  * fleet ever posted to `/api/auth/refresh`, and three separately reasonable
- * facts combined into a bug (#252): the access token lives 15 minutes, both
+ * facts combined into a bug: the access token lives 15 minutes, both
  * cookies are sized to the seven-day session ceiling so that a cookie does not
  * sign everyone out every 15 minutes, and the middleware can only check that a
  * cookie is *present* because the edge cannot verify a signature. The visitor
@@ -40,8 +40,7 @@ export interface SessionKeepaliveProps {
  * that already exists, and the two would drift the first time either changed.
  *
  * A form's unsaved work survives it, because a workspace draft is autosaved to
- * IndexedDB rather than held in the page
- * ([ADR 0032](../../../../../../docs/adr/0032-what-may-live-in-an-autosaved-draft.md)).
+ * IndexedDB rather than held in the page.
  *
  * Renders nothing but a warning strip, and only inside the final window before
  * the ceiling. `role="status"` rather than `role="alert"`: the session ending
@@ -53,7 +52,6 @@ export interface SessionKeepaliveProps {
  * nothing between that and the neutrals. Borrowing `danger` for "your session
  * ends in five minutes" would spend the one alarming colour on something that is
  * not an error; adding a semantic colour is a change to the token contract
- * ([ADR 0027](../../../../../../docs/adr/0027-two-scales-a-density-mode-and-the-type-system.md))
  * and does not belong in a session fix.
  */
 export function SessionKeepalive({

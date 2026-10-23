@@ -23,7 +23,7 @@ export interface EntityAffordances {
  * two lines at every call site. An absent source is the hook's own business.
  *
  * Absent metadata is **not** a security posture: it is the shape both surfaces
- * read as "behave exactly as before ADR 0026". The route guard is the
+ * read as "behave exactly as before affordances were served". The route guard is the
  * authorization boundary.
  */
 export function useEntityAffordances<TEntity extends Entity>(

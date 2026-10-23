@@ -1,6 +1,6 @@
 /**
  * The wire contract of `GET /api/search` — the cross-domain record search the
- * command palette reads (ADR 0040).
+ * command palette reads.
  *
  * Types only, so both halves can name them: the route handler builds these on
  * the server, and the browser's `searchRecords` returns them. A type crosses the
