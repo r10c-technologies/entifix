@@ -1,5 +1,5 @@
 import type { Translate } from '../../../i18n/index.js';
-import { renderAnchor,type RenderLink } from '../../actions/render-link.js';
+import { renderAnchor, type RenderLink } from '../../actions/render-link.js';
 import { button } from '../../atoms/button/button-recipe.js';
 import { Text } from '../../atoms/text/index.js';
 import { cn } from '../../utils/cn.js';
