@@ -16,8 +16,7 @@ import { Effect } from 'effect';
  */
 export interface TransactionCommand<TPayload = SerializedEntity> {
   /**
-   * Correlates every event and record for this run, and **the client mints it**
-   * (ADR 0028).
+   * Correlates every event and record for this run, and **the client mints it**.
    *
    * It is also the stored entity's id and the idempotency key: re-sending a
    * command with the same id returns the first one's answer instead of writing
@@ -45,7 +44,7 @@ export interface TransactionCommand<TPayload = SerializedEntity> {
    * Optional because the parser produces a command without it and the route
    * fills it in a moment later. A command that reaches the engine still carrying
    * `undefined` emits events that no tenant-scoped stream connection receives —
-   * which is the intended direction to fail (ADR 0036).
+   * which is the intended direction to fail.
    */
   organizationId?: string;
 }

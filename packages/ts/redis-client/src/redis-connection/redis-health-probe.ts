@@ -15,8 +15,7 @@ export const REDIS_PROBE_NAME = 'redis';
  *
  * `stores` names the Stores this connection backs, by their register name in
  * `tools/slices/` — `['session']`, `['saga-coordination']`. See
- * {@link MongoHealthProbeLayer} for why the composition root supplies it
- * (ADR 0031).
+ * {@link MongoHealthProbeLayer} for why the composition root supplies it.
  */
 export const RedisHealthProbeLayer = (
   stores: readonly string[],

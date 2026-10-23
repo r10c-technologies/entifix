@@ -17,8 +17,7 @@ import type { Db } from 'mongodb';
  *
  * That rule is why this lives here rather than in one service. It applies
  * identically to a per-organization `tenant_<id>` and to a single platform-plane
- * database, and the second publisher is what turned a copy into a seam
- * ([ADR 0028](../../../../../../docs/adr/0028-the-transaction-id-is-the-clients-and-its-event-ships-with-the-write.md)).
+ * database, and the second publisher is what turned a copy into a seam.
  */
 export const OUTBOX_COLLECTION = 'transaction_outbox';
 
@@ -57,9 +56,9 @@ export const outboxDocument = (event: DomainEvent): OutboxEntry => ({
 /**
  * Puts a **quarantined** entry back in the queue, and touches nothing else.
  *
- * The rebuild walk's repair for the one failure ADR 0048 measured: with the
+ * A rebuild walk's repair for the one failure measured on a live lab: with the
  * broker down long enough, the relay spends `outbox.maxAttempts` on an
- * announcement and quarantines it (ADR 0030's deliberate skip-so-the-head-moves),
+ * announcement and quarantines it (the deliberate skip-so-the-head-moves),
  * after which the tenant store reads one thing and the storefront shows another
  * with nothing reporting it. Re-emitting cannot help on its own — the event id is
  * `<offeringId>:<publishedAt>` and the unique index answers `duplicate`.

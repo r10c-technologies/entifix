@@ -30,8 +30,7 @@ export interface OutboxEntry {
    * The relay drains in order and stops at the first failure, which is what
    * keeps `accepted` ahead of a terminal event — and is also why an entry that
    * can *never* publish used to block everything behind it forever. Counting
-   * the attempts is what turns "retrying" into a state with an end
-   * (ADR 0030).
+   * the attempts is what turns "retrying" into a state with an end.
    */
   attempts: number;
   /**
@@ -53,7 +52,7 @@ export interface OutboxEntry {
  * Whether {@link TransactionOutbox.enqueue} actually wrote.
  *
  * `duplicate` is not a failure — it is how a *retry* is recognised. The
- * transaction id is the client's idempotency key (ADR 0028), so a repeated
+ * transaction id is the client's idempotency key, so a repeated
  * command must return the first one's answer rather than execute twice. The
  * adapter owns the detection because the mechanism is storage-specific (a Mongo
  * `E11000` against the unique index on `eventId`), and translating it here keeps
@@ -76,8 +75,8 @@ export interface OutboxStats {
    * `createdAt` of the oldest such entry, absent when there are none.
    *
    * The age derived from this is the metric that makes a stuck relay visible.
-   * An entry that can never publish no longer blocks the ones behind it — #179
-   * gave the relay a ceiling — but a quarantine is reported only as a log line,
+   * An entry that can never publish no longer blocks the ones behind it —
+   * quarantine gave the relay a ceiling — but a quarantine is reported only as a log line,
    * so *how far behind* the head has fallen is otherwise unanswerable.
    */
   oldestPendingAt?: string;

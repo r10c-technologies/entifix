@@ -2,8 +2,7 @@ import { EntifixLogicError } from '@entifix/core';
 
 /**
  * Richardson's classification, and adopting the vocabulary is most of the answer
- * to "which steps are compensable at all"
- * ([ADR 0039](../../../../../../docs/adr/0039-multi-step-sagas-are-orchestrated.md)).
+ * to "which steps are compensable at all".
  *
  * - `compensatable` — before the point of no return; a failure downstream
  *   reverses it.
@@ -24,9 +23,9 @@ export type SagaMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
  *
  * ⚠️ **A template rather than a callback, and that is the constraint that
  * shaped the whole type.** A callback would have to name the participant's
- * types, and a `business:domain` package may not import another
- * (`docs/_shared/layering.md`) — which is exactly the import that has no legal
- * home and the reason ADR 0039 made a definition **data** in the first place.
+ * types, and one domain package may not import another — which is exactly the
+ * import that has no legal home and the reason a definition is **data** in the
+ * first place.
  */
 export interface SagaCall {
   readonly method: SagaMethod;
@@ -43,8 +42,7 @@ export interface SagaStep {
    * A URI in a definition is a deployment fact written into a business
    * artifact, and it is what makes a definition untestable and un-relocatable.
    * The same lookup yields the crossing token for that participant, so a
-   * definition carries no secret and never could
-   * ([ADR 0052](../../../../../../docs/adr/0052-the-checkout-saga.md)).
+   * definition carries no secret and never could.
    */
   readonly participant: string;
   readonly command: SagaCall;
@@ -57,8 +55,8 @@ export interface SagaStep {
    * ⚠️ **Cardinality is data, because it has to be.** Checkout reserves once per
    * vendor and how many vendors is known only from the cart, so writing that as
    * N steps would mean generating a definition per request — at which point it
-   * is no longer data, and ADR 0039's whole construction collapses back into the
-   * class that has no legal home.
+   * is no longer data, and the whole construction collapses back into the class
+   * that has no legal home.
    *
    * The consequence carried by {@link SagaStepOutcome}: **the unit of
    * compensation is the call, not the step.** Five lines with three holds taken
@@ -74,7 +72,7 @@ export interface SagaStep {
    * call per hold, addressed by the reservation id — which stock-service mints,
    * so the caller cannot know it when it starts the flow. Supplying the ids as
    * input is impossible, and generating a definition per request is the thing
-   * ADR 0039 exists to avoid.
+   * a definition-as-data exists to avoid.
    *
    * Each element inherits that call's `organizationId`, so a tenant-plane
    * participant reaches the same tenant it did the first time, and the `path`
@@ -123,8 +121,7 @@ export interface SagaCallOutcome {
    * `x-organization-id`, so a compensation dispatched without it is refused
    * `400` — and the saga strands with every hold still in place while the
    * engine reports it tried. Measured on the live lab: two holds taken, a third
-   * line refused, and both releases rejected for a missing header
-   * ([ADR 0023](../../../../../../docs/adr/0023-service-to-service-tenant-crossing.md)).
+   * line refused, and both releases rejected for a missing header.
    */
   readonly organizationId?: string;
 }
@@ -136,7 +133,7 @@ export interface SagaCallOutcome {
 export interface SagaStepInput {
   /** The body to send. */
   readonly body?: unknown;
-  /** ADR 0023's explicit organization, for a tenant-plane participant. */
+  /** The explicit organization, for a tenant-plane participant. */
   readonly organizationId?: string;
 }
 
@@ -145,8 +142,7 @@ export interface SagaStepInput {
  *
  * ⚠️ **Here rather than in the engine**, because the durable instance carries
  * it: a resumed walk is a different process reading this off the store, so the
- * port that persists it may not reach up into the engine to name its type
- * ([ADR 0055](../../../../../../docs/adr/0055-a-coordinator-resumes-from-its-own-record.md)).
+ * port that persists it may not reach up into the engine to name its type.
  */
 export type SagaInputs = Readonly<Record<string, readonly SagaStepInput[]>>;
 
@@ -161,8 +157,7 @@ export interface SagaStepOutcome {
    * one.** `calls` holds what succeeded either way, so the two are
    * indistinguishable on the stored document, and the distinction is what
    * decides whether the pivot committed. Guessing it either compensates behind
-   * a capture or walks past a refusal
-   * ([ADR 0055](../../../../../../docs/adr/0055-a-coordinator-resumes-from-its-own-record.md)).
+   * a capture or walks past a refusal.
    */
   readonly error?: string;
   /**
@@ -187,8 +182,8 @@ const fail = (definition: string, detail: string): never => {
  * Validate a definition and return it, or throw.
  *
  * ⚠️ **At load, not at the step.** A fault that only appears on the unlucky path
- * is a fault that ships — the same reasoning ADR 0035 used for `collection` +
- * `determining`. Every definition is therefore constructed through this
+ * is a fault that ships — the same reasoning that makes an unrenderable action
+ * cell throw at render. Every definition is therefore constructed through this
  * function at module scope, and loaded in a spec: a definition that never loads
  * is a definition that never fails.
  */
@@ -229,7 +224,7 @@ export function defineSaga(definition: SagaDefinition): SagaDefinition {
   const pivots = steps.filter(step => step.kind === 'pivot');
   if (pivots.length > 1) {
     // A flow with two points of no return is a flow that has not been designed
-    // yet, and the engine says so out loud (ADR 0039).
+    // yet, and the engine says so out loud.
     fail(
       name,
       `it declares ${String(pivots.length)} pivots (${pivots
@@ -242,7 +237,7 @@ export function defineSaga(definition: SagaDefinition): SagaDefinition {
   // Payment capture is M4; until it lands every step of checkout reverses. A
   // validator demanding exactly one would push the order write into a role it
   // would have to be removed from later — a wrong answer that passes
-  // (ADR 0052). A definition with no pivot means the whole saga can be unwound,
+  //. A definition with no pivot means the whole saga can be unwound,
   // which is a stronger property than a pivot rather than a missing one.
   const pivot = pivots[0];
   const pivotAt = pivot ? steps.indexOf(pivot) : -1;
@@ -271,7 +266,7 @@ export function defineSaga(definition: SagaDefinition): SagaDefinition {
         if (step.compensation) {
           // Not dead code — a *false assurance*. Such a compensation could
           // never run, so writing one says the step is reversible when it is
-          // not (ADR 0039).
+          // not.
           fail(
             name,
             `step '${step.id}' is ${step.kind} and declares a compensation, ` +
@@ -298,7 +293,7 @@ export function defineSaga(definition: SagaDefinition): SagaDefinition {
  * The command id one call is dispatched under.
  *
  * `<sagaId>:<stepId>` — the shape `transactionEventId` already uses for events,
- * so #178's `TransactionInbox` serves saga steps with no second dedup store and
+ * so the `TransactionInbox` serves saga steps with no second dedup store and
  * no second key. A fan-out step appends the element index, because its calls are
  * separate side effects that must each be claimed on their own.
  */

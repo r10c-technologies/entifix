@@ -2,7 +2,8 @@ import type { OutboxStats } from '@entifix/transactions';
 import { Effect, Metric } from 'effect';
 
 /**
- * The outbox half of ADR 0001's first metric set.
+ * The outbox half of the framework's first metric set; the bus half is in
+ * `@entifix/amqp`.
  *
  * It lives beside the relay that samples it rather than in any one service,
  * because three slices now own an outbox — `catalog`, `order` and `payment` —
@@ -36,7 +37,7 @@ export const outboxPending = Metric.gauge('outbox_pending_entries', {
 /**
  * Age in seconds of the oldest unsent entry, per database.
  *
- * **The metric that makes a stuck relay visible.** #179 gave the relay a
+ * **The metric that makes a stuck relay visible.** Quarantine gave the relay a
  * ceiling, so an entry that can never publish is quarantined and skipped rather
  * than blocking the head of the line forever — but that is reported only as a
  * log line, so how far behind the outbox has fallen is otherwise unanswerable.

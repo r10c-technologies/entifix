@@ -10,8 +10,8 @@ import type { TransactionStreamHub } from '../ports/transaction-stream-hub.js';
  * Bounded with a **sliding** strategy rather than unbounded: a browser that
  * stops reading its connection must not be able to grow the service's heap, and
  * a reactive hint is worth less the older it is — the record behind it is the
- * truth, and re-reading it is cheap (ADR 0036 declines replay for the same
- * reason).
+ * truth, and re-reading it is cheap, which is also why the stream offers no
+ * replay.
  */
 const CAPACITY = 256;
 
@@ -20,8 +20,7 @@ const CAPACITY = 256;
  *
  * `type: 'create'` is the only command that exists, so `PENDING` and
  * `COMPLETED` both announce an entity coming into existence — the id is already
- * known at `accepted`, because ADR 0028 makes the client-minted transaction id
- * the stored entity's id. A terminal failure announces the opposite: nothing was
+ * known at `accepted`, because the client-minted transaction id is the stored entity's id. A terminal failure announces the opposite: nothing was
  * written, so a consumer holding an optimistic row must drop it.
  *
  * When `update`/`delete` commands land this keys off `command.type` instead;
@@ -36,7 +35,7 @@ const changeFor = (state: TransactionState): EntityChangeEvent['change'] =>
  *
  * No fourth framing and no duplicated fields: the transaction id, the timestamp
  * and the sequence a consumer needs are already `meta.event.correlationId`,
- * `.at` and `.id` on the message this returns (ADR 0036).
+ * `.at` and `.id` on the message this returns.
  */
 export const entityChangeFor = (
   event: DomainEvent<TransactionEvent>,

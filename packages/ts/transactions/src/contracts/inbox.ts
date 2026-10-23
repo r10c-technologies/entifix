@@ -28,7 +28,7 @@ export interface InboxClaim {
    *
    * Never `correlationId`: one transaction emits up to three messages, so
    * keying on the correlation id would make `completed` look like a
-   * redelivery of `accepted` (ADR 0029).
+   * redelivery of `accepted`.
    */
   eventId: string;
   /** ISO-8601, for retention — nothing reads it to make a decision. */
