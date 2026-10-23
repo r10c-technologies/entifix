@@ -1,6 +1,6 @@
 # 6. A package's public contract is entities, use cases and ports
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-10-23
 - Area: platform
 - Read when: adding an export to a package's `.` entry, adding an option that takes a function or an adapter's product, adding a requirement to a port's `R` channel, or a consumer cannot write an import ban because a mechanism shares an entry point with a contract — a contract surface never makes its caller construct a mechanism, and the subpath is what a ban can name
@@ -116,7 +116,8 @@ How a consumer arranges its own code around these contracts — which units it
 groups by domain or by store, and which mechanism each is allowed to be. That is
 the consumer's decision; this record only makes it enforceable.
 
-## Trigger
+## Status
 
-Accepted when the release carrying the last of the six changes above is
-published.
+Accepted with **0.5.0**, the release that carried the last of the six
+changes: the two additive ones shipped in 0.4.2, and the repository port, the
+three entry-point splits and the host values in 0.5.0.
