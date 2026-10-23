@@ -13,6 +13,7 @@ import {
 import { Effect, Layer } from 'effect';
 import { HttpRouter } from 'effect/http';
 
+import type { SharedToken } from './auth/shared-token.js';
 import { healthRoutes } from './health-routes.js';
 import { serviceDescriptionRoute } from './service-description-route.js';
 
@@ -63,6 +64,14 @@ export interface ServiceDefinition<RRoutes> {
    * quietly mislabelling the fleet.
    */
   readonly slices: readonly string[];
+  /**
+   * The token that gates `GET /api/$service`, the service's wiring document.
+   *
+   * Optional, and **absent means the route is not mounted** rather than served
+   * open: the document names every store, exchange and upstream the service
+   * has, and an unguarded reconnaissance map is worse than none.
+   */
+  readonly description?: SharedToken;
   /** The service's routes; their requirements are satisfied by `appLayer`. */
   readonly router: ServiceRoutes<RRoutes>;
   /**
@@ -106,7 +115,9 @@ export const makeServerLayer = <RRoutes>(
   const routes = Layer.mergeAll(
     def.router,
     healthRoutes(def.name),
-    serviceDescriptionRoute(def.name, def.slices),
+    def.description === undefined
+      ? Layer.empty
+      : serviceDescriptionRoute(def.name, def.slices, def.description),
     // Permissive CORS (frontends call these services cross-origin from their
     // dev ports). Tighten per-environment later.
     HttpRouter.cors(),

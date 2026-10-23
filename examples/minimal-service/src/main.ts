@@ -1,4 +1,4 @@
-import { makeService } from '@entifix/service-shell';
+import { makeService } from '@entifix/service-shell/runtime';
 
 import { makeAppLayer, SERVICE_NAME } from './app-layer.ts';
 import { router } from './routes.ts';

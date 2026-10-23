@@ -6,14 +6,13 @@ import {
   OUTBOX_COLLECTION,
   outboxDocument,
 } from '@entifix/mongo/transactions';
+import { defineSaga, type SagaResponse } from '@entifix/transactions';
 import {
-  defineSaga,
   isSagaCall,
   LocalSagaDispatcherLayer,
   type LocalSagaParticipant,
   type LocalSagaRequest,
-  type SagaResponse,
-} from '@entifix/transactions';
+} from '@entifix/transactions/engine';
 import { Effect, Layer } from 'effect';
 import type { ClientSession, Db, MongoClient } from 'mongodb';
 

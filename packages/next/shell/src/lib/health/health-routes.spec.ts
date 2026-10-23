@@ -2,10 +2,15 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createHealthRoutes } from './health-routes.js';
 
+const CONFIG_URL = 'http://config.test/api/config/some-app';
+
+let token = 'a-fleet-secret';
 const OPTIONS = {
-  app: '@r10c/some-app',
-  configApiUrl: 'http://localhost:3190',
-  configKey: 'some-app',
+  app: 'some-app',
+  configuration: () => ({
+    url: CONFIG_URL,
+    headers: { 'x-fleet-token': token },
+  }),
 };
 
 const stubFetch = (impl: typeof fetch) => {
@@ -16,7 +21,7 @@ const stubFetch = (impl: typeof fetch) => {
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
-  delete process.env.CONFIG_SERVICE_TOKEN;
+  token = 'a-fleet-secret';
 });
 
 describe('createHealthRoutes', () => {
@@ -82,15 +87,15 @@ describe('createHealthRoutes', () => {
       app: OPTIONS.app,
     });
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://localhost:3190/api/config/some-app',
+      CONFIG_URL,
       expect.objectContaining({ cache: 'no-store' }),
     );
   });
 
-  // The lookup is token-gated, and a probe that omits the header reads a `401`
+  // A gated lookup answers `401` to a probe that omits the header, which reads
   // as "degraded" — an app that never becomes Ready while being perfectly
   // healthy. Regression guard for exactly that.
-  it('presents the fleet service token', async () => {
+  it('sends the headers its configuration source names', async () => {
     const fetchMock = stubFetch(() =>
       Promise.resolve(new Response('{}', { status: 200 })),
     );
@@ -98,15 +103,15 @@ describe('createHealthRoutes', () => {
     await createHealthRoutes(OPTIONS).ready();
 
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://localhost:3190/api/config/some-app',
+      CONFIG_URL,
       expect.objectContaining({
-        headers: { 'x-service-token': 'dev-config-service-token-change-me' },
+        headers: { 'x-fleet-token': 'a-fleet-secret' },
       }),
     );
   });
 
-  it('prefers the configured token over the dev default', async () => {
-    process.env.CONFIG_SERVICE_TOKEN = 'from-env';
+  it('reads the source on each probe, so a rotated secret is sent', async () => {
+    token = 'rotated';
     const fetchMock = stubFetch(() =>
       Promise.resolve(new Response('{}', { status: 200 })),
     );
@@ -114,9 +119,9 @@ describe('createHealthRoutes', () => {
     await createHealthRoutes(OPTIONS).ready();
 
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://localhost:3190/api/config/some-app',
+      CONFIG_URL,
       expect.objectContaining({
-        headers: { 'x-service-token': 'from-env' },
+        headers: { 'x-fleet-token': 'rotated' },
       }),
     );
   });

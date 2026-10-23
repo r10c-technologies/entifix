@@ -3,7 +3,7 @@ import { HealthRegistryTag, WiringRegistryTag } from '@entifix/business';
 import { Effect } from 'effect';
 import { HttpRouter, HttpServerResponse } from 'effect/http';
 
-import { requireServiceToken } from './auth/service-token.js';
+import { requireSharedToken, type SharedToken } from './auth/shared-token.js';
 
 /**
  * The path the wiring document is served at.
@@ -89,7 +89,7 @@ const describe = (
 /**
  * `GET /api/$service`, as a route layer to merge beside a service's own.
  *
- * **Gated by `X-Service-Token`.** This names every store, exchange and upstream
+ * **Gated by a shared token**, which the host names. This names every store, exchange and upstream
  * a service has, which is a reconnaissance map rather than diagnostics. The
  * repository's precedent on maps of the model is uniform: `$metadata` answers
  * `404` rather than `403` so it cannot be walked as an oracle, readiness serves
@@ -98,7 +98,7 @@ const describe = (
  * a probe cannot hold a credential.
  *
  * The token is fleet membership, which is the right shape here: the readers are
- * `dev-infra:map` and CI, not a person and not a browser.
+ * tooling and CI, not a person and not a browser.
  *
  * **Logical names only.** Nothing in the response is a URI, and emphatically
  * nothing is `tenant_<organizationId>` — the tenant databases are named after
@@ -109,11 +109,12 @@ const describe = (
 export const serviceDescriptionRoute = (
   serviceName: string,
   slices: readonly string[],
+  guard: SharedToken,
 ) =>
   HttpRouter.add(
     'GET',
     SERVICE_DESCRIPTION_PATH,
-    requireServiceToken(
+    requireSharedToken(guard)(
       Effect.flatMap(describe(serviceName, slices), description =>
         HttpServerResponse.json(description),
       ),

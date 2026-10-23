@@ -4,7 +4,7 @@ import {
   router,
   SERVICE_NAME,
 } from '@entifix/example-service';
-import { serveTestService } from '@entifix/service-shell';
+import { serveTestService } from '@entifix/service-shell/testing';
 import { fakeAmqpLayer, fakeMongoLayer } from '@entifix/testing-e2e/fixtures';
 import type { FakeMongoDb } from '@entifix/testing-unit/drivers';
 import { Layer } from 'effect';

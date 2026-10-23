@@ -15,6 +15,8 @@ import {
 
 const CONFIG_API = 'http://config-service:3190';
 const SERVICE = 'marketplace-admin-service';
+const URL_ = `${CONFIG_API}/api/config/${SERVICE}`;
+const SOURCE = { url: URL_, headers: { 'x-fleet-token': 'a-secret' } };
 
 // Fail fast in the error-path tests: a single attempt, no boot-retry wait.
 const noRetry = { retrySchedule: Schedule.recurs(0) } as const;
@@ -34,39 +36,27 @@ const server = setupEntifixServer(
   ),
 );
 
-const recordRequests = () => {
-  const urls: string[] = [];
-  server.events.on('request:start', ({ request }) => {
-    urls.push(request.url);
-  });
-  return urls;
-};
-
 describe('loadRemoteConfiguration', () => {
   it('fetches the service’s own configuration document', async () => {
-    expect(
-      await Effect.runPromise(loadRemoteConfiguration(CONFIG_API, SERVICE)),
-    ).toEqual(plain);
-  });
-
-  it('addresses config-service by service name', async () => {
-    const urls = recordRequests();
-
-    await Effect.runPromise(loadRemoteConfiguration(CONFIG_API, SERVICE));
-
-    expect(urls).toContain(`${CONFIG_API}/api/config/${SERVICE}`);
-  });
-
-  // The base URL comes from an env var, so a trailing slash is entirely likely
-  // and must not produce a `//api/config` path.
-  it('tolerates a trailing slash on the base URL', async () => {
-    const urls = recordRequests();
-
-    await Effect.runPromise(
-      loadRemoteConfiguration(`${CONFIG_API}///`, SERVICE),
+    expect(await Effect.runPromise(loadRemoteConfiguration(SOURCE))).toEqual(
+      plain,
     );
+  });
 
-    expect(urls).toContain(`${CONFIG_API}/api/config/${SERVICE}`);
+  // The URL and the credential are the host's protocol: the loader composes
+  // neither, and sends exactly what it was given.
+  it('fetches the URL it is given, with the headers it is given', async () => {
+    const seen: { url: string; token: string | null }[] = [];
+    server.events.on('request:start', ({ request }) => {
+      seen.push({
+        url: request.url,
+        token: request.headers.get('x-fleet-token'),
+      });
+    });
+
+    await Effect.runPromise(loadRemoteConfiguration(SOURCE));
+
+    expect(seen).toContainEqual({ url: URL_, token: 'a-secret' });
   });
 
   it.each([
@@ -77,12 +67,12 @@ describe('loadRemoteConfiguration', () => {
     server.use(http.get(`${CONFIG_API}/api/config/${SERVICE}`, respond));
 
     const error = await Effect.runPromise(
-      Effect.flip(loadRemoteConfiguration(CONFIG_API, SERVICE, noRetry)),
+      Effect.flip(loadRemoteConfiguration(SOURCE, noRetry)),
     );
 
     expect(error).toBeInstanceOf(EntifixConnError);
-    expect(error.message).toContain(SERVICE);
-    expect(error.details).toMatchObject({ service: SERVICE });
+    expect(error.message).toContain(URL_);
+    expect(error.details).toMatchObject({ url: URL_ });
   });
 
   it('reports the status it got back', async () => {
@@ -94,7 +84,7 @@ describe('loadRemoteConfiguration', () => {
     );
 
     const error = await Effect.runPromise(
-      Effect.flip(loadRemoteConfiguration(CONFIG_API, SERVICE, noRetry)),
+      Effect.flip(loadRemoteConfiguration(SOURCE, noRetry)),
     );
 
     expect(error.cause?.message).toContain('404');
@@ -113,7 +103,7 @@ describe('loadRemoteConfiguration', () => {
     );
 
     const result = await Effect.runPromise(
-      loadRemoteConfiguration(CONFIG_API, SERVICE, instantRetry),
+      loadRemoteConfiguration(SOURCE, instantRetry),
     );
 
     expect(attempts).toBe(3);
@@ -134,7 +124,7 @@ describe('loadRemoteConfiguration', () => {
 
     const error = await Effect.runPromise(
       Effect.flip(
-        loadRemoteConfiguration(CONFIG_API, SERVICE, {
+        loadRemoteConfiguration(SOURCE, {
           ...noRetry,
           attemptTimeoutMs: 25,
         }),
@@ -159,7 +149,7 @@ describe('loadRemoteConfiguration', () => {
     );
 
     const result = await Effect.runPromise(
-      loadRemoteConfiguration(CONFIG_API, SERVICE, {
+      loadRemoteConfiguration(SOURCE, {
         ...instantRetry,
         attemptTimeoutMs: 25,
       }),
@@ -179,7 +169,7 @@ describe('loadRemoteConfiguration', () => {
     );
 
     const error = await Effect.runPromise(
-      Effect.flip(loadRemoteConfiguration(CONFIG_API, SERVICE, instantRetry)),
+      Effect.flip(loadRemoteConfiguration(SOURCE, instantRetry)),
     );
 
     expect(error).toBeInstanceOf(EntifixConnError);
@@ -189,7 +179,7 @@ describe('loadRemoteConfiguration', () => {
 describe('loadRemoteConfigurationClient', () => {
   it('wraps the fetched configuration in a readable store', async () => {
     const store = await Effect.runPromise(
-      loadRemoteConfigurationClient(CONFIG_API, SERVICE),
+      loadRemoteConfigurationClient(SOURCE),
     );
 
     expect(store).toBeInstanceOf(ConfigurationClientInMemory);
@@ -207,7 +197,7 @@ describe('loadRemoteConfigurationClient', () => {
     );
 
     const error = await Effect.runPromise(
-      Effect.flip(loadRemoteConfigurationClient(CONFIG_API, SERVICE, noRetry)),
+      Effect.flip(loadRemoteConfigurationClient(SOURCE, noRetry)),
     );
 
     expect(error).toBeInstanceOf(EntifixConnError);

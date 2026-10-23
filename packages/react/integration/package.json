@@ -49,6 +49,12 @@
       "types": "./dist/url.d.ts",
       "import": "./dist/url.js",
       "default": "./dist/url.js"
+    },
+    "./event-source": {
+      "@entifix/source": "./src/event-source.ts",
+      "types": "./dist/event-source.d.ts",
+      "import": "./dist/event-source.js",
+      "default": "./dist/event-source.js"
     }
   },
   "files": [

@@ -19,7 +19,8 @@ import {
 import { StockItem } from '@entifix/example-service-domain';
 import { makeMongoRepository, MongoDatabaseTag } from '@entifix/mongo';
 import { entityMetadataRoute, requirePermission } from '@entifix/service-shell';
-import { runSaga, SagaStoreTag } from '@entifix/transactions';
+import { SagaStoreTag } from '@entifix/transactions';
+import { runSaga } from '@entifix/transactions/engine';
 import { Effect } from 'effect';
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from 'effect/http';
 

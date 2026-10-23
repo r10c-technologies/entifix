@@ -6,7 +6,7 @@
  * not come from the `"use client"` bundle.
  */
 
-import { SERVICE_TOKEN_HEADER, serviceToken } from '../config/service-token.js';
+import type { ConfigurationSource } from '../config/configuration-source.js';
 
 /** How long a readiness result is reused, so probes cannot hammer config-service. */
 const READY_CACHE_MS = 1_000;
@@ -40,10 +40,8 @@ interface ReadyState {
 export interface HealthRouteOptions {
   /** The app's package name, echoed back so a probe says what it reached. */
   readonly app: string;
-  /** Base URL of config-service, e.g. `http://localhost:3190`. */
-  readonly configApiUrl: string;
-  /** The app's config key, i.e. the `:service` in `GET /api/config/:service`. */
-  readonly configKey: string;
+  /** The configuration readiness checks — the same source `/api/config` reads. */
+  readonly configuration: ConfigurationSource;
 }
 
 /**
@@ -64,17 +62,15 @@ export const createHealthRoutes = (options: HealthRouteOptions) => {
 
   const checkConfig = async (): Promise<boolean> => {
     try {
-      // The fleet token is not optional here: `GET /api/config/:service` serves
-      // real credentials and answers `401` without it, which a readiness probe
-      // reads as "degraded" — permanently, for an app that is in fact fine.
-      const response = await fetch(
-        `${options.configApiUrl}/api/config/${options.configKey}`,
-        {
-          signal: AbortSignal.timeout(READY_TIMEOUT_MS),
-          cache: 'no-store',
-          headers: { [SERVICE_TOKEN_HEADER]: serviceToken() },
-        },
-      );
+      // The source's headers are not optional here: a configuration service
+      // that gates its lookup answers `401` without them, which a readiness
+      // probe reads as "degraded" — permanently, for an app that is in fact fine.
+      const { url, headers } = options.configuration();
+      const response = await fetch(url, {
+        signal: AbortSignal.timeout(READY_TIMEOUT_MS),
+        cache: 'no-store',
+        headers,
+      });
       return response.ok;
     } catch {
       return false;
