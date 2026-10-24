@@ -7,6 +7,7 @@ import type {
   EntityId,
   EntityMetadataSource,
   EntitySelection,
+  FilterGroup,
 } from '@entifix/core';
 import type {
   EntityDraftStore,
@@ -95,7 +96,7 @@ type EntityCatalogOf<TResources> = TResources extends { entity: infer E }
  * `400`; `useEntityLinkSource` throws at render rather than letting that surface
  * as an empty suggestion list.
  */
-export interface EntityCrudLink<TAdapters> {
+export interface EntityCrudLink<TAdapters, TEntity extends Entity = Entity> {
   /** The owning entity's accessor name, e.g. `'brandId'`. */
   readonly field: string;
   readonly entityConstructor: EntityConstructor<Entity>;
@@ -109,7 +110,37 @@ export interface EntityCrudLink<TAdapters> {
   readonly labelProperty?: string;
   /** Defaults to `'name'`. Must be `filterable` on the target. */
   readonly searchProperty?: string;
+  /**
+   * A restriction on what may be picked **for this record**, ANDed into every
+   * quick and browse request — `useEntityLinkSource`'s `baseFiltering`, built
+   * from the record being edited rather than fixed at factory time.
+   *
+   * A record-dependent rule is the case it exists for: a parent picker that
+   * must not offer the record itself or anything beneath it. That rule needs
+   * more than the record — its descendants are other records — which is why
+   * this is a **hook** and not a function of the record: it may load what it
+   * needs through the host's own adapters, and answer `undefined` until it has.
+   *
+   * Called on every render of the single view, under the rules of hooks: once
+   * per link, unconditionally, with `undefined` while the record loads and
+   * throughout a create. `undefined` back means no restriction. Its members
+   * must be `filterable` on the target, or the service answers `400`. It
+   * narrows the suggestions and nothing else — the service still has to refuse
+   * a value the picker would not have offered.
+   */
+  readonly useBaseFiltering?: (
+    record: TEntity | undefined,
+  ) => AnyFilterGroup | undefined;
 }
+
+/**
+ * A restriction over a picker's target, with the target's type erased — the
+ * link names its target only as `EntityConstructor<Entity>`, so a filter typed
+ * on the real target would not be assignable. Erased for the reason
+ * {@link AnyEntityLinkSourceConfig} is.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type AnyFilterGroup = FilterGroup<any>;
 
 /** The keys of `TAdapters` whose value is assignable to `TValue`. */
 export type AdapterKey<TAdapters, TValue> = {
@@ -148,8 +179,17 @@ export interface EntityCrudOptions<TAdapters, TEntity extends Entity> {
    * to go here is a link into a wizard, which is not a column by any reading.
    */
   readonly toolbar?: ReactNode;
+  /**
+   * How many rows the list asks for on its first load. Defaults to
+   * `useDataLoading`'s own default.
+   *
+   * Raised for a vocabulary that should be seen whole: `EntityTable` nests a
+   * hierarchy only within the page it was given, so a tree larger than one page
+   * shows the children whose parent fell on another page as roots.
+   */
+  readonly pageSize?: number;
   /** Frozen at factory time — see `use-entity-link-sources.ts`. */
-  readonly links?: readonly EntityCrudLink<TAdapters>[];
+  readonly links?: readonly EntityCrudLink<TAdapters, TEntity>[];
   /**
    * Where the entity's served affordances come from — `GET /api/<entity>/$metadata`.
    *
