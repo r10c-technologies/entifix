@@ -24,7 +24,12 @@ export class Customer implements Entity {
   #tier: CustomerTier = 'standard';
   #parentId?: string;
 
-  @accessor({ type: 'id', labelKey: 'entity:customer.fields.id' })
+  // Filterable so a parent picker can leave out a record's own subtree by id.
+  @accessor({
+    type: 'id',
+    labelKey: 'entity:customer.fields.id',
+    filterable: true,
+  })
   get id(): EntityId {
     return this.#id;
   }
@@ -71,9 +76,10 @@ export class Customer implements Entity {
 
   // The account this one is a branch of, so customers form a tree and the
   // table nests them. Not `hidden`: a hidden member is never serialized, and a
-  // parent that does not travel is a tree that arrives flat.
+  // parent that does not travel is a tree that arrives flat. A `string` rather
+  // than an `id`, because a picker writes the parent's id into a foreign key.
   @accessor({
-    type: 'id',
+    type: 'string',
     labelKey: 'entity:customer.fields.parent',
     parent: true,
   })

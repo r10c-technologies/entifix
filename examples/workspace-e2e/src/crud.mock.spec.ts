@@ -65,3 +65,27 @@ test('nests a branch under its account, and folds it away', async ({
   ).toHaveAttribute('aria-expanded', 'false');
   expect(await table.columnValues('Nombre')).not.toContain('Hopper Labs');
 });
+
+/**
+ * A customer's parent picker leaves out the customer and every branch beneath
+ * it — either would make the tree a cycle — through a per-record filter the
+ * example states once on its crud. The term matches all four seeded names.
+ */
+test('offers no parent from the customer’s own subtree', async ({ page }) => {
+  failOnPageErrors(page);
+  const suggestions = page.getByRole('option');
+
+  await page.goto('/es/customers/c-3');
+  await expect(page.getByLabel('Nombre')).toHaveValue('Grace Hopper');
+  await page.getByLabel('Buscar Sucursal de').fill('a');
+  await expect(suggestions).toHaveText(['Ada Lovelace', 'Alan Turing']);
+
+  await page.goto('/es/customers/c-4');
+  await expect(page.getByLabel('Nombre')).toHaveValue('Hopper Labs');
+  await page.getByLabel('Buscar Sucursal de').fill('a');
+  await expect(suggestions).toHaveText([
+    'Ada Lovelace',
+    'Alan Turing',
+    'Grace Hopper',
+  ]);
+});

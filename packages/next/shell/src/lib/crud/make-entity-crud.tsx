@@ -17,6 +17,7 @@ import {
   type EntityMetadataSource,
   envelopeEntityName,
   extractMetaEntity,
+  type FilterGroup,
 } from '@entifix/core';
 import { EntityTable, useCasesForSurface } from '@entifix/react-controls';
 import {
@@ -42,6 +43,7 @@ import {
 import { EntityCrudForm } from './entity-crud-form.js';
 import { handOffWrite } from './hand-off-write.js';
 import type {
+  AnyFilterGroup,
   EntityCrud,
   EntityCrudLinkSource,
   EntityCrudOptions,
@@ -123,6 +125,26 @@ function asEntifixError(failure: unknown): EntifixError {
       );
 }
 
+/**
+ * Runs each link's `useBaseFiltering` against the record being edited, in link
+ * order, with `undefined` for a link that declares none.
+ *
+ * Legal for the reason `useEntityLinkSources` gives: the links are a
+ * factory-time array, and whether a link carries a rule is fixed with it, so
+ * the same hooks run in the same order on every render. The lint rule cannot
+ * see a hook called through a member, so there is nothing for it to flag.
+ */
+function useLinkFilters<TEntity extends Entity>(
+  links: readonly {
+    readonly useBaseFiltering?: (
+      record: TEntity | undefined,
+    ) => AnyFilterGroup | undefined;
+  }[],
+  record: TEntity | undefined,
+): (AnyFilterGroup | undefined)[] {
+  return links.map(link => link.useBaseFiltering?.(record));
+}
+
 export function makeEntityCrud<TEntity extends Entity, TAdapters>(
   entityConstructor: EntityConstructor<TEntity>,
   options: EntityCrudOptions<TAdapters, TEntity>,
@@ -135,6 +157,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     hiddenFields = [],
     columns,
     toolbar,
+    pageSize,
     links = [],
     metadataSource: givenMetadataSource,
     metadata,
@@ -228,6 +251,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
       // the same prefix `useReactiveInvalidation`already targets, so a generated
       // list now also refreshes on a reactive change event.
       queryKey: scope,
+      ...(pageSize === undefined ? {} : { initialPageSize: pageSize }),
     });
 
     // Only when this caller may actually run something over a selection.
@@ -366,19 +390,28 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
       ctx,
     });
 
+    // Against the record as loaded, not the draft: the rule is about which
+    // record this is, not what the operator has typed into it.
+    const linkFilters = useLinkFilters(linkPlans, entity);
+
     // Rebuilt inline on every render on purpose: `useEntityLinkSource` holds
     // these in a ref and keeps them out of its query keys, precisely so a caller
     // does not have to memoise them.
-    const linkSources: EntityCrudLinkSource[] = linkPlans.map(plan => ({
-      field: plan.field,
-      descriptor: plan.descriptor,
-      config: {
-        entityConstructor: plan.entityConstructor,
-        loadUc: loadUCFactory(),
-        getUc: getUCFactory(),
-        ctx: mergeCrudContext(adapters, plan.repository, pending),
-      },
-    }));
+    const linkSources: EntityCrudLinkSource[] = linkPlans.map(
+      (plan, index) => ({
+        field: plan.field,
+        descriptor: plan.descriptor,
+        config: {
+          entityConstructor: plan.entityConstructor,
+          loadUc: loadUCFactory(),
+          getUc: getUCFactory(),
+          ctx: mergeCrudContext(adapters, plan.repository, pending),
+          // The config's target is erased to `Entity`, and the host's filter to
+          // `any`; the two meet here, where neither type is the real target's.
+          baseFiltering: linkFilters[index] as FilterGroup<Entity> | undefined,
+        },
+      }),
+    );
 
     // Inside a workspace tab, "back to the list" is the list's tab, not a URL
     // that would leave the workspace. A host's own callbacks still win.
