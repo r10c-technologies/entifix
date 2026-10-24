@@ -27,7 +27,7 @@ import {
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Context, Effect, Option } from 'effect';
-import type { ReactElement } from 'react';
+import { type ReactElement, useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { EntityNavProvider } from '../workspace/entity-nav.js';
@@ -231,6 +231,64 @@ const productCrud = makeEntityCrud<Product, TestAdapters>(Product, {
 });
 
 /**
+ * The list's first page size, raised past the in-memory default of ten and
+ * then lowered below the seeded count, so a page that ignored the option would
+ * show every row.
+ */
+const pagedBrandCrud = makeEntityCrud<Brand, TestAdapters>(Brand, {
+  useAdapters,
+  basePath: '/catalog/brand',
+  catalogKey: 'product-brand',
+  repository: 'brandRest',
+  hiddenFields: ['id', 'code'],
+  pageSize: 2,
+});
+
+/**
+ * A picker whose selectable set depends on the record being edited. The rule
+ * here is arbitrary — each product refuses the brands this table names for it —
+ * because what is under test is that the record reaches the rule, not the rule.
+ * A hook, so it reads React state as a real rule loading a subtree would.
+ */
+const refusedBrands: Record<string, string[]> = { 'p-1': ['b-1'] };
+const brandFilterFor = vi.fn((product: Product | undefined) => {
+  const refused =
+    product === undefined ? undefined : refusedBrands[String(product.id)];
+  return refused === undefined
+    ? undefined
+    : {
+        operator: 'and' as const,
+        values: [
+          {
+            property: 'id' as const,
+            operator: 'nin' as const,
+            values: refused,
+          },
+        ],
+      };
+});
+const useBrandFilter = (product: Product | undefined) => {
+  const [rule] = useState(() => brandFilterFor);
+  return rule(product);
+};
+
+const filteredProductCrud = makeEntityCrud<Product, TestAdapters>(Product, {
+  useAdapters,
+  basePath: '/catalog/product',
+  catalogKey: 'product-specification',
+  repository: 'productRest',
+  hiddenFields: ['id'],
+  links: [
+    {
+      field: 'brandId',
+      entityConstructor: Brand,
+      repository: 'brandRest',
+      useBaseFiltering: useBrandFilter,
+    },
+  ],
+});
+
+/**
  * The same entity again, opted into the affordances half: a metadata source and
  * a bulk runner. Separate from `brandCrud` on purpose — the un-opted factory
  * has to keep rendering exactly as it did before either option existed, and one
@@ -419,6 +477,23 @@ describe('the generated list page', () => {
  * surfaces when it is handed the two options. Before they existed every
  * generated page ran without them, and omitting them still does.
  */
+describe('the generated list page, given a page size', () => {
+  it('asks for that many rows on its first load', async () => {
+    repositories.brand.seed([
+      makeBrand('b-1', 'Acme'),
+      makeBrand('b-2', 'Beta'),
+      makeBrand('b-3', 'Gamma'),
+    ] as Entity[]);
+
+    renderPage(<pagedBrandCrud.ListPage />);
+
+    await waitFor(() =>
+      expect(screen.getAllByText('Beta').length).toBeGreaterThan(0),
+    );
+    expect(screen.queryByText('Gamma')).not.toBeInTheDocument();
+  });
+});
+
 describe('the generated list page, opted into affordances', () => {
   const RETIRE = {
     key: 'retire',
@@ -1175,6 +1250,62 @@ describe('the generated form’s pickers', () => {
 
     await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
     expect((repositories.product.items[0] as Product).brandId).toBe('b-1');
+  });
+});
+
+describe('the generated form’s pickers, filtered per record', () => {
+  beforeEach(() => {
+    brandFilterFor.mockClear();
+    repositories.brand.seed([
+      makeBrand('b-1', 'Acme'),
+      makeBrand('b-2', 'Acorn'),
+    ] as Entity[]);
+  });
+
+  const suggestionsFor = async (term: string) => {
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText('Buscar Marca'), term);
+    await screen.findByRole('option', { name: 'Acorn' });
+    return screen.getAllByRole('option').map(option => option.textContent);
+  };
+
+  it('leaves out what the rule refuses for the record being edited', async () => {
+    const product = new Product('Widget');
+    product.id = 'p-1';
+    repositories.product = makeInMemoryEntityRepository([product] as Entity[]);
+    slug = 'p-1';
+    renderPage(<filteredProductCrud.SingleViewPage />);
+    await waitFor(() =>
+      expect(screen.getByLabelText(/nombre/i)).toHaveValue('Widget'),
+    );
+
+    expect(await suggestionsFor('Ac')).toEqual(['Acorn']);
+    expect(brandFilterFor).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'p-1' }),
+    );
+  });
+
+  it('offers everything when the rule has nothing to refuse', async () => {
+    const product = new Product('Gizmo');
+    product.id = 'p-2';
+    repositories.product = makeInMemoryEntityRepository([product] as Entity[]);
+    slug = 'p-2';
+    renderPage(<filteredProductCrud.SingleViewPage />);
+    await waitFor(() =>
+      expect(screen.getByLabelText(/nombre/i)).toHaveValue('Gizmo'),
+    );
+
+    expect(await suggestionsFor('Ac')).toEqual(['Acme', 'Acorn']);
+  });
+
+  // There is no record yet, so the rule is asked about nothing — and, being a
+  // hook, it is asked all the same.
+  it('asks the rule about no record on the create form', async () => {
+    renderPage(<filteredProductCrud.SingleViewPage />);
+
+    expect(await suggestionsFor('Ac')).toEqual(['Acme', 'Acorn']);
+    expect(brandFilterFor).toHaveBeenCalledWith(undefined);
+    expect(brandFilterFor).not.toHaveBeenCalledWith(expect.anything());
   });
 });
 

@@ -439,19 +439,29 @@ export const makeFakeMongoDb = (
         const index = documents.findIndex(doc => matches(doc, query));
         if (index === -1) {
           if (!options?.upsert) return { matchedCount: 0, upsertedCount: 0 };
+          // Held to the collection's unique indexes on both branches, as
+          // `updateOne` is: an upsert racing another for the same key is
+          // exactly what a unique index exists to refuse, and a fake that let
+          // this one through would bless the duplicate the server rejects.
+          assertUnique(name, replacement);
           documents.push({ ...replacement });
           return { matchedCount: 0, upsertedCount: 1 };
         }
+        assertUnique(name, replacement, documents[index]);
         documents[index] = { ...replacement };
         return { matchedCount: 1, upsertedCount: 0 };
       }),
 
     /**
-     * Partial update. `$set`, `$addToSet`, `$inc` and `$setOnInsert` are
-     * implemented — the operators the adapters and the stock ledger use — and
-     * **anything else throws**, because a fake that silently accepted `$unset`
-     * without applying it would let a spec pass on an update that never
-     * happened.
+     * Partial update. `$set`, `$unset`, `$addToSet`, `$inc` and `$setOnInsert`
+     * are implemented — the operators the adapters, the outbox and the stock
+     * ledger use — and **anything else throws**, because a fake that silently
+     * accepted `$rename` without applying it would let a spec pass on an update
+     * that never happened.
+     *
+     * `$unset` removes the field whatever value it is given, as the server
+     * does; it is how the outbox clears a quarantined entry's failure note when
+     * it puts the entry back in the queue.
      *
      * `$addToSet` is what links an identifier onto `user-identity.identifiers`
      * without duplicating it on a repair run; supporting it here rather than
@@ -474,6 +484,7 @@ export const makeFakeMongoDb = (
       query: QueryDocument,
       update: {
         $set?: Document;
+        $unset?: Document;
         $addToSet?: Document;
         $inc?: Document;
         $setOnInsert?: Document;
@@ -484,6 +495,7 @@ export const makeFakeMongoDb = (
       record(name, 'updateOne', () => {
         const supported = [
           '$set',
+          '$unset',
           '$addToSet',
           '$inc',
           '$setOnInsert',
@@ -508,6 +520,15 @@ export const makeFakeMongoDb = (
         if (conflicting.length > 0) {
           throw new Error(
             `fake-mongo: updateOne has conflicting paths in $setOnInsert and $inc/$set: ${conflicting.join(', ')}`,
+          );
+        }
+        // The same refusal for a field both written and removed.
+        const unsetConflicts = Object.keys(update.$unset ?? {}).filter(
+          field => field in (update.$set ?? {}) || field in (update.$inc ?? {}),
+        );
+        if (unsetConflicts.length > 0) {
+          throw new Error(
+            `fake-mongo: updateOne has conflicting paths in $unset and $inc/$set: ${unsetConflicts.join(', ')}`,
           );
         }
 
@@ -571,6 +592,9 @@ export const makeFakeMongoDb = (
             const current = updated[field];
             updated[field] =
               (typeof current === 'number' ? current : 0) + (delta as number);
+          }
+          for (const field of Object.keys(update.$unset ?? {})) {
+            delete updated[field];
           }
           return updated;
         };
@@ -661,6 +685,7 @@ export const makeFakeMongoDb = (
       query: QueryDocument,
       update: {
         $set?: Document;
+        $unset?: Document;
         $addToSet?: Document;
         $inc?: Document;
         $setOnInsert?: Document;

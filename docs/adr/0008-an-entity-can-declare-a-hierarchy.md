@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-23
+- Revised: 2026-10-24 — picking a parent did need something new: `makeEntityCrud` builds its pickers itself, so it gained a per-record `useBaseFiltering` on a link and a `pageSize` for the list
 - Area: entities
 - Read when: an entity's records nest under one another (categories, folders, accounts and their branches), building breadcrumbs or a tree from records, or about to write a recursive query — one member marks the parent, the tree is built in memory from the records already loaded, and a parent member must travel over the wire
 
@@ -84,13 +85,23 @@ sorted them. A shift-click range runs over the rows as shown.
 
 ⚠️ **The tree is the page's, not the store's.** A table is paged, so a parent
 and its children nest only when they arrive together. A host that wants the
-whole tree loads it in one page.
+whole tree loads it in one page — on a generated list, `makeEntityCrud`'s
+`pageSize`.
 
-### Picking a parent needs nothing new
+### Picking a parent
 
 A `string` foreign key with a `linkSources` entry already gets the full picker.
 The host excludes the record and its subtree through the source's
 `baseFiltering`, with the keys `descendantsOf` returns.
+
+That held for a form a host wires itself with `useEntityLinkSource`, and not for
+the one `makeEntityCrud` generates, which builds each source and took no filter.
+A link there carries `useBaseFiltering(record)`: a **hook**, not a function of
+the record, because the subtree is other records and the rule has to load them.
+It runs on every render of the single view — with `undefined` on a create and
+while the record loads — and answers `undefined` for no restriction. The
+workspace example's customer picker is the reference use. The filter narrows the
+suggestions only; the save still has to refuse a cycle with `wouldCycle`.
 
 ### Cloning keeps the parent
 
@@ -105,7 +116,8 @@ except the parent, because a copy that came out as a root would be a move.
 - `@entifix/react-controls` gains two catalog keys, `table.expandRow` and
   `table.collapseRow`, in both locales.
 - The workspace example's `Customer` declares a parent and its e2e asserts the
-  nesting and the fold (ADR 0004).
+  nesting, the fold and a parent picker that offers nothing from the customer's
+  own subtree (ADR 0004).
 
 ## Reopen when
 

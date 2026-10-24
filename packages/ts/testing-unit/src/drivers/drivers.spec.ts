@@ -46,6 +46,7 @@ interface FakeCollection {
     query: Record<string, unknown>,
     update: {
       $set?: Record<string, unknown>;
+      $unset?: Record<string, unknown>;
       $addToSet?: Record<string, unknown>;
       $inc?: Record<string, unknown>;
       $setOnInsert?: Record<string, unknown>;
@@ -427,17 +428,45 @@ describe('makeFakeMongoDb', () => {
 
     // A fake that accepted an operator it does not apply would let a spec pass
     // on an update that never happened — worse than not supporting it at all.
-    // `$inc` was this example until the stock ledger needed it. The rule is the
-    // one that matters, not the operator: `$unset` stands in now.
+    // `$inc` and then `$unset` were this example until something needed them.
+    // The rule is the one that matters, not the operator: `$rename` stands in.
     it('updateOne throws on an operator it does not implement', async () => {
       const collection = collectionOf(seeded(), 'widget');
 
       await expect(
         collection.updateOne({ id: 'w-1' }, {
-          $unset: { size: '' },
+          $rename: { name: 'title' },
         } as unknown as { $set?: Record<string, unknown> }),
-      ).rejects.toThrow('$unset');
+      ).rejects.toThrow('$rename');
     });
+
+    it('updateOne removes the fields $unset names, whatever value it gives', async () => {
+      const fake = seeded();
+
+      await collectionOf(fake, 'widget').updateOne(
+        { id: 'w-1' },
+        { $set: { tags: ['a'] }, $unset: { name: '' } },
+      );
+
+      const [updated] = fake.read('widget');
+      expect(updated).not.toHaveProperty('name');
+      expect(updated).toMatchObject({ id: 'w-1', tags: ['a'] });
+    });
+
+    it.each([
+      ['set', { $set: { name: 'x' } }],
+      ['incremented', { $inc: { name: 1 } }],
+    ])(
+      'updateOne refuses a field both %s and unset, as the server does',
+      async (_label, written) => {
+        await expect(
+          collectionOf(seeded(), 'widget').updateOne(
+            { id: 'w-1' },
+            { ...written, $unset: { name: '' } },
+          ),
+        ).rejects.toThrow('conflicting paths in $unset');
+      },
+    );
 
     it('updateOne reports a miss for a document that is not there', async () => {
       const result = await collectionOf(seeded(), 'widget').updateOne(
@@ -1533,6 +1562,46 @@ describe('makeFakeMongoDb ledger operations', () => {
       await collectionOf(fake, 'stock-item').insertOne({ id: 'i-2' });
 
       expect(fake.read('stock-item')).toHaveLength(2);
+    });
+
+    it('refuses the insert branch of a replaceOne upsert for the same key', async () => {
+      const fake = await indexed();
+
+      await expect(
+        collectionOf(fake, 'stock-item').replaceOne(
+          { id: 'i-2' },
+          { id: 'i-2', offeringId: 'o-1' },
+          { upsert: true },
+        ),
+      ).rejects.toMatchObject({ code: 11000 });
+      expect(fake.read('stock-item')).toHaveLength(1);
+    });
+
+    it('refuses a replacement that takes another document’s key', async () => {
+      const fake = await indexed();
+      await collectionOf(fake, 'stock-item').insertOne({
+        id: 'i-2',
+        offeringId: 'o-2',
+      });
+
+      await expect(
+        collectionOf(fake, 'stock-item').replaceOne(
+          { id: 'i-2' },
+          { id: 'i-2', offeringId: 'o-1' },
+        ),
+      ).rejects.toMatchObject({ code: 11000 });
+    });
+
+    it('lets a replacement keep its own key', async () => {
+      const fake = await indexed();
+      const [stored] = fake.read('stock-item');
+
+      await collectionOf(fake, 'stock-item').replaceOne(
+        { offeringId: 'o-1' },
+        { ...stored, onHand: 3 },
+      );
+
+      expect(fake.read('stock-item')[0]['onHand']).toBe(3);
     });
 
     it('enforces itself on insertMany', async () => {
