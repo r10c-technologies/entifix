@@ -1,3 +1,13 @@
+## 0.7.1 (2026-10-24)
+
+### 🚀 Features
+
+- **next-shell:** a generated list takes a page size, and a picker a per-record filter ([#79](https://github.com/r10c-technologies/entifix/pull/79))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.7.0 (2026-10-23)
 
 ### 🚀 Features
