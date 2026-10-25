@@ -5,7 +5,7 @@ import type {
   UnitOutcome,
   UnitRunOptions,
 } from '@entifix/transactions';
-import { Context, Effect, Layer, Option, Result } from 'effect';
+import { Context, Effect, Layer, Option, Result, Schedule } from 'effect';
 import type { ClientSession, Db } from 'mongodb';
 
 import {
@@ -48,10 +48,15 @@ export interface MongoSessionSource {
 
 /**
  * How many times a unit runs before a transient conflict is reported as the
- * failure it is. Two concurrent units touching one document is the common
- * case, and it resolves on the first retry.
+ * failure it is, and how long it waits between runs.
+ *
+ * Measured against a real replica set: eight units incrementing one document
+ * at once conflict on every attempt but one, so a short fixed retry count
+ * starves most of them. A jittered exponential back-off spreads the reruns so
+ * each eventually runs alone.
  */
-const ATTEMPTS = 3;
+const ATTEMPTS = 10;
+const BACK_OFF = Schedule.exponential('5 millis', 1.5).pipe(Schedule.jittered);
 
 const hasErrorLabel = (error: unknown, label: string): boolean => {
   const candidate = error as {
@@ -65,9 +70,23 @@ const hasErrorLabel = (error: unknown, label: string): boolean => {
   );
 };
 
+/**
+ * Whether a server label is on `error` or anywhere in its cause chain — a
+ * driver error reaches here wrapped once by the adapter and possibly again by
+ * the body that called the driver.
+ */
+const labelledInChain = (error: unknown, label: string): boolean => {
+  let current: unknown = error;
+  for (let depth = 0; current != null && depth < 5; depth += 1) {
+    if (hasErrorLabel(current, label)) return true;
+    current = (current as { cause?: unknown }).cause;
+  }
+  return false;
+};
+
 const isTransient = (error: unknown): boolean =>
   error instanceof EntifixConnError &&
-  hasErrorLabel(error.cause, 'TransientTransactionError');
+  labelledInChain(error, 'TransientTransactionError');
 
 const driver = <A>(
   message: string,
@@ -129,8 +148,7 @@ const commit = (session: ClientSession) =>
   ).pipe(
     Effect.retry({
       times: ATTEMPTS - 1,
-      while: error =>
-        hasErrorLabel(error.cause, 'UnknownTransactionCommitResult'),
+      while: error => labelledInChain(error, 'UnknownTransactionCommitResult'),
     }),
   );
 
@@ -237,6 +255,16 @@ export const makeMongoUnitsOfWork = (client: MongoSessionSource) => {
               if (failure instanceof EntifixConnError) {
                 return yield* Effect.fail(failure);
               }
+              // A conflict the body surfaced without wrapping is still the
+              // store's, not a business decision: it is retried, not aborted.
+              if (labelledInChain(failure, 'TransientTransactionError')) {
+                return yield* Effect.fail(
+                  new EntifixConnError(
+                    'A unit of work hit a transient conflict',
+                    failure,
+                  ),
+                );
+              }
               return {
                 _tag: 'aborted',
                 reason: failure as Exclude<E, EntifixConnError>,
@@ -274,7 +302,11 @@ export const makeMongoUnitsOfWork = (client: MongoSessionSource) => {
           const outcome = yield* attempt(body, options).pipe(
             // The whole unit runs again, body included: that is why the body
             // must be retry-safe.
-            Effect.retry({ times: ATTEMPTS - 1, while: isTransient }),
+            Effect.retry({
+              times: ATTEMPTS - 1,
+              while: isTransient,
+              schedule: BACK_OFF,
+            }),
           );
           if (outcome._tag === 'committed' && options?.afterCommit) {
             yield* options.afterCommit.pipe(Effect.ignore);

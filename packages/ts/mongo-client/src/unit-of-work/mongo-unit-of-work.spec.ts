@@ -98,6 +98,28 @@ describe('makeMongoUnitOfWork', () => {
     expect(fake.read(WIDGETS)).toHaveLength(1);
   });
 
+  it('retries a conflict the body surfaced without wrapping it', async () => {
+    const fake = makeFakeMongoDb();
+    let runs = 0;
+
+    const outcome = await Effect.runPromise(
+      unitOver(fake).run(() =>
+        Effect.suspend(() => {
+          runs += 1;
+          return runs === 1
+            ? Effect.fail(
+                new Error('wrapped by the body', {
+                  cause: labelled('TransientTransactionError'),
+                }),
+              )
+            : Effect.succeed('second time');
+        }),
+      ),
+    );
+
+    expect(outcome).toEqual({ _tag: 'committed', value: 'second time' });
+  });
+
   it('gives up on a conflict that does not clear', async () => {
     const fake = makeFakeMongoDb();
     fake.failOn('insertOne', {

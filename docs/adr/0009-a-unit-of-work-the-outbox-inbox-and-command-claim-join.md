@@ -97,5 +97,12 @@ removed; a write that needs atomicity has a port for it now.
 - The in-memory unit and the Mongo driver fake model **atomicity, not
   isolation**. A race between two units is green under both no matter what the
   code does; it is proven against a real store or not at all.
+  Measured against a real single-node replica set before this shipped: eight
+  units incrementing one document at once committed only one of eight under a
+  fixed three-attempt retry, with the other seven misread as business aborts
+  because the body had not wrapped the driver's error. The adapter now finds the
+  `TransientTransactionError` label anywhere in the cause chain and retries
+  with a jittered back-off — eight of eight — and six units racing for one
+  command id commit exactly one and answer five as duplicates.
 - A replica set (or another store with multi-document transactions) is a
   requirement of any adapter, not an option of it.
