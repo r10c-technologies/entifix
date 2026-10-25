@@ -9,7 +9,10 @@ import {
 import { Effect, Layer } from 'effect';
 import type { Db } from 'mongodb';
 
-import { MongoDatabaseTag } from '../mongo-database/mongo-database.js';
+import {
+  MongoClientTag,
+  MongoDatabaseTag,
+} from '../mongo-database/mongo-database.js';
 
 /**
  * Saga instances: one document per flow, the durable record a coordinator
@@ -193,3 +196,22 @@ export const MongoSagaStoreLayer = Layer.effect(
     return makeMongoSagaStore(db);
   }),
 );
+
+/**
+ * Provides {@link SagaStoreTag} from a database the host **names**, resolved on
+ * the shared client — for a process whose saga store is one of several stores
+ * it holds, rather than the one database {@link MongoDatabaseTag} carries.
+ *
+ * Same pool, same indexes, same store; only where the handle comes from
+ * differs.
+ */
+export const mongoSagaStoreLayer = (options: { readonly database: string }) =>
+  Layer.effect(
+    SagaStoreTag,
+    Effect.gen(function* () {
+      const client = yield* MongoClientTag;
+      const db = client.db(options.database);
+      yield* ensureSagaIndexes(db);
+      return makeMongoSagaStore(db);
+    }),
+  );

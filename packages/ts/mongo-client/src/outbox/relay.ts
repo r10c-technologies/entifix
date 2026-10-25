@@ -1,4 +1,8 @@
-import { ShutdownRegistryTag } from '@entifix/business';
+import {
+  ShutdownRegistryTag,
+  type TenantDirectory,
+  TenantDirectoryTag,
+} from '@entifix/business';
 import {
   type EventBus,
   EventBusTag,
@@ -6,6 +10,7 @@ import {
   type TransactionOutbox,
 } from '@entifix/transactions';
 import { Context, Duration, Effect, Fiber, Result } from 'effect';
+import type { Db } from 'mongodb';
 
 import { MongoDatabaseTag } from '../mongo-database/mongo-database.js';
 import { recordOutboxStats } from './metrics.js';
@@ -108,7 +113,7 @@ export type OutboxStatsSink = (
 /**
  * Drain the one database this service owns, then sample its depth.
  *
- * The single-database counterpart to marketplace-admin's tenant walk. A
+ * The single-database counterpart to `startTenantOutboxRelay`. A
  * platform-plane store is one named database, so there is nothing to enumerate
  * and `listDatabases` — which needs a `MongoClient` and cluster-wide rights —
  * never comes into it.
@@ -161,16 +166,30 @@ export const startOutboxRelay = (options?: {
     const db = yield* MongoDatabaseTag;
     const bus = yield* EventBusTag;
     const maxAttempts = yield* OutboxMaxAttempts;
-    const shutdown = yield* ShutdownRegistryTag;
 
     yield* ensureOutboxIndexes(db);
     const outbox = makeMongoOutbox(db);
 
-    const sweepOnce = sweepOutbox(outbox, bus, {
-      maxAttempts,
-      database: db.databaseName,
-      ...(options?.onStats ? { onStats: options.onStats } : {}),
-    });
+    yield* runRelayDaemon(
+      sweepOutbox(outbox, bus, {
+        maxAttempts,
+        database: db.databaseName,
+        ...(options?.onStats ? { onStats: options.onStats } : {}),
+      }),
+    );
+  });
+
+/**
+ * Runs `sweepOnce` every {@link SWEEP_INTERVAL}, and once more on the way out.
+ *
+ * Interrupting the daemon before that last pass is what stops two sweeps
+ * publishing the same entry; running the pass is what the hook is for — an
+ * event committed a moment before shutdown would otherwise wait out the next
+ * process's whole interval.
+ */
+const runRelayDaemon = (sweepOnce: Effect.Effect<void>) =>
+  Effect.gen(function* () {
+    const shutdown = yield* ShutdownRegistryTag;
 
     const daemon = yield* Effect.forkDetach(
       sweepOnce.pipe(Effect.delay(SWEEP_INTERVAL), Effect.forever),
@@ -182,3 +201,108 @@ export const startOutboxRelay = (options?: {
       run: Fiber.interrupt(daemon).pipe(Effect.andThen(sweepOnce)),
     });
   });
+
+/**
+ * One pass over every organization's outbox in a per-organization store.
+ *
+ * ⚠️ **Each tenant is caught on its own.** A failure that recurs — an index
+ * conflict on one old database, say — would otherwise abandon every tenant
+ * listed after it on every pass, while the relay went on looking healthy.
+ *
+ * Indexes are ensured once per database per process (`ensured`), not on every
+ * pass: a sweep visits every tenant every interval, and the index build is the
+ * same request each time.
+ */
+export const sweepTenantOutboxes = (
+  directory: TenantDirectory<Db>,
+  bus: EventBus,
+  options: {
+    readonly maxAttempts: number;
+    readonly onStats?: OutboxStatsSink;
+    readonly ensured?: Set<string>;
+  },
+) =>
+  Effect.gen(function* () {
+    const ensured = options.ensured ?? new Set<string>();
+    const tenants = yield* directory.list();
+
+    for (const { handle: db } of tenants) {
+      const database = db.databaseName;
+      yield* Effect.gen(function* () {
+        if (!ensured.has(database)) {
+          yield* ensureOutboxIndexes(db);
+          ensured.add(database);
+        }
+        yield* sweepOutbox(makeMongoOutbox(db), bus, {
+          maxAttempts: options.maxAttempts,
+          database,
+          ...(options.onStats ? { onStats: options.onStats } : {}),
+        });
+      }).pipe(
+        Effect.catch(error =>
+          Effect.logError('draining a tenant outbox failed').pipe(
+            Effect.annotateLogs({ database, error: String(error) }),
+          ),
+        ),
+      );
+    }
+  }).pipe(
+    Effect.catch(error =>
+      Effect.logError('tenant outbox sweep failed').pipe(
+        Effect.annotateLogs({ error: String(error) }),
+      ),
+    ),
+  );
+
+/**
+ * Start the relay for a store with one database per organization, listed by
+ * the {@link TenantDirectoryTag} the host provides.
+ *
+ * The same two speeds as {@link startOutboxRelay}: the write path drains its
+ * own tenant inline with {@link drainOutboxNow}, and this sweep carries
+ * whatever that missed.
+ */
+export const startTenantOutboxRelay = (options?: {
+  readonly onStats?: OutboxStatsSink;
+}) =>
+  Effect.gen(function* () {
+    const directory = (yield* TenantDirectoryTag) as TenantDirectory<Db>;
+    const bus = yield* EventBusTag;
+    const maxAttempts = yield* OutboxMaxAttempts;
+    const ensured = new Set<string>();
+
+    yield* runRelayDaemon(
+      sweepTenantOutboxes(directory, bus, {
+        maxAttempts,
+        ensured,
+        ...(options?.onStats ? { onStats: options.onStats } : {}),
+      }),
+    );
+  });
+
+/**
+ * Drain one database's outbox now, for a write path that has just committed.
+ *
+ * The fast path the sweep is the fallback for: an event drained here leaves as
+ * soon as its transaction commits, rather than up to {@link SWEEP_INTERVAL}
+ * later. Every failure is logged and swallowed — the entry is still in the
+ * outbox, and the sweep will carry it.
+ */
+export const drainOutboxNow = (db: Db) =>
+  Effect.gen(function* () {
+    const bus = yield* EventBusTag;
+    const maxAttempts = yield* OutboxMaxAttempts;
+    yield* drainOutbox(makeMongoOutbox(db), bus, {
+      maxAttempts,
+      database: db.databaseName,
+    });
+  }).pipe(
+    Effect.catch(error =>
+      Effect.logWarning('inline outbox drain failed').pipe(
+        Effect.annotateLogs({
+          database: db.databaseName,
+          error: String(error),
+        }),
+      ),
+    ),
+  );

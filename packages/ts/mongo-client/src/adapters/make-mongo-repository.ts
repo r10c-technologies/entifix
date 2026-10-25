@@ -15,7 +15,7 @@ import {
   serializeEntity,
 } from '@entifix/core';
 import { Effect } from 'effect';
-import type { Db } from 'mongodb';
+import type { ClientSession, Db } from 'mongodb';
 
 import { translateFiltering, translateSorting } from './filter-translator.js';
 
@@ -47,12 +47,19 @@ function toEntityId(entityOrId: EntityId | Entity): EntityId {
  * {@link EntifixConnError}.
  *
  * This is the Mongo mirror of the REST `buildEntityRestAdapter*` builders.
+ *
+ * Pass `session` to make the repository part of a transaction — a unit of
+ * work's handle — so its writes commit with the unit and its reads see what the
+ * unit has already written.
  */
 export function makeMongoRepository<TEntity extends Entity>(
   db: Db,
   entityConstructor: EntityConstructor<TEntity>,
+  options?: { readonly session?: ClientSession },
 ): EntityRepository {
   const collection = db.collection(collectionName(entityConstructor));
+  // Spread into every call, so a repository with no session passes none.
+  const inSession = options?.session ? { session: options.session } : {};
 
   const fail = (
     message: string,
@@ -75,7 +82,7 @@ export function makeMongoRepository<TEntity extends Entity>(
       const docs = yield* Effect.tryPromise({
         try: () =>
           collection
-            .find(filter, WITHOUT_MONGO_ID)
+            .find(filter, { ...WITHOUT_MONGO_ID, ...inSession })
             .sort(sort)
             .skip(skip)
             .limit(pageSize)
@@ -83,7 +90,7 @@ export function makeMongoRepository<TEntity extends Entity>(
         catch: error => fail('Failed to load entities from MongoDB', error),
       });
       const total = yield* Effect.tryPromise({
-        try: () => collection.countDocuments(filter),
+        try: () => collection.countDocuments(filter, inSession),
         catch: error => fail('Failed to count entities in MongoDB', error),
       });
 
@@ -99,7 +106,7 @@ export function makeMongoRepository<TEntity extends Entity>(
   const get = <T extends Entity>(id: EntityId) =>
     Effect.gen(function* () {
       const doc = yield* Effect.tryPromise({
-        try: () => collection.findOne({ id }, WITHOUT_MONGO_ID),
+        try: () => collection.findOne({ id }, { ...WITHOUT_MONGO_ID, ...inSession }),
         catch: error =>
           fail('Failed to read entity from MongoDB', error, { id }),
       });
@@ -125,7 +132,11 @@ export function makeMongoRepository<TEntity extends Entity>(
         // `doc` omits `id` when it was undefined (the serializer drops
         // undefined), hence spreading the resolved id back in.
         try: () =>
-          collection.replaceOne({ id }, { ...doc, id }, { upsert: true }),
+          collection.replaceOne(
+            { id },
+            { ...doc, id },
+            { upsert: true, ...inSession },
+          ),
         catch: error => fail('Failed to save entity to MongoDB', error, { id }),
       });
       entity.id = id;
@@ -136,7 +147,7 @@ export function makeMongoRepository<TEntity extends Entity>(
     Effect.gen(function* () {
       const id = toEntityId(entityOrId);
       yield* Effect.tryPromise({
-        try: () => collection.deleteOne({ id }),
+        try: () => collection.deleteOne({ id }, inSession),
         catch: error =>
           fail('Failed to delete entity from MongoDB', error, { id }),
       });

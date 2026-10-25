@@ -1,5 +1,10 @@
-import { ShutdownRegistryTag } from '@entifix/business';
+import {
+  ShutdownRegistryTag,
+  type TenantDirectory,
+  TenantDirectoryTag,
+} from '@entifix/business';
 import { type DomainEvent, EntifixConnError } from '@entifix/core';
+import { makeFakeMongoDb } from '@entifix/testing-unit/drivers';
 import {
   type EventBus,
   EventBusTag,
@@ -7,15 +12,20 @@ import {
   type TransactionOutbox,
 } from '@entifix/transactions';
 import { Effect, Layer, Logger, References } from 'effect';
+import type { Db } from 'mongodb';
 import { describe, expect, it } from 'vitest';
 
 import { MongoDatabaseTag } from '../mongo-database/mongo-database.js';
 import {
   drainOutbox,
+  drainOutboxNow,
   OutboxMaxAttempts,
   startOutboxRelay,
+  startTenantOutboxRelay,
   sweepOutbox,
+  sweepTenantOutboxes,
 } from './relay.js';
+import { OUTBOX_COLLECTION } from './store.js';
 
 const anEvent = (id: string): DomainEvent => ({
   name: 'transaction.accepted',
@@ -359,5 +369,184 @@ describe('startOutboxRelay', () => {
     // starting alone — the hook's own drain is what proves the sink is wired,
     // and it is asserted through the shutdown registry above.
     expect(sampled).toEqual([]);
+  });
+});
+
+describe('drainOutboxNow', () => {
+  const withBus = (bus: EventBus) =>
+    Layer.mergeAll(
+      Layer.succeed(EventBusTag, bus),
+      Layer.succeed(OutboxMaxAttempts, 3),
+    );
+
+  it('publishes what the write just recorded and marks it sent', async () => {
+    const fake = makeFakeMongoDb({
+      [OUTBOX_COLLECTION]: [anEntry('o-1:1') as never],
+    });
+    const { bus, published } = busRefusing([]);
+
+    await Effect.runPromise(
+      drainOutboxNow(fake.db as Db).pipe(Effect.provide(withBus(bus))),
+    );
+
+    expect(published).toEqual(['o-1:1']);
+    expect(fake.read(OUTBOX_COLLECTION)[0]?.['sent']).toBe(true);
+  });
+
+  it('logs a drain that failed and leaves the entry for the sweep', async () => {
+    const fake = makeFakeMongoDb();
+    fake.failOn('find', new Error('network down'));
+    const { bus } = busRefusing([]);
+
+    await expect(
+      Effect.runPromise(
+        drainOutboxNow(fake.db as Db).pipe(Effect.provide(withBus(bus))),
+      ),
+    ).resolves.toBeUndefined();
+  });
+});
+
+describe('sweepTenantOutboxes', () => {
+  const tenantDb = (name: string, entries: readonly OutboxEntry[] = []) => {
+    const fake = makeFakeMongoDb({
+      [OUTBOX_COLLECTION]: [...entries] as never[],
+    });
+    return {
+      fake,
+      db: Object.assign(fake.db as object, { databaseName: name }) as Db,
+    };
+  };
+
+  const directoryOf = (dbs: readonly Db[]): TenantDirectory<Db> => ({
+    list: () =>
+      Effect.succeed(
+        dbs.map(db => ({ organizationId: db.databaseName, handle: db })),
+      ),
+  });
+
+  it('drains every tenant, and keeps going past one that fails', async () => {
+    const broken = tenantDb('tenant_a');
+    broken.fake.failOn('createIndex', new Error('IndexOptionsConflict'));
+    const healthy = tenantDb('tenant_b', [anEntry('b:1')]);
+    const { bus, published } = busRefusing([]);
+    const sampled: string[] = [];
+
+    await Effect.runPromise(
+      sweepTenantOutboxes(directoryOf([broken.db, healthy.db]), bus, {
+        maxAttempts: 3,
+        onStats: database => Effect.sync(() => void sampled.push(database)),
+      }),
+    );
+
+    expect(published).toEqual(['b:1']);
+    expect(sampled).toEqual(['tenant_b']);
+  });
+
+  it('ensures a tenant’s indexes once across passes', async () => {
+    const tenant = tenantDb('tenant_c');
+    const { bus } = busRefusing([]);
+    const ensured = new Set<string>();
+    // No `onStats`: the default gauge recorder is the one a host gets.
+    const options = { maxAttempts: 3, ensured };
+
+    await Effect.runPromise(
+      sweepTenantOutboxes(directoryOf([tenant.db]), bus, options),
+    );
+    await Effect.runPromise(
+      sweepTenantOutboxes(directoryOf([tenant.db]), bus, options),
+    );
+
+    expect(
+      tenant.fake.operations.filter(op => op.op === 'createIndex'),
+    ).toHaveLength(2);
+    expect(ensured).toEqual(new Set(['tenant_c']));
+  });
+
+  it('logs a directory it could not list rather than failing the daemon', async () => {
+    const { bus } = busRefusing([]);
+    const directory: TenantDirectory<Db> = {
+      list: () => Effect.fail(new EntifixConnError('not authorized')),
+    };
+
+    await expect(
+      Effect.runPromise(
+        sweepTenantOutboxes(directory, bus, { maxAttempts: 3 }),
+      ),
+    ).resolves.toBeUndefined();
+  });
+});
+
+describe('startTenantOutboxRelay', () => {
+  it('registers its final drain in the flush phase', async () => {
+    const registered: Array<{ name: string; phase: string }> = [];
+    const sampled: string[] = [];
+    const { bus } = busRefusing([]);
+    let flush: Effect.Effect<void> = Effect.void;
+    const db = Object.assign(makeFakeMongoDb().db as object, {
+      databaseName: 'tenant_d',
+    }) as Db;
+
+    await Effect.runPromise(
+      Effect.scoped(
+        startTenantOutboxRelay({
+          onStats: database => Effect.sync(() => void sampled.push(database)),
+        }).pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              Layer.succeed(TenantDirectoryTag, {
+                list: () =>
+                  Effect.succeed([{ organizationId: 'd', handle: db }]),
+              }),
+              Layer.succeed(EventBusTag, bus),
+              Layer.succeed(OutboxMaxAttempts, 3),
+              Layer.succeed(ShutdownRegistryTag, {
+                register: (hook: {
+                  name: string;
+                  phase: string;
+                  run: Effect.Effect<void>;
+                }) =>
+                  Effect.sync(() => {
+                    registered.push({ name: hook.name, phase: hook.phase });
+                    flush = hook.run;
+                  }),
+                run: () => Effect.void,
+              } as never),
+            ),
+          ),
+        ),
+      ),
+    );
+    await Effect.runPromise(flush);
+
+    expect(registered).toEqual([{ name: 'outbox-relay', phase: 'flush' }]);
+    expect(sampled).toEqual(['tenant_d']);
+  });
+
+  it('starts with the default stats sink when given none', async () => {
+    const registered: string[] = [];
+    const { bus } = busRefusing([]);
+
+    await Effect.runPromise(
+      Effect.scoped(
+        startTenantOutboxRelay().pipe(
+          Effect.provide(
+            Layer.mergeAll(
+              Layer.succeed(TenantDirectoryTag, {
+                list: () => Effect.succeed([]),
+              }),
+              Layer.succeed(EventBusTag, bus),
+              Layer.succeed(OutboxMaxAttempts, 3),
+              Layer.succeed(ShutdownRegistryTag, {
+                register: (hook: { name: string }) =>
+                  Effect.sync(() => void registered.push(hook.name)),
+                run: () => Effect.void,
+              } as never),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(registered).toEqual(['outbox-relay']);
   });
 });

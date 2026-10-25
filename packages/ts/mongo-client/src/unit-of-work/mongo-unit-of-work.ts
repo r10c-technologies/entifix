@@ -1,0 +1,315 @@
+import { type DomainEvent, EntifixConnError } from '@entifix/core';
+import type {
+  UnitClaim,
+  UnitOfWork,
+  UnitOutcome,
+  UnitRunOptions,
+} from '@entifix/transactions';
+import { Context, Effect, Layer, Option, Result } from 'effect';
+import type { ClientSession, Db } from 'mongodb';
+
+import {
+  ensureInboxIndexes,
+  INBOX_COLLECTION,
+  inboxDocument,
+  isDuplicateKey,
+} from '../inbox/store.js';
+import {
+  MongoClientTag,
+  MongoDatabaseTag,
+} from '../mongo-database/mongo-database.js';
+import {
+  ensureOutboxIndexes,
+  OUTBOX_COLLECTION,
+  outboxDocument,
+} from '../outbox/store.js';
+import {
+  COMMAND_INBOX_COLLECTION,
+  commandClaimDocument,
+  ensureCommandInboxIndexes,
+  readCommandReplay,
+  rememberCommandReplay,
+} from './command-inbox.js';
+
+/**
+ * What a Mongo unit's body writes through: the database and the session bound
+ * to the unit's transaction. Every write must pass `{ session }`, or it is not
+ * part of the unit.
+ */
+export interface MongoUnit {
+  readonly db: Db;
+  readonly session: ClientSession;
+}
+
+/** What starts a session — a `MongoClient`, structurally. */
+export interface MongoSessionSource {
+  startSession(): ClientSession;
+}
+
+/**
+ * How many times a unit runs before a transient conflict is reported as the
+ * failure it is. Two concurrent units touching one document is the common
+ * case, and it resolves on the first retry.
+ */
+const ATTEMPTS = 3;
+
+const hasErrorLabel = (error: unknown, label: string): boolean => {
+  const candidate = error as {
+    hasErrorLabel?: (label: string) => boolean;
+    errorLabels?: readonly string[];
+  } | null;
+  return (
+    candidate?.hasErrorLabel?.(label) ??
+    candidate?.errorLabels?.includes(label) ??
+    false
+  );
+};
+
+const isTransient = (error: unknown): boolean =>
+  error instanceof EntifixConnError &&
+  hasErrorLabel(error.cause, 'TransientTransactionError');
+
+const driver = <A>(
+  message: string,
+  run: () => Promise<A>,
+  details?: Record<string, unknown>,
+) =>
+  Effect.tryPromise({
+    try: run,
+    catch: error => new EntifixConnError(message, error, details),
+  });
+
+/** A duplicate-key rejection answered as `duplicate` rather than as an error. */
+const insertOrDuplicate = (
+  message: string,
+  run: () => Promise<unknown>,
+  details?: Record<string, unknown>,
+) =>
+  Effect.tryPromise({
+    try: async () => {
+      try {
+        await run();
+        return 'inserted' as const;
+      } catch (error) {
+        if (isDuplicateKey(error)) return 'duplicate' as const;
+        throw error;
+      }
+    },
+    catch: error => new EntifixConnError(message, error, details),
+  });
+
+const takeClaim = (db: Db, session: ClientSession, claim: UnitClaim) =>
+  claim.kind === 'event'
+    ? insertOrDuplicate(
+        'Failed to claim an event',
+        () =>
+          db
+            .collection(INBOX_COLLECTION)
+            .insertOne(inboxDocument(claim.consumer, claim.eventId), {
+              session,
+            }),
+        { consumer: claim.consumer, eventId: claim.eventId },
+      )
+    : insertOrDuplicate(
+        'Failed to claim a command',
+        () =>
+          db
+            .collection(COMMAND_INBOX_COLLECTION)
+            .insertOne(commandClaimDocument(claim.commandId), { session }),
+        { commandId: claim.commandId },
+      );
+
+/**
+ * Commits, retrying a commit whose result the server could not report. Such a
+ * commit may or may not have applied, and Mongo makes retrying it safe.
+ */
+const commit = (session: ClientSession) =>
+  driver('Failed to commit a unit of work', () =>
+    session.commitTransaction(),
+  ).pipe(
+    Effect.retry({
+      times: ATTEMPTS - 1,
+      while: error =>
+        hasErrorLabel(error.cause, 'UnknownTransactionCommitResult'),
+    }),
+  );
+
+/** Rolls back, and never fails: the unit is already ending for another reason. */
+const abort = (session: ClientSession) =>
+  driver('Failed to abort a unit of work', () =>
+    session.abortTransaction(),
+  ).pipe(Effect.ignore);
+
+type Decision<A> =
+  | { readonly kind: 'commit'; readonly value: A }
+  | { readonly kind: 'duplicate' };
+
+/**
+ * A {@link UnitOfWork} per database, sharing one client — the shape a
+ * per-organization store needs, where the database is resolved inside the
+ * request. Each database's indexes are ensured once, before its first unit.
+ */
+export const makeMongoUnitsOfWork = (client: MongoSessionSource) => {
+  const ensured = new Map<string, Promise<void>>();
+
+  const ensureIndexes = (db: Db) =>
+    Effect.suspend(() => {
+      const key = db.databaseName;
+      const done = ensured.get(key);
+      if (done !== undefined) {
+        return driver('Failed to ensure unit-of-work indexes', () => done);
+      }
+      const pending = Effect.runPromise(
+        Effect.all([
+          ensureOutboxIndexes(db),
+          ensureInboxIndexes(db),
+          ensureCommandInboxIndexes(db),
+        ]),
+      ).then(() => undefined);
+      ensured.set(key, pending);
+      // A failed ensure must be retried by the next unit, not remembered.
+      pending.catch(() => ensured.delete(key));
+      return driver('Failed to ensure unit-of-work indexes', () => pending);
+    });
+
+  const forDatabase = (db: Db): UnitOfWork<MongoUnit> => {
+    const attempt = <A, E, R>(
+      body: (unit: {
+        readonly handle: MongoUnit;
+        emit(event: DomainEvent): void;
+      }) => Effect.Effect<A, E, R>,
+      options: UnitRunOptions<A, R> | undefined,
+    ) =>
+      Effect.acquireUseRelease(
+        Effect.sync(() => client.startSession()),
+        session =>
+          Effect.gen(function* () {
+            yield* Effect.try({
+              try: () => session.startTransaction(),
+              catch: error =>
+                new EntifixConnError('Failed to start a unit of work', error),
+            });
+
+            const work = Effect.gen(function* () {
+              const claim = options?.claim;
+              if (
+                claim &&
+                (yield* takeClaim(db, session, claim)) === 'duplicate'
+              ) {
+                return { kind: 'duplicate' } as Decision<A>;
+              }
+
+              const emitted: DomainEvent[] = [];
+              const value = yield* body({
+                handle: { db, session },
+                emit: event => void emitted.push(event),
+              });
+
+              if (emitted.length > 0) {
+                const written = yield* insertOrDuplicate(
+                  'Failed to record a unit of work’s events',
+                  () =>
+                    db
+                      .collection(OUTBOX_COLLECTION)
+                      .insertMany(emitted.map(outboxDocument), { session }),
+                );
+                // An event id already recorded is the outbox's own
+                // idempotency claim: what it announces committed before.
+                if (written === 'duplicate') {
+                  return { kind: 'duplicate' } as Decision<A>;
+                }
+              }
+
+              if (claim?.kind === 'command' && options?.replay) {
+                const replay = options.replay(value);
+                yield* driver('Failed to remember a command’s answer', () =>
+                  rememberCommandReplay(db, session, claim.commandId, replay),
+                );
+              }
+              return { kind: 'commit', value } as Decision<A>;
+            });
+
+            const decided = yield* Effect.result(work);
+
+            if (Result.isFailure(decided)) {
+              yield* abort(session);
+              const failure = decided.failure;
+              if (failure instanceof EntifixConnError) {
+                return yield* Effect.fail(failure);
+              }
+              return {
+                _tag: 'aborted',
+                reason: failure as Exclude<E, EntifixConnError>,
+              } as UnitOutcome<A, Exclude<E, EntifixConnError>>;
+            }
+
+            if (decided.success.kind === 'duplicate') {
+              yield* abort(session);
+              const replay =
+                options?.claim?.kind === 'command'
+                  ? yield* readCommandReplay(db, options.claim.commandId)
+                  : Option.none();
+              return { _tag: 'duplicate', replay } as UnitOutcome<
+                A,
+                Exclude<E, EntifixConnError>
+              >;
+            }
+
+            yield* commit(session);
+            return {
+              _tag: 'committed',
+              value: decided.success.value,
+            } as UnitOutcome<A, Exclude<E, EntifixConnError>>;
+          }),
+        session =>
+          driver('Failed to end a session', () => session.endSession()).pipe(
+            Effect.ignore,
+          ),
+      );
+
+    return {
+      run: (body, options) =>
+        Effect.gen(function* () {
+          yield* ensureIndexes(db);
+          const outcome = yield* attempt(body, options).pipe(
+            // The whole unit runs again, body included: that is why the body
+            // must be retry-safe.
+            Effect.retry({ times: ATTEMPTS - 1, while: isTransient }),
+          );
+          if (outcome._tag === 'committed' && options?.afterCommit) {
+            yield* options.afterCommit.pipe(Effect.ignore);
+          }
+          return outcome;
+        }),
+      replay: commandId => readCommandReplay(db, commandId),
+    };
+  };
+
+  return { forDatabase };
+};
+
+/** A {@link UnitOfWork} over one database. */
+export const makeMongoUnitOfWork = (options: {
+  readonly client: MongoSessionSource;
+  readonly db: Db;
+}): UnitOfWork<MongoUnit> =>
+  makeMongoUnitsOfWork(options.client).forDatabase(options.db);
+
+/** The unit of work over the service's own database. */
+export class MongoUnitOfWorkTag extends Context.Service<
+  MongoUnitOfWorkTag,
+  UnitOfWork<MongoUnit>
+>()('MongoUnitOfWorkTag') {}
+
+/**
+ * Provides {@link MongoUnitOfWorkTag} from the client and the named database
+ * {@link MongoDatabaseLayer} opened.
+ */
+export const MongoUnitOfWorkLayer = Layer.effect(
+  MongoUnitOfWorkTag,
+  Effect.gen(function* () {
+    const client = yield* MongoClientTag;
+    const db = yield* MongoDatabaseTag;
+    return makeMongoUnitOfWork({ client, db });
+  }),
+);
