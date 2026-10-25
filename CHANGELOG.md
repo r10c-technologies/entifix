@@ -1,3 +1,13 @@
+## 0.7.2 (2026-10-25)
+
+### 🚀 Features
+
+- a unit of work, generic entity routes, and a tenant-aware Mongo ([#81](https://github.com/r10c-technologies/entifix/pull/81))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.7.1 (2026-10-24)
 
 ### 🚀 Features
