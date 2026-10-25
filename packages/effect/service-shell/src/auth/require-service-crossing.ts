@@ -32,6 +32,12 @@ export const CROSSING_TOKEN_HEADER = 'x-crossing-token';
 export const ORGANIZATION_HEADER = 'x-organization-id';
 
 /**
+ * The header a saga dispatch carries its command id in — what a participant
+ * dedupes a redelivered command on, and what its unit of work claims.
+ */
+export const COMMAND_ID_HEADER = 'x-command-id';
+
+/**
  * The crossing secret this service expects, provided at the composition root
  * from its own configuration.
  *

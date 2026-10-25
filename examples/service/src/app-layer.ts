@@ -4,6 +4,7 @@ import {
   MongoDatabaseLayer,
   MongoDatabaseTag,
   MongoHealthProbeLayer,
+  MongoRepositoryFactoryLayer,
 } from '@entifix/mongo';
 import {
   ensureOutboxIndexes,
@@ -49,6 +50,7 @@ export const makeDomainLayer = (settings: ServiceSettings) => {
   );
 
   const saga = Layer.mergeAll(
+    MongoRepositoryFactoryLayer,
     MongoSagaStoreLayer,
     PlaceOrderDispatcherLayer(settings.chargeLimit),
   );

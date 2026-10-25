@@ -1,27 +1,9 @@
-import { permissionForEntity } from '@entifix/authz';
-import {
-  EntityIdTag,
-  EntityLoadRequestTag,
-  EntityRepositoryTag,
-  EntityTag,
-  getUCFactory,
-  loadUCFactory,
-  saveUCFactory,
-} from '@entifix/business';
-import {
-  EntifixBuildError,
-  type EntityLoadRequest,
-  makeEntityEnvelope,
-  makeEntityPageEnvelope,
-  parseLoadRequestParams,
-  readEntityEnvelope,
-} from '@entifix/core';
 import { StockItem } from '@entifix/example-service-domain';
-import { makeMongoRepository, MongoDatabaseTag } from '@entifix/mongo';
-import { entityMetadataRoute, requirePermission } from '@entifix/service-shell';
+import { MongoDatabaseTag } from '@entifix/mongo';
+import { makeEntityRoutes, requirePermission } from '@entifix/service-shell';
 import { SagaStoreTag } from '@entifix/transactions';
 import { runSaga } from '@entifix/transactions/engine';
-import { Effect } from 'effect';
+import { Effect, Layer } from 'effect';
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from 'effect/http';
 
 import { STATS_COLLECTION } from './order-stats.projection.ts';
@@ -34,64 +16,16 @@ import {
 const failure = (status: number, code: string, detail?: unknown) =>
   HttpServerResponse.json({ code, detail: String(detail ?? '') }, { status });
 
-const stockRepository = Effect.map(MongoDatabaseTag, db =>
-  makeMongoRepository(db, StockItem),
-);
-
-const guard = (action: 'read' | 'write') =>
-  requirePermission(permissionForEntity(StockItem, action));
-
-/** The generated CRUD half: one flat entity over the Mongo adapter. */
-const listStock = guard('read')(() =>
-  Effect.gen(function* () {
-    const request = yield* HttpServerRequest.HttpServerRequest;
-    const search = new URL(request.url, 'http://localhost').searchParams;
-    const load = yield* Effect.try({
-      try: () =>
-        parseLoadRequestParams(
-          StockItem,
-          search,
-        ) as unknown as EntityLoadRequest,
-      catch: error => error as EntifixBuildError,
-    });
-    const page = yield* loadUCFactory<StockItem>().pipe(
-      Effect.provideService(EntityRepositoryTag, yield* stockRepository),
-      Effect.provideService(EntityLoadRequestTag, load),
-    );
-    return yield* HttpServerResponse.json(
-      makeEntityPageEnvelope(StockItem, page, []),
-    );
-  }).pipe(Effect.catch(error => failure(400, 'invalidQuery', error))),
-);
-
-const getStock = guard('read')(() =>
-  Effect.gen(function* () {
-    const { id } = yield* HttpRouter.params;
-    const item = yield* getUCFactory<StockItem>().pipe(
-      Effect.provideService(EntityRepositoryTag, yield* stockRepository),
-      Effect.provideService(EntityIdTag, id),
-    );
-    return yield* HttpServerResponse.json(
-      makeEntityEnvelope(StockItem, item, []),
-    );
-  }).pipe(Effect.catch(() => failure(404, 'notFound'))),
-);
-
-const putStock = guard('write')(() =>
-  Effect.gen(function* () {
-    const { id } = yield* HttpRouter.params;
-    const request = yield* HttpServerRequest.HttpServerRequest;
-    const item = yield* readEntityEnvelope(StockItem, yield* request.json);
-    item.id = id;
-    const saved = yield* saveUCFactory<StockItem>().pipe(
-      Effect.provideService(EntityRepositoryTag, yield* stockRepository),
-      Effect.provideService(EntityTag, item),
-    );
-    return yield* HttpServerResponse.json(
-      makeEntityEnvelope(StockItem, saved, []),
-    );
-  }).pipe(Effect.catch(error => failure(400, 'invalidBody', error))),
-);
+/**
+ * The generated CRUD half: one flat entity, its list, read and update — and
+ * its `$metadata` — derived from the entity and bound to the Mongo repository
+ * factory the app layer provides. A stock item is created by being put at its
+ * code, so there is no `create` and no `delete`.
+ */
+const stockRoutes = makeEntityRoutes(StockItem, {
+  verbs: ['list', 'get', 'update'],
+  guard: { kind: 'permission' },
+});
 
 /**
  * Places an order by running the saga.
@@ -146,19 +80,15 @@ const getStats = Effect.gen(function* () {
 }).pipe(Effect.catch(error => failure(500, 'unexpected', error)));
 
 /**
- * The routes. `/api/health*` and `/api/$service` come from `makeService`.
- * `$metadata` is registered before `/:id`, which would otherwise swallow it.
+ * The routes. `/api/health*` and `/api/$service` come from `makeService`; the
+ * stock item's come from its entity, and the rest are written by hand beside
+ * them.
  */
-export const router = HttpRouter.addAll([
-  HttpRouter.route('GET', '/api/stock-item', listStock),
-  HttpRouter.route(
-    'GET',
-    '/api/stock-item/$metadata',
-    entityMetadataRoute(StockItem),
-  ),
-  HttpRouter.route('GET', '/api/stock-item/:id', getStock),
-  HttpRouter.route('PUT', '/api/stock-item/:id', putStock),
-  HttpRouter.route('POST', '/api/order', postOrder),
-  HttpRouter.route('GET', '/api/saga/:id', getSaga),
-  HttpRouter.route('GET', '/api/order-stats', getStats),
-]);
+export const router = Layer.mergeAll(
+  stockRoutes,
+  HttpRouter.addAll([
+    HttpRouter.route('POST', '/api/order', postOrder),
+    HttpRouter.route('GET', '/api/saga/:id', getSaga),
+    HttpRouter.route('GET', '/api/order-stats', getStats),
+  ]),
+);

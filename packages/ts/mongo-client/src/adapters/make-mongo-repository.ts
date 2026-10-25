@@ -106,7 +106,8 @@ export function makeMongoRepository<TEntity extends Entity>(
   const get = <T extends Entity>(id: EntityId) =>
     Effect.gen(function* () {
       const doc = yield* Effect.tryPromise({
-        try: () => collection.findOne({ id }, { ...WITHOUT_MONGO_ID, ...inSession }),
+        try: () =>
+          collection.findOne({ id }, { ...WITHOUT_MONGO_ID, ...inSession }),
         catch: error =>
           fail('Failed to read entity from MongoDB', error, { id }),
       });
