@@ -1674,6 +1674,73 @@ describe('makeFakeMongoDb ledger operations', () => {
       await session.endSession();
       expect(session.hasEnded).toBe(true);
     });
+
+    it('keeps what an explicit transaction wrote once it commits', async () => {
+      const fake = stocked();
+      const session = fake.startSession();
+
+      session.startTransaction();
+      expect(session.inTransaction()).toBe(true);
+      await collectionOf(fake, 'reservation').insertOne({ id: 'r-2' });
+      await session.commitTransaction();
+
+      expect(session.inTransaction()).toBe(false);
+      expect(fake.read('reservation')).toHaveLength(1);
+    });
+
+    it('puts the store back when an explicit transaction aborts', async () => {
+      const fake = stocked();
+      const session = fake.startSession();
+
+      session.startTransaction();
+      await collectionOf(fake, 'reservation').insertOne({ id: 'r-3' });
+      await session.abortTransaction();
+
+      expect(fake.read('reservation')).toEqual([]);
+    });
+
+    it('leaves the transaction open when a commit fails, so it can still abort', async () => {
+      const fake = stocked();
+      const session = fake.startSession();
+      fake.failOnce('commitTransaction', new Error('unknown commit result'));
+
+      session.startTransaction();
+      await collectionOf(fake, 'reservation').insertOne({ id: 'r-4' });
+      await expect(session.commitTransaction()).rejects.toThrow(
+        'unknown commit result',
+      );
+      expect(session.inTransaction()).toBe(true);
+      await session.commitTransaction();
+
+      expect(fake.read('reservation')).toHaveLength(1);
+    });
+
+    it('refuses to start a transaction inside another, or to end one never started', async () => {
+      const session = makeFakeMongoDb().startSession();
+
+      await expect(session.commitTransaction()).rejects.toThrow(
+        'no transaction in progress',
+      );
+      await expect(session.abortTransaction()).rejects.toThrow(
+        'no transaction in progress',
+      );
+      session.startTransaction();
+      expect(() => session.startTransaction()).toThrow('already in progress');
+    });
+  });
+
+  describe('failOnce', () => {
+    it('rejects the next call only', async () => {
+      const fake = stocked();
+      fake.failOnce('insertOne', new Error('write conflict'));
+
+      await expect(
+        collectionOf(fake, 'reservation').insertOne({ id: 'r-5' }),
+      ).rejects.toThrow('write conflict');
+      await collectionOf(fake, 'reservation').insertOne({ id: 'r-5' });
+
+      expect(fake.read('reservation')).toHaveLength(1);
+    });
   });
 });
 

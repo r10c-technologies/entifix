@@ -231,6 +231,11 @@ export interface FakeMongoDb {
    * that succeeds and a count that then fails reaches a distinct error branch.
    */
   failOn(operation: string, error: unknown): void;
+  /**
+   * Makes only the **next** `operation` reject, then work again — the shape of
+   * a transient conflict, which a caller is expected to retry through.
+   */
+  failOnce(operation: string, error: unknown): void;
   /** Every operation performed, for assertions about what the adapter did. */
   readonly operations: ReadonlyArray<{ collection: string; op: string }>;
   /**
@@ -240,6 +245,16 @@ export interface FakeMongoDb {
    */
   startSession(): {
     withTransaction(body: () => Promise<unknown>): Promise<unknown>;
+    /**
+     * The explicit form of the same transaction: `startTransaction` takes the
+     * snapshot, `abortTransaction` restores it and `commitTransaction` drops
+     * it. `commitTransaction` honours `failOn`/`failOnce`, and a commit that
+     * fails leaves the transaction open, as an unknown commit result does.
+     */
+    startTransaction(): void;
+    commitTransaction(): Promise<void>;
+    abortTransaction(): Promise<void>;
+    inTransaction(): boolean;
     endSession(): Promise<void>;
     readonly hasEnded: boolean;
   };
@@ -266,6 +281,17 @@ export const makeFakeMongoDb = (
   const operations: Array<{ collection: string; op: string }> = [];
   let failure: unknown;
   const failuresByOperation = new Map<string, unknown>();
+  const onceFailures = new Map<string, unknown>();
+
+  /** The failure `op` should reject with now, consuming a one-shot one. */
+  const failureFor = (op: string): unknown => {
+    if (onceFailures.has(op)) {
+      const once = onceFailures.get(op);
+      onceFailures.delete(op);
+      return once;
+    }
+    return failuresByOperation.get(op) ?? failure;
+  };
 
   const documentsOf = (name: string): Document[] => {
     if (!collections.has(name)) collections.set(name, []);
@@ -321,9 +347,8 @@ export const makeFakeMongoDb = (
 
   const record = <TValue>(name: string, op: string, produce: () => TValue) => {
     operations.push({ collection: name, op });
-    const scoped = failuresByOperation.get(op);
-    if (scoped !== undefined) return Promise.reject(scoped);
-    if (failure !== undefined) return Promise.reject(failure);
+    const rejection = failureFor(op);
+    if (rejection !== undefined) return Promise.reject(rejection);
     // `try`/`catch` rather than `Promise.resolve(produce())`: a real driver
     // returns a promise and *rejects*, so a fake that threw synchronously would
     // need different handling at every call site than the thing it stands in for.
@@ -770,21 +795,51 @@ export const makeFakeMongoDb = (
    * moved. That is a real bug shape, and one a fake without rollback would hide
    * by committing half of it.
    */
+  const snapshotOf = () =>
+    new Map(
+      [...collections].map(([name, docs]) => [
+        name,
+        docs.map(doc => ({ ...doc })),
+      ]),
+    );
+  const restore = (snapshot: Map<string, Document[]>) => {
+    collections.clear();
+    for (const [name, docs] of snapshot) collections.set(name, docs);
+  };
+
   const startSession = () => {
     let open = true;
+    let pending: Map<string, Document[]> | undefined;
+    const noTransaction = () =>
+      Promise.reject(new Error('fake-mongo: no transaction in progress'));
     return {
+      startTransaction: () => {
+        if (pending !== undefined) {
+          throw new Error('fake-mongo: a transaction is already in progress');
+        }
+        pending = snapshotOf();
+      },
+      commitTransaction: () => {
+        if (pending === undefined) return noTransaction();
+        operations.push({ collection: '', op: 'commitTransaction' });
+        const rejection = failureFor('commitTransaction');
+        if (rejection !== undefined) return Promise.reject(rejection);
+        pending = undefined;
+        return Promise.resolve();
+      },
+      abortTransaction: () => {
+        if (pending === undefined) return noTransaction();
+        restore(pending);
+        pending = undefined;
+        return Promise.resolve();
+      },
+      inTransaction: () => pending !== undefined,
       withTransaction: async (body: () => Promise<unknown>) => {
-        const snapshot = new Map(
-          [...collections].map(([name, docs]) => [
-            name,
-            docs.map(doc => ({ ...doc })),
-          ]),
-        );
+        const snapshot = snapshotOf();
         try {
           return await body();
         } catch (error) {
-          collections.clear();
-          for (const [name, docs] of snapshot) collections.set(name, docs);
+          restore(snapshot);
           throw error;
         }
       },
@@ -811,6 +866,9 @@ export const makeFakeMongoDb = (
     },
     failOn: (operation, error) => {
       failuresByOperation.set(operation, error);
+    },
+    failOnce: (operation, error) => {
+      onceFailures.set(operation, error);
     },
     get operations() {
       return operations;
