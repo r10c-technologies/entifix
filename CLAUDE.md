@@ -123,6 +123,8 @@ tests need no build. A consumer resolves `dist`.
 - [0006](docs/adr/0006-the-public-contract-is-entities-use-cases-and-ports.md) **A package's public contract is entities, use cases and ports** — read when adding an export to a `.` entry, adding an option that takes an adapter's product, or a consumer cannot ban a mechanism because it shares an entry point with a contract.
 - [0007](docs/adr/0007-the-host-supplies-the-role-ladder.md) **The host supplies the role ladder; the screen taxonomy is entifix's** — read when adding a role, changing who may assign whom, building a second host on `@entifix/authz`, or about to add a fifth screen type.
 - [0008](docs/adr/0008-an-entity-can-declare-a-hierarchy.md) **An entity can declare a hierarchy** — read when an entity's records nest under one another, building breadcrumbs or a tree from records, or about to write a recursive query.
+- [0009](docs/adr/0009-a-unit-of-work-the-outbox-inbox-and-command-claim-join.md) **A unit of work the outbox, inbox and command claim join** — read when a write has to announce itself on the bus, a consumer has to fold a message exactly once, or a participant has to answer a redelivered command — and you are about to open a driver session by hand.
+- [0010](docs/adr/0010-entity-routes-are-derived-and-the-repository-comes-from-context.md) **Entity routes are derived, and the repository comes from context** — read when writing a list, read, create, update or delete route for an entity, a route's links name a verb that answers `404`, or a route builds its own repository.
 
 **Cite this collection or nothing.** Every `ADR NNNN` in the repository names a
 record above, and nothing under `packages/`, `examples/` or `tools/` names r10c —

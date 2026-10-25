@@ -57,10 +57,9 @@ export type InboxClaimResult = 'claimed' | 'duplicate';
  *
  * There is deliberately **no `claimWithin(session)` here**, for the reason
  * {@link TransactionOutbox} states about `enqueueWithin`: a driver session may
- * not enter a framework-free contract. The consumer owns that write, exactly as
- * a {@link TransactionHandler} owns the `completed` outbox entry — it holds the
- * session, it inserts the document {@link InboxClaim} describes, and this port
- * is what a consumer that can claim standalone uses instead.
+ * not enter a framework-free contract. A claim that must commit with its side
+ * effect is a {@link UnitOfWork}'s `event` claim (ADR 0009); this port is what
+ * a consumer that can claim standalone uses instead.
  *
  * It follows that **the inbox lives with the side effect, not in one central
  * place**: the claim and the write must be in the same database to be one fact.

@@ -52,6 +52,11 @@ describeEntityRepositoryContract('mongo adapter over a fake driver', { makeRepos
 A read-only adapter runs `describeEntityRepositoryReadContract` alone;
 `describeEntityRepositoryContract` is it and `describeEntityRepositoryWriteContract`.
 
+`describeUnitOfWorkContract` holds a unit of work to the same rules whatever
+its store: writes, events and the claim commit or vanish together, a taken
+claim is a `duplicate` that never runs the body, and a business failure is an
+`aborted` value. `makeInMemoryUnitOfWork` is the double that passes it.
+
 This is what keeps a fake from quietly becoming a more forgiving version of the
 thing it stands in for. `@entifix/testing-integration` will later run
 the same suites against real infrastructure.
