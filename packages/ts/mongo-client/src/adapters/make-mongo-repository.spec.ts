@@ -180,3 +180,24 @@ describe('makeMongoRepository', () => {
     });
   });
 });
+
+describe('makeMongoRepository inside a session', () => {
+  it('writes inside the transaction, so a rollback takes the write with it', async () => {
+    const fake = makeFakeMongoDb();
+    const session = fake.startSession();
+    const repository = makeMongoRepository(fake.db as Db, ContractWidget, {
+      session: session as never,
+    });
+
+    session.startTransaction();
+    await run(repository.save(makeContractWidget('w-held', 'held', 1)));
+    // Read through the same session: the unit sees its own write.
+    const page = await run(repository.load({}));
+    await run(repository.get('w-held'));
+    await run(repository.delete('w-held'));
+    await session.abortTransaction();
+
+    expect(page.total).toBe(1);
+    expect(fake.read(COLLECTION)).toEqual([]);
+  });
+});

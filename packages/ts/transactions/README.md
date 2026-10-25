@@ -14,7 +14,7 @@ pnpm add @entifix/transactions effect
 
 | Import                         | What it holds                                                                                                                                                                                         |
 | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@entifix/transactions`        | Command envelopes, transaction events, inbox / outbox / event-bus / lock / sequence / saga ports, `defineSaga`, the facade use case, `TransactionStreamHubTag`                                        |
+| `@entifix/transactions`        | Command envelopes, transaction events, the unit of work, inbox / outbox / event-bus / lock / sequence / saga ports, `defineSaga`, the facade use case, `TransactionStreamHubTag`                      |
 | `@entifix/transactions/engine` | The mechanism behind those ports: `runSaga`, `resumeSaga`, `resumeStaleSagas` / `startSagaResume`, `acceptTransaction` / `completeTransaction`, `makeLocalSagaDispatcher`, the stream hub's factories |
 
 ---

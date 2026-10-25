@@ -92,11 +92,11 @@ export interface OutboxStats {
  * {@link EventBus} — which is what keeps the engine framework-free and lets the
  * relay be tested without either a database or a broker.
  *
- * There is no `enqueueWithin(session)` here on purpose. Making the `completed`
- * entry atomic with the entity write needs the storage driver's own session, and
- * putting one in this port (or in `EntityRepository`) would drag Mongo into a
- * framework-free contract. The handler owns that write instead — see
- * {@link TransactionHandler}.
+ * There is no `enqueueWithin(session)` here on purpose: a driver session in
+ * this port would drag a datastore into a framework-free contract. A write that
+ * must be atomic with its event runs in a {@link UnitOfWork} instead, whose
+ * handle is opaque and whose `emit` records the event inside the same
+ * transaction (ADR 0009). `enqueue` is for an event with no write to join.
  */
 export interface TransactionOutbox {
   /** Record an event durably. Idempotent per `event.id`. */

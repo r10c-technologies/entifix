@@ -1,0 +1,76 @@
+# 10. Entity routes are derived, and the repository comes from context
+
+- Status: Accepted
+- Date: 2026-10-25
+- Area: platform
+- Read when: writing a list, read, create, update or delete route for an entity, a route's links name a verb that answers `404`, or a route builds its own repository from a database handle
+
+## Context
+
+Every service written on the shell hand-wrote the same five routes for each
+entity: parse the load request from the query string, run the load, get, save or
+delete use case, wrap the result in an envelope, attach links, and map the
+errors to `400`, `404` and `500`. The example service did it too, which made it
+the second binding inside the framework and the first consumer's seven copies
+the evidence of what was generic.
+
+The copies varied along a small number of axes — which verbs, who may call
+them, which database, which records a reader sees, what a save must pass — and
+drifted along the ones nobody stated: links kept by hand named verbs a service
+did not serve, and scope parameters were threaded through routes that never
+used them.
+
+They also each built their own repository: `makeMongoRepository(db, Entity)`
+inside the handler. That is what tied a generic route to one engine and one way
+of finding the database.
+
+## Decision
+
+### The routes are derived from the entity and a stated configuration
+
+`makeEntityRoutes(Entity, options)` mounts `$metadata` and any of `list`,
+`get`, `create`, `update`, `delete`. What varies is stated:
+
+- **`verbs`** — which exist. The links are derived from them, so a link can
+  only name a verb that is mounted.
+- **`guard`** — `public`, `permission`, `organization`, or `crossing` with or
+  without a caller-named organization; one for every verb or split by read and
+  write. The permission is derived from the entity and the verb.
+- **`scope`** — which records a reader sees, as a filter **conjoined** onto the
+  parsed request (never substituted, so no `or` in a query can widen it) plus a
+  predicate for a by-id read. A reader who owns nothing gets an empty page and a
+  `404`: owning no records is not an error, and a `403` on a record would
+  confirm it exists.
+- **`prepare`** — what a save must pass, able to change the record or refuse it
+  with a status and a code.
+
+What never varies is the wire: the load request is parsed against the entity's
+own `filterable`/`sortable` metadata, every answer is an envelope, an update
+takes its id from the path, and the error bodies have one shape.
+
+### The escape hatch is per verb, and keeps the derivation
+
+`override` replaces one verb's handler with a hand-written one that still runs
+under the derived guard and receives the derived links. A route that is not
+one of the five verbs is written beside the set as it always was.
+
+### The repository comes from context
+
+The new `EntityRepositoryFactory` port (in `@entifix/business`) opens a
+repository for an entity and a request's scope. The host provides it at
+composition: over one database, or over the requesting organization's own,
+resolved per request. A factory over a per-organization store **refuses** a
+request that names no organization — a default organization is somebody else's
+data.
+
+The port sits at tier 1 so that a datastore adapter can implement it without
+reaching up into the shell.
+
+## Consequences
+
+- A service's generic surface is one call per entity, and a guard, scope or
+  verb change is a one-line edit with no handler to keep in step.
+- Generic routes no longer name an engine. The same route set runs over any
+  adapter that provides the factory.
+- The wire is fixed by the framework: a host that wants a different error body
+  or a `201` on create overrides the verb rather than configuring the shape.

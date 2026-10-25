@@ -6,11 +6,15 @@ import { Cause, Effect, Exit, Layer, Option } from 'effect';
 import type { Db } from 'mongodb';
 import { describe, expect, it } from 'vitest';
 
-import { MongoDatabaseTag } from '../mongo-database/mongo-database.js';
+import {
+  MongoClientTag,
+  MongoDatabaseTag,
+} from '../mongo-database/mongo-database.js';
 import {
   ensureSagaIndexes,
   makeMongoSagaStore,
   MongoSagaStoreLayer,
+  mongoSagaStoreLayer,
   SAGA_COLLECTION,
 } from './store.js';
 
@@ -113,5 +117,34 @@ describe('MongoSagaStoreLayer', () => {
     expect(
       fake.operations.filter(entry => entry.op === 'createIndex'),
     ).toHaveLength(2);
+  });
+});
+
+describe('mongoSagaStoreLayer', () => {
+  it('provides a store over the database the host names, indexed first', async () => {
+    const fake = makeFakeMongoDb();
+    const named: string[] = [];
+    const client = {
+      db: (name: string) => {
+        named.push(name);
+        return fake.db as Db;
+      },
+    };
+
+    const store = await Effect.runPromise(
+      SagaStoreTag.pipe(
+        Effect.provide(
+          mongoSagaStoreLayer({ database: 'saga' }).pipe(
+            Layer.provide(Layer.succeed(MongoClientTag, client as never)),
+          ),
+        ),
+      ),
+    );
+
+    expect(named).toEqual(['saga']);
+    expect(fake.operations.filter(op => op.op === 'createIndex')).toHaveLength(
+      2,
+    );
+    expect(await Effect.runPromise(store.get('absent'))).toBeUndefined();
   });
 });

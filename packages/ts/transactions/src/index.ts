@@ -4,6 +4,7 @@ export * from './contracts/inbox.js';
 export * from './contracts/outbox.js';
 export * from './contracts/record.js';
 export * from './contracts/saga-definition.js';
+export * from './contracts/unit-of-work.js';
 export * from './mixins/transaction-mixins.js';
 export * from './ports/event-bus.js';
 export * from './ports/event-source.js';
