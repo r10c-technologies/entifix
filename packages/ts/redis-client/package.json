@@ -1,6 +1,6 @@
 {
   "name": "@entifix/redis",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Redis adapters for sessions and one-time tokens, and optionally the lock and sequence services @entifix/transactions needs.",
   "license": "MIT",
   "repository": {
