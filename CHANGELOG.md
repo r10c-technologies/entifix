@@ -1,3 +1,17 @@
+## 0.8.0 (2026-10-26)
+
+### 🚀 Features
+
+- ⚠️ server-authored load requests, embedded filter paths, and a guard type that cannot widen ([#86](https://github.com/r10c-technologies/entifix/pull/86))
+
+### ⚠️ Breaking Changes
+
+- server-authored load requests, embedded filter paths, and a guard type that cannot widen ([#86](https://github.com/r10c-technologies/entifix/pull/86))
+
+### ❤️ Thank You
+
+- Herber Colop
+
 ## 0.7.2 (2026-10-25)
 
 ### 🚀 Features
