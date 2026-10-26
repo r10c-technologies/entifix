@@ -103,41 +103,93 @@ const isBetween = (actual: unknown, start: unknown, end: unknown) =>
   compareStoredValues(actual, start) >= 0 &&
   compareStoredValues(actual, end) <= 0;
 
-function matchesFilter<TEntity extends Entity>(
-  record: TEntity,
-  filter: EntityFilter<TEntity>,
-): boolean {
-  const actual = valueAt(record, String(filter.property));
+/**
+ * The values a dotted path reaches **through an array** — every element's
+ * member — or `undefined` when the path crosses no array, so the caller reads
+ * the single value as before.
+ */
+function valuesThroughArray(
+  record: object,
+  property: string,
+): unknown[] | undefined {
+  const dot = property.indexOf('.');
+  if (dot === -1) return undefined;
+  const elements = storedValue(
+    (record as Record<string, unknown>)[property.slice(0, dot)],
+  );
+  if (!Array.isArray(elements)) return undefined;
+  const member = property.slice(dot + 1);
+  return elements.map(element =>
+    typeof element === 'object' && element !== null
+      ? valueAt(element as object, member)
+      : undefined,
+  );
+}
 
+/**
+ * Splits a filter into its positive test and whether the operator negates it,
+ * so a path into an array can ask "any element" of the positive form and
+ * negate the answer — never "any element is not equal", which almost always
+ * holds.
+ */
+function positiveTest<TEntity extends Entity>(
+  filter: EntityFilter<TEntity>,
+): { readonly test: (actual: unknown) => boolean; readonly negated: boolean } {
   switch (filter.operator) {
     case 'eq':
-      return isEqual(actual, filter.value);
     case 'ne':
-      return !isEqual(actual, filter.value);
+      return {
+        test: actual => isEqual(actual, filter.value),
+        negated: filter.operator === 'ne',
+      };
     case 'gt':
-      return actual != null && compareStoredValues(actual, filter.value) > 0;
+      return {
+        test: actual =>
+          actual != null && compareStoredValues(actual, filter.value) > 0,
+        negated: false,
+      };
     case 'gte':
-      return actual != null && compareStoredValues(actual, filter.value) >= 0;
+      return {
+        test: actual =>
+          actual != null && compareStoredValues(actual, filter.value) >= 0,
+        negated: false,
+      };
     case 'lt':
-      return actual != null && compareStoredValues(actual, filter.value) < 0;
+      return {
+        test: actual =>
+          actual != null && compareStoredValues(actual, filter.value) < 0,
+        negated: false,
+      };
     case 'lte':
-      return actual != null && compareStoredValues(actual, filter.value) <= 0;
+      return {
+        test: actual =>
+          actual != null && compareStoredValues(actual, filter.value) <= 0,
+        negated: false,
+      };
     case 'in':
-      return matchesAny(actual, filter.values);
     case 'nin':
-      return !matchesAny(actual, filter.values);
+      return {
+        test: actual => matchesAny(actual, filter.values),
+        negated: filter.operator === 'nin',
+      };
     case 'between':
-      return isBetween(actual, filter.start, filter.end);
     case 'nbetween':
-      return !isBetween(actual, filter.start, filter.end);
+      return {
+        test: actual => isBetween(actual, filter.start, filter.end),
+        negated: filter.operator === 'nbetween',
+      };
     case 'like':
-      return matchesLike(actual, filter.value);
     case 'nlike':
-      return !matchesLike(actual, filter.value);
+      return {
+        test: actual => matchesLike(actual, filter.value),
+        negated: filter.operator === 'nlike',
+      };
     case 'isNull':
-      return actual == null;
     case 'isNotNull':
-      return actual != null;
+      return {
+        test: actual => actual != null,
+        negated: filter.operator === 'isNull',
+      };
     default: {
       // Exhaustiveness guard — a new operator must be handled explicitly.
       const never: never = filter;
@@ -146,6 +198,20 @@ function matchesFilter<TEntity extends Entity>(
       );
     }
   }
+}
+
+function matchesFilter<TEntity extends Entity>(
+  record: TEntity,
+  filter: EntityFilter<TEntity>,
+): boolean {
+  const { test, negated } = positiveTest(filter);
+  const property = String(filter.property);
+  const elements = valuesThroughArray(record, property);
+  const holds =
+    elements === undefined
+      ? test(valueAt(record, property))
+      : elements.some(test);
+  return negated ? !holds : holds;
 }
 
 function matchesNode<TEntity extends Entity>(

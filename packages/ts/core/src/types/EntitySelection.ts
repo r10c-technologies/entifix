@@ -1,5 +1,6 @@
 import type { Entity, EntityId } from './Entity.js';
 import type { FilterGroup } from './EntityFiltering.js';
+import type { EntityLoadRequest } from './EntityLoadRequest.js';
 
 /**
  * What a collection-bound action acts on.
@@ -115,6 +116,29 @@ export function selectionIds<TEntity extends Entity>(
   selection: EntitySelection<TEntity>,
 ): EntityId[] | undefined {
   return selection.mode === 'ids' ? Array.from(selection.ids) : undefined;
+}
+
+/**
+ * The load request that reads what a `matching` selection names, one page at a
+ * time.
+ *
+ * A selection carries **one** filter group, and a load request a list of them:
+ * the group is wrapped, never cast. A selection with no filtering reads every
+ * row. The selection's exclusions are not part of the request — a server
+ * resolving the set removes them from what the page answers, because an
+ * exclusion is a row the operator took out after the filter was applied.
+ */
+export function loadRequestFor<TEntity extends Entity>(
+  selection: Extract<EntitySelection<TEntity>, { mode: 'matching' }>,
+  page: { readonly page: number; readonly pageSize: number },
+): EntityLoadRequest<TEntity> {
+  return {
+    ...(selection.filtering === undefined
+      ? {}
+      : { filtering: [selection.filtering] }),
+    page: page.page,
+    pageSize: page.pageSize,
+  };
 }
 
 /**

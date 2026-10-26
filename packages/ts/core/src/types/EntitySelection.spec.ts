@@ -6,6 +6,7 @@ import {
   type EntitySelection,
   isSelected,
   isSelectionEmpty,
+  loadRequestFor,
   readWireSelection,
   selectionIds,
   selectionSize,
@@ -230,5 +231,37 @@ describe('the wire form', () => {
     ['matching with no exclusions array', { mode: 'matching', total: 3 }],
   ])('refuses %s', (_name, value) => {
     expect(readWireSelection<Widget>(value)).toBeUndefined();
+  });
+});
+
+describe('loadRequestFor', () => {
+  interface Row extends Entity {
+    id: string;
+    name: string;
+  }
+
+  it("wraps a matching selection's one group into the request's list", () => {
+    const group = {
+      operator: 'and' as const,
+      values: [
+        { property: 'name' as const, operator: 'eq' as const, value: 'a' },
+      ],
+    };
+
+    expect(
+      loadRequestFor<Row>(
+        { mode: 'matching', filtering: group, total: 3, excluded: new Set() },
+        { page: 2, pageSize: 50 },
+      ),
+    ).toEqual({ filtering: [group], page: 2, pageSize: 50 });
+  });
+
+  it('reads every row for a selection with no filtering', () => {
+    expect(
+      loadRequestFor<Row>(
+        { mode: 'matching', total: 3, excluded: new Set() },
+        { page: 1, pageSize: 10 },
+      ),
+    ).toEqual({ page: 1, pageSize: 10 });
   });
 });

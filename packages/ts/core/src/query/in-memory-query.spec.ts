@@ -267,3 +267,123 @@ describe('applySorting', () => {
     ).toEqual(['x', 'y']);
   });
 });
+
+describe('applyFiltering on a path into an array', () => {
+  interface Line {
+    readonly vendor: string;
+    readonly qty: number;
+    readonly note?: string | null;
+  }
+  interface Order extends Entity {
+    id: string;
+    lines?: readonly Line[];
+    label?: string;
+  }
+
+  const orders: Order[] = [
+    {
+      id: 'mixed',
+      lines: [
+        { vendor: 'acme', qty: 1, note: 'gift' },
+        { vendor: 'globex', qty: 5 },
+      ],
+    },
+    { id: 'acme-only', lines: [{ vendor: 'acme', qty: 3, note: null }] },
+    { id: 'empty', lines: [] },
+    { id: 'none' },
+  ];
+  const matching = (filtering: EntityFiltering<Order>[]) =>
+    applyFiltering(orders, filtering).map(order => order.id);
+
+  it('keeps a record when any element satisfies the filter', () => {
+    expect(
+      matching([{ property: 'lines.vendor', operator: 'eq', value: 'acme' }]),
+    ).toEqual(['mixed', 'acme-only']);
+    expect(
+      matching([{ property: 'lines.qty', operator: 'gt', value: 4 }]),
+    ).toEqual(['mixed']);
+    expect(
+      matching([{ property: 'lines.qty', operator: 'gte', value: 3 }]),
+    ).toEqual(['mixed', 'acme-only']);
+    expect(
+      matching([{ property: 'lines.qty', operator: 'lt', value: 2 }]),
+    ).toEqual(['mixed']);
+    expect(
+      matching([{ property: 'lines.qty', operator: 'lte', value: 3 }]),
+    ).toEqual(['mixed', 'acme-only']);
+    expect(
+      matching([
+        { property: 'lines.vendor', operator: 'in', values: ['globex'] },
+      ]),
+    ).toEqual(['mixed']);
+    expect(
+      matching([
+        { property: 'lines.qty', operator: 'between', start: 2, end: 4 },
+      ]),
+    ).toEqual(['acme-only']);
+    expect(
+      matching([{ property: 'lines.vendor', operator: 'like', value: 'glo' }]),
+    ).toEqual(['mixed']);
+    expect(
+      matching([{ property: 'lines.note', operator: 'isNotNull' }]),
+    ).toEqual(['mixed']);
+  });
+
+  it('keeps a record for a negated filter only when no element satisfies its positive form', () => {
+    expect(
+      matching([{ property: 'lines.vendor', operator: 'ne', value: 'acme' }]),
+    ).toEqual(['empty', 'none']);
+    expect(
+      matching([
+        { property: 'lines.vendor', operator: 'nin', values: ['globex'] },
+      ]),
+    ).toEqual(['acme-only', 'empty', 'none']);
+    expect(
+      matching([
+        { property: 'lines.qty', operator: 'nbetween', start: 2, end: 4 },
+      ]),
+    ).toEqual(['mixed', 'empty', 'none']);
+    expect(
+      matching([{ property: 'lines.vendor', operator: 'nlike', value: 'ac' }]),
+    ).toEqual(['empty', 'none']);
+    expect(matching([{ property: 'lines.note', operator: 'isNull' }])).toEqual([
+      'acme-only',
+      'empty',
+      'none',
+    ]);
+  });
+
+  it('reads an element that is not a record as holding nothing', () => {
+    const odd = [
+      { id: 'odd', lines: ['not a line'] as unknown as Line[] },
+    ] as Order[];
+
+    expect(
+      applyFiltering(odd, [
+        { property: 'lines.vendor', operator: 'isNull' },
+      ]).map(order => order.id),
+    ).toEqual(['odd']);
+  });
+
+  it('refuses a path that names no member, at compile time', () => {
+    const typed: EntityFiltering<Order> = {
+      property: 'lines.vendor',
+      operator: 'eq',
+      value: 'acme',
+    };
+    // @ts-expect-error — `lines.price` is not a member of a line.
+    const unknownMember: EntityFiltering<Order> = {
+      property: 'lines.price',
+      operator: 'eq',
+      value: 1,
+    };
+    // @ts-expect-error — a path's value is typed from the element's member.
+    const wrongValue: EntityFiltering<Order> = {
+      property: 'lines.qty',
+      operator: 'eq',
+      value: 'three',
+    };
+
+    expect([typed, unknownMember, wrongValue]).toHaveLength(3);
+  });
+});

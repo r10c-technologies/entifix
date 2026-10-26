@@ -784,6 +784,12 @@ describe('load request parameters', () => {
     ).toThrow(/not a filterable member/);
   });
 
+  it('refuses a client a path into an embedded array, which only server code may name', () => {
+    expect(() =>
+      parseLoadRequestParams(Widget, params('rsql=lines.vendor==acme')),
+    ).toThrow(/not a filterable member/);
+  });
+
   it('round-trips a request through both ends', () => {
     const request = {
       filtering: [

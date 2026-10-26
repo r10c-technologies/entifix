@@ -267,6 +267,18 @@ describe('translateFiltering', () => {
     ).toThrow(EntifixBuildError);
   });
 
+  it('rejects a path into an embedded array, which has no column to compare', () => {
+    expect(() =>
+      translateFiltering(sql, Widget, [
+        {
+          property: 'lines.vendor' as keyof Widget,
+          operator: 'eq',
+          value: 'x',
+        },
+      ]),
+    ).toThrow(/not a filterable member/);
+  });
+
   it('rejects a member that does not exist at all', () => {
     expect(() =>
       translateFiltering(sql, Widget, [
