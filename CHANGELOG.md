@@ -1,3 +1,17 @@
+## 0.9.0 (2026-10-26)
+
+### 🚀 Features
+
+- ⚠️ like folds accents, and a facet counter beside the repository ([#88](https://github.com/r10c-technologies/entifix/pull/88))
+
+### ⚠️ Breaking Changes
+
+- like folds accents, and a facet counter beside the repository ([#88](https://github.com/r10c-technologies/entifix/pull/88))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.8.0 (2026-10-26)
 
 ### 🚀 Features
