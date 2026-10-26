@@ -1,9 +1,4 @@
-import {
-  type Action,
-  permissionForEntity,
-  type PolicyDecisionTag,
-  type ServiceCrossingPolicyTag,
-} from '@entifix/authz';
+import type { Action } from '@entifix/authz';
 import {
   deleteUCFactory,
   EntityIdTag,
@@ -13,9 +8,7 @@ import {
   EntityTag,
   getUCFactory,
   loadUCFactory,
-  type RepositoryScope,
   saveUCFactory,
-  type TokenServiceTag,
 } from '@entifix/business';
 import {
   EntifixBuildError,
@@ -26,7 +19,6 @@ import {
   type EntityLoadRequest,
   envelopeEntityName,
   extractMetaEntity,
-  type FilterGroup,
   makeEntityEnvelope,
   makeEntityPageEnvelope,
   parseLoadRequestParams,
@@ -35,73 +27,29 @@ import {
 import { Effect } from 'effect';
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from 'effect/http';
 
-import {
-  type RequestPrincipal,
-  requireCrossing,
-  requireOrganization,
-  requirePermission,
-  requireServiceCrossing,
-  type ServiceCrossingTokenTag,
-} from './auth/index.js';
 import { entityMetadataRoute } from './entity-metadata-route.js';
+import {
+  type EntityReadScope,
+  type EntityRouteContext,
+  type EntityRouteGuard,
+  guardRoute,
+  type GuardServices,
+} from './entity-route-guard.js';
+import {
+  EntityRouteRefusal,
+  invalid,
+  routeFailure,
+} from './route-responses.js';
 
 /** The five generic verbs a route set can mount. */
 export type EntityVerb = 'list' | 'get' | 'create' | 'update' | 'delete';
 
-/**
- * Who may reach a route, and where the organization a per-organization store
- * needs comes from.
- *
- * - `public` — anybody; nothing is checked and no organization is known.
- * - `permission` — a verified session holding the permission the entity
- *   derives for the verb.
- * - `organization` — the same, plus the session's active organization, which
- *   is what a per-organization store opens.
- * - `crossing` — the fleet's crossing token and no session at all. With
- *   `organization: true` the caller names the organization in a header, which
- *   only a caller that has proved it is the fleet may do.
- */
-export type EntityRouteGuard =
-  | { readonly kind: 'public' }
-  | { readonly kind: 'permission' }
-  | { readonly kind: 'organization' }
-  | { readonly kind: 'crossing'; readonly organization: boolean };
-
-/** What a route learned about its caller from its guard. */
-export interface EntityRouteContext extends RepositoryScope {
-  readonly principal?: RequestPrincipal;
-}
-
-/**
- * Which records of an entity a caller may see.
- *
- * `filter` narrows a list and `includes` decides a by-id read — both are
- * needed, because `id` is the one member no query can name. `'none'` is a
- * caller who holds the read grant and owns nothing: an empty page and a `404`,
- * never a `403`, because owning no records is not an error.
- */
-export type EntityReadScope<T extends Entity> =
-  | 'all'
-  | 'none'
-  | {
-      readonly filter: FilterGroup<T>;
-      readonly includes: (entity: T) => boolean;
-    };
-
-/**
- * A save refused by a rule the entity's own deserializer does not make — a
- * closed set, a rule over the other records — answered as `status` with
- * `code`, which is what a client translates.
- */
-export class EntityRouteRefusal {
-  readonly _tag = 'EntityRouteRefusal';
-
-  constructor(
-    readonly status: 400 | 409 | 422,
-    readonly code: string,
-    readonly detail?: string,
-  ) {}
-}
+export {
+  type EntityReadScope,
+  type EntityRouteContext,
+  type EntityRouteGuard,
+} from './entity-route-guard.js';
+export { EntityRouteRefusal } from './route-responses.js';
 
 /** A hand-written handler for one verb, mounted under the derived guard. */
 export type EntityRouteOverride<R> = (
@@ -154,53 +102,6 @@ const ACTION: Record<EntityVerb, Action> = {
 };
 
 const READS: ReadonlySet<EntityVerb> = new Set(['list', 'get']);
-
-/**
- * What a route set needs from the host beyond the repository factory: a
- * session's services always (its `$metadata` reads the caller), the fleet's
- * crossing services only when a guard is a crossing.
- */
-type GuardServices<G extends EntityRouteGuard> =
-  | TokenServiceTag
-  | PolicyDecisionTag
-  | (G extends { readonly kind: 'crossing' }
-      ? ServiceCrossingTokenTag | ServiceCrossingPolicyTag
-      : never);
-
-/** The `500` for anything a route did not anticipate. */
-export const routeFailure = (error: unknown) =>
-  HttpServerResponse.json(
-    { error: 'request failed', code: 'unexpected', detail: String(error) },
-    { status: 500 },
-  );
-
-const invalid = (error: unknown, label: string, code: string) =>
-  error instanceof EntifixBuildError
-    ? HttpServerResponse.json(
-        {
-          error: label,
-          code: refusalCode(error) ?? code,
-          detail: error.message,
-        },
-        { status: 400 },
-      )
-    : error instanceof EntityRouteRefusal
-      ? HttpServerResponse.json(
-          {
-            error: 'the record cannot be saved',
-            code: error.code,
-            ...(error.detail === undefined ? {} : { detail: error.detail }),
-          },
-          { status: error.status },
-        )
-      : routeFailure(error);
-
-/**
- * A domain error may carry its own code (`mediaNotHttps`), so the client can
- * say which rule failed rather than "invalid body".
- */
-const refusalCode = (error: EntifixBuildError): string | undefined =>
-  'code' in error && typeof error.code === 'string' ? error.code : undefined;
 
 /**
  * The generic routes for one entity — list, read, create, update, delete and
@@ -273,26 +174,7 @@ const deriveEntityRoutes = <
   const guarded = <A, E, RR>(
     verb: EntityVerb,
     use: (context: EntityRouteContext) => Effect.Effect<A, E, RR>,
-  ) => {
-    const guard = guardFor(verb);
-    const permission = permissionForEntity(entityConstructor, ACTION[verb]);
-    switch (guard.kind) {
-      case 'public':
-        return use({});
-      case 'permission':
-        return requirePermission(permission)(principal => use({ principal }));
-      case 'organization':
-        return requireOrganization(permission)((organizationId, principal) =>
-          use({ organizationId, principal }),
-        );
-      case 'crossing':
-        return guard.organization
-          ? requireServiceCrossing(permission)(organizationId =>
-              use({ organizationId }),
-            )
-          : requireCrossing(permission)(use({}));
-    }
-  };
+  ) => guardRoute(entityConstructor, guardFor(verb), ACTION[verb], use);
 
   const repository = (context: EntityRouteContext) =>
     Effect.gen(function* () {
@@ -511,6 +393,8 @@ const deriveEntityRoutes = <
  * entity and the guard from the value, which a single call with explicit type
  * arguments cannot do.
  */
+export { routeFailure };
+
 export const makeEntityRoutes = Object.assign(deriveEntityRoutes, {
   for:
     <R>() =>

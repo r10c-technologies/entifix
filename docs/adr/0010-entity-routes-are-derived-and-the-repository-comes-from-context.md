@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-25
 - Revised: 2026-10-26 — naming the services a route needs no longer widens its guard type: `makeEntityRoutes.for<R>()` names them, and the guard type parameter defaults to `never`
+- Revised: 2026-10-26 — facet counts get a route set of their own beside these, `makeEntityFacetRoutes`, bound through `EntityFacetCounterFactoryTag` the way these are bound through the repository factory ([ADR 0012](0012-facet-counts-are-a-port-of-their-own.md))
 - Area: platform
 - Read when: writing a list, read, create, update or delete route for an entity, a route's links name a verb that answers `404`, or a route builds its own repository from a database handle
 

@@ -192,6 +192,89 @@ const matches = (doc: Document, query: QueryDocument): boolean =>
       : candidates.some(value => matchesCondition(value, condition));
   });
 
+/** A `$field` reference to a top-level field, the only one the stages take. */
+const fieldOf = (reference: unknown, stage: string): string => {
+  if (
+    typeof reference !== 'string' ||
+    !reference.startsWith('$') ||
+    reference.includes('.')
+  ) {
+    throw new TypeError(
+      `fake mongo: ${stage} takes a top-level "$field", got ${JSON.stringify(reference)}`,
+    );
+  }
+  return reference.slice(1);
+};
+
+/**
+ * `$unwind` without `preserveNullAndEmptyArrays`: an array becomes one
+ * document per element, a missing, `null` or empty one drops the document, and
+ * any other value passes through as it is.
+ */
+const unwind = (docs: Document[], spec: unknown): Document[] => {
+  const options = isPlainObject(spec) ? spec : { path: spec };
+  if (options['preserveNullAndEmptyArrays'] === true) {
+    throw new TypeError('fake mongo: $unwind cannot preserve nulls');
+  }
+  const field = fieldOf(options['path'], '$unwind');
+  return docs.flatMap(doc => {
+    const value = doc[field];
+    if (value == null) return [];
+    if (!Array.isArray(value)) return [doc];
+    return value.map(element => ({ ...doc, [field]: element }));
+  });
+};
+
+/** `$group` by one field, counting with `{ $sum: 1 }`; a missing key is `null`. */
+const group = (docs: Document[], spec: unknown): Document[] => {
+  const { _id: key, ...accumulators } = isPlainObject(spec) ? spec : {};
+  const field = fieldOf(key, '$group');
+  const entries = Object.entries(accumulators);
+  if (
+    entries.length !== 1 ||
+    !isPlainObject(entries[0][1]) ||
+    entries[0][1]['$sum'] !== 1
+  ) {
+    throw new TypeError(
+      'fake mongo: $group supports one accumulator, { $sum: 1 }',
+    );
+  }
+  const [counted] = entries[0];
+  const tally = new Map<unknown, number>();
+  for (const doc of docs) {
+    const value = doc[field] ?? null;
+    tally.set(value, (tally.get(value) ?? 0) + 1);
+  }
+  return Array.from(tally, ([id, count]) => ({ _id: id, [counted]: count }));
+};
+
+const runPipeline = (docs: Document[], pipeline: Document[]): Document[] =>
+  pipeline.reduce<Document[]>((current, stage) => {
+    const entries = Object.entries(stage);
+    if (entries.length !== 1) {
+      throw new TypeError('fake mongo: a stage has exactly one operator');
+    }
+    const [operator, spec] = entries[0];
+    switch (operator) {
+      case '$match':
+        return current.filter(doc => matches(doc, spec as QueryDocument));
+      case '$unwind':
+        return unwind(current, spec);
+      case '$group':
+        return group(current, spec);
+      case '$facet':
+        return [
+          Object.fromEntries(
+            Object.entries(spec as Record<string, Document[]>).map(
+              ([output, branch]) => [output, runPipeline(current, branch)],
+            ),
+          ),
+        ];
+      default:
+        throw new TypeError(`fake mongo: unsupported stage "${operator}"`);
+    }
+  }, docs);
+
 /**
  * The error a real server raises when a write violates a unique index.
  *
@@ -412,6 +495,19 @@ export const makeFakeMongoDb = (
       };
       return cursor;
     },
+
+    /**
+     * The four stages a facet count sends — `$facet`, `$match`, `$unwind` and
+     * a `$group` counting with `{ $sum: 1 }` — and nothing else: an unknown
+     * stage, or a stage in a shape not listed here, is a `TypeError` rather
+     * than a pass-through, for the reason `$expr` above gives.
+     */
+    aggregate: (pipeline: Document[]) => ({
+      toArray: () =>
+        record(name, 'aggregate', () =>
+          runPipeline(documentsOf(name), pipeline),
+        ),
+    }),
 
     findOne: (query: QueryDocument, options?: { projection?: Document }) =>
       record(name, 'findOne', () => {

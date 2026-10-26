@@ -3,6 +3,11 @@ import { EntityCollectionLink } from '../entity-definition/links/entity-collecti
 import { EntityLink } from '../entity-definition/links/entity-link/index.js';
 import type { Entity } from '../types/Entity.js';
 import type {
+  EntityFacetCounts,
+  EntityFacetQuery,
+  EntityFacetValue,
+} from '../types/EntityFacets.js';
+import type {
   EntityFilter,
   EntityFiltering,
   FilterGroup,
@@ -272,4 +277,42 @@ export function applySorting<TEntity extends Entity>(
     }
     return 0;
   });
+}
+
+const isFacetValue = (value: unknown): value is EntityFacetValue['value'] =>
+  typeof value === 'string' ||
+  typeof value === 'number' ||
+  typeof value === 'boolean';
+
+/** Count first, highest first; a tie by value, so the order is stable. */
+const byCountThenValue = (left: EntityFacetValue, right: EntityFacetValue) =>
+  right.count - left.count || compareStoredValues(left.value, right.value);
+
+/**
+ * How many records hold each value of each queried member, each member counted
+ * over the records **its own** filtering keeps — the in-memory form of a Mongo
+ * `$facet` of `$match`, `$unwind` and `$group`, with its rules:
+ * - an array member counts each element, as `$unwind` does;
+ * - a missing or `null` value, or an empty array, is not counted;
+ * - only a string, number or boolean is a value; anything else is skipped.
+ */
+export function countFacets<TEntity extends Entity>(
+  records: readonly TEntity[],
+  queries: readonly EntityFacetQuery<TEntity>[],
+): EntityFacetCounts {
+  const counts: Record<string, readonly EntityFacetValue[]> = {};
+  for (const { member, filtering } of queries) {
+    const tally = new Map<EntityFacetValue['value'], number>();
+    for (const record of applyFiltering(records, filtering)) {
+      const stored = valueAt(record, member);
+      for (const value of Array.isArray(stored) ? stored : [stored]) {
+        if (isFacetValue(value)) tally.set(value, (tally.get(value) ?? 0) + 1);
+      }
+    }
+    counts[member] = Array.from(tally, ([value, count]) => ({
+      value,
+      count,
+    })).sort(byCountThenValue);
+  }
+  return counts;
 }

@@ -1,6 +1,7 @@
 export * from './health/health-registry.js';
 export * from './repository/config.repository.js';
 export * from './repository/entity.repository.js';
+export * from './repository/entity-facet-counter.js';
 export * from './repository/entity-link-resolver.repository.js';
 export * from './repository/entity-mixins.repository.js';
 export * from './repository/entity-repository-factory.js';
@@ -10,6 +11,7 @@ export * from './shutdown/shutdown-registry.js';
 export * from './tenancy/index.js';
 export * from './tokens/token-service.js';
 export * from './use-case/delete/index.js';
+export * from './use-case/facets/index.js';
 export * from './use-case/get/index.js';
 export * from './use-case/load/index.js';
 export * from './use-case/save/index.js';

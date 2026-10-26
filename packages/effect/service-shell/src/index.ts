@@ -1,4 +1,5 @@
 export * from './auth/index.js';
+export * from './entity-facet-routes.js';
 export * from './entity-metadata-route.js';
 export * from './entity-routes.js';
 export * from './health-routes.js';

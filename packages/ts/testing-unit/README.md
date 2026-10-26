@@ -52,6 +52,12 @@ describeEntityRepositoryContract('mongo adapter over a fake driver', { makeRepos
 A read-only adapter runs `describeEntityRepositoryReadContract` alone;
 `describeEntityRepositoryContract` is it and `describeEntityRepositoryWriteContract`.
 
+`describeEntityFacetCounterContract` holds a facet counter to Mongo's `$facet`
+semantics — each member under its own filtering, an array member counted per
+element, a missing value not counted — and `makeInMemoryFacetCounter` is the
+double that passes it. A counter reached through the query protocol passes
+`countsCollections: false`, since no collection member is ever `filterable`.
+
 `describeUnitOfWorkContract` holds a unit of work to the same rules whatever
 its store: writes, events and the claim commit or vanish together, a taken
 claim is a `duplicate` that never runs the body, and a business failure is an

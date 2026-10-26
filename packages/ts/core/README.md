@@ -12,9 +12,9 @@ pnpm add @entifix/core effect
 
 ## Entry points
 
-| Import          | What it holds                                                                                                                                                        |
-| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@entifix/core` | Decorators (`entity`, `accessor`, `method`, `useCase`), metadata readers, serialization, envelopes, the RSQL parser and serializer, locales, wizard state, selection |
+| Import          | What it holds                                                                                                                                                                                                                                                                                               |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@entifix/core` | Decorators (`entity`, `accessor`, `method`, `useCase`), metadata readers, serialization, envelopes, the RSQL parser and serializer and the facet-count query protocol, the in-memory query (`like` ignores accents and case, by the rule in `foldText`) and `countFacets`, locales, wizard state, selection |
 
 ---
 

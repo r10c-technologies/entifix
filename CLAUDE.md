@@ -126,6 +126,7 @@ tests need no build. A consumer resolves `dist`.
 - [0009](docs/adr/0009-a-unit-of-work-the-outbox-inbox-and-command-claim-join.md) **A unit of work the outbox, inbox and command claim join** — read when a write has to announce itself on the bus, a consumer has to fold a message exactly once, or a participant has to answer a redelivered command — and you are about to open a driver session by hand.
 - [0010](docs/adr/0010-entity-routes-are-derived-and-the-repository-comes-from-context.md) **Entity routes are derived, and the repository comes from context** — read when writing a list, read, create, update or delete route for an entity, a route's links name a verb that answers `404`, or a route builds its own repository.
 - [0011](docs/adr/0011-like-ignores-accents.md) **`like` ignores accents** — read when a search for `cafe` does not find `Café`, writing a filter translator for a new engine, or about to add a collation, a text index or a second "search" operator.
+- [0012](docs/adr/0012-facet-counts-are-a-port-of-their-own.md) **Facet counts are a port of their own** — read when a listing has to show how many records each filter choice would keep, adding a count or an aggregation to a store, or about to put counts on `EntityPage` or a method on `EntityRepository`.
 
 **Cite this collection or nothing.** Every `ADR NNNN` in the repository names a
 record above, and nothing under `packages/`, `examples/` or `tools/` names r10c —

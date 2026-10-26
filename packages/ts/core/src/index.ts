@@ -35,6 +35,7 @@ export * from './types/BulkOutcome.js';
 export * from './types/Entity.js';
 export * from './types/EntityAction.js';
 export * from './types/EntityDraft.js';
+export * from './types/EntityFacets.js';
 export * from './types/EntityFiltering.js';
 export * from './types/EntityLoadRequest.js';
 export * from './types/EntityPage.js';
