@@ -197,6 +197,25 @@ describe('a localized member', () => {
   });
 });
 
+describe('a path into an embedded array', () => {
+  interface Order extends Entity {
+    id: string;
+    items?: readonly { readonly vendorId: string }[];
+  }
+
+  // Typed without a cast: `EntityMemberPath` names `items.vendorId`, and Mongo
+  // matches a dotted path into an array when any element does.
+  it('reaches Mongo as the dotted path it names', () => {
+    const scope: EntityFiltering<Order>[] = [
+      { property: 'items.vendorId', operator: 'eq', value: 'acme' },
+    ];
+
+    expect(translateFiltering<Order>(scope)).toEqual({
+      'items.vendorId': { $eq: 'acme' },
+    });
+  });
+});
+
 describe('translateSorting', () => {
   it('maps asc/desc by numeric priority', () => {
     const sorting: EntitySorting<Product>[] = [

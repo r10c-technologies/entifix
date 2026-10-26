@@ -64,12 +64,74 @@ export type EntityFilterNull<
   operator: EntityFilterNullOperator;
 };
 
+/**
+ * One step into a member that holds an array of records: `items.vendorId` on
+ * an order whose `items` are `OrderItem[]`. One level only, which is all a
+ * filter on an embedded line needs.
+ *
+ * ⚠️ **Server-authored filters only.** A client's request is parsed against
+ * the entity's own `filterable` members, and a path is not one, so a browser
+ * still cannot name `items.vendorId`. This type exists so the server code that
+ * narrows a read — a scope conjoined onto a load request — can say what it
+ * means without a cast.
+ */
+export type EntityMemberPath<TEntity> = {
+  [K in keyof TEntity & string]: NonNullable<
+    TEntity[K]
+  > extends readonly (infer E)[]
+    ? E extends object
+      ? `${K}.${keyof E & string}`
+      : never
+    : never;
+}[keyof TEntity & string];
+
+/** The type a value at an {@link EntityMemberPath} holds. */
+export type EntityMemberPathValue<TEntity, TPath> =
+  TPath extends `${infer K}.${infer M}`
+    ? K extends keyof TEntity
+      ? NonNullable<TEntity[K]> extends readonly (infer E)[]
+        ? M extends keyof E
+          ? E[M]
+          : never
+        : never
+      : never
+    : never;
+
+/**
+ * A filter on an {@link EntityMemberPath}. It matches a record when **any**
+ * element of the array satisfies it, and a negated operator (`ne`, `nin`,
+ * `nbetween`, `nlike`, `isNull`) when **no** element satisfies its positive
+ * form — the semantics Mongo applies to a dotted path into an array.
+ */
+export type EntityPathFilter<TEntity extends Entity> = {
+  [P in EntityMemberPath<TEntity>]:
+    | {
+        property: P;
+        operator: EntityFilterBinaryOperator;
+        value: EntityMemberPathValue<TEntity, P>;
+      }
+    | {
+        property: P;
+        operator: EntityFilterArrayOperator;
+        values: Array<EntityMemberPathValue<TEntity, P>>;
+      }
+    | {
+        property: P;
+        operator: EntityFilterRangeOperator;
+        start: EntityMemberPathValue<TEntity, P>;
+        end: EntityMemberPathValue<TEntity, P>;
+      }
+    | { property: P; operator: EntityFilterStringOperator; value: string }
+    | { property: P; operator: EntityFilterNullOperator };
+}[EntityMemberPath<TEntity>];
+
 export type EntityFilter<TEntity extends Entity> =
   | EntityFilterBinary<TEntity, keyof TEntity>
   | EntityFilterArray<TEntity, keyof TEntity>
   | EntityFilterRange<TEntity, keyof TEntity>
   | EntityFilterString<TEntity>
-  | EntityFilterNull<TEntity, keyof TEntity>;
+  | EntityFilterNull<TEntity, keyof TEntity>
+  | EntityPathFilter<TEntity>;
 
 export const LogicOperators = ['and', 'or'] as const;
 export type LogicOperator = (typeof LogicOperators)[number];
