@@ -15,6 +15,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   escapeLikePattern,
+  FOLD_TRANSLATION,
   translateFiltering,
   translateSorting,
 } from './sql-filter-translator.js';
@@ -149,19 +150,43 @@ describe('translateFiltering', () => {
     ).toEqual(['"size" NOT BETWEEN $1 AND $2', [1, 9]]);
   });
 
-  it('translates like / nlike to a case-insensitive contains match', () => {
+  it('translates like / nlike to a contains match that ignores accents and case', () => {
     expect(
-      where([{ property: 'name', operator: 'like', value: 'et' }]),
-    ).toEqual(['"widget_name" ILIKE $1', ['%et%']]);
+      where([{ property: 'name', operator: 'like', value: 'Café' }]),
+    ).toEqual([
+      'translate("widget_name", $1, $2) ILIKE $3',
+      [FOLD_TRANSLATION.from, FOLD_TRANSLATION.to, '%cafe%'],
+    ]);
     expect(
       where([{ property: 'name', operator: 'nlike', value: 'et' }]),
-    ).toEqual(['"widget_name" NOT ILIKE $1', ['%et%']]);
+    ).toEqual([
+      'translate("widget_name", $1, $2) NOT ILIKE $3',
+      [FOLD_TRANSLATION.from, FOLD_TRANSLATION.to, '%et%'],
+    ]);
   });
 
   it('escapes wildcards in a like value so it matches literally', () => {
     expect(
       where([{ property: 'name', operator: 'like', value: '50%' }]),
-    ).toEqual(['"widget_name" ILIKE $1', ['%50\\%%']]);
+    ).toEqual([
+      'translate("widget_name", $1, $2) ILIKE $3',
+      [FOLD_TRANSLATION.from, FOLD_TRANSLATION.to, '%50\\%%'],
+    ]);
+  });
+
+  it('maps every accented form, in both cases, onto its lowercase base', () => {
+    const { from, to } = FOLD_TRANSLATION;
+    expect(from).toHaveLength(to.length);
+    const mapped = (letter: string) => to[from.indexOf(letter)];
+    expect(['é', 'É', 'ñ', 'Ñ', 'ü'].map(mapped)).toEqual([
+      'e',
+      'e',
+      'n',
+      'n',
+      'u',
+    ]);
+    // The bare letters are `ILIKE`'s to fold, so the table leaves them out.
+    expect(from).not.toMatch(/[a-zA-Z]/);
   });
 
   it('translates the null operators without a parameter', () => {
@@ -256,7 +281,10 @@ describe('translateFiltering', () => {
         { property: 'size', operator: 'gte', value: 10 },
         { property: 'name', operator: 'like', value: 'x' },
       ]),
-    ).toEqual(['("size" >= $1 AND "widget_name" ILIKE $2)', [10, '%x%']]);
+    ).toEqual([
+      '("size" >= $1 AND translate("widget_name", $2, $3) ILIKE $4)',
+      [10, FOLD_TRANSLATION.from, FOLD_TRANSLATION.to, '%x%'],
+    ]);
   });
 
   it('rejects a member the entity did not declare filterable', () => {
@@ -404,7 +432,10 @@ describe('a localized member', () => {
           },
         ]),
       ),
-    ).toEqual([`"dish_title"->>$1 ILIKE $2`, ['es', '%sopa%']]);
+    ).toEqual([
+      `translate("dish_title"->>$1, $2, $3) ILIKE $4`,
+      ['es', FOLD_TRANSLATION.from, FOLD_TRANSLATION.to, '%sopa%'],
+    ]);
   });
 
   it('sorts by one locale, keeping the first position of a repeat', () => {

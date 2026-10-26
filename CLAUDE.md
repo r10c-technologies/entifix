@@ -125,6 +125,7 @@ tests need no build. A consumer resolves `dist`.
 - [0008](docs/adr/0008-an-entity-can-declare-a-hierarchy.md) **An entity can declare a hierarchy** — read when an entity's records nest under one another, building breadcrumbs or a tree from records, or about to write a recursive query.
 - [0009](docs/adr/0009-a-unit-of-work-the-outbox-inbox-and-command-claim-join.md) **A unit of work the outbox, inbox and command claim join** — read when a write has to announce itself on the bus, a consumer has to fold a message exactly once, or a participant has to answer a redelivered command — and you are about to open a driver session by hand.
 - [0010](docs/adr/0010-entity-routes-are-derived-and-the-repository-comes-from-context.md) **Entity routes are derived, and the repository comes from context** — read when writing a list, read, create, update or delete route for an entity, a route's links name a verb that answers `404`, or a route builds its own repository.
+- [0011](docs/adr/0011-like-ignores-accents.md) **`like` ignores accents** — read when a search for `cafe` does not find `Café`, writing a filter translator for a new engine, or about to add a collation, a text index or a second "search" operator.
 
 **Cite this collection or nothing.** Every `ADR NNNN` in the repository names a
 record above, and nothing under `packages/`, `examples/` or `tools/` names r10c —

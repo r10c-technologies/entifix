@@ -9,6 +9,8 @@ import {
   type EntityFiltering,
   type EntitySorting,
   type FilterGroup,
+  FOLD_TABLE,
+  foldText,
   resolveAllowedProperty,
 } from '@entifix/core';
 import type { SqlClient } from 'effect/sql';
@@ -29,13 +31,35 @@ const BINARY_OPERATORS: Record<EntityFilterBinaryOperator, string> = {
  * are the wildcards, and `\` is Postgres' default escape character, so it has to
  * escape itself first — which a single character class does for free.
  *
- * This is the SQL counterpart to the Mongo translator's `escapeRegex`: `like` is
- * an unanchored "contains" match in both, so a user typing `100%` searches for
+ * This is the SQL counterpart to the Mongo translator's escaping: `like` is an
+ * unanchored "contains" match in both, so a user typing `100%` searches for
  * that string rather than for everything.
  */
 export function escapeLikePattern(value: string): string {
   return value.replace(/[\\%_]/g, '\\$&');
 }
+
+/**
+ * The two strings `translate` maps a column through so `like` ignores accents:
+ * every accented form, in both cases, onto its lowercase base letter — built
+ * from core's `FOLD_TABLE`, so the column folds by the same rule the in-memory
+ * matcher and the Mongo pattern use. `ILIKE` then handles the ASCII case.
+ *
+ * The built-in `translate` rather than `unaccent`, which is an extension a
+ * database must have created before any query could use it.
+ */
+export const FOLD_TRANSLATION: { readonly from: string; readonly to: string } =
+  (() => {
+    let from = '';
+    let to = '';
+    for (const [base, forms] of Object.entries(FOLD_TABLE)) {
+      // The table lists the base and its capital first; `ILIKE` folds those.
+      const accented = forms.slice(2);
+      from += accented;
+      to += base.repeat(accented.length);
+    }
+    return { from, to };
+  })();
 
 function isFilterGroup<TEntity extends Entity>(
   node: EntityFilter<TEntity> | FilterGroup<TEntity>,
@@ -133,9 +157,9 @@ function translateNode<TEntity extends Entity>(
     case 'nbetween':
       return sql`${column} NOT BETWEEN ${node.start} AND ${node.end}`;
     case 'like':
-      return sql`${column} ILIKE ${`%${escapeLikePattern(node.value)}%`}`;
+      return sql`translate(${column}, ${FOLD_TRANSLATION.from}, ${FOLD_TRANSLATION.to}) ILIKE ${`%${escapeLikePattern(foldText(node.value))}%`}`;
     case 'nlike':
-      return sql`${column} NOT ILIKE ${`%${escapeLikePattern(node.value)}%`}`;
+      return sql`translate(${column}, ${FOLD_TRANSLATION.from}, ${FOLD_TRANSLATION.to}) NOT ILIKE ${`%${escapeLikePattern(foldText(node.value))}%`}`;
     case 'isNull':
       return sql`${column} IS NULL`;
     case 'isNotNull':

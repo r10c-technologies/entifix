@@ -8,6 +8,7 @@ import type {
   FilterGroup,
 } from '../types/EntityFiltering.js';
 import type { EntitySorting } from '../types/EntitySorting.js';
+import { containsFolded } from './fold.js';
 
 /**
  * An {@link EntityLoadRequest}'s filtering and sorting, answered over records
@@ -24,7 +25,8 @@ import type { EntitySorting } from '../types/EntitySorting.js';
  * - `in` and `nin` against an array match when **any element** does, as `$in`;
  * - a property may be a dotted path into a member holding an object, which is
  *   how a filter reaches one locale of a `localized` member (`name.en`);
- * - `like` is a case-insensitive substring match, as `$regex` with `i`;
+ * - `like` is a substring match that ignores accents and case — `cafe` finds
+ *   `Café` — by the one rule in `fold.ts` every adapter derives its form from;
  * - a missing value sorts below a present one, numbers and dates compare as
  *   themselves and anything else as text;
  * - every top-level filtering entry is combined with `and`.
@@ -86,12 +88,9 @@ const matchesAny = (actual: unknown, values: readonly unknown[]): boolean => {
   return Array.isArray(actual) ? actual.some(matches) : matches(actual);
 };
 
-/** Escapes a string so `like`/`nlike` match literally, as the Mongo adapter does. */
-const escapeRegex = (value: string): string =>
-  value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
+/** `like`: a substring match with accents and case folded off (`fold.ts`). */
 const matchesLike = (actual: unknown, value: string): boolean =>
-  actual != null && new RegExp(escapeRegex(value), 'i').test(String(actual));
+  actual != null && containsFolded(String(actual), value);
 
 const isFilterGroup = <TEntity extends Entity>(
   node: EntityFilter<TEntity> | FilterGroup<TEntity>,

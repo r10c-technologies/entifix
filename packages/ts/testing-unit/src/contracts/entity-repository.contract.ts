@@ -197,6 +197,42 @@ export const describeEntityRepositoryReadContract = (
       });
     });
 
+    it('matches `like` and `nlike` with accents ignored on both sides', async () => {
+      await withRepository(
+        async repository => {
+          const like = await run(
+            repository.load<ContractWidget>({
+              filtering: [
+                { property: 'name', operator: 'like', value: 'cafe' },
+              ],
+            }),
+          );
+          const accented = await run(
+            repository.load<ContractWidget>({
+              filtering: [
+                { property: 'name', operator: 'like', value: 'NIÑO' },
+              ],
+            }),
+          );
+          const nlike = await run(
+            repository.load<ContractWidget>({
+              filtering: [
+                { property: 'name', operator: 'nlike', value: 'café' },
+              ],
+            }),
+          );
+
+          expect(like.items.map(item => item.id)).toEqual(['w-1']);
+          expect(accented.items.map(item => item.id)).toEqual(['w-2']);
+          expect(nlike.items.map(item => item.id)).toEqual(['w-2']);
+        },
+        [
+          makeContractWidget('w-1', 'Café de Olla', 10),
+          makeContractWidget('w-2', 'nino', 20),
+        ],
+      );
+    });
+
     it('matches `in` and `nin` against any element of an array member', async () => {
       await withRepository(
         async repository => {

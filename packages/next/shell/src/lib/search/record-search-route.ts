@@ -16,7 +16,7 @@ export const SEARCH_LIMIT_PARAM = 'limit';
 /**
  * Below this, nothing is queried at all.
  *
- * A `like` becomes an unanchored, case-insensitive `$regex`, which no index can
+ * A `like` becomes an unanchored `$regex` that ignores accents and case, which no index can
  * serve — so this endpoint is a collection scan by construction. One character
  * matches most of every collection and is worth nothing to the person typing, so
  * the floor costs them nothing and saves four scans per keystroke.
