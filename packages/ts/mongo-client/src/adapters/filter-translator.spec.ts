@@ -36,9 +36,9 @@ describe('translateFiltering', () => {
 
     expect(
       translateFiltering<Product>([
-        { property: 'name', operator: 'like', value: 'a.b' },
+        { property: 'name', operator: 'like', value: '1.2' },
       ]),
-    ).toEqual({ name: { $regex: 'a\\.b', $options: 'i' } });
+    ).toEqual({ name: { $regex: '1\\.2', $options: 'i' } });
 
     expect(
       translateFiltering<Product>([{ property: 'name', operator: 'isNull' }]),
@@ -85,8 +85,8 @@ describe('translateFiltering', () => {
     ],
     [
       'nlike',
-      { property: 'name', operator: 'nlike', value: 'a+b' },
-      { name: { $not: { $regex: 'a\\+b', $options: 'i' } } },
+      { property: 'name', operator: 'nlike', value: '1+2' },
+      { name: { $not: { $regex: '1\\+2', $options: 'i' } } },
     ],
     [
       'isNotNull',
@@ -186,9 +186,9 @@ describe('a localized member', () => {
   it('filters and sorts one locale as a dotted path', () => {
     expect(
       translateFiltering<Product>([
-        { property: 'title.en' as never, operator: 'like', value: 'soup' },
+        { property: 'title.en' as never, operator: 'like', value: '42' },
       ]),
-    ).toEqual({ 'title.en': { $regex: 'soup', $options: 'i' } });
+    ).toEqual({ 'title.en': { $regex: '42', $options: 'i' } });
     expect(
       translateSorting<Product>([
         { 0: { property: 'title.es' as never, type: 'desc' } },
@@ -249,5 +249,29 @@ describe('translateSorting', () => {
     ];
 
     expect(Object.keys(translateSorting(sorting))).toEqual(['price', 'name']);
+  });
+});
+
+describe('like ignores accents', () => {
+  const matcher = (value: string) => {
+    const { name } = translateFiltering<Product>([
+      { property: 'name', operator: 'like', value },
+    ]) as { name: { $regex: string; $options: string } };
+    return new RegExp(name.$regex, name.$options);
+  };
+
+  it.each([
+    ['cafe', 'Café de Olla'],
+    ['Café', 'CAFE'],
+    ['nino', 'Niño'],
+    ['ÁRBOL', 'arbol'],
+    ['pinguino', 'pingüino'],
+  ])('%s finds %s', (search, stored) => {
+    expect(matcher(search).test(stored)).toBe(true);
+  });
+
+  it('still matches a metacharacter literally', () => {
+    expect(matcher('é.').test('ex')).toBe(false);
+    expect(matcher('é.').test('E.')).toBe(true);
   });
 });

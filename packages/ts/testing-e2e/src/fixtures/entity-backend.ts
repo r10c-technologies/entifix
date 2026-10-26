@@ -1,7 +1,9 @@
 import {
+  EntityFacetCounterTag,
   EntityIdTag,
   EntityLoadRequestTag,
   EntityRepositoryTag,
+  facetCountsUCFactory,
   getUCFactory,
   loadUCFactory,
 } from '@entifix/business';
@@ -13,10 +15,12 @@ import {
   type EntityLoadRequest,
   envelopeEntityName,
   makeEntityEnvelope,
+  makeEntityFacetsEnvelope,
   makeEntityPageEnvelope,
+  parseFacetQueryParams,
   parseLoadRequestParams,
 } from '@entifix/core';
-import { makeMongoRepository } from '@entifix/mongo';
+import { makeMongoFacetCounter, makeMongoRepository } from '@entifix/mongo';
 import {
   type FakeMongoDb,
   makeFakeMongoDb,
@@ -46,6 +50,8 @@ export interface EntityBackend {
   readonly key: string;
   /** `GET /api/<key>?<search>` — filtering, sorting and paging included. */
   list(search: URLSearchParams): Promise<BackendResponse>;
+  /** `GET /api/<key>/$facets?<search>` — the counts beside a listing's filters. */
+  facets(search: URLSearchParams): Promise<BackendResponse>;
   /** `GET /api/<key>/:id`. */
   get(id: EntityId): Promise<BackendResponse>;
   /** Replaces the stored rows, so one fixture can serve several journeys. */
@@ -102,6 +108,11 @@ export const makeEntityBackend = <TEntity extends Entity>(
     entityConstructor,
   );
 
+  const counter = makeMongoFacetCounter(
+    db.db as Parameters<typeof makeMongoFacetCounter>[0],
+    entityConstructor,
+  );
+
   const run = <TValue, TError>(
     effect: Effect.Effect<TValue, TError, never>,
   ): Promise<TValue> => Effect.runPromise(effect);
@@ -147,6 +158,37 @@ export const makeEntityBackend = <TEntity extends Entity>(
       } catch (error) {
         // A repository that fails is a 500, exactly as in the service: the
         // request was valid, the store was not reachable.
+        return {
+          status: 500,
+          body: { error: 'request failed', detail: String(error) },
+        };
+      }
+    },
+
+    // The same production pipeline as `list`: the protocol's parser and its
+    // allowlist, the use case, and the Mongo counter over the fake driver.
+    facets: async search => {
+      let queries;
+      try {
+        queries = parseFacetQueryParams(entityConstructor, search);
+      } catch (error) {
+        return {
+          status: 400,
+          body: { error: 'invalid query', detail: String(error) },
+        };
+      }
+
+      try {
+        const counts = await run(
+          facetCountsUCFactory(queries).pipe(
+            Effect.provideService(EntityFacetCounterTag, counter),
+          ),
+        );
+        return {
+          status: 200,
+          body: makeEntityFacetsEnvelope(entityConstructor, counts),
+        };
+      } catch (error) {
         return {
           status: 500,
           body: { error: 'request failed', detail: String(error) },

@@ -8,6 +8,7 @@ import {
   applyFiltering,
   applySorting,
   compareStoredValues,
+  countFacets,
   matchesFiltering,
   storedValue,
   valueAt,
@@ -385,5 +386,64 @@ describe('applyFiltering on a path into an array', () => {
     };
 
     expect([typed, unknownMember, wrongValue]).toHaveLength(3);
+  });
+});
+
+describe('countFacets', () => {
+  class Item implements Entity {
+    constructor(
+      readonly id: EntityId,
+      readonly brand?: unknown,
+      readonly tags: readonly unknown[] = [],
+      readonly owner?: EntityLink<Brand>,
+    ) {}
+  }
+
+  const items = [
+    new Item('i-1', 'b', ['x', 'y'], new EntityLink(Brand, { id: 'acme' })),
+    new Item('i-2', 'a', ['x']),
+    new Item('i-3', 'b', [], new EntityLink(Brand, { id: 'acme' })),
+    new Item('i-4', null, [{ not: 'a value' }]),
+    new Item('i-5', new Date(0)),
+  ];
+
+  it('counts each value, highest first and then by value, skipping what is not a value', () => {
+    expect(
+      countFacets(items, [
+        { member: 'brand' },
+        { member: 'tags' },
+        { member: 'owner' },
+      ]),
+    ).toEqual({
+      brand: [
+        { value: 'b', count: 2 },
+        { value: 'a', count: 1 },
+      ],
+      tags: [
+        { value: 'x', count: 2 },
+        { value: 'y', count: 1 },
+      ],
+      owner: [{ value: 'acme', count: 2 }],
+    });
+  });
+
+  it('counts each member over what its own filtering keeps', () => {
+    expect(
+      countFacets(items, [
+        {
+          member: 'brand',
+          filtering: [{ property: 'tags', operator: 'in', values: ['x'] }],
+        },
+      ]),
+    ).toEqual({
+      brand: [
+        { value: 'a', count: 1 },
+        { value: 'b', count: 1 },
+      ],
+    });
+  });
+
+  it('answers a member nothing holds with an empty list', () => {
+    expect(countFacets([], [{ member: 'brand' }])).toEqual({ brand: [] });
   });
 });

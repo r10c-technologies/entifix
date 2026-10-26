@@ -27,14 +27,18 @@ const repository = Context.make(EntityRepositoryTag, {
   delete: buildEntityRestAdapterDelete(Book, options),
 });
 
+const counter = Context.make(EntityFacetCounterTag, {
+  count: buildEntityRestAdapterFacets(Book, options), // GET <entity>/$facets
+});
+
 const status = buildTransactionStatusReader(options); // a TransactionStatusReader
 ```
 
 ## Entry points
 
-| Import          | What it holds                                                                                                                                          |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `@entifix/rest` | `buildEntityRestAdapterGet` / `Load` / `Save` / `Delete`, `makeEntityMetadataSource`, `buildTransactionStatusReader`, `performHttpRequestThroughFetch` |
+| Import          | What it holds                                                                                                                                                     |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@entifix/rest` | `buildEntityRestAdapterGet` / `Load` / `Save` / `Delete` / `Facets`, `makeEntityMetadataSource`, `buildTransactionStatusReader`, `performHttpRequestThroughFetch` |
 
 ---
 

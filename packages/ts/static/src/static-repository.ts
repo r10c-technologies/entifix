@@ -1,13 +1,15 @@
-import type { EntityRepository } from '@entifix/business';
+import type { EntityFacetCounter, EntityRepository } from '@entifix/business';
 import {
   applyFiltering,
   applySorting,
+  countFacets,
   deserializeSingleEntity,
   EntifixConnError,
   type EntifixError,
   EntifixLogicError,
   type Entity,
   type EntityConstructor,
+  type EntityFacetQuery,
   type EntityId,
   type EntityLoadRequest,
   type EntityPage,
@@ -130,4 +132,19 @@ export function makeStaticRepository<TEntity extends Entity>(
     save: () => readOnly('save'),
     delete: () => readOnly('delete'),
   } as unknown as EntityRepository;
+}
+
+/**
+ * Facet counts over the same records a {@link makeStaticRepository} serves:
+ * how many hold each value of a member, each member under its own filtering,
+ * with the in-memory query's rules.
+ */
+export function makeStaticFacetCounter<TEntity extends Entity>(
+  records: readonly TEntity[],
+): EntityFacetCounter {
+  const stored = [...records];
+  return {
+    count: (queries: readonly EntityFacetQuery<TEntity>[]) =>
+      Effect.sync(() => countFacets(stored, queries)),
+  } as unknown as EntityFacetCounter;
 }

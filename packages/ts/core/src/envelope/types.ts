@@ -1,6 +1,7 @@
 import type { EntityMetadataDocument } from '../entity-definition/metadata/index.js';
 import type { SerializedEntity } from '../entity-definition/serializer/index.js';
 import type { Entity, EntityId } from '../types/Entity.js';
+import type { EntityFacetCounts } from '../types/EntityFacets.js';
 import type { EntityLoadRequest } from '../types/EntityLoadRequest.js';
 
 /**
@@ -46,7 +47,8 @@ export type EntifixEnvelopeType =
   | 'transactionRecord'
   | 'sagaResult'
   | 'sagaInstance'
-  | 'entityMetadata';
+  | 'entityMetadata'
+  | 'entityFacets';
 
 export type EntifixEnvelopeMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
 
@@ -180,6 +182,7 @@ export type EntityCollectionEnvelope = EntifixEnvelope<SerializedEntity[]>;
 export type EntityPageEnvelope<TEntity extends Entity = Entity> =
   EntifixEnvelope<SerializedEntityPage<TEntity>>;
 export type EntityMetadataEnvelope = EntifixEnvelope<EntityMetadataDocument>;
+export type EntityFacetsEnvelope = EntifixEnvelope<EntityFacetCounts>;
 
 /**
  * A bus message on the wire. `meta.event` is always populated, and

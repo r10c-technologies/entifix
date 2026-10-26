@@ -3,11 +3,17 @@ import { EntityCollectionLink } from '../entity-definition/links/entity-collecti
 import { EntityLink } from '../entity-definition/links/entity-link/index.js';
 import type { Entity } from '../types/Entity.js';
 import type {
+  EntityFacetCounts,
+  EntityFacetQuery,
+  EntityFacetValue,
+} from '../types/EntityFacets.js';
+import type {
   EntityFilter,
   EntityFiltering,
   FilterGroup,
 } from '../types/EntityFiltering.js';
 import type { EntitySorting } from '../types/EntitySorting.js';
+import { containsFolded } from './fold.js';
 
 /**
  * An {@link EntityLoadRequest}'s filtering and sorting, answered over records
@@ -24,7 +30,8 @@ import type { EntitySorting } from '../types/EntitySorting.js';
  * - `in` and `nin` against an array match when **any element** does, as `$in`;
  * - a property may be a dotted path into a member holding an object, which is
  *   how a filter reaches one locale of a `localized` member (`name.en`);
- * - `like` is a case-insensitive substring match, as `$regex` with `i`;
+ * - `like` is a substring match that ignores accents and case — `cafe` finds
+ *   `Café` — by the one rule in `fold.ts` every adapter derives its form from;
  * - a missing value sorts below a present one, numbers and dates compare as
  *   themselves and anything else as text;
  * - every top-level filtering entry is combined with `and`.
@@ -86,12 +93,9 @@ const matchesAny = (actual: unknown, values: readonly unknown[]): boolean => {
   return Array.isArray(actual) ? actual.some(matches) : matches(actual);
 };
 
-/** Escapes a string so `like`/`nlike` match literally, as the Mongo adapter does. */
-const escapeRegex = (value: string): string =>
-  value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
+/** `like`: a substring match with accents and case folded off (`fold.ts`). */
 const matchesLike = (actual: unknown, value: string): boolean =>
-  actual != null && new RegExp(escapeRegex(value), 'i').test(String(actual));
+  actual != null && containsFolded(String(actual), value);
 
 const isFilterGroup = <TEntity extends Entity>(
   node: EntityFilter<TEntity> | FilterGroup<TEntity>,
@@ -273,4 +277,42 @@ export function applySorting<TEntity extends Entity>(
     }
     return 0;
   });
+}
+
+const isFacetValue = (value: unknown): value is EntityFacetValue['value'] =>
+  typeof value === 'string' ||
+  typeof value === 'number' ||
+  typeof value === 'boolean';
+
+/** Count first, highest first; a tie by value, so the order is stable. */
+const byCountThenValue = (left: EntityFacetValue, right: EntityFacetValue) =>
+  right.count - left.count || compareStoredValues(left.value, right.value);
+
+/**
+ * How many records hold each value of each queried member, each member counted
+ * over the records **its own** filtering keeps — the in-memory form of a Mongo
+ * `$facet` of `$match`, `$unwind` and `$group`, with its rules:
+ * - an array member counts each element, as `$unwind` does;
+ * - a missing or `null` value, or an empty array, is not counted;
+ * - only a string, number or boolean is a value; anything else is skipped.
+ */
+export function countFacets<TEntity extends Entity>(
+  records: readonly TEntity[],
+  queries: readonly EntityFacetQuery<TEntity>[],
+): EntityFacetCounts {
+  const counts: Record<string, readonly EntityFacetValue[]> = {};
+  for (const { member, filtering } of queries) {
+    const tally = new Map<EntityFacetValue['value'], number>();
+    for (const record of applyFiltering(records, filtering)) {
+      const stored = valueAt(record, member);
+      for (const value of Array.isArray(stored) ? stored : [stored]) {
+        if (isFacetValue(value)) tally.set(value, (tally.get(value) ?? 0) + 1);
+      }
+    }
+    counts[member] = Array.from(tally, ([value, count]) => ({
+      value,
+      count,
+    })).sort(byCountThenValue);
+  }
+  return counts;
 }

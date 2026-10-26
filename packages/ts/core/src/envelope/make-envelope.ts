@@ -5,6 +5,7 @@ import {
   serializeEntityCollection,
 } from '../entity-definition/serializer/index.js';
 import type { Entity, EntityConstructor } from '../types/Entity.js';
+import type { EntityFacetCounts } from '../types/EntityFacets.js';
 import type { EntityPage } from '../types/EntityPage.js';
 import type {
   DomainEvent,
@@ -13,6 +14,7 @@ import type {
   EntifixEnvelopeType,
   EntityCollectionEnvelope,
   EntityEnvelope,
+  EntityFacetsEnvelope,
   EntityMetadataEnvelope,
   EntityPageEnvelope,
   EventEnvelope,
@@ -122,6 +124,23 @@ export function makeEntityMetadataEnvelope<TEntity extends Entity>(
       ...(links ? { links } : {}),
     },
     data: document,
+  };
+}
+
+/**
+ * The response to `GET /api/<entity>/$facets`: the counts as they are, since a
+ * count is a plain shape of values and numbers with nothing to serialize.
+ */
+export function makeEntityFacetsEnvelope<TEntity extends Entity>(
+  entityConstructor: EntityConstructor<TEntity>,
+  counts: EntityFacetCounts,
+): EntityFacetsEnvelope {
+  return {
+    meta: {
+      type: 'entityFacets',
+      entity: envelopeEntityName(entityConstructor),
+    },
+    data: counts,
   };
 }
 

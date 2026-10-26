@@ -22,7 +22,8 @@ import { translateFiltering, translateSorting } from './filter-translator.js';
 /** Projection that drops Mongo's internal `_id` from read results. */
 const WITHOUT_MONGO_ID = { projection: { _id: 0 } } as const;
 
-function collectionName<TEntity extends Entity>(
+/** The collection an entity's records live in: its `key`, else its class name. */
+export function mongoCollectionName<TEntity extends Entity>(
   entityConstructor: EntityConstructor<TEntity>,
 ): string {
   const metaEntity = extractMetaEntity(entityConstructor);
@@ -57,7 +58,7 @@ export function makeMongoRepository<TEntity extends Entity>(
   entityConstructor: EntityConstructor<TEntity>,
   options?: { readonly session?: ClientSession },
 ): EntityRepository {
-  const collection = db.collection(collectionName(entityConstructor));
+  const collection = db.collection(mongoCollectionName(entityConstructor));
   // Spread into every call, so a repository with no session passes none.
   const inSession = options?.session ? { session: options.session } : {};
 

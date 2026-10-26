@@ -31,6 +31,9 @@ interface FakeCollection {
     options?: Record<string, unknown>,
   ): Promise<Record<string, unknown> | null>;
   countDocuments(query?: Record<string, unknown>): Promise<number>;
+  aggregate(pipeline: Array<Record<string, unknown>>): {
+    toArray(): Promise<Record<string, unknown>[]>;
+  };
   insertMany(
     documents: Array<Record<string, unknown>>,
   ): Promise<{ insertedCount: number }>;
@@ -1936,5 +1939,83 @@ describe('makeFakeMongoDb claim operations', () => {
     );
 
     expect(merged).toEqual({ orderId: 'o-1', folded: true });
+  });
+});
+
+describe('makeFakeMongoDb aggregation', () => {
+  const aggregate = (pipeline: Array<Record<string, unknown>>) =>
+    collectionOf(
+      makeFakeMongoDb({
+        items: [
+          { id: 'a', brand: 'x', tags: ['p', 'q'] },
+          { id: 'b', brand: 'x', tags: [] },
+          { id: 'c', brand: null, tags: 'p' },
+          { id: 'd' },
+        ],
+      }),
+      'items',
+    )
+      .aggregate(pipeline)
+      .toArray();
+
+  it('runs each $facet branch over the same documents', async () => {
+    expect(
+      await aggregate([
+        {
+          $facet: {
+            brand: [
+              { $match: { id: { $ne: 'd' } } },
+              { $group: { _id: '$brand', n: { $sum: 1 } } },
+            ],
+            tags: [
+              { $unwind: '$tags' },
+              { $group: { _id: '$tags', n: { $sum: 1 } } },
+            ],
+          },
+        },
+      ]),
+    ).toEqual([
+      {
+        brand: [
+          { _id: 'x', n: 2 },
+          { _id: null, n: 1 },
+        ],
+        tags: [
+          { _id: 'p', n: 2 },
+          { _id: 'q', n: 1 },
+        ],
+      },
+    ]);
+  });
+
+  it('takes $unwind in its document form too', async () => {
+    expect(
+      await aggregate([
+        { $unwind: { path: '$tags' } },
+        { $match: { id: 'a' } },
+      ]),
+    ).toHaveLength(2);
+  });
+
+  it.each([
+    ['an unknown stage', [{ $sort: { id: 1 } }]],
+    ['a stage with two operators', [{ $match: {}, $limit: 1 }]],
+    [
+      'an $unwind that preserves nulls',
+      [{ $unwind: { path: '$tags', preserveNullAndEmptyArrays: true } }],
+    ],
+    ['an $unwind of a nested path', [{ $unwind: '$a.b' }]],
+    [
+      'a $group key that is not a field',
+      [{ $group: { _id: 1, n: { $sum: 1 } } }],
+    ],
+    ['a $group with no accumulator', [{ $group: { _id: '$brand' } }]],
+    [
+      'a $group accumulator other than { $sum: 1 }',
+      [{ $group: { _id: '$brand', n: { $sum: '$qty' } } }],
+    ],
+    ['a $group that is not a document', [{ $group: 'brand' }]],
+  ])('refuses %s', async (_, pipeline) => {
+    await expect(aggregate(pipeline)).rejects.toBeInstanceOf(TypeError);
   });
 });

@@ -39,6 +39,10 @@ export const entityBackendHandlers = <TEntity extends Entity>(
       http.get(baseUrl, async ({ request }) =>
         respond(await backend.list(new URL(request.url).searchParams)),
       ),
+      // Before `/:id`, which would otherwise take `$facets` for an id.
+      http.get(`${baseUrl}/$facets`, async ({ request }) =>
+        respond(await backend.facets(new URL(request.url).searchParams)),
+      ),
       http.get(`${baseUrl}/:id`, async ({ params }) =>
         respond(await backend.get(String(params['id']))),
       ),

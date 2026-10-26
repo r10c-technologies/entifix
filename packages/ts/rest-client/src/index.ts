@@ -1,5 +1,6 @@
 export * from './adapters/entity-metadata/make-entity-metadata-source/index.js';
 export * from './adapters/entity-rest/build-entity-rest-adapter-delete/index.js';
+export * from './adapters/entity-rest/build-entity-rest-adapter-facets/index.js';
 export * from './adapters/entity-rest/build-entity-rest-adapter-get/index.js';
 export * from './adapters/entity-rest/build-entity-rest-adapter-load/index.js';
 export * from './adapters/entity-rest/build-entity-rest-adapter-save/index.js';

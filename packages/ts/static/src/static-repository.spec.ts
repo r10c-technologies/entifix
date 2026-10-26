@@ -10,6 +10,7 @@ import {
 import { run, runExit } from '@entifix/testing-unit';
 import {
   ContractWidget,
+  describeEntityFacetCounterContract,
   describeEntityRepositoryReadContract,
   makeContractWidget,
 } from '@entifix/testing-unit/contracts';
@@ -17,11 +18,18 @@ import { Cause, Exit } from 'effect';
 import { describe, expect, it } from 'vitest';
 
 import { staticRepositoryFromRecords } from './from-records.js';
-import { makeStaticRepository } from './static-repository.js';
+import {
+  makeStaticFacetCounter,
+  makeStaticRepository,
+} from './static-repository.js';
 
 // The read half only: a static source refuses writes by design.
 describeEntityRepositoryReadContract('static repository', {
   makeRepository: seed => makeStaticRepository(ContractWidget, seed),
+});
+
+describeEntityFacetCounterContract('static facet counter', {
+  makeCounter: seed => makeStaticFacetCounter(seed),
 });
 
 const failureOf = (exit: Exit.Exit<unknown, unknown>) =>

@@ -1,9 +1,10 @@
-import type {
-  Entity,
-  EntityFilter,
-  EntityFiltering,
-  EntitySorting,
-  FilterGroup,
+import {
+  type Entity,
+  type EntityFilter,
+  type EntityFiltering,
+  type EntitySorting,
+  type FilterGroup,
+  foldedPattern,
 } from '@entifix/core';
 
 /** A Mongo query document (`{ field: condition, $and: [...], ... }`). */
@@ -19,11 +20,6 @@ const BINARY_OPERATORS: Record<string, string> = {
   lt: '$lt',
   lte: '$lte',
 };
-
-/** Escapes a string so it is matched literally inside a Mongo `$regex`. */
-function escapeRegex(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
 
 function isFilterGroup<TEntity extends Entity>(
   node: EntityFilter<TEntity> | FilterGroup<TEntity>,
@@ -62,10 +58,15 @@ function translateNode<TEntity extends Entity>(
     case 'nbetween':
       return { [field]: { $not: { $gte: node.start, $lte: node.end } } };
     case 'like':
-      return { [field]: { $regex: escapeRegex(node.value), $options: 'i' } };
+      // A stored value cannot be folded in a `find`, and a collation does not
+      // reach `$regex` — so the query is widened instead: each letter becomes
+      // the class of its accented forms, both cases listed (`fold.ts`).
+      return { [field]: { $regex: foldedPattern(node.value), $options: 'i' } };
     case 'nlike':
       return {
-        [field]: { $not: { $regex: escapeRegex(node.value), $options: 'i' } },
+        [field]: {
+          $not: { $regex: foldedPattern(node.value), $options: 'i' },
+        },
       };
     case 'isNull':
       return { [field]: { $eq: null } };

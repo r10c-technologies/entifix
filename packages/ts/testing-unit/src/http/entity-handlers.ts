@@ -1,9 +1,12 @@
 import {
+  countFacets,
   type Entity,
   type EntityConstructor,
   type EntityId,
   makeEntityEnvelope,
+  makeEntityFacetsEnvelope,
   makeEntityPageEnvelope,
+  parseFacetQueryParams,
 } from '@entifix/core';
 import { http, HttpResponse, type RequestHandler } from 'msw';
 
@@ -15,8 +18,8 @@ export interface EntityRestHandlerOptions<TEntity extends Entity> {
 }
 
 /**
- * MSW handlers for the five REST operations the entity adapters issue, speaking
- * the real entifix envelope.
+ * MSW handlers for the five REST operations the entity adapters issue, and the
+ * `$facets` count beside them, speaking the real entifix envelope.
  *
  * Responses are built with `makeEntityEnvelope`/`makeEntityPageEnvelope` — the
  * production serializer — so a fixture cannot drift from the wire format the
@@ -46,6 +49,29 @@ export const entityRestHandlers = <TEntity extends Entity>(
           request: { page, pageSize },
         }),
       );
+    }),
+
+    // Registered before `/:id`, which would otherwise take `$facets` for an id.
+    // The query goes through the real protocol parser and the in-memory
+    // counter, so a refused member is a `400` here as it is at the service.
+    http.get(`${baseUrl}/$facets`, ({ request }) => {
+      try {
+        const queries = parseFacetQueryParams(
+          entityConstructor,
+          new URL(request.url).searchParams,
+        );
+        return HttpResponse.json(
+          makeEntityFacetsEnvelope(
+            entityConstructor,
+            countFacets(rows, queries),
+          ),
+        );
+      } catch (error) {
+        return HttpResponse.json(
+          { message: (error as Error).message, code: 'invalidQuery' },
+          { status: 400 },
+        );
+      }
     }),
 
     http.get(`${baseUrl}/:id`, ({ params }) => {

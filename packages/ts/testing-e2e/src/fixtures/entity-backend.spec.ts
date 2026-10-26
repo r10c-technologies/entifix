@@ -156,4 +156,37 @@ describe('makeEntityBackend', () => {
 
     expect(pageOf(body).total).toBe(0);
   });
+
+  it('counts facets through the production pipeline', async () => {
+    const { status, body } = await backend().facets(
+      query('facet=stock&rsql.stock=stock%3Dge%3D10'),
+    );
+
+    expect(status).toBe(200);
+    expect(body).toEqual({
+      meta: { type: 'entityFacets', entity: 'widget' },
+      data: {
+        stock: [
+          { value: 15, count: 1 },
+          { value: 25, count: 1 },
+        ],
+      },
+    });
+  });
+
+  it('answers a facet the allowlist refuses with a 400', async () => {
+    const { status, body } = await backend().facets(query('facet=nope'));
+
+    expect(status).toBe(400);
+    expect((body as { error: string }).error).toBe('invalid query');
+  });
+
+  it('answers 500 when the driver fails a count', async () => {
+    const instance = backend();
+    instance.db.failWith(new Error('connection lost'));
+
+    const { status } = await instance.facets(query('facet=stock'));
+
+    expect(status).toBe(500);
+  });
 });

@@ -7,6 +7,10 @@ import {
   deserializeSingleEntity,
 } from '../entity-definition/serializer/index.js';
 import type { Entity, EntityConstructor } from '../types/Entity.js';
+import type {
+  EntityFacetCounts,
+  EntityFacetValue,
+} from '../types/EntityFacets.js';
 import type { EntityPage } from '../types/EntityPage.js';
 import { envelopeEntityName } from './make-envelope.js';
 import type {
@@ -194,6 +198,50 @@ export const readEntityMetadataEnvelope = <TEntity extends Entity>(
       );
     }
     return document;
+  });
+
+const isFacetValueRow = (row: unknown): row is EntityFacetValue =>
+  row != null &&
+  typeof row === 'object' &&
+  ['string', 'number', 'boolean'].includes(
+    typeof (row as EntityFacetValue).value,
+  ) &&
+  typeof (row as EntityFacetValue).count === 'number';
+
+/**
+ * Reads a `$facets` response back into its counts, refusing a body whose lists
+ * are not `{ value, count }` rows — a panel that rendered a malformed count
+ * would show a number nobody computed.
+ */
+export const readEntityFacetsEnvelope = <TEntity extends Entity>(
+  entityConstructor: EntityConstructor<TEntity>,
+  body: unknown,
+) =>
+  Effect.gen(function* () {
+    const envelope = yield* assertEnvelope<TEntity, EntityFacetCounts>(
+      entityConstructor,
+      body,
+      'entityFacets',
+    );
+    const counts = envelope.data;
+    const wellFormed =
+      counts != null &&
+      typeof counts === 'object' &&
+      Object.values(counts).every(
+        rows => Array.isArray(rows) && rows.every(isFacetValueRow),
+      );
+    if (!wellFormed) {
+      return yield* Effect.fail(
+        new EntifixBuildError(
+          `EntifixEnvelope for "${envelopeEntityName(
+            entityConstructor,
+          )}" carried no facet counts`,
+          undefined,
+          { entity: envelopeEntityName(entityConstructor) },
+        ),
+      );
+    }
+    return counts;
   });
 
 /** Every member `meta.event` must carry for a message to be routable at all. */

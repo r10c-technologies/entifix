@@ -63,6 +63,15 @@ describe('entityBackendHandlers', () => {
     expect(await response.json()).toMatchObject({ error: 'invalid query' });
   });
 
+  it('serves the facet counts ahead of `/:id`', async () => {
+    const response = await fetch(`${BASE_URL}/$facets?facet=name`);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      meta: { type: 'entityFacets' },
+    });
+  });
+
   it('serves a single record by id', async () => {
     const response = await fetch(`${BASE_URL}/w2`);
 

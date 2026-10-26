@@ -1,4 +1,5 @@
 export * from './coerce-rsql.js';
+export * from './facet-query-url.js';
 export * from './load-request-url.js';
 export * from './parse-rsql.js';
 export * from './rsql-operators.js';

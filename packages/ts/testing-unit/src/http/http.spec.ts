@@ -98,6 +98,29 @@ describe('setupEntifixServer', () => {
   });
 });
 
+describe('entityRestHandlers $facets', () => {
+  it('counts the rows through the real protocol, ahead of `/:id`', async () => {
+    useHandlers([makeWidget('w-1', 'Alpha'), makeWidget('w-2', 'Alpha')]);
+
+    const { status, body } = await getJson(`${BASE_URL}/$facets?facet=name`);
+
+    expect(status).toBe(200);
+    expect(body).toEqual({
+      meta: { type: 'entityFacets', entity: 'widget' },
+      data: { name: [{ value: 'Alpha', count: 2 }] },
+    });
+  });
+
+  it('answers a member the protocol refuses with a 400', async () => {
+    useHandlers();
+
+    const { status, body } = await getJson(`${BASE_URL}/$facets?facet=nope`);
+
+    expect(status).toBe(400);
+    expect(body).toMatchObject({ code: 'invalidQuery' });
+  });
+});
+
 describe('entityRestHandlers', () => {
   // Responses are built with the production envelope makers, so a fixture
   // cannot drift from the wire format the adapters parse.

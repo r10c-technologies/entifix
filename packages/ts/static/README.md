@@ -21,9 +21,9 @@ pnpm add @entifix/static effect
 
 ## Entry points
 
-| Import            | What it holds                                         |
-| ----------------- | ----------------------------------------------------- |
-| `@entifix/static` | `makeStaticRepository`, `staticRepositoryFromRecords` |
+| Import            | What it holds                                                                   |
+| ----------------- | ------------------------------------------------------------------------------- |
+| `@entifix/static` | `makeStaticRepository`, `staticRepositoryFromRecords`, `makeStaticFacetCounter` |
 
 ---
 
