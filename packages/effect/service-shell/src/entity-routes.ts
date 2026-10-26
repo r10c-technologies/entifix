@@ -217,10 +217,16 @@ const refusalCode = (error: EntifixBuildError): string | undefined =>
  * A path that is not one of these verbs is written by hand beside it, and a
  * verb whose generic form does not fit is replaced with `override`.
  */
-export const makeEntityRoutes = <
+const deriveEntityRoutes = <
   T extends Entity,
   R = never,
-  const G extends EntityRouteGuard = EntityRouteGuard,
+  // `never`, not the whole union: TypeScript infers no type argument once a
+  // caller names one, so `makeEntityRoutes<T, R>(…)` used to default `G` to
+  // every guard. Then the crossing tags became requirements of a route that
+  // guards on a session, and the error surfaced at the host's `Layer.provide`
+  // instead of here. Defaulting to `never` refuses that call at the guard
+  // itself; `makeEntityRoutes.for<R>()` is the way to name `R` alone.
+  const G extends EntityRouteGuard = never,
 >(
   entityConstructor: EntityConstructor<T>,
   options: EntityRoutesOptions<T, R, G>,
@@ -497,3 +503,20 @@ export const makeEntityRoutes = <
     ),
   ]);
 };
+
+/**
+ * {@link deriveEntityRoutes}, with a curried form for a caller that has to
+ * name the services its `override`, `scope` or `prepare` handlers need:
+ * `makeEntityRoutes.for<R>()(Entity, options)` names `R` and still infers the
+ * entity and the guard from the value, which a single call with explicit type
+ * arguments cannot do.
+ */
+export const makeEntityRoutes = Object.assign(deriveEntityRoutes, {
+  for:
+    <R>() =>
+    <T extends Entity, const G extends EntityRouteGuard>(
+      entityConstructor: EntityConstructor<T>,
+      options: EntityRoutesOptions<T, R, G>,
+    ) =>
+      deriveEntityRoutes<T, R, G>(entityConstructor, options),
+});

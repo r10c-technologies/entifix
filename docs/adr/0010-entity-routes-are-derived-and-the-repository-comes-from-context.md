@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-25
+- Revised: 2026-10-26 — naming the services a route needs no longer widens its guard type: `makeEntityRoutes.for<R>()` names them, and the guard type parameter defaults to `never`
 - Area: platform
 - Read when: writing a list, read, create, update or delete route for an entity, a route's links name a verb that answers `404`, or a route builds its own repository from a database handle
 
@@ -46,7 +47,21 @@ of finding the database.
 
 What never varies is the wire: the load request is parsed against the entity's
 own `filterable`/`sortable` metadata, every answer is an envelope, an update
-takes its id from the path, and the error bodies have one shape.
+takes its id from the path, and the error bodies have one shape. A `scope` is
+server code, so its filter may also name a path into an embedded array
+(`items.vendorId`), which no client request can: the parser refuses anything
+that is not a declared member.
+
+### Naming the services keeps the guard inferred
+
+A route set whose `override`, `scope` or `prepare` handlers need services of the
+host's names them as `R`. TypeScript infers no type argument once a caller
+names one, so a single call `makeEntityRoutes<T, R>(…)` would default the guard
+type too; when that default was every guard kind, a session-guarded route
+required the crossing token and policy, and the host failed to typecheck far
+from the call. So the guard type parameter defaults to `never`, which refuses
+that call at its `guard`, and `makeEntityRoutes.for<R>()(Entity, options)`
+names `R` alone while the entity and the guard stay inferred from the value.
 
 ### The escape hatch is per verb, and keeps the derivation
 

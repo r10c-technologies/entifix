@@ -160,6 +160,12 @@ const router = Layer.mergeAll(
     verbs: ['list'],
     guard: { kind: 'crossing', organization: true },
   }),
+  // `R` named, the entity and the guard still inferred.
+  makeEntityRoutes.for<never>()(Widget, {
+    basePath: '/api/curried/widget',
+    verbs: ['list'],
+    guard: { kind: 'public' },
+  }),
   makeEntityRoutes(Widget, {
     basePath: '/api/platform/widget',
     verbs: ['create'],
@@ -411,6 +417,28 @@ describe('makeEntityRoutes, public reads and guarded writes', () => {
     } finally {
       factoryFailure = undefined;
     }
+  });
+});
+
+describe('makeEntityRoutes.for, naming the services alone', () => {
+  it('serves the route set it derives', async () => {
+    const res = await call('/api/curried/widget');
+
+    expect(res.status).toBe(200);
+  });
+
+  it('refuses explicit type arguments that leave the guard to default', () => {
+    // Compile-time only, and never called. Naming `R` in a single call stops
+    // inference of `G`, and `never` is what it defaults to, so the guard is
+    // refused here rather than widening to every kind and dragging the
+    // crossing tags into a session-guarded host.
+    void (() =>
+      makeEntityRoutes<Widget, never>(Widget, {
+        verbs: ['list'],
+        // @ts-expect-error — `G` defaults to `never` once `R` is named.
+        guard: { kind: 'public' },
+      }));
+    expect(makeEntityRoutes.for).toBeTypeOf('function');
   });
 });
 
