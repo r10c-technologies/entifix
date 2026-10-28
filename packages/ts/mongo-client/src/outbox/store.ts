@@ -1,7 +1,9 @@
-import { type DomainEvent, EntifixConnError } from '@entifix/core';
+import type { DomainEvent } from '@entifix/core';
 import type { OutboxEntry, TransactionOutbox } from '@entifix/transactions';
 import { Effect } from 'effect';
 import type { Db } from 'mongodb';
+
+import { translateMongoError } from '../errors/translate-mongo-error.js';
 
 /**
  * The outbox collection, and it lives in the **same database as the entity it
@@ -91,15 +93,7 @@ export const reviveQuarantined = (db: Db, eventId: string) =>
         );
       return result.modifiedCount === 1;
     },
-    catch: error =>
-      new EntifixConnError(
-        'Failed to revive a quarantined outbox entry',
-        error,
-        {
-          eventId,
-          db: db.databaseName,
-        },
-      ),
+    catch: error => translateMongoError(error),
   });
 
 /**
@@ -131,10 +125,7 @@ export const ensureOutboxIndexes = (db: Db) =>
         { partialFilterExpression: { sent: false, quarantined: false } },
       );
     },
-    catch: error =>
-      new EntifixConnError('Failed to create outbox indexes', error, {
-        db: db.databaseName,
-      }),
+    catch: error => translateMongoError(error),
   });
 
 /**
@@ -147,12 +138,6 @@ export const ensureOutboxIndexes = (db: Db) =>
  */
 export const makeMongoOutbox = (db: Db): TransactionOutbox => {
   const collection = db.collection<OutboxEntry>(OUTBOX_COLLECTION);
-
-  const fail = (
-    message: string,
-    error: unknown,
-    details?: Record<string, unknown>,
-  ) => new EntifixConnError(message, error, details);
 
   return {
     enqueue: event =>
@@ -170,8 +155,7 @@ export const makeMongoOutbox = (db: Db): TransactionOutbox => {
             throw error;
           }
         },
-        catch: error =>
-          fail('Failed to enqueue outbox entry', error, { eventId: event.id }),
+        catch: error => translateMongoError(error),
       }),
 
     pending: limit =>
@@ -184,10 +168,7 @@ export const makeMongoOutbox = (db: Db): TransactionOutbox => {
             .sort({ createdAt: 1 })
             .limit(limit)
             .toArray(),
-        catch: error =>
-          fail('Failed to read pending outbox entries', error, {
-            db: db.databaseName,
-          }),
+        catch: error => translateMongoError(error),
       }),
 
     markSent: entry =>
@@ -197,10 +178,7 @@ export const makeMongoOutbox = (db: Db): TransactionOutbox => {
             { eventId: entry.eventId },
             { $set: { sent: true } },
           ),
-        catch: error =>
-          fail('Failed to mark outbox entry sent', error, {
-            eventId: entry.eventId,
-          }),
+        catch: error => translateMongoError(error),
       }).pipe(Effect.asVoid),
 
     stats: () =>
@@ -230,7 +208,7 @@ export const makeMongoOutbox = (db: Db): TransactionOutbox => {
             ...(oldest === null ? {} : { oldestPendingAt: oldest.createdAt }),
           };
         },
-        catch: error => fail('Failed to read outbox stats', error),
+        catch: error => translateMongoError(error),
       }),
 
     recordFailure: (entry, error, quarantine) =>
@@ -247,10 +225,7 @@ export const makeMongoOutbox = (db: Db): TransactionOutbox => {
               $set: { lastError: error, quarantined: quarantine },
             },
           ),
-        catch: cause =>
-          fail('Failed to record an outbox publish failure', cause, {
-            eventId: entry.eventId,
-          }),
+        catch: cause => translateMongoError(cause),
       }).pipe(Effect.asVoid),
   };
 };

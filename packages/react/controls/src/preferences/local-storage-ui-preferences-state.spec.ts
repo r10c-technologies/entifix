@@ -107,7 +107,7 @@ describe('when localStorage misbehaves', () => {
     ['read', (store: UiPreferencesState) => store.read('k')],
     ['write', (store: UiPreferencesState) => store.write('k', 1)],
     ['remove', (store: UiPreferencesState) => store.remove('k')],
-  ])('fails %s with EntifixConnError', async (_label, run) =>
+  ])('fails %s with Unavailable', async (_label, run) =>
     withBrokenStorage(async () => {
       const store = makeLocalStorageUiPreferencesState();
 

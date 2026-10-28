@@ -22,4 +22,6 @@ export default [
   {
     ignores: ['**/out-tsc'],
   },
+  // A host, a tool or test tooling: allowed to log (ADR 0013).
+  { rules: { 'no-restricted-syntax': 'off' } },
 ];

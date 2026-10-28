@@ -18,6 +18,8 @@ export interface FakeAmqpChannel {
     exchange: string;
     routingKey: string;
     body: unknown;
+    /** The headers it was published with — a quarantine's reason rides here. */
+    headers: Record<string, unknown> | undefined;
   }>;
   /**
    * Every queue binding the adapter asked for. Recorded because the exchange is
@@ -99,11 +101,25 @@ const routingKeyOf = (body: unknown): string => {
   return typeof event?.name === 'string' ? event.name : '';
 };
 
+/**
+ * The body as JSON, or as the text it is when it is not — a poison message
+ * republished to quarantine is exactly the bytes that did not parse.
+ */
+const decode = (content: Buffer): unknown => {
+  const text = content.toString();
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return text;
+  }
+};
+
 export const makeFakeAmqpChannel = (): FakeAmqpChannel => {
   const published: Array<{
     exchange: string;
     routingKey: string;
     body: unknown;
+    headers: Record<string, unknown> | undefined;
   }> = [];
   const bindings: Array<{ queue: string; exchange: string; pattern: string }> =
     [];
@@ -134,12 +150,18 @@ export const makeFakeAmqpChannel = (): FakeAmqpChannel => {
   };
 
   const channel = {
-    publish: (exchange: string, routingKey: string, content: Buffer) => {
+    publish: (
+      exchange: string,
+      routingKey: string,
+      content: Buffer,
+      options?: { headers?: Record<string, unknown> },
+    ) => {
       guard();
       published.push({
         exchange,
         routingKey,
-        body: JSON.parse(content.toString()) as unknown,
+        body: decode(content),
+        headers: options?.headers,
       });
       return true;
     },

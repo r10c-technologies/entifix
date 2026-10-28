@@ -214,7 +214,7 @@ describe('authorizationUrl', () => {
       Effect.flip(makeZitadelOidc(config).authorizationUrl(AUTH_INPUT)),
     );
 
-    expect(error._tag).toBe('EntifixConnError');
+    expect(error._tag).toBe('Unavailable');
   });
 });
 
@@ -385,7 +385,7 @@ describe('exchangeCode', () => {
       ),
     );
 
-    expect(error._tag).toBe('EntifixLogicError');
+    expect(error._tag).toBe('InvalidToken');
   });
 
   it('refuses a token minted for another client', async () => {
@@ -407,7 +407,7 @@ describe('exchangeCode', () => {
       ),
     );
 
-    expect(error._tag).toBe('EntifixLogicError');
+    expect(error._tag).toBe('InvalidToken');
   });
 
   it('refuses a replayed token from an older flow', async () => {
@@ -431,7 +431,7 @@ describe('exchangeCode', () => {
       ),
     );
 
-    expect(error.message).toContain('nonce');
+    expect(error._tag).toBe('InvalidToken');
   });
 
   it('fails when the response carries no id_token', async () => {
@@ -552,7 +552,7 @@ describe('verifyLogoutToken', () => {
       Effect.flip(makeZitadelOidc(config).verifyLogoutToken(token)),
     );
 
-    expect(error.message).toContain('nonce');
+    expect(error._tag).toBe('InvalidToken');
   });
 
   it('refuses a token that declares no logout event', async () => {
@@ -567,7 +567,7 @@ describe('verifyLogoutToken', () => {
       Effect.flip(makeZitadelOidc(config).verifyLogoutToken(token)),
     );
 
-    expect(error.message).toContain('back-channel logout event');
+    expect(error._tag).toBe('InvalidToken');
   });
 
   it('refuses a token whose events claim is not an object', async () => {
@@ -583,7 +583,7 @@ describe('verifyLogoutToken', () => {
       Effect.flip(makeZitadelOidc(config).verifyLogoutToken(token)),
     );
 
-    expect(error.message).toContain('back-channel logout event');
+    expect(error._tag).toBe('InvalidToken');
   });
 
   it('refuses a token whose events claim is null', async () => {
@@ -599,7 +599,7 @@ describe('verifyLogoutToken', () => {
       Effect.flip(makeZitadelOidc(config).verifyLogoutToken(token)),
     );
 
-    expect(error.message).toContain('back-channel logout event');
+    expect(error._tag).toBe('InvalidToken');
   });
 
   it('refuses a token that names neither a session nor a subject', async () => {
@@ -611,7 +611,7 @@ describe('verifyLogoutToken', () => {
       Effect.flip(makeZitadelOidc(config).verifyLogoutToken(token)),
     );
 
-    expect(error.message).toContain('neither sid nor sub');
+    expect(error._tag).toBe('InvalidToken');
   });
 
   it('refuses a token signed by a key the issuer does not publish', async () => {
@@ -630,8 +630,7 @@ describe('verifyLogoutToken', () => {
       Effect.flip(makeZitadelOidc(config).verifyLogoutToken(token)),
     );
 
-    expect(error._tag).toBe('EntifixLogicError');
-    expect(error.message).toContain('logout_token');
+    expect(error._tag).toBe('InvalidToken');
   });
 
   it('refuses a token minted for another client', async () => {
@@ -647,7 +646,7 @@ describe('verifyLogoutToken', () => {
       Effect.flip(makeZitadelOidc(config).verifyLogoutToken(token)),
     );
 
-    expect(error._tag).toBe('EntifixLogicError');
+    expect(error._tag).toBe('InvalidToken');
   });
 });
 

@@ -1,4 +1,4 @@
-import type { EntifixError } from '@entifix/core';
+import type { NotFound, StoreFailure } from '@entifix/core';
 import { Context } from 'effect';
 import { Effect } from 'effect/Effect';
 
@@ -28,7 +28,7 @@ export interface OneTimeTokenStore {
     purpose: TokenPurpose,
     subject: string,
     ttlSeconds: number,
-  ): Effect<string, EntifixError>;
+  ): Effect<string, StoreFailure | NotFound>;
   /**
    * Redeem a token, returning the subject it was minted for.
    *
@@ -36,7 +36,10 @@ export interface OneTimeTokenStore {
    * mail archive, a proxy log — is already spent. Fails when the token is
    * unknown, expired, or already used; the caller must not distinguish those.
    */
-  consume(purpose: TokenPurpose, token: string): Effect<string, EntifixError>;
+  consume(
+    purpose: TokenPurpose,
+    token: string,
+  ): Effect<string, StoreFailure | NotFound>;
 }
 
 /** DI tag the composition root binds to a concrete {@link OneTimeTokenStore}. */

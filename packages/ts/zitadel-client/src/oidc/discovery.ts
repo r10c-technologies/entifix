@@ -1,5 +1,11 @@
-import { EntifixConnError } from '@entifix/core';
+import { ProtocolFailure } from '@entifix/core';
 import { Effect } from 'effect';
+
+import {
+  ProviderAnswered,
+  type ProviderFailure,
+  providerFailure,
+} from '../errors.js';
 
 /** The subset of the OIDC discovery document this client uses. */
 export interface OidcDiscovery {
@@ -43,7 +49,10 @@ const load = async (issuer: string): Promise<OidcDiscovery> => {
     headers: { accept: 'application/json' },
   });
   if (!response.ok) {
-    throw new Error(`${url} answered ${String(response.status)}`);
+    throw new ProviderAnswered(
+      response.status,
+      `${url} answered ${String(response.status)}`,
+    );
   }
   const document = (await response.json()) as Partial<OidcDiscovery>;
 
@@ -53,7 +62,9 @@ const load = async (issuer: string): Promise<OidcDiscovery> => {
     field => typeof document[field] !== 'string',
   );
   if (missing.length > 0) {
-    throw new Error(`${url} is missing: ${missing.join(', ')}`);
+    throw new ProtocolFailure({
+      reason: `${url} is missing: ${missing.join(', ')}`,
+    });
   }
   return document as OidcDiscovery;
 };
@@ -61,7 +72,7 @@ const load = async (issuer: string): Promise<OidcDiscovery> => {
 /** Fetch (or replay) the discovery document for an issuer. */
 export const discover = (
   issuer: string,
-): Effect.Effect<OidcDiscovery, EntifixConnError> =>
+): Effect.Effect<OidcDiscovery, ProviderFailure> =>
   Effect.tryPromise({
     try: () => {
       const cached = cache.get(issuer);
@@ -76,8 +87,5 @@ export const discover = (
       cache.set(issuer, pending);
       return pending;
     },
-    catch: error =>
-      new EntifixConnError(
-        `cannot read the OIDC discovery document from ${issuer}: ${String(error)}`,
-      ),
+    catch: providerFailure,
   });

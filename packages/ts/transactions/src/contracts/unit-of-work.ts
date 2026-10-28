@@ -1,4 +1,4 @@
-import type { DomainEvent, EntifixConnError } from '@entifix/core';
+import type { DomainEvent, StoreFault } from '@entifix/core';
 import type { Effect, Option } from 'effect';
 
 /**
@@ -44,7 +44,7 @@ export interface Unit<H> {
 
 /**
  * How a unit ended. A failure of the store itself is not one of these — it is
- * the `EntifixConnError` in the error channel of {@link UnitOfWork.run}.
+ * the `StoreFault` in the error channel of {@link UnitOfWork.run}.
  *
  * - `committed` — every write, every event and the claim are durable.
  * - `duplicate` — the claim was already taken, so the body's work had already
@@ -92,7 +92,7 @@ export interface UnitRunOptions<A, R = never> {
  * store. Do those before the unit and pass the results in.
  *
  * The body's typed failure is the abort: `run` rolls back and answers
- * `aborted` with it. An `EntifixConnError` is the exception — the store failing
+ * `aborted` with it. A `StoreFault` is the exception — the store failing
  * is not a business decision, so it rolls back and surfaces in `run`'s own
  * error channel instead.
  *
@@ -102,17 +102,11 @@ export interface UnitOfWork<H> {
   run<A, E, R>(
     body: (unit: Unit<H>) => Effect.Effect<A, E, R>,
     options?: UnitRunOptions<A, R>,
-  ): Effect.Effect<
-    UnitOutcome<A, Exclude<E, EntifixConnError>>,
-    EntifixConnError,
-    R
-  >;
+  ): Effect.Effect<UnitOutcome<A, Exclude<E, StoreFault>>, StoreFault, R>;
   /**
    * What the run that took this `command` claim asked to be remembered, or
    * `none` if no run has taken it — for a caller that has to answer a duplicate
    * outside a unit.
    */
-  replay(
-    commandId: string,
-  ): Effect.Effect<Option.Option<unknown>, EntifixConnError>;
+  replay(commandId: string): Effect.Effect<Option.Option<unknown>, StoreFault>;
 }

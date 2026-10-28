@@ -1,7 +1,6 @@
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 
-import { EntifixBuildError } from '../base-entities/entifix-error/index.js';
 import { accessor } from '../entity-definition/decorators/accessor/index.js';
 import { entity } from '../entity-definition/decorators/entity/index.js';
 import { useCase } from '../entity-definition/decorators/use-case/index.js';
@@ -110,7 +109,10 @@ describe('readEntityMetadataEnvelope', () => {
       Effect.flip(readEntityMetadataEnvelope(Account, wrong)),
     );
 
-    expect(failure).toBeInstanceOf(EntifixBuildError);
+    expect(failure).toMatchObject({
+      _tag: 'InvalidEnvelope',
+      category: 'invalid',
+    });
     expect(failure.message).toContain('entityMetadata');
   });
 
@@ -128,7 +130,10 @@ describe('readEntityMetadataEnvelope', () => {
       ),
     );
 
-    expect(failure).toBeInstanceOf(EntifixBuildError);
+    expect(failure).toMatchObject({
+      _tag: 'InvalidEnvelope',
+      category: 'invalid',
+    });
     expect(failure.message).toContain('carried no metadata document');
   });
 });

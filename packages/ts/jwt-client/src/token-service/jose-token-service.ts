@@ -1,5 +1,9 @@
-import type { TokenClaims, TokenService } from '@entifix/business';
-import { EntifixBuildError, EntifixConnError } from '@entifix/core';
+import {
+  type TokenClaims,
+  tokenFailureFrom,
+  type TokenService,
+} from '@entifix/business';
+import { Internal } from '@entifix/core';
 import { Effect } from 'effect';
 import {
   type CryptoKey,
@@ -66,14 +70,14 @@ const cachedKey = (
   return loading;
 };
 
-/** The private key an options object signs with, or a build error if it has none. */
+/** The private key an options object signs with, or `Internal` if it has none. */
 const signingKey = (options: JoseTokenServiceOptions): Promise<CryptoKey> => {
   const { privateKeyPem } = options;
   if (privateKeyPem === undefined) {
     return Promise.reject(
-      new EntifixBuildError(
-        'This token service holds no private key and cannot sign — it was configured to verify only',
-      ),
+      // A misconfiguration, not a connectivity problem: a verify-only
+      // service asked to sign is a composition bug, never worth a retry.
+      new Internal(),
     );
   }
   return cachedKey(privateKeys, options, () =>
@@ -133,9 +137,9 @@ export const verifyAccessToken = async (
 /**
  * A `jose`-backed {@link TokenService}. The perimeter provides it with both keys
  * to mint access tokens from a resolved session; every downstream service
- * provides it with the public key alone to verify them. Signing failures are
- * infrastructure errors; a verification failure is the caller presenting a bad
- * token — an {@link EntifixBuildError}, which the perimeter collapses to `401`.
+ * provides it with the public key alone to verify them. A signing failure is
+ * `Internal`; a verification failure is the caller presenting a bad
+ * token — an `InvalidToken` or an `ExpiredToken`, both `unauthenticated`, so a `401`.
  */
 export const makeJoseTokenService = (
   options: JoseTokenServiceOptions,
@@ -143,18 +147,13 @@ export const makeJoseTokenService = (
   sign: (claims, ttlSeconds) =>
     Effect.tryPromise({
       try: () => signAccessToken(claims, options, ttlSeconds),
-      // A missing private key is a misconfiguration, not a connectivity
-      // problem, and it must not be reported as one: it surfaces as the build
-      // error it already is rather than being wrapped into a retryable shape.
-      catch: error =>
-        error instanceof EntifixBuildError
-          ? error
-          : new EntifixConnError('Access token signing failed', error),
+      // Signing is local: no key, a key that will not import, a claim set
+      // jose refuses — every one is this process's bug, never a dependency's.
+      catch: () => new Internal(),
     }),
   verify: token =>
     Effect.tryPromise({
       try: () => verifyAccessToken(token, options),
-      catch: error =>
-        new EntifixBuildError('Access token verification failed', error),
+      catch: error => tokenFailureFrom(error),
     }),
 });

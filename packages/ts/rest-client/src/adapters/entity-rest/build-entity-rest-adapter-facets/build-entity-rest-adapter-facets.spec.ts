@@ -1,4 +1,3 @@
-import { EntifixBuildError } from '@entifix/core';
 import { makeStubUriConfigurationClient, runExit } from '@entifix/testing-unit';
 import {
   ContractWidget,
@@ -88,6 +87,6 @@ describe('buildEntityRestAdapterFacets', () => {
 
     expect(
       Exit.isFailure(exit) ? Cause.squash(exit.cause) : undefined,
-    ).toBeInstanceOf(EntifixBuildError);
+    ).toMatchObject({ _tag: 'InvalidEnvelope', category: 'invalid' });
   });
 });

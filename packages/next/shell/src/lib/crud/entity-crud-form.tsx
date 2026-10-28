@@ -1,11 +1,11 @@
 'use client';
 
 import {
-  type EntifixError,
   type Entity,
   type EntityConstructor,
   type EntityMetadataSource,
   reconstructEntity,
+  type TransitionalFailure,
 } from '@entifix/core';
 import {
   EntityField,
@@ -38,7 +38,7 @@ export interface EntityCrudFormProps<TEntity extends Entity> {
   readonly isLoading?: boolean;
   readonly isSaving?: boolean;
   readonly isDeleting?: boolean;
-  readonly error?: EntifixError;
+  readonly error?: TransitionalFailure;
   readonly onSave: (entity: TEntity) => void;
   /** Omitted for a create — there is nothing to delete yet. */
   readonly onDelete?: () => void;

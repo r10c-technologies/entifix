@@ -1,11 +1,20 @@
+import {
+  decodeProblem,
+  type EntifixFailure,
+  InvalidQuery,
+  ProtocolFailure,
+  Timeout,
+  Unauthenticated,
+  UpstreamUnavailable,
+} from '@entifix/core';
 import { NextResponse } from 'next/server';
 
+import { problemResponse } from '../config/problem-response.js';
 import { bearerHeader, sessionToken } from '../session/bearer.js';
 import type {
   RecordSearchGroup,
   RecordSearchResponse,
   RecordSearchUnavailable,
-  RecordSearchUnavailableReason,
 } from './record-search.types.js';
 import type { RecordSearchSource } from './record-search-source.js';
 
@@ -26,17 +35,6 @@ export const DEFAULT_GROUP_LIMIT = 5;
 export const MAX_GROUP_LIMIT = 20;
 export const DEFAULT_SOURCE_TIMEOUT_MS = 1_500;
 
-/** Upstream statuses that mean something other than "we could not reach it". */
-const REASON_FOR_STATUS: Readonly<
-  Record<number, RecordSearchUnavailableReason>
-> = {
-  400: 'invalidQuery',
-  401: 'unauthenticated',
-  403: 'forbidden',
-  404: 'notFound',
-  409: 'noActiveOrganization',
-};
-
 export interface RecordSearchRouteOptions {
   /**
    * The sources to fan out over, **in the order results are presented**. That
@@ -56,14 +54,15 @@ type SourceOutcome =
 
 const unavailable = (
   source: RecordSearchSource,
-  reason: RecordSearchUnavailableReason,
+  failure: EntifixFailure,
   status?: number,
 ): SourceOutcome => ({
   ok: false,
   unavailable: {
     source: source.key,
     entity: source.entity,
-    reason,
+    reason: failure.code,
+    category: failure.category,
     ...(status === undefined ? {} : { status }),
   },
 });
@@ -96,15 +95,18 @@ const runSource = async (
     return unavailable(
       source,
       (error as { name?: string }).name === 'TimeoutError'
-        ? 'timeout'
-        : 'network',
+        ? new Timeout({ dependency: source.key })
+        : new UpstreamUnavailable({ upstream: source.key }),
     );
   }
 
+  // The service says why, in a problem body; the code is the reason. A body
+  // that is not one decodes as `protocol` — still named, never silent.
   if (!upstream.ok) {
+    const body: unknown = await upstream.json().catch(() => undefined);
     return unavailable(
       source,
-      REASON_FOR_STATUS[upstream.status] ?? 'unexpected',
+      decodeProblem(body, upstream.status),
       upstream.status,
     );
   }
@@ -112,7 +114,14 @@ const runSource = async (
   const body = await upstream.json().catch(() => undefined);
   const page = source.read(body);
   return page === undefined
-    ? unavailable(source, 'unexpected', upstream.status)
+    ? unavailable(
+        source,
+        new ProtocolFailure({
+          reason: `${source.key} answered a page the source cannot read`,
+          upstreamStatus: upstream.status,
+        }),
+        upstream.status,
+      )
     : {
         ok: true,
         group: {
@@ -160,10 +169,7 @@ export const createRecordSearchRoute = ({
     // and the endpoint becomes an anonymous amplifier against that service.
     const token = await sessionToken();
     if (token === undefined) {
-      return NextResponse.json(
-        { error: 'unauthenticated', code: 'unauthenticated' },
-        { status: 401 },
-      );
+      return problemResponse(new Unauthenticated());
     }
 
     const params = new URL(request.url).searchParams;
@@ -176,13 +182,8 @@ export const createRecordSearchRoute = ({
       // Loud rather than ignored: no keystroke can produce this, only a caller
       // naming a source that does not exist — and silently searching everything
       // instead would answer a question nobody asked.
-      return NextResponse.json(
-        {
-          error: 'invalid query',
-          code: 'invalidQuery',
-          detail: `unknown search source "${unknown}"`,
-        },
-        { status: 400 },
+      return problemResponse(
+        new InvalidQuery({ reason: `unknown search source "${unknown}"` }),
       );
     }
     const selected =

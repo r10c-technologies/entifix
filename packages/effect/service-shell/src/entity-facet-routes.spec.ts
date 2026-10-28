@@ -2,16 +2,16 @@ import { makeStaticPolicyDecision, PolicyDecisionTag } from '@entifix/authz';
 import {
   type EntityFacetCounter,
   EntityFacetCounterFactoryTag,
+  InvalidToken,
   type TokenClaims,
   TokenServiceTag,
 } from '@entifix/business';
 import {
   accessor,
-  EntifixBuildError,
-  EntifixConnError,
   type Entity,
   entity,
   type EntityId,
+  Unavailable,
 } from '@entifix/core';
 import { makeInMemoryFacetCounter } from '@entifix/testing-unit';
 import { Effect, Layer } from 'effect';
@@ -73,7 +73,7 @@ const ROWS = [
 ];
 
 const opened: { organizationId?: string }[] = [];
-let failure: EntifixConnError | undefined;
+let failure: Unavailable | undefined;
 
 const factory = Layer.succeed(EntityFacetCounterFactoryTag, {
   for: (_entity, scope) => {
@@ -118,7 +118,7 @@ const fakeTokens = TokenServiceTag.of({
   verify: token =>
     Effect.try({
       try: () => JSON.parse(token) as TokenClaims,
-      catch: () => new EntifixBuildError('invalid token'),
+      catch: () => new InvalidToken(),
     }),
 });
 
@@ -197,12 +197,12 @@ describe('makeEntityFacetRoutes', () => {
     expect(body).toMatchObject({ code: 'invalidQuery' });
   });
 
-  it('answers a counter it could not open with a 500', async () => {
-    failure = new EntifixConnError('down');
+  it('answers a counter it could not open with a 503', async () => {
+    failure = new Unavailable({});
 
     const { status } = await call('/api/widget/$facets?facet=brand');
 
-    expect(status).toBe(500);
+    expect(status).toBe(503);
   });
 
   it('conjoins the caller’s scope into every facet, on the caller’s organization', async () => {

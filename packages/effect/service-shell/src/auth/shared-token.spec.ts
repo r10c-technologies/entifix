@@ -57,8 +57,7 @@ describe('requireSharedToken', () => {
       const res = await fetch(`${baseUrl}/api/config/auth-service`);
 
       expect(res.status).toBe(401);
-      expect(await res.json()).toEqual({
-        error: 'unauthenticated',
+      expect(await res.json()).toMatchObject({
         code: 'unauthenticated',
       });
     });

@@ -10,7 +10,7 @@ import { type ReactNode, useState } from 'react';
 /**
  * A `QueryClient` tuned for the entity data layer: server data is cached and
  * served stale-while-revalidate (so a revisited list paints from cache with no
- * spinner), and failed queries surface their {@link EntifixError} immediately
+ * spinner), and failed queries surface their failure immediately
  * rather than being retried behind a spinner.
  */
 export function makeQueryClient(config?: QueryClientConfig): QueryClient {

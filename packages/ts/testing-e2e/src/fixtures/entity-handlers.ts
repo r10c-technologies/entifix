@@ -1,5 +1,6 @@
 import type { ConfigurationPlain } from '@entifix/core';
 import type { Entity, EntityConstructor } from '@entifix/core';
+import { PROBLEM_CONTENT_TYPE } from '@entifix/core';
 import { http, HttpResponse, type RequestHandler } from 'msw';
 
 import {
@@ -28,10 +29,16 @@ export const entityBackendHandlers = <TEntity extends Entity>(
 ): { handlers: RequestHandler[]; backend: EntityBackend } => {
   const backend = makeEntityBackend(entityConstructor, options);
 
-  // Every body is an envelope or an error record — JSON either way. The cast is
-  // the one place the backend's transport-free `unknown` meets msw's body type.
+  // Every body is an envelope or a problem — JSON either way, and a failure
+  // carries the problem content type a service answers with. The cast is the
+  // one place the backend's transport-free `unknown` meets msw's body type.
   const respond = ({ status, body }: BackendResponse) =>
-    HttpResponse.json(body as Record<string, unknown>, { status });
+    HttpResponse.json(body as Record<string, unknown>, {
+      status,
+      ...(status >= 400
+        ? { headers: { 'content-type': PROBLEM_CONTENT_TYPE } }
+        : {}),
+    });
 
   return {
     backend,

@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "out-tsc/@entifix/conventions",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "forceConsistentCasingInFileNames": true,
+    "types": ["node", "vitest/globals", "vitest/importMeta"],
+    "ignoreDeprecations": "6.0",
+    "rootDir": "."
+  },
+  "include": ["src/**/*.ts"],
+  "references": []
+}

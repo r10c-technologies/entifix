@@ -1,11 +1,4 @@
-import {
-  accessor,
-  EntifixBuildError,
-  EntifixConnError,
-  type Entity,
-  entity,
-  type EntityId,
-} from '@entifix/core';
+import { accessor, type Entity, entity, type EntityId } from '@entifix/core';
 import { run, runExit } from '@entifix/testing-unit';
 import {
   type FakeSqlClient,
@@ -183,7 +176,7 @@ describe('makeSqlRepository', () => {
       expect(page.total).toBe(0);
     });
 
-    it('fails with a build error for a member the entity did not declare', async () => {
+    it('fails with InvalidQuery for a member the entity did not declare', async () => {
       const exit = await runExit(
         repository.load<Widget>({
           filtering: [
@@ -194,24 +187,24 @@ describe('makeSqlRepository', () => {
 
       // A typed failure, not a defect: the translator throws, and the adapter is
       // what turns that into something the route layer can map to a 400.
-      expect(failureOf(exit)).toBeInstanceOf(EntifixBuildError);
+      expect(failureOf(exit)).toMatchObject({ _tag: 'InvalidQuery' });
     });
 
-    it('maps a failing select to a connection error', async () => {
+    it('maps a failing select to Unavailable', async () => {
       fake.failOn(SELECT, 'select exploded');
 
       const exit = await runExit(repository.load<Widget>({}));
 
-      expect(failureOf(exit)).toBeInstanceOf(EntifixConnError);
+      expect(failureOf(exit)).toMatchObject({ _tag: 'Unavailable' });
     });
 
-    it('maps a failing count to a connection error', async () => {
+    it('maps a failing count to Unavailable', async () => {
       // Only the count fails, so the branch after a successful select is reached.
       fake.failOn(COUNT, 'count exploded');
 
       const exit = await runExit(repository.load<Widget>({}));
 
-      expect(failureOf(exit)).toBeInstanceOf(EntifixConnError);
+      expect(failureOf(exit)).toMatchObject({ _tag: 'Unavailable' });
     });
   });
 
@@ -230,10 +223,10 @@ describe('makeSqlRepository', () => {
 
       const exit = await runExit(repository.get<Widget>('missing'));
 
-      expect(failureOf(exit)).toBeInstanceOf(EntifixConnError);
+      expect(failureOf(exit)).toMatchObject({ _tag: 'NotFound' });
     });
 
-    it('maps a driver failure to a connection error', async () => {
+    it('maps a driver failure to Unavailable', async () => {
       fake.failWith('read exploded');
 
       const exit = await runExit(repository.get<Widget>('w-1'));
@@ -286,14 +279,14 @@ describe('makeSqlRepository', () => {
       expect(sql).not.toContain('DO UPDATE');
     });
 
-    it('maps a driver failure to a connection error', async () => {
+    it('maps a driver failure to Unavailable', async () => {
       fake.failWith('write exploded');
 
       const exit = await runExit(
         repository.save<Widget>(makeWidget('w-2', 'Renamed', 25)),
       );
 
-      expect(failureOf(exit)).toBeInstanceOf(EntifixConnError);
+      expect(failureOf(exit)).toMatchObject({ _tag: 'Unavailable' });
     });
   });
 
@@ -313,12 +306,12 @@ describe('makeSqlRepository', () => {
       expect(executed('DELETE FROM')?.params).toEqual(['w-3']);
     });
 
-    it('maps a driver failure to a connection error', async () => {
+    it('maps a driver failure to Unavailable', async () => {
       fake.failWith('delete exploded');
 
       const exit = await runExit(repository.delete<Widget>('w-1'));
 
-      expect(failureOf(exit)).toBeInstanceOf(EntifixConnError);
+      expect(failureOf(exit)).toMatchObject({ _tag: 'Unavailable' });
     });
   });
 });

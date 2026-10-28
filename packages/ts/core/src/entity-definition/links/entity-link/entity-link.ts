@@ -1,6 +1,6 @@
 import { Effect } from 'effect';
 
-import { EntifixError } from '../../../base-entities/entifix-error/index.js';
+import type { TransitionalFailure } from '../../../failure/failure.js';
 import { Entity, EntityConstructor, EntityId } from '../../../types/Entity.js';
 
 /**
@@ -14,7 +14,7 @@ export interface EntityLinkResolver {
   resolve<TEntity extends Entity>(
     entityConstructor: EntityConstructor<TEntity>,
     id: EntityId,
-  ): Effect.Effect<TEntity, EntifixError>;
+  ): Effect.Effect<TEntity, TransitionalFailure>;
 }
 
 export interface EntityLinkInit<TEntity extends Entity> {
@@ -80,7 +80,9 @@ export class EntityLink<TEntity extends Entity> {
    * hits the resolver — use {@link resolve} to fetch only when not already
    * loaded.
    */
-  reload(resolver: EntityLinkResolver): Effect.Effect<TEntity, EntifixError> {
+  reload(
+    resolver: EntityLinkResolver,
+  ): Effect.Effect<TEntity, TransitionalFailure> {
     return resolver
       .resolve(this.entityConstructor, this.#id)
       .pipe(Effect.tap(value => Effect.sync(() => this.setValue(value))));
@@ -89,7 +91,9 @@ export class EntityLink<TEntity extends Entity> {
   /**
    * Returns the cached target if present, otherwise reloads it once.
    */
-  resolve(resolver: EntityLinkResolver): Effect.Effect<TEntity, EntifixError> {
+  resolve(
+    resolver: EntityLinkResolver,
+  ): Effect.Effect<TEntity, TransitionalFailure> {
     return this.#value !== undefined
       ? Effect.succeed(this.#value)
       : this.reload(resolver);

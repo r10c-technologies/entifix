@@ -1,6 +1,7 @@
 import {
   EntifixBuildError,
   type EntifixEnvelope,
+  type InvalidEnvelope,
   makeEnvelope,
   readEnvelope,
   type SerializedEntity,
@@ -85,7 +86,10 @@ export const isTransactionId = (value: unknown): value is string =>
  */
 export function readCommandEnvelope<TPayload = SerializedEntity>(
   body: unknown,
-): Effect.Effect<TransactionCommand<TPayload>, EntifixBuildError> {
+): Effect.Effect<
+  TransactionCommand<TPayload>,
+  EntifixBuildError | InvalidEnvelope
+> {
   return Effect.gen(function* () {
     const envelope = yield* readEnvelope<TransactionCommand<TPayload>>(
       body,

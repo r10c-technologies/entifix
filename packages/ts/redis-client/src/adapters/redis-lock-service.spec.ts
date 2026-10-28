@@ -130,7 +130,7 @@ describe('makeRedisLockService', () => {
     expect(Exit.isFailure(exit)).toBe(true);
   });
 
-  it('maps a driver failure onto EntifixConnError on release', async () => {
+  it('maps a driver failure onto Unavailable on release', async () => {
     const { fake, redis } = withFakeRedis();
     const locks = makeRedisLockService(redis);
     const handle = await Effect.runPromise(locks.acquire('product:code'));
@@ -154,7 +154,7 @@ describe('makeRedisSequenceService', () => {
     });
   });
 
-  it('maps a driver failure onto EntifixConnError', async () => {
+  it('maps a driver failure onto Unavailable', async () => {
     const { fake, redis } = withFakeRedis();
     fake.failWith(new Error('connection reset'));
 

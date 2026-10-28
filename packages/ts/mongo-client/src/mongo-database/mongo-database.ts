@@ -1,6 +1,8 @@
-import { EntifixConnError } from '@entifix/core';
+import type { EntifixFailure } from '@entifix/core';
 import { Context, Effect, Layer, Schedule } from 'effect';
 import { Db, MongoClient } from 'mongodb';
+
+import { translateMongoError } from '../errors/translate-mongo-error.js';
 
 /** DI tag carrying a connected mongodb {@link Db} handle. */
 export class MongoDatabaseTag extends Context.Service<MongoDatabaseTag, Db>()(
@@ -46,7 +48,7 @@ export interface MongoDatabaseSettings extends MongoClientSettings {
  */
 export const MongoClientLayer = (
   settings: MongoClientSettings,
-): Layer.Layer<MongoClientTag, EntifixConnError> =>
+): Layer.Layer<MongoClientTag, EntifixFailure> =>
   Layer.effect(
     MongoClientTag,
     Effect.acquireRelease(
@@ -59,8 +61,7 @@ export const MongoClientLayer = (
             // alive behind it. Fail fast instead.
             serverSelectionTimeoutMS: 5_000,
           }),
-        catch: error =>
-          new EntifixConnError('Failed to connect to MongoDB', error),
+        catch: error => translateMongoError(error),
       }).pipe(
         // Boot order is not guaranteed — a service may start while Mongo is
         // still rolling out. Keep trying for a window instead of dying on the
@@ -85,7 +86,7 @@ export const MongoClientLayer = (
  */
 export const MongoDatabaseLayer = (
   settings: MongoDatabaseSettings,
-): Layer.Layer<MongoDatabaseTag | MongoClientTag, EntifixConnError> =>
+): Layer.Layer<MongoDatabaseTag | MongoClientTag, EntifixFailure> =>
   Layer.provideMerge(
     Layer.effect(
       MongoDatabaseTag,

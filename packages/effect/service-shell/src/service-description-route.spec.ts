@@ -121,8 +121,7 @@ describe('serviceDescriptionRoute', () => {
     const response = await fetch(`${baseUrl}${SERVICE_DESCRIPTION_PATH}`);
 
     expect(response.status).toBe(401);
-    expect(await response.json()).toEqual({
-      error: 'unauthenticated',
+    expect(await response.json()).toMatchObject({
       code: 'unauthenticated',
     });
   });

@@ -1,6 +1,5 @@
 import 'fake-indexeddb/auto';
 
-import { EntifixConnError } from '@entifix/core';
 import { Cause, Effect, Exit, Option } from 'effect';
 import { describe, expect, it } from 'vitest';
 
@@ -50,7 +49,7 @@ describe('makeIndexedDbUiPreferencesState', () => {
     expect(await run(b.read('shared'))).toBe('from-b');
   });
 
-  it('fails with EntifixConnError when the value cannot be stored', async () => {
+  it('fails with Unavailable when the value cannot be stored', async () => {
     const store = makeIndexedDbUiPreferencesState();
 
     // A function is not structured-cloneable → the put rejects.
@@ -61,7 +60,10 @@ describe('makeIndexedDbUiPreferencesState', () => {
     expect(Exit.isFailure(exit)).toBe(true);
     if (Exit.isFailure(exit)) {
       const error = Option.getOrUndefined(Cause.findErrorOption(exit.cause));
-      expect(error).toBeInstanceOf(EntifixConnError);
+      expect(error).toMatchObject({
+        _tag: 'Unavailable',
+        dependency: 'indexeddb',
+      });
     }
   });
 

@@ -9,6 +9,7 @@
  * specifier (ADR 0006).
  */
 export * from '../stream/transaction-stream-hub.js';
+export * from './in-memory-retry-budget.js';
 export * from './local-saga-dispatcher.js';
 export * from './resolve-template.js';
 export * from './resume-sweep.js';

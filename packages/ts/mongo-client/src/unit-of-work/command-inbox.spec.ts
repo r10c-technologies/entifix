@@ -1,4 +1,3 @@
-import { EntifixConnError } from '@entifix/core';
 import { makeFakeMongoDb } from '@entifix/testing-unit/drivers';
 import { Effect, Option } from 'effect';
 import type { Db } from 'mongodb';
@@ -19,7 +18,7 @@ describe('the command inbox', () => {
       ensureCommandInboxIndexes(fake.db as Db).pipe(Effect.flip),
     );
 
-    expect(error).toBeInstanceOf(EntifixConnError);
+    expect(error).toMatchObject({ _tag: 'Unavailable' });
   });
 
   it('reads no replay for a claim taken without one', async () => {
@@ -42,6 +41,6 @@ describe('the command inbox', () => {
       readCommandReplay(fake.db as Db, 'c-2').pipe(Effect.flip),
     );
 
-    expect(error).toBeInstanceOf(EntifixConnError);
+    expect(error).toMatchObject({ _tag: 'Unavailable' });
   });
 });

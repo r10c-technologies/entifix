@@ -1,11 +1,13 @@
 import {
-  EntifixConnError,
+  decodeProblem,
   type Entity,
   type EntityConstructor,
   type EntityMetadataDocument,
   type EntityMetadataSource,
   envelopeEntityName,
+  ProtocolFailure,
   readEntityMetadataEnvelope,
+  Unavailable,
 } from '@entifix/core';
 import { Effect } from 'effect';
 
@@ -42,14 +44,7 @@ export const makeEntityMetadataSource = ({
         const response = yield* Effect.tryPromise({
           try: () =>
             fetch(url(name), { headers: { Accept: 'application/json' } }),
-          catch: error =>
-            new EntifixConnError(
-              `Metadata request for "${name}" failed`,
-              error,
-              {
-                entity: name,
-              },
-            ),
+          catch: () => new Unavailable({ dependency: name }),
         });
 
         if (!response.ok) {
@@ -58,22 +53,21 @@ export const makeEntityMetadataSource = ({
           // two so it cannot be walked to enumerate the model. Either way the
           // caller has no affordances, so it is an error, not an empty document.
           return yield* Effect.fail(
-            new EntifixConnError(
-              `Metadata request for "${name}" failed with status ${response.status}`,
-              undefined,
-              { entity: name, status: response.status },
+            decodeProblem(
+              yield* Effect.promise(() =>
+                response.json().catch(() => undefined),
+              ),
+              response.status,
             ),
           );
         }
 
         const body = yield* Effect.tryPromise({
           try: () => response.json() as Promise<unknown>,
-          catch: error =>
-            new EntifixConnError(
-              `Metadata response for "${name}" was not JSON`,
-              error,
-              { entity: name },
-            ),
+          catch: () =>
+            new ProtocolFailure({
+              reason: `metadata for "${name}" was not JSON`,
+            }),
         });
 
         return yield* readEntityMetadataEnvelope(entityConstructor, body);

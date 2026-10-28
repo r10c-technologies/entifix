@@ -3,6 +3,7 @@ import {
   EntityFacetCounterTag,
   facetCountsUCFactory,
 } from '@entifix/business';
+import type { EntifixFailure } from '@entifix/core';
 import {
   EntifixBuildError,
   type Entity,
@@ -23,7 +24,12 @@ import {
   guardRoute,
   type GuardServices,
 } from './entity-route-guard.js';
-import { invalid } from './route-responses.js';
+import {
+  defaultFailurePolicy,
+  type FailurePolicy,
+  respond,
+} from './respond.js';
+import { legacyAnswer } from './route-responses.js';
 
 export interface EntityFacetRoutesOptions<
   T extends Entity,
@@ -42,6 +48,8 @@ export interface EntityFacetRoutesOptions<
   readonly scope?: (
     context: EntityRouteContext,
   ) => Effect.Effect<EntityReadScope<T>, never, R>;
+  /** How the count's failures are answered and logged. */
+  readonly policy?: FailurePolicy;
 }
 
 /**
@@ -119,24 +127,25 @@ export const makeEntityFacetRoutes = <
       return yield* HttpServerResponse.json(
         makeEntityFacetsEnvelope(entityConstructor, counts),
       );
-    }).pipe(
-      Effect.catch(error => invalid(error, 'invalid query', 'invalidQuery')),
-    );
+    }).pipe(Effect.catch(legacyAnswer('invalidQuery')));
 
-  const handler = guardRoute(
-    entityConstructor,
-    options.guard,
-    'read',
-    count,
-  ) as Effect.Effect<
-    HttpServerResponse.HttpServerResponse,
-    unknown,
-    | R
-    | EntityFacetCounterFactoryTag
-    | GuardServices<G>
-    | HttpServerRequest.HttpServerRequest
-    | HttpRouter.RouteContext
-  >;
+  const handler = respond(
+    guardRoute(
+      entityConstructor,
+      options.guard,
+      'read',
+      count,
+    ) as Effect.Effect<
+      HttpServerResponse.HttpServerResponse,
+      EntifixFailure,
+      | R
+      | EntityFacetCounterFactoryTag
+      | GuardServices<G>
+      | HttpServerRequest.HttpServerRequest
+      | HttpRouter.RouteContext
+    >,
+    options.policy ?? defaultFailurePolicy,
+  );
 
   return HttpRouter.addAll([
     HttpRouter.route('GET', `${base}/$facets`, handler),

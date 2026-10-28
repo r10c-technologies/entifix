@@ -1,4 +1,4 @@
-import { EntifixBuildError, entity, useCase } from '@entifix/core';
+import { entity, useCase } from '@entifix/core';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -73,14 +73,12 @@ describe('permission values', () => {
 
     it('rejects an entity without a domain', () => {
       expect(() => permissionForEntity(DomainlessEntity, 'read')).toThrow(
-        EntifixBuildError,
+        Error,
       );
     });
 
     it('rejects an entity without a key', () => {
-      expect(() => permissionForEntity(KeylessEntity, 'read')).toThrow(
-        EntifixBuildError,
-      );
+      expect(() => permissionForEntity(KeylessEntity, 'read')).toThrow(Error);
     });
   });
 
@@ -95,7 +93,7 @@ describe('permission values', () => {
     it('throws on a permission that is not three segments', () => {
       expect(() =>
         parsePermission('authn:user-identity' as Permission),
-      ).toThrow(EntifixBuildError);
+      ).toThrow(Error);
     });
   });
 
@@ -162,19 +160,15 @@ describe('permissionForUseCase', () => {
     // The typo a guard would otherwise carry to production as a silent deny.
     expect(() =>
       permissionForUseCase(DescribedEntity, 'revoke-sesions'),
-    ).toThrow(EntifixBuildError);
+    ).toThrow(Error);
   });
 
   it('refuses an entity that cannot name itself', () => {
-    expect(() => permissionForUseCase(PublishDomainlessUC)).toThrow(
-      EntifixBuildError,
-    );
+    expect(() => permissionForUseCase(PublishDomainlessUC)).toThrow(Error);
   });
 
   it('refuses a class that is not a use case', () => {
-    expect(() => permissionForUseCase(UndecoratedUC)).toThrow(
-      EntifixBuildError,
-    );
+    expect(() => permissionForUseCase(UndecoratedUC)).toThrow(Error);
   });
 });
 

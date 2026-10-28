@@ -1,4 +1,3 @@
-import { EntifixLogicError } from '@entifix/core';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
 import { defineRoleLadder, type RoleOf } from './role.js';
@@ -41,7 +40,7 @@ describe('defineRoleLadder', () => {
     it('with no rungs', () => {
       expect(() =>
         defineRoleLadder([] as unknown as readonly [string, ...string[]]),
-      ).toThrow(EntifixLogicError);
+      ).toThrow(/at least one rung/);
     });
 
     it('with a repeated rung', () => {

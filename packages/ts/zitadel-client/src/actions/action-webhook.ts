@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
-import { EntifixLogicError } from '@entifix/core';
+import { Invalid, Unauthenticated } from '@entifix/core';
 import { Context, Effect, Layer } from 'effect';
 
 /**
@@ -73,7 +73,7 @@ export interface ZitadelActions {
   verifyEvent(
     rawBody: string,
     signatureHeader: string | undefined,
-  ): Effect.Effect<ProviderUserEvent, EntifixLogicError>;
+  ): Effect.Effect<ProviderUserEvent, Unauthenticated | Invalid>;
 }
 
 export class ZitadelActionsTag extends Context.Service<
@@ -191,21 +191,29 @@ export const makeZitadelActions = (
   config: ZitadelActionsConfig,
 ): ZitadelActions => ({
   verifyEvent: (rawBody, signatureHeader) =>
-    Effect.suspend(() => {
-      if (!verifyActionSignature(rawBody, signatureHeader, config.signingKey)) {
-        return Effect.fail(
-          new EntifixLogicError('the action payload signature did not verify'),
-        );
-      }
-      const event = readEvent(rawBody);
-      return event === undefined
-        ? Effect.fail(
-            new EntifixLogicError(
-              'the action payload is not a user event: no event_type or aggregateID',
-            ),
-          )
-        : Effect.succeed(event);
-    }),
+    Effect.suspend(
+      (): Effect.Effect<ProviderUserEvent, Unauthenticated | Invalid> => {
+        if (
+          !verifyActionSignature(rawBody, signatureHeader, config.signingKey)
+        ) {
+          return Effect.fail(new Unauthenticated());
+        }
+        const event = readEvent(rawBody);
+        return event === undefined
+          ? Effect.fail(
+              new Invalid({
+                errors: [
+                  {
+                    pointer: '/event_type',
+                    detail: 'not a user event: no event_type or aggregateID',
+                    code: 'notAUserEvent',
+                  },
+                ],
+              }),
+            )
+          : Effect.succeed(event);
+      },
+    ),
 });
 
 /** Binds {@link ZitadelActionsTag} from a resolved configuration. */

@@ -1,9 +1,13 @@
 import {
   accessor,
+  DuplicateKey,
   type Entity,
   entity,
   type EntityId,
   type EntityLoadRequest,
+  Overloaded,
+  PROBLEM_CONTENT_TYPE,
+  problemOf,
 } from '@entifix/core';
 import { makeStubUriConfigurationClient } from '@entifix/testing-unit';
 import {
@@ -15,6 +19,7 @@ import {
   respondWithMalformedEnvelope,
   respondWithNetworkError,
   respondWithNonJson,
+  respondWithProblem,
   setupEntifixServer,
 } from '@entifix/testing-unit/http';
 import { Effect } from 'effect';
@@ -230,30 +235,8 @@ describe('buildEntityRestAdapterLoad', () => {
     expect(page.request).toBe(request);
   });
 
-  it.each([
-    [
-      'a non-envelope body',
-      () => respondWithMalformedEnvelope(BASE_URL),
-      /no meta.type/,
-    ],
-    [
-      'a non-JSON body',
-      () => respondWithNonJson(BASE_URL),
-      /parse response body/,
-    ],
-    ['an error status', () => respondWith500(BASE_URL), /status 500/],
-    ['a dropped connection', () => respondWithNetworkError(BASE_URL), /failed/],
-  ])('fails on %s', async (_label, handler, message) => {
-    server.use(handler());
-
-    await expect(runLoad({})).rejects.toThrow(message);
-  });
-
-  // Services answer a failure with `{ error, code, detail }`. The code has to
-  // survive onto the error, because it is what the browser translates — without
-  // it the user reads the service's English `error` string in every locale.
-  // Run through `Effect.result` so the assertion sees the `EntifixConnError`
-  // itself rather than the `FiberFailure` that wraps it.
+  // Run through `Effect.flip` so the assertion sees the failure itself rather
+  // than the `FiberFailure` that wraps it.
   const loadFailure = (request: EntityLoadRequest<Widget> = {}) =>
     Effect.runPromise(
       buildEntityRestAdapterLoad(
@@ -262,7 +245,47 @@ describe('buildEntityRestAdapterLoad', () => {
       )(request).pipe(Effect.flip),
     );
 
-  it('carries a failure code from the response body onto the error', async () => {
+  it.each([
+    [
+      'a non-envelope body',
+      () => respondWithMalformedEnvelope(BASE_URL),
+      { _tag: 'InvalidEnvelope' },
+    ],
+    [
+      'a non-JSON body',
+      () => respondWithNonJson(BASE_URL),
+      { _tag: 'ProtocolFailure', upstreamStatus: 200 },
+    ],
+    [
+      'an error status with no problem body',
+      () => respondWith500(BASE_URL),
+      { _tag: 'ProtocolFailure', upstreamStatus: 500 },
+    ],
+    [
+      'a dropped connection',
+      () => respondWithNetworkError(BASE_URL),
+      { _tag: 'Unavailable', dependency: 'service' },
+    ],
+  ])('fails on %s', async (_label, handler, expected) => {
+    server.use(handler());
+
+    await expect(loadFailure()).resolves.toMatchObject(expected);
+  });
+
+  // The whole point of the problem body: a business 409 reaches the browser
+  // as the refusal it is, typed, and never as a connection error.
+  it('decodes a problem body into the failure that was sent', async () => {
+    server.use(respondWithProblem(BASE_URL, new DuplicateKey({ key: 'slug' })));
+
+    await expect(loadFailure()).resolves.toMatchObject({
+      _tag: 'DuplicateKey',
+      code: 'duplicateKey',
+      category: 'conflict',
+      key: 'slug',
+    });
+  });
+
+  it('reads a JSON error that is not a problem as a protocol failure', async () => {
     server.use(
       http.get(BASE_URL, () =>
         HttpResponse.json(
@@ -273,21 +296,46 @@ describe('buildEntityRestAdapterLoad', () => {
     );
 
     await expect(loadFailure()).resolves.toMatchObject({
-      details: { code: 'invalidQuery' },
+      _tag: 'ProtocolFailure',
+      upstreamStatus: 400,
     });
   });
 
-  it('leaves the code absent when the body carries none', async () => {
+  it('copies Retry-After onto an Overloaded that did not say when', async () => {
     server.use(
       http.get(BASE_URL, () =>
-        HttpResponse.json({ error: 'boom' }, { status: 500 }),
+        HttpResponse.json(problemOf(new Overloaded({})), {
+          status: 429,
+          headers: {
+            'content-type': PROBLEM_CONTENT_TYPE,
+            'retry-after': '7',
+          },
+        }),
       ),
     );
 
-    const failure = await loadFailure();
-    expect(
-      (failure as { details?: Record<string, unknown> }).details,
-    ).not.toHaveProperty('code');
+    await expect(loadFailure()).resolves.toMatchObject({
+      _tag: 'Overloaded',
+      retryAfterSeconds: 7,
+    });
+  });
+
+  it('keeps the Retry-After an Overloaded already carries', async () => {
+    server.use(
+      http.get(BASE_URL, () =>
+        HttpResponse.json(problemOf(new Overloaded({ retryAfterSeconds: 2 })), {
+          status: 429,
+          headers: {
+            'content-type': PROBLEM_CONTENT_TYPE,
+            'retry-after': '9',
+          },
+        }),
+      ),
+    );
+
+    await expect(loadFailure()).resolves.toMatchObject({
+      retryAfterSeconds: 2,
+    });
   });
 });
 
@@ -308,7 +356,11 @@ describe('buildEntityRestAdapterGet', () => {
   });
 
   it('fails when the entity is not found', async () => {
-    await expect(runGet('missing')).rejects.toThrow(/status 404/);
+    await expect(
+      Effect.runPromise(
+        Effect.flip(buildEntityRestAdapterGet(Widget, restOptions)('missing')),
+      ),
+    ).resolves.toMatchObject({ _tag: 'NotFound' });
   });
 
   it('fails when the response is not an envelope', async () => {
@@ -374,14 +426,20 @@ describe('buildEntityRestAdapterDelete', () => {
   ])('refuses to issue a request for %s', async (_label, entityOrId) => {
     const requests = recordRequests();
 
-    await expect(runDelete(entityOrId)).rejects.toThrow(/without an id/);
+    await expect(runDelete(entityOrId)).rejects.toMatchObject({
+      _tag: 'Internal',
+    });
     expect(requests).toEqual([]);
   });
 
   it('fails when the service rejects the delete', async () => {
     server.use(respondWith404(`${BASE_URL}/:id`, 'delete'));
 
-    await expect(runDelete('w-1')).rejects.toThrow(/status 404/);
+    await expect(
+      Effect.runPromise(
+        Effect.flip(buildEntityRestAdapterDelete(Widget, restOptions)('w-1')),
+      ),
+    ).resolves.toMatchObject({ _tag: 'ProtocolFailure', upstreamStatus: 404 });
   });
 });
 

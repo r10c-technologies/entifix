@@ -3,6 +3,8 @@ import { HealthRegistryTag, ShutdownRegistryTag } from '@entifix/business';
 import { Effect, Ref } from 'effect';
 import { HttpRouter, HttpServerResponse } from 'effect/http';
 
+import { respond } from './respond.js';
+
 /**
  * How long a readiness result is reused. These endpoints are unauthenticated by
  * necessity (a probe cannot hold a session), so without a cache every request
@@ -69,30 +71,32 @@ export const healthRoutes = (serviceName: string) => {
     HttpRouter.route(
       'GET',
       '/api/health/ready',
-      Effect.gen(function* () {
-        const shutdown = yield* ShutdownRegistryTag;
-        // Ahead of the cache, deliberately: a report cached a moment before the
-        // signal landed would go on answering `200` for up to READY_CACHE_MS,
-        // which is precisely the window a rolling restart lives in.
-        if (yield* shutdown.terminating) {
-          return yield* HttpServerResponse.json(
-            { status: 'terminating', service: serviceName },
-            { status: 503 },
-          );
-        }
+      respond(
+        Effect.gen(function* () {
+          const shutdown = yield* ShutdownRegistryTag;
+          // Ahead of the cache, deliberately: a report cached a moment before the
+          // signal landed would go on answering `200` for up to READY_CACHE_MS,
+          // which is precisely the window a rolling restart lives in.
+          if (yield* shutdown.terminating) {
+            return yield* HttpServerResponse.json(
+              { status: 'terminating', service: serviceName },
+              { status: 503 },
+            );
+          }
 
-        const report = yield* cachedReport;
-        return yield* HttpServerResponse.json(
-          report.ready
-            ? { status: 'ready', service: serviceName }
-            : {
-                status: 'degraded',
-                service: serviceName,
-                failing: report.failing,
-              },
-          { status: report.ready ? 200 : 503 },
-        );
-      }),
+          const report = yield* cachedReport;
+          return yield* HttpServerResponse.json(
+            report.ready
+              ? { status: 'ready', service: serviceName }
+              : {
+                  status: 'degraded',
+                  service: serviceName,
+                  failing: report.failing,
+                },
+            { status: report.ready ? 200 : 503 },
+          );
+        }),
+      ),
     ),
   ]);
 };

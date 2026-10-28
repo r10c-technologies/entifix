@@ -1,13 +1,15 @@
 import type {
-  EntifixConnError,
-  EntifixError,
   Entity,
   EntityConstructor,
   EntityFacetCounts,
   EntityFacetQuery,
+  Internal,
+  Invalid,
+  StoreFailure,
 } from '@entifix/core';
 import { Context, type Effect } from 'effect';
 
+import type { RepositoryFailure } from './entity.repository.js';
 import type { RepositoryScope } from './entity-repository-factory.js';
 
 /**
@@ -25,7 +27,7 @@ import type { RepositoryScope } from './entity-repository-factory.js';
 export interface EntityFacetCounter {
   count<TEntity extends Entity>(
     queries: readonly EntityFacetQuery<TEntity>[],
-  ): Effect.Effect<EntityFacetCounts, EntifixError>;
+  ): Effect.Effect<EntityFacetCounts, RepositoryFailure>;
 }
 
 export class EntityFacetCounterTag extends Context.Service<
@@ -43,7 +45,7 @@ export interface EntityFacetCounterFactory {
   readonly for: <T extends Entity>(
     entityConstructor: EntityConstructor<T>,
     scope: RepositoryScope,
-  ) => Effect.Effect<EntityFacetCounter, EntifixConnError>;
+  ) => Effect.Effect<EntityFacetCounter, StoreFailure | Invalid | Internal>;
 }
 
 export class EntityFacetCounterFactoryTag extends Context.Service<

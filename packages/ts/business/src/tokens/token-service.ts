@@ -1,6 +1,8 @@
-import type { EntifixError, EntityId } from '@entifix/core';
+import type { EntityId, Internal } from '@entifix/core';
 import { Context } from 'effect';
 import { Effect } from 'effect/Effect';
+
+import type { TokenFailure } from './token-failures.js';
 
 /**
  * The claims a stateless access token carries between the perimeter that mints
@@ -91,9 +93,9 @@ export interface TokenClaims {
  */
 export interface TokenService {
   /** Sign the claims into a compact token that expires after `ttlSeconds`. */
-  sign(claims: TokenClaims, ttlSeconds: number): Effect<string, EntifixError>;
+  sign(claims: TokenClaims, ttlSeconds: number): Effect<string, Internal>;
   /** Verify signature + expiry and return the claims, or fail. */
-  verify(token: string): Effect<TokenClaims, EntifixError>;
+  verify(token: string): Effect<TokenClaims, TokenFailure>;
 }
 
 /** DI tag the composition root binds to a concrete {@link TokenService}. */

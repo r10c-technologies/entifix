@@ -1,4 +1,4 @@
-import type { EntifixConnError } from '@entifix/core';
+import type { StoreFailure } from '@entifix/core';
 import { Context, type Effect } from 'effect';
 
 import type {
@@ -71,7 +71,7 @@ export interface SagaInstance {
 export interface SagaStore {
   start(
     instance: Omit<SagaInstance, 'updatedAt'>,
-  ): Effect.Effect<void, EntifixConnError>;
+  ): Effect.Effect<void, StoreFailure>;
   /**
    * Persist that a step is about to be dispatched.
    *
@@ -84,23 +84,21 @@ export interface SagaStore {
   beginStep(
     sagaId: string,
     stepIndex: number,
-  ): Effect.Effect<void, EntifixConnError>;
+  ): Effect.Effect<void, StoreFailure>;
   recordOutcome(
     sagaId: string,
     outcome: SagaStepOutcome,
-  ): Effect.Effect<void, EntifixConnError>;
+  ): Effect.Effect<void, StoreFailure>;
   settle(
     sagaId: string,
     state: SagaState,
     error?: string,
-  ): Effect.Effect<void, EntifixConnError>;
-  get(
-    sagaId: string,
-  ): Effect.Effect<SagaInstance | undefined, EntifixConnError>;
+  ): Effect.Effect<void, StoreFailure>;
+  get(sagaId: string): Effect.Effect<SagaInstance | undefined, StoreFailure>;
   /** Instances left `RUNNING` or `COMPENSATING` past a deadline, for the sweep. */
   findStale(
     olderThanMs: number,
-  ): Effect.Effect<readonly SagaInstance[], EntifixConnError>;
+  ): Effect.Effect<readonly SagaInstance[], StoreFailure>;
   /**
    * Take ownership of a stale instance, or answer `undefined`.
    *
@@ -118,12 +116,12 @@ export interface SagaStore {
   claimForResume(
     sagaId: string,
     olderThanMs: number,
-  ): Effect.Effect<SagaInstance | undefined, EntifixConnError>;
+  ): Effect.Effect<SagaInstance | undefined, StoreFailure>;
   /** Mark one step's calls as given back, so a resumed unwind skips them. */
   markCompensated(
     sagaId: string,
     stepId: string,
-  ): Effect.Effect<void, EntifixConnError>;
+  ): Effect.Effect<void, StoreFailure>;
 }
 
 export class SagaStoreTag extends Context.Service<SagaStoreTag, SagaStore>()(

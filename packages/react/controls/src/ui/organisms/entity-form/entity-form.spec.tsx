@@ -1,7 +1,6 @@
 import {
   accessor,
   EntifixConnError,
-  EntifixLogicError,
   type Entity,
   entity,
   EntityCollectionLink,
@@ -511,7 +510,7 @@ describe('EntityForm', () => {
             linkSources={{ tags: brandSource() }}
           />,
         ),
-      ).toThrow(EntifixLogicError);
+      ).toThrow(Error);
     });
 
     // A composition is not a reference at all: its rows have no life outside
@@ -579,7 +578,7 @@ describe('EntityForm', () => {
     it('refuses a source aimed at a member that cannot hold a reference', () => {
       expect(() =>
         render(<Harness mode="edit" linkSources={{ stock: brandSource() }} />),
-      ).toThrow(EntifixLogicError);
+      ).toThrow(Error);
     });
 
     // The restored-draft window: the draft holds an id, the instance behind it

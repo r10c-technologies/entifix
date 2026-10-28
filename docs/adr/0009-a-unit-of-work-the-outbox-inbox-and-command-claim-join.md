@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-25
+- Revised: 2026-10-28 by [ADR 0013](0013-failures-are-typed-values-decided-at-the-shell.md) — the store failing is a technical-family failure (`unavailable`, `timeout`, `contention`), not `EntifixConnError`; a business-family failure is still the abort
 - Area: adapters
 - Read when: a write has to announce itself on the bus, a consumer has to fold a message exactly once, or a participant has to answer a redelivered command with what it decided the first time — and you are about to open a driver session by hand to make two of those one fact
 
@@ -55,9 +56,10 @@ session already lived. A use case that runs a unit names no driver.
   was.
 - `aborted` — the body failed with a business reason. Nothing was written.
 
-The body's typed failure **is** the abort. An `EntifixConnError` is the one
-exception: the store failing is not a business decision, so it rolls back and
-surfaces as the run's own error.
+The body's typed failure **is** the abort. A technical-family failure is the
+one exception: the store failing is not a business decision, so it rolls back
+and surfaces as the run's own error
+([ADR 0013](0013-failures-are-typed-values-decided-at-the-shell.md)).
 
 ### Two claims, keyed differently
 

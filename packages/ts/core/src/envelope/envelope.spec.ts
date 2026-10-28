@@ -2,7 +2,6 @@ import { Effect } from 'effect';
 
 import {
   accessor,
-  EntifixBuildError,
   Entity,
   entity,
   EntityId,
@@ -152,15 +151,18 @@ describe('readEntityEnvelope', () => {
     expect(result.brand.id).toBe('brand-9');
   });
 
-  it('fails with EntifixBuildError when the payload is not an envelope', () => {
+  it('fails with InvalidEnvelope when the payload is not an envelope', () => {
     const result = Effect.runSync(
       readEntityEnvelope(Brand, { id: 'brand-1' }).pipe(Effect.flip),
     );
-    expect(result).toBeInstanceOf(EntifixBuildError);
+    expect(result).toMatchObject({
+      _tag: 'InvalidEnvelope',
+      category: 'invalid',
+    });
     expect(result.message).toContain('no meta.type');
   });
 
-  it('fails with EntifixBuildError when meta.type does not match', () => {
+  it('fails with InvalidEnvelope when meta.type does not match', () => {
     const envelope = makeEntityCollectionEnvelope(Brand, [
       makeBrand('brand-1', 'Acme'),
     ]);
@@ -168,21 +170,27 @@ describe('readEntityEnvelope', () => {
       readEntityEnvelope(Brand, envelope).pipe(Effect.flip),
     );
 
-    expect(result).toBeInstanceOf(EntifixBuildError);
+    expect(result).toMatchObject({
+      _tag: 'InvalidEnvelope',
+      category: 'invalid',
+    });
     expect(result.message).toContain(
       'Expected an EntifixEnvelope of type "entity"',
     );
     expect(result.message).toContain('entityCollection');
   });
 
-  it('fails with EntifixBuildError when the envelope carries no data', () => {
+  it('fails with InvalidEnvelope when the envelope carries no data', () => {
     const result = Effect.runSync(
       readEntityEnvelope(Brand, {
         meta: { type: 'entity', entity: 'brand' },
         data: null,
       }).pipe(Effect.flip),
     );
-    expect(result).toBeInstanceOf(EntifixBuildError);
+    expect(result).toMatchObject({
+      _tag: 'InvalidEnvelope',
+      category: 'invalid',
+    });
     expect(result.message).toContain('carried no data');
   });
 });
@@ -219,13 +227,16 @@ describe('readEntityPageEnvelope', () => {
     expect(result.items[0].name).toBe('Acme');
   });
 
-  it('fails with EntifixBuildError when handed an entity envelope', () => {
+  it('fails with InvalidEnvelope when handed an entity envelope', () => {
     const envelope = makeEntityEnvelope(Brand, makeBrand('brand-1', 'Acme'));
     const result = Effect.runSync(
       readEntityPageEnvelope(Brand, envelope).pipe(Effect.flip),
     );
 
-    expect(result).toBeInstanceOf(EntifixBuildError);
+    expect(result).toMatchObject({
+      _tag: 'InvalidEnvelope',
+      category: 'invalid',
+    });
     expect(result.message).toContain(
       'Expected an EntifixEnvelope of type "entityPage"',
     );

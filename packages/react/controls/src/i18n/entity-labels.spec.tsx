@@ -1,11 +1,14 @@
 import type { EntityFieldDescriptor } from '@entifix/core';
-import { render, screen } from '@testing-library/react';
+import { DuplicateKey, NotFound } from '@entifix/core';
+import { render, renderHook, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { I18nProvider } from '../i18next/index.js';
 import {
+  failureFields,
   useEnumLabel,
   useErrorMessage,
+  useFailureFields,
   useLocalizedDescriptors,
 } from './entity-labels.js';
 import { installSpecCatalogs } from './spec-support/catalogs.js';
@@ -130,7 +133,7 @@ describe('useEnumLabel', () => {
 function Failure({
   error,
 }: {
-  error: { message: string; details?: Record<string, unknown> };
+  error: { message: string; code?: unknown; details?: Record<string, unknown> };
 }) {
   const errorMessage = useErrorMessage();
   return <span data-testid="failure">{errorMessage(error)}</span>;
@@ -154,6 +157,18 @@ describe('useErrorMessage', () => {
     );
   });
 
+  it('renders the code a typed failure carries on itself', () => {
+    render(
+      <I18nProvider locale="es">
+        <Failure error={{ message: '', code: 'invalidQuery' }} />
+      </I18nProvider>,
+    );
+
+    expect(screen.getByTestId('failure')).toHaveTextContent(
+      'La consulta no es válida.',
+    );
+  });
+
   // A failure raised client-side, or one from a service that predates the
   // vocabulary, still has to read as something.
   it('falls back to the message when there is no code', () => {
@@ -164,5 +179,30 @@ describe('useErrorMessage', () => {
     );
 
     expect(screen.getByTestId('failure')).toHaveTextContent('socket hang up');
+  });
+});
+
+describe('failureFields', () => {
+  it('reads a failure’s own fields, without the problem envelope', () => {
+    expect(failureFields(new NotFound({ entity: 'brand' }))).toEqual({
+      entity: 'brand',
+    });
+    expect(failureFields(new DuplicateKey({}))).toEqual({});
+  });
+
+  it('has nothing to say about what is not a failure', () => {
+    expect(failureFields(new Error('plain'))).toEqual({});
+    expect(failureFields(undefined)).toEqual({});
+  });
+
+  it('is memoised on the failure through useFailureFields', () => {
+    const failure = new NotFound({ entity: 'brand' });
+    const { result, rerender } = renderHook(() => useFailureFields(failure));
+    const first = result.current;
+
+    rerender();
+
+    expect(result.current).toBe(first);
+    expect(first).toEqual({ entity: 'brand' });
   });
 });

@@ -1,12 +1,17 @@
 import {
   countFacets,
+  type EntifixFailure,
   type Entity,
   type EntityConstructor,
   type EntityId,
+  InvalidQuery,
   makeEntityEnvelope,
   makeEntityFacetsEnvelope,
   makeEntityPageEnvelope,
+  NotFound,
   parseFacetQueryParams,
+  PROBLEM_CONTENT_TYPE,
+  problemOf,
 } from '@entifix/core';
 import { http, HttpResponse, type RequestHandler } from 'msw';
 
@@ -67,17 +72,14 @@ export const entityRestHandlers = <TEntity extends Entity>(
           ),
         );
       } catch (error) {
-        return HttpResponse.json(
-          { message: (error as Error).message, code: 'invalidQuery' },
-          { status: 400 },
-        );
+        return problem(new InvalidQuery({ reason: (error as Error).message }));
       }
     }),
 
     http.get(`${baseUrl}/:id`, ({ params }) => {
       const found = findById(String(params['id']));
       return found === undefined
-        ? new HttpResponse(null, { status: 404 })
+        ? problem(new NotFound())
         : HttpResponse.json(makeEntityEnvelope(entityConstructor, found));
     }),
 
@@ -136,6 +138,25 @@ export const respondWithEntity = <TEntity extends Entity>(
   http.get(url, () =>
     HttpResponse.json(makeEntityEnvelope(entityConstructor, instance)),
   );
+
+/**
+ * A failure as a service answers it: its problem body, its category's status
+ * and the problem content type.
+ */
+export const problem = (failure: EntifixFailure) => {
+  const body = problemOf(failure);
+  return HttpResponse.json(body, {
+    status: body.status,
+    headers: { 'content-type': PROBLEM_CONTENT_TYPE },
+  });
+};
+
+/** Answers every call to `url` with `failure`'s problem body. */
+export const respondWithProblem = (
+  url: string,
+  failure: EntifixFailure,
+  method: 'get' | 'post' | 'put' | 'delete' = 'get',
+): RequestHandler => http[method](url, () => problem(failure));
 
 /**
  * The failure handlers. Adapters map transport and shape failures onto

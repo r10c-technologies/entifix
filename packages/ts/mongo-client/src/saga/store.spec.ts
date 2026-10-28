@@ -1,4 +1,3 @@
-import { EntifixConnError } from '@entifix/core';
 import { describeSagaStoreContract } from '@entifix/testing-unit/contracts';
 import { makeFakeMongoDb } from '@entifix/testing-unit/drivers';
 import { SagaStoreTag } from '@entifix/transactions';
@@ -50,13 +49,13 @@ describe('makeMongoSagaStore', () => {
 
     for (const attempt of attempts) {
       const exit = await Effect.runPromiseExit(
-        attempt as Effect.Effect<unknown, EntifixConnError>,
+        attempt as Effect.Effect<unknown, unknown>,
       );
       expect(Exit.isFailure(exit)).toBe(true);
       if (Exit.isFailure(exit)) {
         expect(
           Option.getOrUndefined(Cause.findErrorOption(exit.cause)),
-        ).toBeInstanceOf(EntifixConnError);
+        ).toMatchObject({ _tag: 'Unavailable' });
       }
     }
   });

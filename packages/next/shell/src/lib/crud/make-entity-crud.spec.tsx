@@ -1,14 +1,13 @@
 import { EntityRepositoryTag } from '@entifix/business';
 import {
   accessor,
-  EntifixBuildError,
   EntifixConnError,
-  EntifixLogicError,
   type Entity,
   entity,
   type EntityDraft,
   type EntityId,
   type EntityMetadataSource,
+  Failure,
 } from '@entifix/core';
 import { EntityColumn } from '@entifix/react-controls';
 import {
@@ -35,6 +34,12 @@ import { usePendingState } from '../workspace/pending-state.js';
 import { PendingTransactionsProvider } from '../workspace/pending-transactions.js';
 import { makeEntityCrud } from './make-entity-crud.js';
 import { CATALOG_NEW_SLUG } from './slug.js';
+
+/** A refusal the way a domain declares one: a code the catalog translates. */
+class AlreadyRetired extends Failure.declined<AlreadyRetired>()(
+  'AlreadyRetired',
+  'alreadyRetired',
+) {}
 
 // The pages read the route through `next/navigation`, which only exists inside
 // a running Next app; the slug is the one input a test needs to vary.
@@ -371,7 +376,7 @@ describe('makeEntityCrud, at factory time', () => {
         catalogKey: 'product-category',
         repository: 'brandRest',
       }),
-    ).toThrow(EntifixBuildError);
+    ).toThrow(Error);
   });
 
   // Two answers to where the served document comes from, and nothing to say
@@ -841,11 +846,7 @@ describe('the generated form', () => {
   it('shows a refused verb’s coded message instead of dropping it', async () => {
     slug = 'b-1';
     runVerb.mockClear();
-    runVerb.mockRejectedValueOnce(
-      new EntifixLogicError('refused', undefined, {
-        code: 'alreadyRetired',
-      }),
-    );
+    runVerb.mockRejectedValueOnce(new AlreadyRetired());
     fetchMetadata.mockResolvedValue({
       actions: ['read', 'write'],
       useCases: [
@@ -877,8 +878,8 @@ describe('the generated form', () => {
    */
   it.each([
     ['a plain Error', new Error('la red falló'), 'la red falló'],
-    ['a thrown string', 'la red falló', 'la red falló'],
-  ])('keeps the message of %s', async (_name, thrown, expected) => {
+    ['a thrown value with no message', 42, 'Algo falló de nuestro lado.'],
+  ])('renders %s', async (_name, thrown, expected) => {
     slug = 'b-1';
     runVerb.mockRejectedValueOnce(thrown);
     fetchMetadata.mockResolvedValue({

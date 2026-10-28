@@ -1,4 +1,4 @@
-import { EntifixConnError, serializeEntity } from '@entifix/core';
+import { serializeEntity } from '@entifix/core';
 import { runExit } from '@entifix/testing-unit';
 import {
   ContractWidget,
@@ -101,7 +101,7 @@ describe('makeMongoFacetCounter', () => {
     expect(options).toEqual([{ session }]);
   });
 
-  it('maps a driver failure to a connection error', async () => {
+  it('maps a driver failure to Unavailable', async () => {
     const { fake, counter } = withFakeDb();
     fake.failOn('aggregate', new Error('down'));
 
@@ -111,6 +111,6 @@ describe('makeMongoFacetCounter', () => {
 
     expect(
       Exit.isFailure(exit) ? Cause.squash(exit.cause) : undefined,
-    ).toBeInstanceOf(EntifixConnError);
+    ).toMatchObject({ _tag: 'Unavailable' });
   });
 });

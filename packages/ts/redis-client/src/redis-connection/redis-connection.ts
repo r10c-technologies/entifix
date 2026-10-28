@@ -1,6 +1,8 @@
-import { EntifixConnError } from '@entifix/core';
+import type { StoreFailure } from '@entifix/core';
 import { Context, Effect, Layer, Schedule } from 'effect';
 import { Redis } from 'ioredis';
+
+import { translateRedisError } from '../errors/translate-redis-error.js';
 
 /** DI tag carrying a connected ioredis client. */
 export class RedisTag extends Context.Service<RedisTag, Redis>()('RedisTag') {}
@@ -37,7 +39,7 @@ const CONNECT_RETRY_WINDOW = '30 seconds';
  */
 export const RedisLayer = (
   settings: RedisSettings,
-): Layer.Layer<RedisTag, EntifixConnError> =>
+): Layer.Layer<RedisTag, StoreFailure> =>
   Layer.effect(
     RedisTag,
     Effect.acquireRelease(
@@ -52,8 +54,7 @@ export const RedisLayer = (
           await redis.connect();
           return redis;
         },
-        catch: error =>
-          new EntifixConnError('Failed to connect to Redis', error),
+        catch: error => translateRedisError(error),
       }).pipe(
         Effect.retry(
           Schedule.exponential('250 millis').pipe(

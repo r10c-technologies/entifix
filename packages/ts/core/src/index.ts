@@ -1,6 +1,7 @@
 export * from './base-entities/configuration-client/index.js';
 export * from './base-entities/entifix-error/index.js';
 export * from './command-palette/index.js';
+export * from './deadline/deadline.js';
 export * from './entity-definition/decorators/accessor/index.js';
 export * from './entity-definition/decorators/entity/index.js';
 export * from './entity-definition/decorators/method/index.js';
@@ -22,6 +23,7 @@ export * from './entity-definition/reconstruct/index.js';
 export * from './entity-definition/serializer/index.js';
 export * from './entity-definition/validate/index.js';
 export * from './envelope/index.js';
+export * from './failure/index.js';
 export * from './hierarchy/index.js';
 export * from './http/session-cookies.js';
 export * from './i18n/format.js';

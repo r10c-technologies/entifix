@@ -83,7 +83,7 @@
     "@entifix/mongo": "workspace:*",
     "@entifix/redis": "workspace:*",
     "axios": "*",
-    "effect": "^4.0.5",
+    "effect": "^4.0.6",
     "msw": ">=3",
     "@msw/playwright": ">=0.7",
     "vitest": "*"
@@ -126,6 +126,6 @@
     "@entifix/redis": "workspace:*",
     "@nx/devkit": "23.3.0",
     "@nx/playwright": "23.3.0",
-    "effect": "4.0.5"
+    "effect": "4.0.6"
   }
 }

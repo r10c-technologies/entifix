@@ -1,4 +1,4 @@
-import type { EntifixError } from '@entifix/core';
+import { isTag, type TransitionalFailure } from '@entifix/core';
 import {
   readTransactionRecordEnvelope,
   type TransactionRecord,
@@ -35,6 +35,16 @@ const TRANSACTION_PATH = 'transaction';
  * Every other status stays an error, so an unreachable service is not quietly
  * read as "no such transaction".
  */
+/**
+ * A `404`, however it arrived: a tracker that answers a problem body says
+ * `NotFound`; one that answers no body at all is a protocol failure that
+ * still carries the status.
+ */
+const isNotFound = (error: unknown): boolean =>
+  isTag('NotFound')(error) ||
+  (isTag('ProtocolFailure')(error) &&
+    (error as { readonly upstreamStatus?: unknown }).upstreamStatus === 404);
+
 export const buildTransactionStatusReader = (
   options: Pick<BuildEntityRestOptions, 'uriConfig' | 'configuration'>,
 ): TransactionStatusReader => {
@@ -43,7 +53,7 @@ export const buildTransactionStatusReader = (
   return {
     read: (
       transactionId: string,
-    ): Effect.Effect<TransactionRecord | undefined, EntifixError> =>
+    ): Effect.Effect<TransactionRecord | undefined, TransitionalFailure> =>
       Effect.gen(function* () {
         const url = yield* adapterMixins.buildEntityBaseUrl(
           configuration,
@@ -59,9 +69,7 @@ export const buildTransactionStatusReader = (
         return yield* readTransactionRecordEnvelope(response.body);
       }).pipe(
         Effect.catch(error =>
-          error.details?.['status'] === 404
-            ? Effect.succeed(undefined)
-            : Effect.fail(error),
+          isNotFound(error) ? Effect.succeed(undefined) : Effect.fail(error),
         ),
       ),
   };

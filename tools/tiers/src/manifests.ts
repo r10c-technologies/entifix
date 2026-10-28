@@ -9,6 +9,7 @@ export interface Manifest {
   readonly version?: string;
   readonly private?: boolean;
   readonly dependencies?: Record<string, string>;
+  readonly devDependencies?: Record<string, string>;
   readonly peerDependencies?: Record<string, string>;
   readonly peerDependenciesMeta?: Record<string, { optional?: boolean }>;
   readonly exports?: Record<string, unknown>;

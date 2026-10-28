@@ -1,9 +1,9 @@
 import {
-  EntifixLogicError,
   Entity,
   EntityConstructor,
   EntityId,
   extractMetaEntity,
+  Internal,
 } from '@entifix/core';
 import { Effect } from 'effect';
 
@@ -36,13 +36,7 @@ export const buildEntityRestAdapterDelete =
       const id = toEntityId(entityOrId);
 
       if (id == null) {
-        return yield* Effect.fail(
-          new EntifixLogicError(
-            `Cannot delete a ${entityConstructor.name} without an id`,
-            undefined,
-            { entity: entityConstructor.name },
-          ),
-        );
+        return yield* Effect.fail(new Internal());
       }
 
       const url = yield* adapterMixins.buildEntityBaseUrl(

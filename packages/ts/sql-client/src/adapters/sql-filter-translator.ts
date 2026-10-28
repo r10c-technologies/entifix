@@ -1,6 +1,5 @@
 import {
   allowedDescriptors,
-  type EntifixBuildError,
   type Entity,
   type EntityConstructor,
   type EntityFieldDescriptor,
@@ -78,8 +77,8 @@ function isFilterGroup<TEntity extends Entity>(
  * identifier, so it can never be taken on trust: it is looked up in the
  * entity's own allowlist (`filterable`/`sortable` accessor metadata, the same
  * map `coerceRsql` validates against) and only the descriptor's stored `key` is
- * ever emitted. A member the entity did not declare is an
- * {@link EntifixBuildError}, which the service maps to a `400`.
+ * ever emitted. A member the entity did not declare is refused by that
+ * allowlist, which the repository answers as an `InvalidQuery` — a `400`.
  *
  * A `localized` member is stored as one `jsonb` column and queried a locale at
  * a time (`title.en`), which becomes `"title"->>$1`: the locale is a bound
@@ -179,7 +178,7 @@ function translateNode<TEntity extends Entity>(
  *
  * Every top-level entry is combined with `AND`, matching the Mongo translator.
  *
- * Throws {@link EntifixBuildError} for a member the entity did not declare
+ * Throws for a member the entity did not declare
  * `filterable` — synchronously, because this is a framework-free codec like the
  * rest of the entifix query stack; the repository wraps it back into an Effect.
  */

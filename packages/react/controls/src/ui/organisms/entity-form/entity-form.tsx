@@ -3,7 +3,6 @@
 import {
   cloneEntityDraft,
   describeEntityColumns,
-  EntifixLogicError,
   type Entity,
   type EntityAction,
   type EntityDraft,
@@ -529,7 +528,7 @@ function isOwnedCollection<TEntity extends Entity>(
  * is dead in *every* shape such a field can render, since an
  * `<EntityField render>` slot is handed the draft and never the source — so it
  * costs the render instead of a warning nobody reads. `useEntityLinkSource`
- * already throws `EntifixLogicError` at render for the sibling mistake (a search
+ * already throws at render for the sibling mistake (a search
  * property the target does not declare `filterable`); this is the same fault
  * caught one level up.
  *
@@ -568,13 +567,11 @@ function assertLinkSourcesAreEditable<TEntity extends Entity>(
     .filter(field => field.type === 'linkCollection')
     .map(field => field.name);
   if (toMany.length > 0) {
-    throw new EntifixLogicError(
+    throw new Error(
       `EntityForm was given a link source for a to-many member: ${toMany.join(', ')}. ` +
         'A `linkCollection` has no editor yet, so the source can only be dropped ' +
         'and the field would render read-only with no sign anything was wired. ' +
         'Remove the entry, or point it at the to-one `link` you meant.',
-      undefined,
-      { fields: toMany },
     );
   }
 
@@ -582,24 +579,20 @@ function assertLinkSourcesAreEditable<TEntity extends Entity>(
     .filter(field => field.type === 'composition')
     .map(field => field.name);
   if (owned.length > 0) {
-    throw new EntifixLogicError(
+    throw new Error(
       `EntityForm was given a link source for an owned collection: ${owned.join(', ')}. ` +
         'A `composition` is not a reference — its rows have no life outside this ' +
         'record and are never picked from existing ones, so there is nothing for a ' +
         'picker to look up. The detail grid is what edits them.',
-      undefined,
-      { fields: owned },
     );
   }
 
   const unpickable = sourced.map(field => `${field.name} (${field.type})`);
-  throw new EntifixLogicError(
+  throw new Error(
     `EntityForm was given a link source for a member that cannot hold one: ${unpickable.join(', ')}. ` +
       'A picker writes the target’s id into the draft, so the member has to be a ' +
       '`link` or the `string` that carries a foreign key. Remove the entry, or ' +
       'point it at the member that actually holds the reference.',
-    undefined,
-    { fields: sourced.map(field => field.name) },
   );
 }
 

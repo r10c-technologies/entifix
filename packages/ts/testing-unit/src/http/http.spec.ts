@@ -1,6 +1,7 @@
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
+import { DuplicateKey, PROBLEM_CONTENT_TYPE } from '@entifix/core';
 import { accessor, type Entity, entity, type EntityId } from '@entifix/core';
 import { describe, expect, it } from 'vitest';
 
@@ -12,6 +13,7 @@ import {
   respondWithMalformedEnvelope,
   respondWithNetworkError,
   respondWithNonJson,
+  respondWithProblem,
 } from './entity-handlers.js';
 import { setupEntifixServer } from './server.js';
 
@@ -264,6 +266,19 @@ describe('the failure handlers', () => {
     server.use(handler());
 
     expect((await fetch(BASE_URL)).status).toBe(status);
+  });
+
+  it('respondWithProblem answers a failure as a service does', async () => {
+    server.use(respondWithProblem(BASE_URL, new DuplicateKey({ key: 'slug' })));
+
+    const response = await fetch(BASE_URL);
+
+    expect(response.status).toBe(409);
+    expect(response.headers.get('content-type')).toBe(PROBLEM_CONTENT_TYPE);
+    expect(await response.json()).toMatchObject({
+      code: 'duplicateKey',
+      key: 'slug',
+    });
   });
 
   it('respondWithMalformedEnvelope answers 200 with a non-envelope body', async () => {

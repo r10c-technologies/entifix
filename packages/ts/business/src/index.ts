@@ -9,6 +9,7 @@ export * from './sessions/one-time-token-store.js';
 export * from './sessions/session-store.js';
 export * from './shutdown/shutdown-registry.js';
 export * from './tenancy/index.js';
+export * from './tokens/token-failures.js';
 export * from './tokens/token-service.js';
 export * from './use-case/delete/index.js';
 export * from './use-case/facets/index.js';

@@ -21,7 +21,7 @@
     }
   },
   "dependencies": {
-    "@effect/sql-pg": "4.0.5",
+    "@effect/sql-pg": "4.0.6",
     "@entifix/authz": "workspace:*",
     "@entifix/business": "workspace:*",
     "@entifix/core": "workspace:*",
@@ -29,6 +29,6 @@
     "@entifix/service-shell": "workspace:*",
     "@entifix/sql": "workspace:*",
     "@entifix/testing-auth": "workspace:*",
-    "effect": "4.0.5"
+    "effect": "4.0.6"
   }
 }

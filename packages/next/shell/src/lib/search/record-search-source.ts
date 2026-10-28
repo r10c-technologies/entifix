@@ -1,6 +1,5 @@
 import {
   describeEntityColumns,
-  EntifixLogicError,
   type Entity,
   type EntityConstructor,
   type EntityFieldDescriptor,
@@ -65,12 +64,8 @@ const rejection = (
   member: string,
   because: string,
   fix: string,
-): EntifixLogicError =>
-  new EntifixLogicError(
-    `Cannot search ${entityName} by "${member}": ${because} ${fix}`,
-    undefined,
-    { entity: entityName, member },
-  );
+): Error =>
+  new Error(`Cannot search ${entityName} by "${member}": ${because} ${fix}`);
 
 /**
  * Declare a record search source, validating it against the entity's own

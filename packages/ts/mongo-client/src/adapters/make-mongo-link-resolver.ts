@@ -1,10 +1,10 @@
 import { EntityLinkResolverTag } from '@entifix/business';
 import {
-  EntifixError,
-  EntifixLogicError,
   Entity,
   EntityConstructor,
   EntityLinkResolver,
+  Internal,
+  type TransitionalFailure,
 } from '@entifix/core';
 import { Context, Effect } from 'effect';
 import type { Db } from 'mongodb';
@@ -39,17 +39,11 @@ export function makeMongoLinkResolver(
         entityConstructor as EntityConstructor<Entity>,
       );
       if (!repository) {
-        return Effect.fail(
-          new EntifixLogicError(
-            `No Mongo link resolver registered for entity "${entityConstructor.name}"`,
-            undefined,
-            { entity: entityConstructor.name },
-          ),
-        );
+        return Effect.fail(new Internal());
       }
       return repository.get(id) as unknown as Effect.Effect<
         never,
-        EntifixError
+        TransitionalFailure
       >;
     },
   };

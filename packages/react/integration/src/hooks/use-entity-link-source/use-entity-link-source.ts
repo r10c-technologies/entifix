@@ -3,12 +3,11 @@
 import { EntityIdTag, EntityLoadRequestTag } from '@entifix/business';
 import {
   describeEntityColumns,
-  type EntifixError,
-  EntifixLogicError,
   type Entity,
   type EntityLinkSource,
   type EntityLoadRequest,
   type EntityPage,
+  type TransitionalFailure,
 } from '@entifix/core';
 import { useQuery } from '@tanstack/react-query';
 import { Context, Effect } from 'effect';
@@ -46,23 +45,19 @@ function assertSearchable<TTarget extends Entity>(
   if (target?.type === 'localized') {
     // Queried one locale at a time, and this hook holds no locale: the bare
     // member is what the service would refuse.
-    throw new EntifixLogicError(
+    throw new Error(
       `Cannot search ${config.entityConstructor.name} by "${searchProperty}": ` +
         'the member is localized, and a quick search has no locale to search ' +
         'it in. Point the relation at a string member with `linkSearchProperty`.',
-      undefined,
-      { entity: config.entityConstructor.name, searchProperty },
     );
   }
   if (target?.filterable === true) return;
 
-  throw new EntifixLogicError(
+  throw new Error(
     `Cannot search ${config.entityConstructor.name} by "${searchProperty}": ` +
       'the member is not filterable, so the service would reject the query. ' +
       'Declare it `filterable` on the target entity, or point the relation at ' +
       'another member with `linkSearchProperty`.',
-    undefined,
-    { entity: config.entityConstructor.name, searchProperty },
   );
 }
 
@@ -155,7 +150,7 @@ export function useEntityLinkSource<TTarget extends Entity, TContext>(
     return request;
   }, [baseFiltering, debouncedTerm, quickPageSize, searchProperty]);
 
-  const quickQuery = useQuery<EntityPage<TTarget>, EntifixError>({
+  const quickQuery = useQuery<EntityPage<TTarget>, TransitionalFailure>({
     queryKey: [
       ...entityQueryKey(entityConstructor, quickRequest),
       'link-quick',
@@ -187,7 +182,7 @@ export function useEntityLinkSource<TTarget extends Entity, TContext>(
   const needsLabel =
     selectedEntity === undefined && selectedId != null && getUc !== undefined;
 
-  const labelQuery = useQuery<TTarget, EntifixError>({
+  const labelQuery = useQuery<TTarget, TransitionalFailure>({
     queryKey: [
       ...entityQueryScope(entityConstructor),
       'link-label',

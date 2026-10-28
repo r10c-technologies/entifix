@@ -17,9 +17,63 @@ import { recordOutboxStats } from './metrics.js';
 import { ensureOutboxIndexes, makeMongoOutbox } from './store.js';
 
 /** How often the sweep looks for entries the fast path did not carry. */
+/**
+ * What an outbox entry records as the reason its publish failed: the failure's
+ * own message, or its code when it carries none — never empty, because an
+ * operator reading a quarantined entry has nothing else to go on.
+ */
+const failureText = (failure: {
+  readonly message: string;
+  readonly code: string;
+}) => (failure.message === '' ? failure.code : failure.message);
+
 export const SWEEP_INTERVAL = Duration.seconds(15);
 /** Entries drained per pass, per database. */
 export const BATCH = 100;
+
+/**
+ * What a relay pass did, for the host to log
+ * ([ADR 0013](../../../../../docs/adr/0013-failures-are-typed-values-decided-at-the-shell.md)).
+ *
+ * The relay decides nothing about level or sink: it says what happened and the
+ * fork site that started it — the slice's shell — decides how loud that is. A
+ * `failure` is whatever the store or the bus failed with; a typed one carries
+ * its code and category for the log line.
+ */
+export type RelayOutcome =
+  | {
+      readonly _tag: 'drained';
+      readonly database: string;
+      readonly sent: number;
+    }
+  | {
+      readonly _tag: 'quarantined';
+      readonly database: string;
+      readonly eventId: string;
+      readonly eventName: string;
+      readonly attempts: number;
+      readonly code: string;
+      readonly reason: string;
+    }
+  | {
+      readonly _tag: 'sweepFailed';
+      readonly database?: string;
+      readonly failure: unknown;
+    }
+  | {
+      readonly _tag: 'drainFailed';
+      readonly database: string;
+      readonly failure: unknown;
+    };
+
+/** Where a relay's outcomes go. The host's fork site supplies it. */
+export type RelayOutcomeSink = (outcome: RelayOutcome) => Effect.Effect<void>;
+
+/**
+ * Hears nothing. The default only so a spec can start a relay without one —
+ * a host that passes no sink has a relay nobody can watch.
+ */
+export const ignoreRelayOutcome: RelayOutcomeSink = () => Effect.void;
 
 /**
  * Publish attempts an outbox entry gets before it is quarantined, from
@@ -45,6 +99,8 @@ export interface DrainOptions {
   readonly maxAttempts: number;
   /** The database being drained; carried so a quarantine log names it. */
   readonly database: string;
+  /** Where the pass reports what it did; see {@link RelayOutcome}. */
+  readonly onOutcome?: RelayOutcomeSink;
 }
 
 /**
@@ -67,6 +123,7 @@ export const drainOutbox = (
   Effect.gen(function* () {
     const entries = yield* outbox.pending(BATCH);
     let sent = 0;
+    const report = options.onOutcome ?? ignoreRelayOutcome;
     for (const entry of entries) {
       const outcome = yield* Effect.result(bus.publish(entry.event));
 
@@ -74,27 +131,33 @@ export const drainOutbox = (
         const attempts = entry.attempts + 1;
         const quarantine = attempts >= options.maxAttempts;
 
-        yield* outbox.recordFailure(entry, outcome.failure.message, quarantine);
+        yield* outbox.recordFailure(
+          entry,
+          failureText(outcome.failure),
+          quarantine,
+        );
 
         if (!quarantine) {
+          yield* report({ _tag: 'drained', database: options.database, sent });
           return sent;
         }
 
-        yield* Effect.logError('outbox entry quarantined').pipe(
-          Effect.annotateLogs({
-            database: options.database,
-            eventId: entry.eventId,
-            eventName: entry.event.name,
-            attempts,
-            lastError: outcome.failure.message,
-          }),
-        );
+        yield* (options.onOutcome ?? ignoreRelayOutcome)({
+          _tag: 'quarantined',
+          database: options.database,
+          eventId: entry.eventId,
+          eventName: entry.event.name,
+          attempts,
+          code: outcome.failure.code,
+          reason: failureText(outcome.failure),
+        });
         continue;
       }
 
       yield* outbox.markSent(entry);
       sent += 1;
     }
+    yield* report({ _tag: 'drained', database: options.database, sent });
     return sent;
   });
 
@@ -121,9 +184,9 @@ export type OutboxStatsSink = (
  * Stats are sampled **after** the drain, so the gauge reports what is still
  * waiting rather than what was waiting when the pass began.
  *
- * Every failure is caught and logged. This runs inside `Effect.forever`, and an
- * error that escapes ends the daemon silently — a relay that stopped is
- * indistinguishable from a relay with nothing to do.
+ * Every failure is caught and reported as `sweepFailed`. This runs inside
+ * `Effect.forever`, and an error that escapes ends the daemon silently — a
+ * relay that stopped is indistinguishable from a relay with nothing to do.
  */
 export const sweepOutbox = (
   outbox: TransactionOutbox,
@@ -135,13 +198,12 @@ export const sweepOutbox = (
     const sink = options.onStats ?? recordOutboxStats;
     yield* sink(options.database, yield* outbox.stats());
   }).pipe(
-    Effect.catch(error =>
-      Effect.logError('outbox sweep failed').pipe(
-        Effect.annotateLogs({
-          database: options.database,
-          error: String(error),
-        }),
-      ),
+    Effect.catch(failure =>
+      (options.onOutcome ?? ignoreRelayOutcome)({
+        _tag: 'sweepFailed',
+        database: options.database,
+        failure,
+      }),
     ),
   );
 
@@ -161,6 +223,7 @@ export const sweepOutbox = (
  */
 export const startOutboxRelay = (options?: {
   readonly onStats?: OutboxStatsSink;
+  readonly onOutcome?: RelayOutcomeSink;
 }) =>
   Effect.gen(function* () {
     const db = yield* MongoDatabaseTag;
@@ -175,6 +238,7 @@ export const startOutboxRelay = (options?: {
         maxAttempts,
         database: db.databaseName,
         ...(options?.onStats ? { onStats: options.onStats } : {}),
+        ...(options?.onOutcome ? { onOutcome: options.onOutcome } : {}),
       }),
     );
   });
@@ -219,10 +283,12 @@ export const sweepTenantOutboxes = (
   options: {
     readonly maxAttempts: number;
     readonly onStats?: OutboxStatsSink;
+    readonly onOutcome?: RelayOutcomeSink;
     readonly ensured?: Set<string>;
   },
 ) =>
   Effect.gen(function* () {
+    const report = options.onOutcome ?? ignoreRelayOutcome;
     const ensured = options.ensured ?? new Set<string>();
     const tenants = yield* directory.list();
 
@@ -236,21 +302,21 @@ export const sweepTenantOutboxes = (
         yield* sweepOutbox(makeMongoOutbox(db), bus, {
           maxAttempts: options.maxAttempts,
           database,
+          onOutcome: report,
           ...(options.onStats ? { onStats: options.onStats } : {}),
         });
       }).pipe(
-        Effect.catch(error =>
-          Effect.logError('draining a tenant outbox failed').pipe(
-            Effect.annotateLogs({ database, error: String(error) }),
-          ),
+        Effect.catch(failure =>
+          report({ _tag: 'sweepFailed', database, failure }),
         ),
       );
     }
   }).pipe(
-    Effect.catch(error =>
-      Effect.logError('tenant outbox sweep failed').pipe(
-        Effect.annotateLogs({ error: String(error) }),
-      ),
+    Effect.catch(failure =>
+      (options.onOutcome ?? ignoreRelayOutcome)({
+        _tag: 'sweepFailed',
+        failure,
+      }),
     ),
   );
 
@@ -264,6 +330,7 @@ export const sweepTenantOutboxes = (
  */
 export const startTenantOutboxRelay = (options?: {
   readonly onStats?: OutboxStatsSink;
+  readonly onOutcome?: RelayOutcomeSink;
 }) =>
   Effect.gen(function* () {
     const directory = (yield* TenantDirectoryTag) as TenantDirectory<Db>;
@@ -276,6 +343,7 @@ export const startTenantOutboxRelay = (options?: {
         maxAttempts,
         ensured,
         ...(options?.onStats ? { onStats: options.onStats } : {}),
+        ...(options?.onOutcome ? { onOutcome: options.onOutcome } : {}),
       }),
     );
   });
@@ -285,24 +353,23 @@ export const startTenantOutboxRelay = (options?: {
  *
  * The fast path the sweep is the fallback for: an event drained here leaves as
  * soon as its transaction commits, rather than up to {@link SWEEP_INTERVAL}
- * later. Every failure is logged and swallowed — the entry is still in the
- * outbox, and the sweep will carry it.
+ * later. Every failure is reported as `drainFailed` and swallowed — the entry
+ * is still in the outbox, and the sweep will carry it.
  */
-export const drainOutboxNow = (db: Db) =>
+export const drainOutboxNow = (
+  db: Db,
+  onOutcome: RelayOutcomeSink = ignoreRelayOutcome,
+) =>
   Effect.gen(function* () {
     const bus = yield* EventBusTag;
     const maxAttempts = yield* OutboxMaxAttempts;
     yield* drainOutbox(makeMongoOutbox(db), bus, {
       maxAttempts,
       database: db.databaseName,
+      onOutcome,
     });
   }).pipe(
-    Effect.catch(error =>
-      Effect.logWarning('inline outbox drain failed').pipe(
-        Effect.annotateLogs({
-          database: db.databaseName,
-          error: String(error),
-        }),
-      ),
+    Effect.catch(failure =>
+      onOutcome({ _tag: 'drainFailed', database: db.databaseName, failure }),
     ),
   );

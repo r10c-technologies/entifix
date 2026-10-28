@@ -4,9 +4,11 @@ import {
   PolicyDecisionTag,
 } from '@entifix/authz';
 import { type TokenClaims, TokenServiceTag } from '@entifix/business';
-import { ACCESS_COOKIE } from '@entifix/core';
+import { ACCESS_COOKIE, Forbidden, Unauthenticated } from '@entifix/core';
 import { Effect, Option } from 'effect';
-import { HttpServerRequest, HttpServerResponse } from 'effect/http';
+import { HttpServerRequest } from 'effect/http';
+
+import { refuse } from './failures.js';
 
 /**
  * The authenticated subject as a service sees it. Structurally identical to
@@ -93,16 +95,10 @@ const claimsToPrincipal = (claims: TokenClaims): RequestPrincipal => ({
 // `code` is a key in the shared `errors` catalog; `error` stays English for
 // logs. `permission` is deliberately still in the 403 — it says which grant was
 // missing, which is diagnostic, not a leak.
-const unauthenticated = HttpServerResponse.json(
-  { error: 'unauthenticated', code: 'unauthenticated' },
-  { status: 401 },
-);
+const unauthenticated = refuse(new Unauthenticated());
 
 const forbidden = (permission: Permission) =>
-  HttpServerResponse.json(
-    { error: 'forbidden', code: 'forbidden', permission },
-    { status: 403 },
-  );
+  refuse(new Forbidden({ permission }));
 
 /**
  * Resolve the caller's principal from the request, or `None`. Reads the token

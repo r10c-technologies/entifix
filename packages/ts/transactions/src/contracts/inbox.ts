@@ -1,4 +1,4 @@
-import type { EntifixConnError } from '@entifix/core';
+import type { StoreFailure } from '@entifix/core';
 import { Context, type Effect } from 'effect';
 
 /**
@@ -73,7 +73,7 @@ export interface TransactionInbox {
    * Answering `duplicate` means some earlier delivery already ran the side
    * effect to completion, because the claim and the effect commit together.
    */
-  claim(eventId: string): Effect.Effect<InboxClaimResult, EntifixConnError>;
+  claim(eventId: string): Effect.Effect<InboxClaimResult, StoreFailure>;
 }
 
 export class TransactionInboxTag extends Context.Service<

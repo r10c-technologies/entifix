@@ -1,8 +1,11 @@
 import { makeStaticPolicyDecision, PolicyDecisionTag } from '@entifix/authz';
-import { type TokenClaims, TokenServiceTag } from '@entifix/business';
+import {
+  InvalidToken,
+  type TokenClaims,
+  TokenServiceTag,
+} from '@entifix/business';
 import {
   accessor,
-  EntifixBuildError,
   type Entity,
   entity,
   type EntityId,
@@ -82,7 +85,7 @@ const fakeTokens = TokenServiceTag.of({
   verify: token =>
     Effect.try({
       try: () => JSON.parse(token) as TokenClaims,
-      catch: () => new EntifixBuildError('invalid token'),
+      catch: () => new InvalidToken(),
     }),
 });
 
@@ -178,8 +181,7 @@ describe('entityMetadataRoute', () => {
       const res = await fetch(`${baseUrl}/api/user-identity/$metadata`);
 
       expect(res.status).toBe(401);
-      expect(await res.json()).toEqual({
-        error: 'unauthenticated',
+      expect(await res.json()).toMatchObject({
         code: 'unauthenticated',
       });
     });
@@ -194,8 +196,7 @@ describe('entityMetadataRoute', () => {
       // Indistinguishable from an entity this service does not host, so the
       // endpoint cannot be walked to enumerate the model.
       expect(res.status).toBe(404);
-      expect(await res.json()).toEqual({
-        message: 'not found',
+      expect(await res.json()).toMatchObject({
         code: 'notFound',
         entity: 'user-identity',
       });

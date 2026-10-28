@@ -1,4 +1,7 @@
-import { EntifixBuildError } from '../../base-entities/entifix-error/index.js';
+import { Schema } from 'effect';
+
+import { defineFailure } from '../../failure/define.js';
+import { FieldProblem } from '../../failure/generic.js';
 import { locales } from '../../i18n/locales.js';
 import type {
   Entity,
@@ -39,21 +42,36 @@ export interface RecordProblem {
   readonly message: string;
 }
 
-/** Thrown by {@link validRecordsOrThrow}. Carries every problem found. */
-export class RecordValidationError extends EntifixBuildError {
-  readonly problems: readonly RecordProblem[];
-
-  constructor(problems: readonly RecordProblem[]) {
-    super(
-      `Records are invalid:\n${problems
-        .map(problem => `  ${problem.path} ${problem.message}`)
+/**
+ * Thrown by {@link validRecordsOrThrow}: an `invalid` failure carrying every
+ * problem found, each as a field problem whose `pointer` is the problem's path
+ * ([ADR 0013](../../../../../../docs/adr/0013-failures-are-typed-values-decided-at-the-shell.md)).
+ *
+ * Its `message` lists them, because the usual place it surfaces is a build that
+ * read a bundled file — where the person reading is looking at a terminal, not
+ * a problem body.
+ */
+export class InvalidRecords extends defineFailure('invalid')<InvalidRecords>()(
+  'InvalidRecords',
+  'invalidRecords',
+  { errors: Schema.Array(FieldProblem) },
+  {
+    message: ({ errors }) =>
+      `Records are invalid:\n${errors
+        .map(problem => `  ${problem.pointer} ${problem.detail}`)
         .join('\n')}`,
-      undefined,
-      { count: problems.length },
-    );
-    this.problems = problems;
-  }
-}
+  },
+) {}
+
+/** The field problems {@link InvalidRecords} carries for a set of record problems. */
+export const recordFieldProblems = (
+  problems: readonly RecordProblem[],
+): FieldProblem[] =>
+  problems.map(problem => ({
+    pointer: problem.path,
+    detail: problem.message,
+    code: 'invalidRecord',
+  }));
 
 /**
  * A check one entity needs that metadata cannot express — at most one contact
@@ -363,7 +381,7 @@ export function validateRecords<TEntity extends Entity>(
   return { problems, records: parsed };
 }
 
-/** The records with their dates parsed, or a {@link RecordValidationError}. */
+/** The records with their dates parsed, or an {@link InvalidRecords}. */
 export function validRecordsOrThrow<TEntity extends Entity>(
   entityConstructor: EntityConstructor<TEntity>,
   records: readonly unknown[],
@@ -371,7 +389,7 @@ export function validRecordsOrThrow<TEntity extends Entity>(
 ): ReadonlyArray<Record<string, unknown>> {
   const result = validateRecords(entityConstructor, records, options);
   if (result.problems.length > 0) {
-    throw new RecordValidationError(result.problems);
+    throw new InvalidRecords({ errors: recordFieldProblems(result.problems) });
   }
   return result.records;
 }

@@ -11,6 +11,8 @@
  * See [ADR 0001](../../../docs/adr/0001-the-tier-contract-and-the-host-seam.md).
  */
 
+import type { Manifest } from './manifests.js';
+
 /** The condition that resolves to `src` inside this workspace. */
 export const SOURCE_CONDITION = '@entifix/source';
 
@@ -118,3 +120,28 @@ export const unresolvableSpecifiers = (source: string): string[] =>
     specifier =>
       !RESOLVABLE_EXTENSIONS.some(extension => specifier.endsWith(extension)),
   );
+
+/**
+ * Every `effect` version a set of manifests names — the exact dev pin and the
+ * peer floor alike, with the range operator dropped.
+ *
+ * ⚠️ One answer or the release is split. `Schema.TaggedError`, `effect/workflow`
+ * and `effect/cluster` are adopted against one version, and a package built
+ * against an older pin while peering a newer floor compiles here and then
+ * hands a consumer two copies of `effect`, whose tagged classes do not match
+ * each other.
+ */
+export const effectVersions = (manifests: readonly Manifest[]): string[] =>
+  [
+    ...new Set(
+      manifests.flatMap(manifest =>
+        [
+          manifest.dependencies?.['effect'],
+          manifest.devDependencies?.['effect'],
+          manifest.peerDependencies?.['effect'],
+        ]
+          .filter((range): range is string => typeof range === 'string')
+          .map(range => range.replace(/^[\^~]/, '')),
+      ),
+    ),
+  ].sort();

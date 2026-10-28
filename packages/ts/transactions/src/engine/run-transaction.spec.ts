@@ -1,8 +1,8 @@
 import {
+  Contention,
   type DomainEvent,
-  EntifixConnError,
-  EntifixLockError,
   EntifixTransactionError,
+  Unavailable,
 } from '@entifix/core';
 import { Effect, Exit, Layer, Logger, References } from 'effect';
 import { describe, expect, it } from 'vitest';
@@ -94,7 +94,7 @@ const makeWorld = (
     acquire: (key: string) => {
       calls.push(`acquire:${key}`);
       if (key === script.acquireFailsOn) {
-        return Effect.fail(new EntifixLockError(`contended: ${key}`));
+        return Effect.fail(new Contention());
       }
       const handle = { key, token: `token-${key}` };
       held.push(handle);
@@ -103,7 +103,7 @@ const makeWorld = (
     release: (handle: LockHandle) => {
       calls.push(`release:${handle.key}`);
       if (script.releaseFails) {
-        return Effect.fail(new EntifixConnError('redis unreachable'));
+        return Effect.fail(new Unavailable({ dependency: 'redis' }));
       }
       released.push(handle);
       return Effect.void;
@@ -115,20 +115,18 @@ const makeWorld = (
   // on construction would report an ordering no real adapter produces.
   const outbox = {
     enqueue: (event: DomainEvent) =>
-      Effect.suspend(
-        (): Effect.Effect<OutboxEnqueueResult, EntifixConnError> => {
-          const payload = event.data as TransactionEvent;
-          calls.push(`enqueue:${payload.step}`);
-          if (script.enqueueFails) {
-            return Effect.fail(new EntifixConnError('outbox unreachable'));
-          }
-          if (script.duplicate) {
-            return Effect.succeed('duplicate');
-          }
-          recorded.push(event as DomainEvent<TransactionEvent>);
-          return Effect.succeed('enqueued');
-        },
-      ),
+      Effect.suspend((): Effect.Effect<OutboxEnqueueResult, Unavailable> => {
+        const payload = event.data as TransactionEvent;
+        calls.push(`enqueue:${payload.step}`);
+        if (script.enqueueFails) {
+          return Effect.fail(new Unavailable({ dependency: 'outbox' }));
+        }
+        if (script.duplicate) {
+          return Effect.succeed('duplicate');
+        }
+        recorded.push(event as DomainEvent<TransactionEvent>);
+        return Effect.succeed('enqueued');
+      }),
     pending: () => Effect.succeed([]),
     markSent: () => Effect.void,
     // The engine never publishes, so it never records a failed publish either.
@@ -203,7 +201,7 @@ describe('the facade steps', () => {
       Effect.flip(lockUCFactory().pipe(Effect.provide(world.layer))),
     );
 
-    expect(error).toBeInstanceOf(EntifixLockError);
+    expect(error).toMatchObject({ _tag: 'Contention' });
     expect(world.calls).not.toContain('acquire:c');
   });
 
@@ -332,7 +330,7 @@ describe('acceptTransaction', () => {
       Effect.flip(acceptTransaction().pipe(Effect.provide(world.layer))),
     );
 
-    expect(error).toBeInstanceOf(EntifixConnError);
+    expect(error).toMatchObject({ _tag: 'Unavailable' });
     expect(world.held).toEqual([]);
   });
 
@@ -343,7 +341,7 @@ describe('acceptTransaction', () => {
       Effect.flip(acceptTransaction().pipe(Effect.provide(world.layer))),
     );
 
-    expect(error).toBeInstanceOf(EntifixLockError);
+    expect(error).toMatchObject({ _tag: 'Contention' });
     expect(world.recorded.map(event => event.data.step)).toEqual(['accepted']);
   });
 });

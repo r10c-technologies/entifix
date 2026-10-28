@@ -189,7 +189,7 @@ describe('getUser', () => {
       Effect.flip(management().getUser('x')),
     );
 
-    expect(error._tag).toBe('EntifixConnError');
+    expect(error._tag).toBe('Unavailable');
   });
 
   it('answers null when the payload carries no user', async () => {
@@ -334,7 +334,7 @@ describe('setActive', () => {
       Effect.flip(management().setActive('user-3', false)),
     );
 
-    expect(error._tag).toBe('EntifixConnError');
+    expect(error._tag).toBe('Declined');
   });
 });
 
@@ -375,19 +375,17 @@ describe('transport failures', () => {
       Effect.flip(management().findUserByEmail('a@example.com')),
     );
 
-    expect(error._tag).toBe('EntifixConnError');
-    expect(error.message).toContain('ECONNREFUSED');
+    expect(error).toMatchObject({ _tag: 'Unavailable', dependency: 'zitadel' });
   });
 
-  it('names the call when the provider explains nothing', async () => {
+  it('answers a 5xx that explains nothing as Unavailable', async () => {
     answers({}, false, 502);
 
     const error = await Effect.runPromise(
       Effect.flip(management().deleteUser('user-6')),
     );
 
-    expect(error.message).toContain('502');
-    expect(error.message).toContain('/v2/users/user-6');
+    expect(error).toMatchObject({ _tag: 'Unavailable', dependency: 'zitadel' });
   });
 
   it('handles an empty body', async () => {

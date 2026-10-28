@@ -756,7 +756,12 @@ describe('makeFakeRedis', () => {
 });
 
 interface FakeChannel {
-  publish(exchange: string, routingKey: string, content: Buffer): boolean;
+  publish(
+    exchange: string,
+    routingKey: string,
+    content: Buffer,
+    options?: { headers?: Record<string, unknown> },
+  ): boolean;
   prefetch(count: number): Promise<void>;
   assertExchange(
     exchange: string,
@@ -792,7 +797,29 @@ describe('makeFakeAmqpChannel', () => {
     );
 
     expect(fake.published).toEqual([
-      { exchange: 'events', routingKey: 'widget.created', body: { a: 1 } },
+      {
+        exchange: 'events',
+        routingKey: 'widget.created',
+        body: { a: 1 },
+        headers: undefined,
+      },
+    ]);
+  });
+
+  it('records a body that is not JSON as its text, with its headers', () => {
+    const fake = makeFakeAmqpChannel();
+
+    channelOf(fake).publish('dlx', 'q', Buffer.from('not json'), {
+      headers: { 'x-failure-code': 'invalidEnvelope' },
+    });
+
+    expect(fake.published).toEqual([
+      {
+        exchange: 'dlx',
+        routingKey: 'q',
+        body: 'not json',
+        headers: { 'x-failure-code': 'invalidEnvelope' },
+      },
     ]);
   });
 

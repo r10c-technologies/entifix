@@ -1,10 +1,10 @@
-import { EntifixConnError } from '@entifix/core';
 import { describeUnitOfWorkContract } from '@entifix/testing-unit/contracts';
 import { makeFakeMongoDb } from '@entifix/testing-unit/drivers';
 import { Effect, Exit, Layer } from 'effect';
 import type { ClientSession, Db } from 'mongodb';
 import { describe, expect, it } from 'vitest';
 
+import { translateMongoFault } from '../errors/translate-mongo-error.js';
 import {
   MongoClientTag,
   MongoDatabaseTag,
@@ -30,7 +30,7 @@ const write = (unit: MongoUnit, id: string) =>
   Effect.tryPromise({
     try: () =>
       unit.db.collection(WIDGETS).insertOne({ id }, { session: unit.session }),
-    catch: error => new EntifixConnError('write failed', error),
+    catch: translateMongoFault,
   }).pipe(Effect.asVoid);
 
 const unitOver = (fake: Fake) =>
@@ -53,7 +53,7 @@ describeUnitOfWorkContract('mongo adapter over a fake driver', () => {
           unit.db
             .collection(WIDGETS)
             .findOne({ id }, { session: unit.session }),
-        catch: error => new EntifixConnError('read failed', error),
+        catch: translateMongoFault,
       }).pipe(Effect.map(found => found !== null)),
     stored: id =>
       Promise.resolve(fake.read(WIDGETS).some(doc => doc['id'] === id)),
@@ -163,8 +163,7 @@ describe('makeMongoUnitOfWork', () => {
         .pipe(Effect.flip),
     );
 
-    expect(error).toBeInstanceOf(EntifixConnError);
-    expect(error.message).toBe('Failed to start a unit of work');
+    expect(error).toMatchObject({ _tag: 'Unavailable' });
   });
 
   it('keeps the outcome when ending the session or rolling back fails', async () => {
@@ -237,7 +236,7 @@ describe('makeMongoUnitOfWork events', () => {
         .pipe(Effect.flip),
     );
 
-    expect(error).toBeInstanceOf(EntifixConnError);
+    expect(error).toMatchObject({ category: 'unavailable' });
     expect(fake.read(WIDGETS)).toEqual([]);
   });
 });

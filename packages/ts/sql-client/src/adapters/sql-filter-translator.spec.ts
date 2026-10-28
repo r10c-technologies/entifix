@@ -1,7 +1,6 @@
 import {
   accessor,
   defineLocales,
-  EntifixBuildError,
   type Entity,
   entity,
   type EntityFiltering,
@@ -292,7 +291,7 @@ describe('translateFiltering', () => {
       translateFiltering(sql, Widget, [
         { property: 'secret', operator: 'eq', value: 'x' },
       ]),
-    ).toThrow(EntifixBuildError);
+    ).toThrow(/secret/);
   });
 
   it('rejects a path into an embedded array, which has no column to compare', () => {
