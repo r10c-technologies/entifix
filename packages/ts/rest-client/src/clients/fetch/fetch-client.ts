@@ -1,4 +1,9 @@
-import { EntifixConnError } from '@entifix/core';
+import {
+  currentRemainingMs,
+  DEADLINE_HEADER,
+  EntifixConnError,
+  Timeout,
+} from '@entifix/core';
 import { Effect } from 'effect';
 
 import { HttpRequest, HttpResponse } from '../types.js';
@@ -7,13 +12,26 @@ export const performHttpRequestThroughFetch = <TResponseBody>(
   request: HttpRequest<unknown>,
 ) =>
   Effect.gen(function* () {
-    // Perform the HTTP request using the Fetch API
+    // The caller's remaining budget travels on, minus what is already spent,
+    // and a budget already spent is not worth a round trip (ADR 0014).
+    const remaining = yield* currentRemainingMs;
+    if (remaining === 0)
+      return yield* Effect.fail(new Timeout({ dependency: request.url }));
+
+    // The signal is tied to this fiber: a caller that goes away interrupts it,
+    // and the request below is aborted rather than left to finish.
     const response = yield* Effect.tryPromise({
-      try: () =>
+      try: signal =>
         fetch(request.url, {
           method: request.method,
-          headers: request.headers,
+          headers: {
+            ...request.headers,
+            ...(remaining === undefined
+              ? {}
+              : { [DEADLINE_HEADER]: String(remaining) }),
+          },
           body: request.body ? JSON.stringify(request.body) : undefined,
+          signal,
         }),
       catch: error =>
         new EntifixConnError(`HTTP request to ${request.url} failed`, error, {

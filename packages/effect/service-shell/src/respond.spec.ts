@@ -1,4 +1,6 @@
 import {
+  currentRemainingMs,
+  DEADLINE_HEADER,
   DuplicateKey,
   Failure,
   InvalidQuery,
@@ -122,6 +124,13 @@ describe('respond and mountRoutes, served', () => {
         HttpServerResponse.json({ n: BigInt(1) }),
       ),
       HttpRouter.route('GET', '/ok', HttpServerResponse.text('fine')),
+      HttpRouter.route(
+        'GET',
+        '/deadline',
+        Effect.map(currentRemainingMs, left =>
+          HttpServerResponse.text(left === undefined ? 'none' : String(left)),
+        ),
+      ),
     ],
     policy,
   );
@@ -187,6 +196,17 @@ describe('respond and mountRoutes, served', () => {
 
     expect(res.status).toBe(500);
     expect(await res.json()).toMatchObject({ code: 'internal' });
+  });
+
+  it('hands the caller’s deadline to the handler', async () => {
+    const withHeader = await fetch(`${running?.baseUrl}/deadline`, {
+      headers: { [DEADLINE_HEADER]: '5000' },
+    });
+    const left = Number(await withHeader.text());
+
+    expect(left).toBeGreaterThan(4_000);
+    expect(left).toBeLessThanOrEqual(5_000);
+    expect(await (await call('/deadline')).text()).toBe('none');
   });
 
   it('leaves a success alone', async () => {

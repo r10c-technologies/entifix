@@ -1,4 +1,7 @@
 import {
+  DEADLINE_HEADER,
+  deadlineFromHeader,
+  DeadlineTag,
   type EntifixFailure,
   type FailureCategory,
   Internal,
@@ -6,7 +9,7 @@ import {
   PROBLEM_CONTENT_TYPE,
   problemOf,
 } from '@entifix/core';
-import { Cause, Effect, Option } from 'effect';
+import { Cause, Clock, Effect, Option } from 'effect';
 import type { HttpBody } from 'effect/http';
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from 'effect/http';
 import type { Severity } from 'effect/LogLevel';
@@ -205,6 +208,25 @@ const answerDefect = (defect: unknown) =>
   });
 
 /**
+ * The request's deadline, when its caller sent one, provided to the handler
+ * so a retry below it never starts past it and an outbound call forwards what
+ * is left ([ADR 0014](../../../../docs/adr/0014-retry-once-at-the-layer-above-under-a-budget.md)).
+ */
+const withRequestDeadline = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
+  Effect.gen(function* () {
+    const request = yield* Effect.serviceOption(
+      HttpServerRequest.HttpServerRequest,
+    );
+    const now = yield* Clock.currentTimeMillis;
+    const deadline = Option.isSome(request)
+      ? deadlineFromHeader(request.value.headers[DEADLINE_HEADER], now)
+      : undefined;
+    return yield* deadline === undefined
+      ? effect
+      : Effect.provideService(effect, DeadlineTag, deadline);
+  });
+
+/**
  * The terminal reaction: every failure answered as a problem body with the
  * policy's status and logged at the policy's level, every defect answered as
  * an opaque `500`. Interruption is left alone — a request whose client went
@@ -214,7 +236,7 @@ export const respond = <E extends RouteFailure, R>(
   effect: Effect.Effect<HttpServerResponse.HttpServerResponse, E, R>,
   policy: FailurePolicy = defaultFailurePolicy,
 ): Effect.Effect<HttpServerResponse.HttpServerResponse, never, R> =>
-  effect.pipe(
+  withRequestDeadline(effect).pipe(
     Effect.catch((failure: E) =>
       isFailure(failure)
         ? answerFailure(failure, policy)

@@ -1,9 +1,9 @@
 import {
   type EntifixConnError,
-  type EntifixError,
   type EntityId,
   type InvalidEnvelope,
   readEnvelope,
+  type TransitionalFailure,
 } from '@entifix/core';
 import { Context, Effect } from 'effect';
 
@@ -151,10 +151,7 @@ export function readTransactionRecordEnvelope(
 export interface TransactionStatusReader {
   read(
     transactionId: string,
-  ): Effect.Effect<
-    TransactionRecord | undefined,
-    EntifixError | InvalidEnvelope
-  >;
+  ): Effect.Effect<TransactionRecord | undefined, TransitionalFailure>;
 }
 
 export class TransactionStatusReaderTag extends Context.Service<
