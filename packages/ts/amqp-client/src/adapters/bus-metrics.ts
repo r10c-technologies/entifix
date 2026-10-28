@@ -43,21 +43,38 @@ export const busEventsConsumed = Metric.counter('bus_events_consumed_total', {
 });
 
 /**
- * Deliveries that were nacked, by subscription and failure class.
+ * Deliveries that failed, by subscription and failure class.
  *
- * ⚠️ **This is not a dead-letter count, and cannot be.** `x-delivery-limit` is
- * what moves a message to `<queue>.quarantine`, and the broker does that without
- * telling the adapter — there is no in-process call site for it. A transient
- * failure on its fifth delivery is counted here exactly like its first. The
- * honest quarantine count on the publisher side is the outbox's; on this side,
- * a rising `failure="transient"` rate against a fixed `maxAttempts` is the
- * signal, and the quarantine queue's own depth is the confirmation.
+ * Every failed delivery, including the ones that go on to be retried, so a
+ * transient failure on its fifth attempt is counted here exactly like its
+ * first. How many messages were finally given up on is
+ * {@link busEventsQuarantined}.
  */
 export const busEventsFailed = Metric.counter('bus_events_failed_total', {
   description:
-    'Deliveries nacked, by subscription and failure class. Not a ' +
-    'dead-letter count — the broker dead-letters without telling the adapter.',
+    'Deliveries whose handler or payload failed, by subscription and ' +
+    'failure class, retried or not.',
 });
+
+/**
+ * Messages moved to `<queue>.quarantine`, by subscription and failure category.
+ *
+ * Possible since the adapter, not the broker, decides the ceiling (#130): every
+ * quarantine now goes through one call site in the adapter, so this is the
+ * dead-letter count `bus_events_failed_total` could never be. A poison message
+ * is counted on its first delivery, and a transient one when it has spent its
+ * subscription's `maxAttempts`. A redelivery the broker dead-letters after a
+ * consumer crash (`x-delivery-limit`) still bypasses the adapter, so the
+ * quarantine queue's depth stays the confirmation.
+ */
+export const busEventsQuarantined = Metric.counter(
+  'bus_events_quarantined_total',
+  {
+    description:
+      'Messages the adapter moved to a quarantine queue, by subscription ' +
+      'and failure category.',
+  },
+);
 
 /**
  * Identity of a subscription, as metric tags.
@@ -115,5 +132,20 @@ export const recordFailed = (
 ) =>
   Metric.update(
     Metric.withAttributes(withSubscription(busEventsFailed, tags), { failure }),
+    1,
+  );
+
+/**
+ * Record one message moved to its quarantine queue.
+ *
+ * `category` rather than `code`: the categories are a closed set and the codes
+ * are not, and a metric attribute with an open set of values is a series per
+ * typo.
+ */
+export const recordQuarantined = (tags: SubscriptionTags, category: string) =>
+  Metric.update(
+    Metric.withAttributes(withSubscription(busEventsQuarantined, tags), {
+      category,
+    }),
     1,
   );

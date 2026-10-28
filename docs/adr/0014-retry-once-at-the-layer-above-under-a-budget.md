@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-28
 - Revised: 2026-10-28 — a consumer's redeliveries are counted by the adapter against `maxAttempts`; `x-delivery-limit` bounds only what a crashed consumer leaves behind (#130)
+- Revised: 2026-10-28 — the host sizes the redelivery backoff through `RedeliveryBackoffTag`, and the adapter counts every quarantine
 - Area: platform
 - Read when: adding a retry, a backoff or a `Schedule` to a call, sizing a queue's `maxAttempts`, an outage gets worse when its dependency comes back, a request keeps working after its caller gave up, or about to retry inside a bus consumer
 
@@ -117,7 +118,11 @@ changing it is a queue reset.
 > quorum queue's `x-delivery-limit` — measured on 4.3.5, a queue limited to 2
 > delivered one message 8 times — so the AMQP adapter counts attempts itself,
 > in a header on a copy it republishes after a capped backoff, and quarantines
-> at `maxAttempts`. `x-delivery-limit` still bounds the redeliveries a crashed
+> at `maxAttempts`. The backoff is the host's to size: `AmqpEventBusLayer` reads
+> `RedeliveryBackoffTag` when a composition provides one, which a host builds
+> from its own `backoffBaseMs` / `backoffCapMs` with
+> `exponentialRedeliveryBackoff`, and every quarantine now passes one call site,
+> so `bus_events_quarantined_total` counts them. `x-delivery-limit` still bounds the redeliveries a crashed
 > consumer causes, which the broker does count. The host sizes it so
 > that in-process attempts × deliveries stays inside one fleet delivery budget,
 > and because a consumer never retries in-process that product is the delivery

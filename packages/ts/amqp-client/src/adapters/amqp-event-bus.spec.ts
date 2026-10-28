@@ -10,7 +10,7 @@ import { describeEventBusContract } from '@entifix/testing-unit/contracts';
 import { makeFakeAmqpChannel } from '@entifix/testing-unit/drivers';
 import { EventBusTag, type Subscription } from '@entifix/transactions';
 import type { Channel } from 'amqplib';
-import { Duration, Effect, Exit, Layer } from 'effect';
+import { Duration, Effect, Exit, Layer, Metric } from 'effect';
 import { describe, expect, it } from 'vitest';
 
 import type { AmqpConnector } from '../amqp-connection/amqp-connection.js';
@@ -22,9 +22,12 @@ import {
   AmqpEventBusLayer,
   ATTEMPTS_HEADER,
   DEFAULT_REDELIVERY_BACKOFF,
+  exponentialRedeliveryBackoff,
   makeAmqpEventBus,
   queueNameFor,
+  RedeliveryBackoffTag,
 } from './amqp-event-bus.js';
+import { busEventsQuarantined } from './bus-metrics.js';
 
 /**
  * A connector that always hands back the same fake channel. The bus asks for a
@@ -365,6 +368,42 @@ describe('makeAmqpEventBus', () => {
     ).toEqual([100, 200, 400, 1_600, 2_000]);
   });
 
+  it('sizes a backoff from its own dials', () => {
+    expect(
+      [1, 2, 3, 4].map(attempt =>
+        Duration.toMillis(
+          exponentialRedeliveryBackoff({ baseMs: 50, capMs: 300 })(attempt),
+        ),
+      ),
+    ).toEqual([50, 100, 200, 300]);
+  });
+
+  it('counts each quarantine once, by category', async () => {
+    const { fake, bus } = withFakeChannel();
+    const counted = Metric.withAttributes(busEventsQuarantined, {
+      queue: WORK_QUEUE,
+      slice: WORK.slice,
+      mode: WORK.mode,
+      category: 'invalid',
+    });
+    const before = await Effect.runPromise(
+      Metric.value(counted).pipe(Effect.map(state => state.count)),
+    );
+    await Effect.runPromise(
+      bus.subscribe(WORK, () =>
+        Effect.fail(new Invalid({ errors: [] }) as never),
+      ),
+    );
+
+    await fake.deliver(anEnvelope(anEvent()));
+
+    expect(
+      await Effect.runPromise(
+        Metric.value(counted).pipe(Effect.map(state => state.count)),
+      ),
+    ).toBe(before + 1);
+  });
+
   /** The quarantine republish a poison message gets, with its reason. */
   const quarantined = (fake: ReturnType<typeof withFakeChannel>['fake']) =>
     fake.published.filter(entry => entry.exchange === EVENTS_DLX);
@@ -632,6 +671,67 @@ describe('AmqpEventBusLayer', () => {
     );
 
     expect(wiring.published).toEqual(['transaction.accepted']);
+  });
+
+  /** A layer-built bus over `fake`, with `backoff` provided when given. */
+  const layerBus = (
+    fake: ReturnType<typeof makeFakeAmqpChannel>,
+    backoff?: Layer.Layer<RedeliveryBackoffTag>,
+  ) =>
+    Effect.gen(function* () {
+      const bus = yield* EventBusTag;
+      yield* bus.subscribe(WORK, () =>
+        Effect.fail(new Error('handler failed') as never),
+      );
+    }).pipe(
+      Effect.provide(
+        AmqpEventBusLayer.pipe(
+          Layer.provide(
+            Layer.mergeAll(
+              Layer.succeed(
+                AmqpChannelTag,
+                connectorFor(fake.channel as Channel),
+              ),
+              Layer.succeed(WiringRegistryTag, recordingWiring().registry),
+              Layer.succeed(
+                ShutdownRegistryTag,
+                makeShutdownRegistry().registry,
+              ),
+              backoff ?? Layer.empty,
+            ),
+          ),
+        ),
+      ),
+    );
+
+  // The dials are configuration a host reads at boot, so the layer is the one
+  // place they can reach the adapter.
+  it('redelivers on the backoff a composition provides', async () => {
+    const fake = makeFakeAmqpChannel();
+    await Effect.runPromise(
+      layerBus(
+        fake,
+        Layer.succeed(RedeliveryBackoffTag, () => Duration.zero),
+      ),
+    );
+
+    await fake.deliver(anEnvelope(anEvent()));
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(fake.published).toHaveLength(1);
+  });
+
+  it('falls back to the default backoff when none is provided', async () => {
+    const fake = makeFakeAmqpChannel();
+    await Effect.runPromise(layerBus(fake));
+
+    await fake.deliver(anEnvelope(anEvent()));
+    await new Promise(resolve => setTimeout(resolve, 0));
+    const before = fake.published.length;
+    await new Promise(resolve => setTimeout(resolve, 150));
+
+    expect(before).toBe(0);
+    expect(fake.published).toHaveLength(1);
   });
 
   // The half a cancel does not cover: cancelling stops the broker handing over
