@@ -1,5 +1,11 @@
-import { EntifixConnError } from '@entifix/core';
+import { ProtocolFailure } from '@entifix/core';
 import { Context, Effect, Layer } from 'effect';
+
+import {
+  ProviderAnswered,
+  type ProviderFailure,
+  providerFailure,
+} from '../errors.js';
 
 /** How the management client reaches an instance. */
 export interface ZitadelManagementConfig {
@@ -72,11 +78,9 @@ interface V1EventRow {
 export interface ZitadelManagement {
   findUserByEmail(
     email: string,
-  ): Effect.Effect<ZitadelUser | null, EntifixConnError>;
-  getUser(userId: string): Effect.Effect<ZitadelUser | null, EntifixConnError>;
-  createHuman(
-    input: ZitadelHumanInput,
-  ): Effect.Effect<string, EntifixConnError>;
+  ): Effect.Effect<ZitadelUser | null, ProviderFailure>;
+  getUser(userId: string): Effect.Effect<ZitadelUser | null, ProviderFailure>;
+  createHuman(input: ZitadelHumanInput): Effect.Effect<string, ProviderFailure>;
   updateProfile(
     userId: string,
     profile: {
@@ -84,13 +88,13 @@ export interface ZitadelManagement {
       readonly familyName: string;
       readonly displayName?: string;
     },
-  ): Effect.Effect<void, EntifixConnError>;
+  ): Effect.Effect<void, ProviderFailure>;
   setActive(
     userId: string,
     active: boolean,
-  ): Effect.Effect<void, EntifixConnError>;
+  ): Effect.Effect<void, ProviderFailure>;
   /** Compensating delete. Used when a provisioning half-write must be undone. */
-  deleteUser(userId: string): Effect.Effect<void, EntifixConnError>;
+  deleteUser(userId: string): Effect.Effect<void, ProviderFailure>;
   /**
    * Lifecycle events the instance recorded, oldest first, from a cursor.
    *
@@ -101,7 +105,7 @@ export interface ZitadelManagement {
    */
   searchEvents(
     query: ZitadelEventQuery,
-  ): Effect.Effect<readonly ZitadelEvent[], EntifixConnError>;
+  ): Effect.Effect<readonly ZitadelEvent[], ProviderFailure>;
 }
 
 export class ZitadelManagementTag extends Context.Service<
@@ -155,7 +159,7 @@ export const makeZitadelManagement = (
     method: string,
     path: string,
     body?: unknown,
-  ): Effect.Effect<T, EntifixConnError> =>
+  ): Effect.Effect<T, ProviderFailure> =>
     Effect.tryPromise({
       try: async () => {
         const response = await fetch(`${base}${path}`, {
@@ -172,14 +176,11 @@ export const makeZitadelManagement = (
           const message =
             (payload as { message?: string }).message ??
             `${method} ${path} answered ${String(response.status)}`;
-          throw new Error(message);
+          throw new ProviderAnswered(response.status, message);
         }
         return payload as T;
       },
-      catch: error =>
-        new EntifixConnError(
-          `zitadel management call failed (${method} ${path}): ${String(error)}`,
-        ),
+      catch: providerFailure,
     });
 
   const findUserByEmail = (email: string) =>
@@ -260,9 +261,9 @@ export const makeZitadelManagement = (
       Effect.flatMap(payload =>
         payload.userId === undefined
           ? Effect.fail(
-              new EntifixConnError(
-                'zitadel accepted the user but returned no id',
-              ),
+              new ProtocolFailure({
+                reason: 'zitadel accepted the user but returned no id',
+              }),
             )
           : Effect.succeed(payload.userId),
       ),

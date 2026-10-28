@@ -114,7 +114,7 @@ describe('createEntityLinkResolver', () => {
     expect(Exit.isFailure(await resolve(context, Category, 'b-1'))).toBe(true);
   });
 
-  it('rejects an unregistered target as a logic error', async () => {
+  it('rejects an unregistered target as an internal failure', async () => {
     const exit = await resolve(
       createEntityLinkResolver([
         [Brand, repositoryFor([makeBrand('b-1', 'Acme')])],
@@ -127,8 +127,7 @@ describe('createEntityLinkResolver', () => {
     const error = Exit.isFailure(exit)
       ? Option.getOrUndefined(Cause.findErrorOption(exit.cause))
       : undefined;
-    expect(error).toBeInstanceOf(EntifixLogicError);
-    expect((error as EntifixLogicError).message).toContain('Category');
+    expect(error).toMatchObject({ _tag: 'Internal' });
   });
 
   it('propagates a not-found from the underlying repository', async () => {

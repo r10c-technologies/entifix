@@ -1,7 +1,6 @@
 import {
   defaultLocale,
   defineLocales,
-  EntifixBuildError,
   type Locale,
   type LocaleDefinition,
 } from '@entifix/core';
@@ -61,7 +60,7 @@ export function defineCatalogs(catalogs: I18nCatalogs): void {
       catalogs.locales === undefined ||
       catalogs.defaultLocale === undefined
     ) {
-      throw new EntifixBuildError(
+      throw new Error(
         'defineCatalogs takes `locales` and `defaultLocale` together, or neither.',
       );
     }
@@ -76,7 +75,7 @@ export function defineCatalogs(catalogs: I18nCatalogs): void {
 
 const required = (): I18nCatalogs => {
   if (installed === undefined) {
-    throw new EntifixBuildError(
+    throw new Error(
       'No i18n catalogs are installed. Call `defineCatalogs({ resources, ' +
         'namespaces, defaultNS })` once from a module every entry point ' +
         'imports, before the first server render.',

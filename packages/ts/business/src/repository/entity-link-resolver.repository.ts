@@ -1,9 +1,9 @@
 import {
-  type EntifixError,
-  EntifixLogicError,
   type Entity,
   type EntityConstructor,
   type EntityLinkResolver,
+  Internal,
+  type TransitionalFailure,
 } from '@entifix/core';
 import { Context, Effect } from 'effect';
 
@@ -57,15 +57,9 @@ export function createEntityLinkResolver(
         entityConstructor as EntityConstructor<Entity>,
       );
       if (!repository) {
-        return Effect.fail(
-          new EntifixLogicError(
-            `No link resolver registered for entity "${entityConstructor.name}"`,
-            undefined,
-            { entity: entityConstructor.name },
-          ),
-        );
+        return Effect.fail(new Internal());
       }
-      return repository.get(id) as Effect.Effect<never, EntifixError>;
+      return repository.get(id) as Effect.Effect<never, TransitionalFailure>;
     },
   };
 

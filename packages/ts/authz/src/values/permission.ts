@@ -1,6 +1,5 @@
 import {
   describeEntityUseCases,
-  EntifixBuildError,
   type Entity,
   ENTITY_ACTIONS,
   type EntityAction,
@@ -81,7 +80,7 @@ export const permissionForEntity = <T extends Entity>(
 ): Permission => {
   const meta = extractMetaEntity(entityConstructor);
   if (meta.domain === undefined || meta.key === undefined) {
-    throw new EntifixBuildError(
+    throw new Error(
       `Entity ${entityConstructor.name} needs both a domain and a key to derive a permission`,
     );
   }
@@ -120,7 +119,7 @@ export function permissionForUseCase(
 
   const meta = extractMetaEntity(binding.entity);
   if (meta.domain === undefined || meta.key === undefined) {
-    throw new EntifixBuildError(
+    throw new Error(
       `Entity ${binding.entity.name} needs both a domain and a key to derive a permission`,
     );
   }
@@ -128,7 +127,7 @@ export function permissionForUseCase(
     useCase => useCase.key === binding.key,
   );
   if (!declares) {
-    throw new EntifixBuildError(
+    throw new Error(
       `Entity ${binding.entity.name} does not declare the use case "${binding.key}"`,
     );
   }
@@ -145,7 +144,7 @@ export const parsePermission = (
 ): { resource: Resource; action: PermissionAction } => {
   const segments = permission.split(':');
   if (segments.length !== SEGMENT_COUNT) {
-    throw new EntifixBuildError(
+    throw new Error(
       `Malformed permission "${permission}" — expected <domain>:<entityKey>:<action>`,
     );
   }

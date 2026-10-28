@@ -1,7 +1,17 @@
-import { EntifixConnError, EntifixLogicError } from '@entifix/core';
+import {
+  InvalidToken,
+  type TokenFailure,
+  tokenFailureFrom,
+} from '@entifix/business';
+import { ProtocolFailure } from '@entifix/core';
 import { Context, Effect, Layer } from 'effect';
 import { createRemoteJWKSet, type JWTPayload, jwtVerify } from 'jose';
 
+import {
+  ProviderAnswered,
+  type ProviderFailure,
+  providerFailure,
+} from '../errors.js';
 import { discover, type OidcDiscovery } from '../oidc/discovery.js';
 import { CODE_CHALLENGE_METHOD } from '../oidc/pkce.js';
 
@@ -102,22 +112,28 @@ export interface ZitadelOidc {
   /** Where to send the browser to begin a sign-in. */
   authorizationUrl(
     input: AuthorizationUrlInput,
-  ): Effect.Effect<string, EntifixConnError>;
+  ): Effect.Effect<string, ProviderFailure>;
   /** Finish it: exchange the code, verify the `id_token`, and say who this is. */
   exchangeCode(input: {
     readonly code: string;
     readonly codeVerifier: string;
     readonly nonce: string;
-  }): Effect.Effect<ZitadelIdentity, EntifixConnError | EntifixLogicError>;
+  }): Effect.Effect<
+    ZitadelIdentity,
+    ProviderFailure | TokenFailure | ProtocolFailure
+  >;
   /** Where to send the browser so the provider's own session ends too. */
-  endSessionUrl(idToken?: string): Effect.Effect<string, EntifixConnError>;
+  endSessionUrl(idToken?: string): Effect.Effect<string, ProviderFailure>;
   /**
    * The other direction: the provider telling us a session it owns has ended.
    * Verifies the logout token and says which of our sessions it names.
    */
   verifyLogoutToken(
     logoutToken: string,
-  ): Effect.Effect<LogoutEvent, EntifixConnError | EntifixLogicError>;
+  ): Effect.Effect<
+    LogoutEvent,
+    ProviderFailure | TokenFailure | ProtocolFailure
+  >;
 }
 
 export class ZitadelOidcTag extends Context.Service<
@@ -203,7 +219,8 @@ export const makeZitadelOidc = (config: ZitadelOidcConfig): ZitadelOidc => {
           error_description?: string;
         };
         if (!response.ok) {
-          throw new Error(
+          throw new ProviderAnswered(
+            response.status,
             payload.error_description ??
               payload.error ??
               `token endpoint answered ${String(response.status)}`,
@@ -211,8 +228,7 @@ export const makeZitadelOidc = (config: ZitadelOidcConfig): ZitadelOidc => {
         }
         return payload;
       },
-      catch: error =>
-        new EntifixConnError(`the code exchange failed: ${String(error)}`),
+      catch: providerFailure,
     });
 
   /**
@@ -234,8 +250,7 @@ export const makeZitadelOidc = (config: ZitadelOidcConfig): ZitadelOidc => {
           issuer: discovery.issuer,
           audience: config.clientId,
         }),
-      catch: error =>
-        new EntifixLogicError(`the ${what} did not verify: ${String(error)}`),
+      catch: error => tokenFailureFrom(error, 'zitadel'),
     });
 
   const verifyIdToken = (
@@ -249,11 +264,7 @@ export const makeZitadelOidc = (config: ZitadelOidcConfig): ZitadelOidc => {
         // older flow would otherwise verify perfectly.
         payload['nonce'] === nonce
           ? Effect.succeed(payload)
-          : Effect.fail(
-              new EntifixLogicError(
-                'the id_token nonce does not match the authorization request',
-              ),
-            ),
+          : Effect.fail(new InvalidToken()),
       ),
     );
 
@@ -284,46 +295,52 @@ export const makeZitadelOidc = (config: ZitadelOidcConfig): ZitadelOidc => {
             }
             return (await response.json()) as JWTPayload;
           },
-          catch: error => new EntifixConnError(String(error)),
+          catch: providerFailure,
         }).pipe(Effect.catch(() => Effect.succeed({} as JWTPayload)));
 
   const exchangeCode = (input: {
     readonly code: string;
     readonly codeVerifier: string;
     readonly nonce: string;
-  }) =>
+  }): Effect.Effect<ZitadelIdentity, ProviderFailure | TokenFailure> =>
     discover(config.issuer).pipe(
       Effect.flatMap(discovery =>
         requestTokens(discovery, input.code, input.codeVerifier).pipe(
-          Effect.flatMap(tokens =>
-            tokens.id_token === undefined
-              ? Effect.fail(
-                  new EntifixLogicError(
-                    'the token response carried no id_token',
-                  ),
-                )
-              : verifyIdToken(discovery, tokens.id_token, input.nonce).pipe(
-                  Effect.flatMap(claims =>
-                    fetchUserInfo(discovery, tokens.access_token).pipe(
-                      // The id_token wins on `sub`: it is the verified one, and
-                      // a userinfo response naming a different subject must not
-                      // be able to redirect the sign-in to another account. Same
-                      // for `sid`, which decides whose sessions a later logout
-                      // token revokes.
-                      Effect.map(profile =>
-                        toIdentity(
-                          {
-                            ...profile,
-                            ...claims,
-                            sub: claims.sub,
-                            sid: claims['sid'],
-                          },
-                          tokens.id_token as string,
+          Effect.flatMap(
+            (
+              tokens,
+            ): Effect.Effect<
+              ZitadelIdentity,
+              ProviderFailure | TokenFailure
+            > =>
+              tokens.id_token === undefined
+                ? Effect.fail(
+                    new ProtocolFailure({
+                      reason: 'the token response carried no id_token',
+                    }),
+                  )
+                : verifyIdToken(discovery, tokens.id_token, input.nonce).pipe(
+                    Effect.flatMap(claims =>
+                      fetchUserInfo(discovery, tokens.access_token).pipe(
+                        // The id_token wins on `sub`: it is the verified one, and
+                        // a userinfo response naming a different subject must not
+                        // be able to redirect the sign-in to another account. Same
+                        // for `sid`, which decides whose sessions a later logout
+                        // token revokes.
+                        Effect.map(profile =>
+                          toIdentity(
+                            {
+                              ...profile,
+                              ...claims,
+                              sub: claims.sub,
+                              sid: claims['sid'],
+                            },
+                            tokens.id_token as string,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
           ),
         ),
       ),
@@ -369,25 +386,15 @@ export const makeZitadelOidc = (config: ZitadelOidcConfig): ZitadelOidc => {
           events === null ||
           !(BACKCHANNEL_LOGOUT_EVENT in events)
         ) {
-          return Effect.fail(
-            new EntifixLogicError(
-              'the logout_token does not declare a back-channel logout event',
-            ),
-          );
+          return Effect.fail(new InvalidToken());
         }
         if (payload['nonce'] !== undefined) {
-          return Effect.fail(
-            new EntifixLogicError(
-              'the logout_token carries a nonce, so it is an id_token replayed',
-            ),
-          );
+          return Effect.fail(new InvalidToken());
         }
         const providerSessionId = asString(payload['sid']);
         const subject = asString(payload.sub);
         if (providerSessionId === undefined && subject === undefined) {
-          return Effect.fail(
-            new EntifixLogicError('the logout_token names neither sid nor sub'),
-          );
+          return Effect.fail(new InvalidToken());
         }
         return Effect.succeed({
           providerSessionId,

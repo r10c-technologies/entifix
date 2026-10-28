@@ -92,7 +92,7 @@ describe('jose token service', () => {
     expect(verified.userId).toBe('user-1');
   });
 
-  it('refuses to sign without a private key, as a build error', async () => {
+  it('refuses to sign without a private key, as an internal failure', async () => {
     const verifier = makeJoseTokenService({
       publicKeyPem: pair.publicKeyPem,
       keyId: 'test-key',
@@ -102,7 +102,7 @@ describe('jose token service', () => {
 
     const error = await runFailure(verifier.sign(claims, 900));
 
-    expect(error._tag).toBe('EntifixBuildError');
+    expect(error._tag).toBe('Internal');
   });
 
   it('rejects a token signed with a different key', async () => {
@@ -115,7 +115,7 @@ describe('jose token service', () => {
 
     const error = await runFailure(service.verify(foreign));
 
-    expect(error._tag).toBe('EntifixBuildError');
+    expect(error).toMatchObject({ _tag: 'InvalidToken', code: 'invalidToken' });
   });
 
   it('rejects an HS256 token, whatever its header claims', async () => {
@@ -133,7 +133,7 @@ describe('jose token service', () => {
 
     const error = await runFailure(service.verify(confused));
 
-    expect(error._tag).toBe('EntifixBuildError');
+    expect(error).toMatchObject({ _tag: 'InvalidToken', code: 'invalidToken' });
   });
 
   it('rejects a token for the wrong audience', async () => {
@@ -146,7 +146,7 @@ describe('jose token service', () => {
 
     const error = await runFailure(service.verify(wrongAudience));
 
-    expect(error._tag).toBe('EntifixBuildError');
+    expect(error).toMatchObject({ _tag: 'InvalidToken', code: 'invalidToken' });
   });
 
   it('rejects a token from the wrong issuer', async () => {
@@ -159,7 +159,7 @@ describe('jose token service', () => {
 
     const error = await runFailure(service.verify(wrongIssuer));
 
-    expect(error._tag).toBe('EntifixBuildError');
+    expect(error).toMatchObject({ _tag: 'InvalidToken', code: 'invalidToken' });
   });
 
   it('rejects an expired token', async () => {
@@ -168,10 +168,10 @@ describe('jose token service', () => {
 
     const error = await runFailure(service.verify(expired));
 
-    expect(error._tag).toBe('EntifixBuildError');
+    expect(error).toMatchObject({ _tag: 'ExpiredToken', code: 'expiredToken' });
   });
 
-  it('surfaces a signing failure as an EntifixConnError', async () => {
+  it('surfaces a signing failure as an internal failure', async () => {
     const service = makeJoseTokenService({
       ...options,
       privateKeyPem: 'not-a-pem',
@@ -179,7 +179,7 @@ describe('jose token service', () => {
 
     const error = await runFailure(service.sign(claims, 900));
 
-    expect(error._tag).toBe('EntifixConnError');
+    expect(error._tag).toBe('Internal');
   });
 
   it('imports each key once, however many tokens pass through', async () => {

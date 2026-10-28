@@ -1,5 +1,3 @@
-import { EntifixLogicError } from '@entifix/core';
-
 /**
  * A host's role ladder: its roles in rank order, and the assignment rule bound
  * to them ([ADR 0007](../../../../../docs/adr/0007-the-host-supplies-the-role-ladder.md)).
@@ -69,27 +67,19 @@ export const defineRoleLadder = <
   type TRole = TRoles[number];
 
   if ((roles as readonly string[]).length === 0) {
-    throw new EntifixLogicError(
-      'A role ladder needs at least one rung.',
-      undefined,
-      { roles },
-    );
+    throw new Error('A role ladder needs at least one rung.');
   }
   const repeated = roles.filter((role, index) => roles.indexOf(role) !== index);
   if (repeated.length > 0) {
-    throw new EntifixLogicError(
+    throw new Error(
       `A role ladder names each rung once; repeated: ${[...new Set(repeated)].join(', ')}.`,
-      undefined,
-      { roles, repeated },
     );
   }
 
   const defaultRole = options.defaultRole ?? (roles[0] as TRole);
   if (!(roles as readonly string[]).includes(defaultRole)) {
-    throw new EntifixLogicError(
+    throw new Error(
       `The default role "${defaultRole}" is not a rung of the ladder.`,
-      undefined,
-      { roles, defaultRole },
     );
   }
 
