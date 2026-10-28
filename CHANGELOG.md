@@ -1,3 +1,17 @@
+## 0.10.0 (2026-10-28)
+
+### 🚀 Features
+
+- ⚠️ failures are typed values, answered once at the shell and logged only there ([#128](https://github.com/r10c-technologies/entifix/pull/128))
+
+### ⚠️ Breaking Changes
+
+- failures are typed values, answered once at the shell and logged only there ([#128](https://github.com/r10c-technologies/entifix/pull/128))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.9.0 (2026-10-26)
 
 ### 🚀 Features
