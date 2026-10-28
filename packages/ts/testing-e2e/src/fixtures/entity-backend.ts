@@ -14,11 +14,15 @@ import {
   type EntityId,
   type EntityLoadRequest,
   envelopeEntityName,
+  Internal,
+  InvalidQuery,
   makeEntityEnvelope,
   makeEntityFacetsEnvelope,
   makeEntityPageEnvelope,
+  NotFound,
   parseFacetQueryParams,
   parseLoadRequestParams,
+  problemOf,
 } from '@entifix/core';
 import { makeMongoFacetCounter, makeMongoRepository } from '@entifix/mongo';
 import {
@@ -135,7 +139,9 @@ export const makeEntityBackend = <TEntity extends Entity>(
         // reporting it verbatim is more useful than hiding it behind a 500.
         return {
           status: 400,
-          body: { error: 'invalid query', detail: String(error) },
+          body: problemOf(
+            new InvalidQuery({ reason: (error as Error).message }),
+          ),
         };
       }
 
@@ -160,7 +166,7 @@ export const makeEntityBackend = <TEntity extends Entity>(
         // request was valid, the store was not reachable.
         return {
           status: 500,
-          body: { error: 'request failed', detail: String(error) },
+          body: problemOf(new Internal()),
         };
       }
     },
@@ -174,7 +180,9 @@ export const makeEntityBackend = <TEntity extends Entity>(
       } catch (error) {
         return {
           status: 400,
-          body: { error: 'invalid query', detail: String(error) },
+          body: problemOf(
+            new InvalidQuery({ reason: (error as Error).message }),
+          ),
         };
       }
 
@@ -191,7 +199,7 @@ export const makeEntityBackend = <TEntity extends Entity>(
       } catch (error) {
         return {
           status: 500,
-          body: { error: 'request failed', detail: String(error) },
+          body: problemOf(new Internal()),
         };
       }
     },
@@ -206,7 +214,7 @@ export const makeEntityBackend = <TEntity extends Entity>(
       );
 
       return entity._tag === 'None'
-        ? { status: 404, body: { message: `${key} not found` } }
+        ? { status: 404, body: problemOf(new NotFound({ entity: key })) }
         : {
             status: 200,
             body: makeEntityEnvelope(

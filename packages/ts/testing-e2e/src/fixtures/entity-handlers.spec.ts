@@ -60,7 +60,10 @@ describe('entityBackendHandlers', () => {
     const response = await fetch(`${BASE_URL}?rsql=nope%3D%3D1`);
 
     expect(response.status).toBe(400);
-    expect(await response.json()).toMatchObject({ error: 'invalid query' });
+    expect(response.headers.get('content-type')).toBe(
+      'application/problem+json',
+    );
+    expect(await response.json()).toMatchObject({ code: 'invalidQuery' });
   });
 
   it('serves the facet counts ahead of `/:id`', async () => {

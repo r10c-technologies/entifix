@@ -1,7 +1,7 @@
 import type { Permission } from '@entifix/authz';
 import { Effect } from 'effect';
-import { HttpServerResponse } from 'effect/http';
 
+import { NoActiveOrganization, refuse } from './failures.js';
 import {
   type RequestPrincipal,
   requirePermission,
@@ -18,10 +18,7 @@ import {
  * catalog against, because for a while it was simply false and the code
  * reached the browser as its own literal text.
  */
-const noOrganization = HttpServerResponse.json(
-  { error: 'no active organization', code: 'noActiveOrganization' },
-  { status: 409 },
-);
+const noOrganization = refuse(new NoActiveOrganization());
 
 /**
  * Guard a **tenant-plane** handler: authenticate, check the permission, and

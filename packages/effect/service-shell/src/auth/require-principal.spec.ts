@@ -141,8 +141,7 @@ describe('requirePrincipal', () => {
       const res = await fetch(`${baseUrl}/api/me`);
 
       expect(res.status).toBe(401);
-      expect(await res.json()).toEqual({
-        error: 'unauthenticated',
+      expect(await res.json()).toMatchObject({
         code: 'unauthenticated',
       });
     });
@@ -190,8 +189,7 @@ describe('requirePermission', () => {
       });
 
       expect(res.status).toBe(403);
-      expect(await res.json()).toEqual({
-        error: 'forbidden',
+      expect(await res.json()).toMatchObject({
         code: 'forbidden',
         permission: 'authn:user-identity:read',
       });

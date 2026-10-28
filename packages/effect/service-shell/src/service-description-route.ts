@@ -4,6 +4,7 @@ import { Effect } from 'effect';
 import { HttpRouter, HttpServerResponse } from 'effect/http';
 
 import { requireSharedToken, type SharedToken } from './auth/shared-token.js';
+import { respond } from './respond.js';
 
 /**
  * The path the wiring document is served at.
@@ -114,9 +115,11 @@ export const serviceDescriptionRoute = (
   HttpRouter.add(
     'GET',
     SERVICE_DESCRIPTION_PATH,
-    requireSharedToken(guard)(
-      Effect.flatMap(describe(serviceName, slices), description =>
-        HttpServerResponse.json(description),
+    respond(
+      requireSharedToken(guard)(
+        Effect.flatMap(describe(serviceName, slices), description =>
+          HttpServerResponse.json(description),
+        ),
       ),
     ),
   );

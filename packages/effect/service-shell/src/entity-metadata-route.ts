@@ -15,11 +15,13 @@ import {
   type EntityMetadataDocument,
   extractMetaEntity,
   makeEntityMetadataEnvelope,
+  NotFound,
 } from '@entifix/core';
 import { Effect } from 'effect';
 import { HttpServerRequest, HttpServerResponse } from 'effect/http';
 
 import { requirePrincipal } from './auth/index.js';
+import { respond } from './respond.js';
 
 /**
  * `GET /api/<entity>/$metadata` — what this caller may do with one entity.
@@ -42,62 +44,65 @@ import { requirePrincipal } from './auth/index.js';
 export const entityMetadataRoute = <TEntity extends Entity>(
   entityConstructor: EntityConstructor<TEntity>,
 ) =>
-  requirePrincipal(principal =>
-    Effect.gen(function* () {
-      const policy = yield* PolicyDecisionTag;
-      const allows = (permission: Permission): boolean => {
-        const { resource, action } = parsePermission(permission);
-        return policy.decide({
-          subject: { roles: principal.roles },
-          resource,
-          action,
-        });
-      };
+  respond(
+    requirePrincipal(principal =>
+      Effect.gen(function* () {
+        const policy = yield* PolicyDecisionTag;
+        const allows = (permission: Permission): boolean => {
+          const { resource, action } = parsePermission(permission);
+          return policy.decide({
+            subject: { roles: principal.roles },
+            resource,
+            action,
+          });
+        };
 
-      // SECURITY BOUNDARY. The document names domains, entity keys and verbs —
-      // it is a map of the model — so an entity the caller may not read answers
-      // exactly as one this service does not host. A `403` here would make the
-      // endpoint an oracle: walk it and learn the shape of everything you are
-      // not allowed to see. Same category as `redactConfiguration`, not
-      // diagnostics polish.
-      if (!allows(permissionForEntity(entityConstructor, 'read'))) {
-        return yield* notFound(entityConstructor);
-      }
+        // SECURITY BOUNDARY. The document names domains, entity keys and verbs —
+        // it is a map of the model — so an entity the caller may not read answers
+        // exactly as one this service does not host. A `403` here would make the
+        // endpoint an oracle: walk it and learn the shape of everything you are
+        // not allowed to see. Same category as `redactConfiguration`, not
+        // diagnostics polish.
+        if (!allows(permissionForEntity(entityConstructor, 'read'))) {
+          return yield* notFound(entityConstructor);
+        }
 
-      const document: EntityMetadataDocument = {
-        actions: ENTITY_ACTIONS.filter(action =>
-          allows(permissionForEntity(entityConstructor, action)),
-        ),
-        useCases: describeEntityUseCases(entityConstructor).filter(descriptor =>
-          allows(permissionForUseCase(entityConstructor, descriptor.key)),
-        ),
-      };
+        const document: EntityMetadataDocument = {
+          actions: ENTITY_ACTIONS.filter(action =>
+            allows(permissionForEntity(entityConstructor, action)),
+          ),
+          useCases: describeEntityUseCases(entityConstructor).filter(
+            descriptor =>
+              allows(permissionForUseCase(entityConstructor, descriptor.key)),
+          ),
+        };
 
-      // The ETag hashes the *computed* document, not the descriptor set the
-      // deployment declares. Two principals with different grants get different
-      // documents from the same model, so a hash of the model would `304` one
-      // caller onto another's affordances. Hashing the permission set instead
-      // would read `ROLE_PERMISSIONS` directly and go around `PolicyDecisionTag`,
-      // so an injected ABAC policy could change affordances without changing the
-      // tag. Computing first costs a metadata read and a handful of pure
-      // `decide` calls — no IO.
-      const body = JSON.stringify(
-        makeEntityMetadataEnvelope(entityConstructor, document),
-      );
-      const etag = `"${createHash('sha256').update(body).digest('hex')}"`;
-
-      const request = yield* HttpServerRequest.HttpServerRequest;
-      if (request.headers['if-none-match'] === etag) {
-        return HttpServerResponse.empty({ status: 304 }).pipe(
-          HttpServerResponse.setHeaders(cacheHeaders(etag)),
+        // The ETag hashes the *computed* document, not the descriptor set the
+        // deployment declares. Two principals with different grants get different
+        // documents from the same model, so a hash of the model would `304` one
+        // caller onto another's affordances. Hashing the permission set instead
+        // would read `ROLE_PERMISSIONS` directly and go around `PolicyDecisionTag`,
+        // so an injected ABAC policy could change affordances without changing the
+        // tag. Computing first costs a metadata read and a handful of pure
+        // `decide` calls — no IO.
+        const body = JSON.stringify(
+          makeEntityMetadataEnvelope(entityConstructor, document),
         );
-      }
+        const etag = `"${createHash('sha256').update(body).digest('hex')}"`;
 
-      return HttpServerResponse.text(body, {
-        contentType: 'application/json',
-        headers: cacheHeaders(etag),
-      });
-    }),
+        const request = yield* HttpServerRequest.HttpServerRequest;
+        if (request.headers['if-none-match'] === etag) {
+          return HttpServerResponse.empty({ status: 304 }).pipe(
+            HttpServerResponse.setHeaders(cacheHeaders(etag)),
+          );
+        }
+
+        return HttpServerResponse.text(body, {
+          contentType: 'application/json',
+          headers: cacheHeaders(etag),
+        });
+      }),
+    ),
   );
 
 /**
@@ -116,11 +121,6 @@ const cacheHeaders = (etag: string) => ({
 const notFound = <TEntity extends Entity>(
   entityConstructor: EntityConstructor<TEntity>,
 ) =>
-  HttpServerResponse.json(
-    {
-      message: 'not found',
-      code: 'notFound',
-      entity: extractMetaEntity(entityConstructor).key,
-    },
-    { status: 404 },
+  Effect.fail(
+    new NotFound({ entity: extractMetaEntity(entityConstructor).key }),
   );

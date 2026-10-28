@@ -1,7 +1,10 @@
 import { timingSafeEqual } from 'node:crypto';
 
+import { Unauthenticated } from '@entifix/core';
 import { Effect } from 'effect';
-import { HttpServerRequest, HttpServerResponse } from 'effect/http';
+import { HttpServerRequest } from 'effect/http';
+
+import { refuse } from './failures.js';
 
 /**
  * A secret every caller of a route presents in one header.
@@ -24,7 +27,10 @@ export interface SharedToken {
 
 /** Constant-time comparison, so the token cannot be recovered byte by byte. */
 const matches = (provided: string | undefined, expected: string): boolean => {
-  if (provided === undefined) return false;
+  // An empty credential is refused outright, on either side: two empty
+  // buffers compare equal, so an unset secret would admit an empty header.
+  if (provided === undefined || provided === '' || expected === '')
+    return false;
   const left = Buffer.from(provided);
   const right = Buffer.from(expected);
   // `timingSafeEqual` throws on a length mismatch, so the lengths are compared
@@ -54,10 +60,7 @@ export const requireSharedToken =
       const request = yield* HttpServerRequest.HttpServerRequest;
 
       if (!matches(request.headers[shared.header], shared.token())) {
-        return yield* HttpServerResponse.json(
-          { error: 'unauthenticated', code: 'unauthenticated' },
-          { status: 401 },
-        );
+        return yield* refuse(new Unauthenticated());
       }
 
       return yield* route;

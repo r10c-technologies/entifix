@@ -11,7 +11,7 @@ import {
   saveUCFactory,
 } from '@entifix/business';
 import {
-  EntifixBuildError,
+  type EntifixBuildError,
   type EntifixEnvelopeLink,
   type Entity,
   type EntityConstructor,
@@ -21,6 +21,7 @@ import {
   extractMetaEntity,
   makeEntityEnvelope,
   makeEntityPageEnvelope,
+  NotFound,
   parseLoadRequestParams,
   readEntityEnvelope,
 } from '@entifix/core';
@@ -36,8 +37,13 @@ import {
   type GuardServices,
 } from './entity-route-guard.js';
 import {
-  EntityRouteRefusal,
-  invalid,
+  defaultFailurePolicy,
+  type FailurePolicy,
+  respond,
+} from './respond.js';
+import {
+  type EntityRouteRefusal,
+  legacyAnswer,
   routeFailure,
 } from './route-responses.js';
 
@@ -91,6 +97,11 @@ export interface EntityRoutesOptions<
    * cannot drift from the rest of the set.
    */
   readonly override?: Partial<Record<EntityVerb, EntityRouteOverride<R>>>;
+  /**
+   * How every verb's failures are answered and logged. Defaults to
+   * {@link defaultFailurePolicy}; a host passes its fleet policy.
+   */
+  readonly policy?: FailurePolicy;
 }
 
 const ACTION: Record<EntityVerb, Action> = {
@@ -202,13 +213,8 @@ const deriveEntityRoutes = <
     });
   });
 
-  const notFound = HttpServerResponse.json(
-    {
-      message: 'not found',
-      code: 'notFound',
-      entity: extractMetaEntity(entityConstructor).key,
-    },
-    { status: 404 },
+  const notFound = Effect.fail(
+    new NotFound({ entity: extractMetaEntity(entityConstructor).key }),
   );
 
   const list = (context: EntityRouteContext) =>
@@ -246,9 +252,7 @@ const deriveEntityRoutes = <
       return yield* HttpServerResponse.json(
         makeEntityPageEnvelope(entityConstructor, page, links.collection()),
       );
-    }).pipe(
-      Effect.catch(error => invalid(error, 'invalid query', 'invalidQuery')),
-    );
+    }).pipe(Effect.catch(legacyAnswer('invalidQuery')));
 
   const get = (context: EntityRouteContext) =>
     Effect.gen(function* () {
@@ -275,7 +279,7 @@ const deriveEntityRoutes = <
           links.record(params.id),
         ),
       );
-    }).pipe(Effect.catch(routeFailure));
+    }).pipe(Effect.catch(legacyAnswer('invalid')));
 
   const save = (verb: 'create' | 'update') => (context: EntityRouteContext) =>
     Effect.gen(function* () {
@@ -300,11 +304,7 @@ const deriveEntityRoutes = <
       return yield* HttpServerResponse.json(
         makeEntityEnvelope(entityConstructor, saved, links.record(saved.id)),
       );
-    }).pipe(
-      Effect.catch(error =>
-        invalid(error, 'invalid request body', 'invalidBody'),
-      ),
-    );
+    }).pipe(Effect.catch(legacyAnswer('invalidBody')));
 
   /**
    * Answers with an envelope rather than a bare `204`: every message between
@@ -322,7 +322,7 @@ const deriveEntityRoutes = <
         meta: { type: 'entity', entity: key, links: links.collection() },
         data: { id: params.id },
       });
-    }).pipe(Effect.catch(routeFailure));
+    }).pipe(Effect.catch(legacyAnswer('invalid')));
 
   const generic = (verb: EntityVerb, context: EntityRouteContext) => {
     switch (verb) {
@@ -345,18 +345,23 @@ const deriveEntityRoutes = <
    * actually needs.
    */
   const handlerFor = (verb: EntityVerb) =>
-    guarded(verb, context => {
-      const override = options.override?.[verb];
-      return override ? override(context, links) : generic(verb, context);
-    }) as Effect.Effect<
-      HttpServerResponse.HttpServerResponse,
-      unknown,
-      | R
-      | EntityRepositoryFactoryTag
-      | GuardServices<G>
-      | HttpServerRequest.HttpServerRequest
-      | HttpRouter.RouteContext
-    >;
+    respond(
+      (
+        guarded(verb, context => {
+          const override = options.override?.[verb];
+          return override ? override(context, links) : generic(verb, context);
+        }) as Effect.Effect<
+          HttpServerResponse.HttpServerResponse,
+          unknown,
+          | R
+          | EntityRepositoryFactoryTag
+          | GuardServices<G>
+          | HttpServerRequest.HttpServerRequest
+          | HttpRouter.RouteContext
+        >
+      ).pipe(Effect.catch(legacyAnswer('invalid'))),
+      options.policy ?? defaultFailurePolicy,
+    );
 
   const ROUTES: Record<
     EntityVerb,

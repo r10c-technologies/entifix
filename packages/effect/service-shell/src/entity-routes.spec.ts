@@ -288,8 +288,7 @@ describe('makeEntityRoutes, public reads and guarded writes', () => {
       ).meta.links.map(link => link.rel),
     ).toEqual(['self', 'list', 'update', 'delete']);
     expect(missing.status).toBe(404);
-    expect(await missing.json()).toEqual({
-      message: 'not found',
+    expect(await missing.json()).toMatchObject({
       code: 'notFound',
       entity: 'widget',
     });
@@ -354,14 +353,12 @@ describe('makeEntityRoutes, public reads and guarded writes', () => {
     const plain = await save('plain-invalid');
 
     expect(taken.status).toBe(409);
-    expect(await taken.json()).toEqual({
-      error: 'the record cannot be saved',
+    expect(await taken.json()).toMatchObject({
       code: 'nameTaken',
       detail: 'pick another',
     });
     expect(reserved.status).toBe(422);
-    expect(await reserved.json()).toEqual({
-      error: 'the record cannot be saved',
+    expect(await reserved.json()).toMatchObject({
       code: 'nameReserved',
     });
     expect(shouty.status).toBe(400);
@@ -376,7 +373,7 @@ describe('makeEntityRoutes, public reads and guarded writes', () => {
     );
 
     expect(res.status).toBe(400);
-    expect(await res.json()).toMatchObject({ code: 'invalidBody' });
+    expect(await res.json()).toMatchObject({ code: 'invalidEnvelope' });
   });
 
   it('deletes, answering an envelope', async () => {
@@ -398,7 +395,7 @@ describe('makeEntityRoutes, public reads and guarded writes', () => {
     });
   });
 
-  it('answers a store that is not there as a 500 on every verb', async () => {
+  it('answers a store that is not there as a 503 on every verb', async () => {
     factoryFailure = new EntifixConnError('no pool');
     try {
       const editor = bearer(['editor']);
@@ -413,7 +410,7 @@ describe('makeEntityRoutes, public reads and guarded writes', () => {
         ),
       ]);
 
-      expect(statuses).toEqual([500, 500, 500, 500]);
+      expect(statuses).toEqual([503, 503, 503, 503]);
     } finally {
       factoryFailure = undefined;
     }

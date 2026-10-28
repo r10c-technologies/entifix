@@ -197,12 +197,12 @@ describe('makeEntityFacetRoutes', () => {
     expect(body).toMatchObject({ code: 'invalidQuery' });
   });
 
-  it('answers a counter it could not open with a 500', async () => {
+  it('answers a counter it could not open with a 503', async () => {
     failure = new EntifixConnError('down');
 
     const { status } = await call('/api/widget/$facets?facet=brand');
 
-    expect(status).toBe(500);
+    expect(status).toBe(503);
   });
 
   it('conjoins the caller’s scope into every facet, on the caller’s organization', async () => {

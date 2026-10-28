@@ -56,6 +56,9 @@ export class Unauthenticated extends defineFailure(
 export class Forbidden extends defineFailure('forbidden')<Forbidden>()(
   'Forbidden',
   'forbidden',
+  // Which grant was missing: diagnostic, not a leak — the caller already
+  // knows what it asked to do.
+  { permission: Schema.optionalKey(Schema.String) },
 ) {}
 
 /** The addressed record does not exist. */

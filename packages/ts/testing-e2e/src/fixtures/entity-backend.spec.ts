@@ -109,7 +109,7 @@ describe('makeEntityBackend', () => {
     const { status, body } = await backend().list(query(search));
 
     expect(status).toBe(400);
-    expect((body as { error: string }).error).toBe('invalid query');
+    expect(body).toMatchObject({ code: 'invalidQuery', status: 400 });
   });
 
   it('serves a single record with its links', async () => {
@@ -128,7 +128,7 @@ describe('makeEntityBackend', () => {
     const { status, body } = await backend().get('missing');
 
     expect(status).toBe(404);
-    expect(body).toEqual({ message: 'widget not found' });
+    expect(body).toMatchObject({ code: 'notFound', entity: 'widget' });
   });
 
   it('reseeds, so one fixture can serve several journeys', async () => {
@@ -148,7 +148,8 @@ describe('makeEntityBackend', () => {
     const { status, body } = await instance.list(query(''));
 
     expect(status).toBe(500);
-    expect((body as { error: string }).error).toBe('request failed');
+    expect(body).toMatchObject({ code: 'internal', status: 500 });
+    expect(JSON.stringify(body)).not.toContain('Error');
   });
 
   it('starts empty when no seed is given', async () => {
@@ -178,7 +179,7 @@ describe('makeEntityBackend', () => {
     const { status, body } = await backend().facets(query('facet=nope'));
 
     expect(status).toBe(400);
-    expect((body as { error: string }).error).toBe('invalid query');
+    expect(body).toMatchObject({ code: 'invalidQuery', status: 400 });
   });
 
   it('answers 500 when the driver fails a count', async () => {

@@ -15,6 +15,7 @@ import { HttpRouter } from 'effect/http';
 
 import type { SharedToken } from './auth/shared-token.js';
 import { healthRoutes } from './health-routes.js';
+import { problemNet } from './respond.js';
 import { serviceDescriptionRoute } from './service-description-route.js';
 
 /**
@@ -121,6 +122,8 @@ export const makeServerLayer = <RRoutes>(
     // Permissive CORS (frontends call these services cross-origin from their
     // dev ports). Tighten per-environment later.
     HttpRouter.cors(),
+    // The last net: a defect no route answered is still a problem body.
+    problemNet,
   );
 
   // `provideMerge` (not `provide`) so the registries the client layers

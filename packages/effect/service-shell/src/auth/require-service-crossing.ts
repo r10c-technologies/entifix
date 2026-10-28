@@ -1,8 +1,11 @@
 import { timingSafeEqual } from 'node:crypto';
 
 import { type Permission, ServiceCrossingPolicyTag } from '@entifix/authz';
+import { Forbidden, Invalid, Unauthenticated } from '@entifix/core';
 import { Context, Effect } from 'effect';
-import { HttpServerRequest, HttpServerResponse } from 'effect/http';
+import { HttpServerRequest } from 'effect/http';
+
+import { refuse } from './failures.js';
 
 /**
  * The header carrying the crossing secret.
@@ -53,7 +56,10 @@ export class ServiceCrossingTokenTag extends Context.Service<
 
 /** Constant-time comparison, so the secret cannot be recovered byte by byte. */
 const matches = (provided: string | undefined, expected: string): boolean => {
-  if (provided === undefined) return false;
+  // An empty credential is refused outright, on either side: two empty
+  // buffers compare equal, so an unset secret would admit an empty header.
+  if (provided === undefined || provided === '' || expected === '')
+    return false;
   const left = Buffer.from(provided);
   const right = Buffer.from(expected);
   // `timingSafeEqual` throws on a length mismatch, so lengths are compared
@@ -61,24 +67,21 @@ const matches = (provided: string | undefined, expected: string): boolean => {
   return left.length === right.length && timingSafeEqual(left, right);
 };
 
-const unauthenticated = HttpServerResponse.json(
-  { error: 'unauthenticated', code: 'unauthenticated' },
-  { status: 401 },
-);
+const unauthenticated = refuse(new Unauthenticated());
 
 const forbidden = (permission: Permission) =>
-  HttpServerResponse.json(
-    { error: 'forbidden', code: 'forbidden', permission },
-    { status: 403 },
-  );
+  refuse(new Forbidden({ permission }));
 
-const organizationRequired = HttpServerResponse.json(
-  {
-    error: 'the crossing must name an organization',
-    code: 'invalidRequest',
-    detail: `${ORGANIZATION_HEADER} is required`,
-  },
-  { status: 400 },
+const organizationRequired = refuse(
+  new Invalid({
+    errors: [
+      {
+        pointer: `/headers/${ORGANIZATION_HEADER}`,
+        detail: `${ORGANIZATION_HEADER} is required`,
+        code: 'organizationRequired',
+      },
+    ],
+  }),
 );
 
 /**
