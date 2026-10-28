@@ -19,6 +19,7 @@ export * from './lib/config/config-route.js';
 // through its own app's `/api/config` route — has to carry it itself. It never
 // reaches the browser: this is the server entry.
 export * from './lib/config/configuration-source.js';
+export * from './lib/config/problem-response.js';
 
 // The same-origin proxy each host mounts per backend it talks to.
 export * from './lib/config/service-proxy-route.js';

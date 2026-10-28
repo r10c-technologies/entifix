@@ -1,3 +1,5 @@
+import type { FailureCategory } from '@entifix/core';
+
 /**
  * The wire contract of `GET /api/search` — the cross-domain record search the
  * command palette reads.
@@ -20,15 +22,14 @@
  * Every member is a key in the shared `errors` catalog, so a caller renders one
  * through the documented runtime-key hatch rather than inventing copy.
  */
-export type RecordSearchUnavailableReason =
-  | 'timeout'
-  | 'network'
-  | 'unauthenticated'
-  | 'forbidden'
-  | 'noActiveOrganization'
-  | 'invalidQuery'
-  | 'notFound'
-  | 'unexpected';
+/**
+ * Why a source produced nothing: the code of the failure it answered with,
+ * decoded from its problem body — `noActiveOrganization`, `forbidden`,
+ * `upstreamUnavailable` — or `timeout` when it never answered in time. A
+ * code, so the browser renders it through the `errors` catalog like any other
+ * refusal.
+ */
+export type RecordSearchUnavailableReason = string;
 
 /** One record a caller can show and route to. */
 export interface RecordSearchOption {
@@ -78,6 +79,8 @@ export interface RecordSearchUnavailable {
   readonly source: string;
   readonly entity: string;
   readonly reason: RecordSearchUnavailableReason;
+  /** The failure's category: what decides whether this is scope or an outage. */
+  readonly category: FailureCategory;
   /** The upstream status, when there was a response. Absent on a throw. */
   readonly status?: number;
 }

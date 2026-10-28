@@ -1,9 +1,7 @@
+import { decodeProblem } from '@entifix/core';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import {
-  createServiceProxyRoute,
-  UPSTREAM_UNAVAILABLE,
-} from './service-proxy-route.js';
+import { createServiceProxyRoute } from './service-proxy-route.js';
 
 const SERVICE_URL = 'http://marketplace-service.test';
 
@@ -284,6 +282,99 @@ describe('createServiceProxyRoute', () => {
   });
 });
 
+describe('the answer the proxy rebuilds', () => {
+  it('names the namespace it could not reach', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.reject(new TypeError('fetch failed'))),
+    );
+    const prefixed = createServiceProxyRoute({
+      baseUrl: SERVICE_URL,
+      pathPrefix: 'transaction',
+    });
+
+    const response = await prefixed(
+      new Request('http://app/api/transaction/events'),
+      params(['events']),
+    );
+
+    expect(decodeProblem(await response.json())).toMatchObject({
+      _tag: 'UpstreamUnavailable',
+      upstream: 'transaction',
+    });
+  });
+
+  it('reads a body the service sent untyped as JSON', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(new TextEncoder().encode('{"ok":true}'), {
+            status: 200,
+          }),
+        ),
+      ),
+    );
+
+    const response = await forward(
+      new Request('http://app/api/thing'),
+      params(['thing']),
+    );
+
+    expect(response.headers.get('content-type')).toBe('application/json');
+  });
+
+  it('keeps a problem body’s own content type, so the browser can decode it', async () => {
+    vi.stubGlobal(
+      'fetch',
+      answering('{"code":"notFound"}', 404, {
+        'content-type': 'application/problem+json',
+        'retry-after': '3',
+        traceparent: '00-abc-def-01',
+      }),
+    );
+
+    const response = await forward(
+      new Request('http://app/api/thing'),
+      params(['thing']),
+    );
+
+    expect(response.headers.get('content-type')).toBe(
+      'application/problem+json',
+    );
+    expect(response.headers.get('retry-after')).toBe('3');
+    expect(response.headers.get('traceparent')).toBe('00-abc-def-01');
+  });
+
+  it('forwards the idempotency key, the trace and the deadline upstream', async () => {
+    const fetchMock = answering('{}', 200);
+    vi.stubGlobal('fetch', fetchMock);
+
+    await forward(
+      new Request('http://app/api/thing', {
+        method: 'POST',
+        body: '{}',
+        headers: {
+          'idempotency-key': 'key-1',
+          traceparent: '00-abc-def-01',
+          'x-request-timeout-ms': '900',
+        },
+      }),
+      params(['thing']),
+    );
+
+    const sent = fetchMock.mock.calls[0]?.[1]?.headers as Record<
+      string,
+      string
+    >;
+    expect(sent).toMatchObject({
+      'idempotency-key': 'key-1',
+      traceparent: '00-abc-def-01',
+      'x-request-timeout-ms': '900',
+    });
+  });
+});
+
 describe('pathPrefix', () => {
   /**
    * ⚠️ The regression a live pass caught. `/api/transaction/events` forwarded to
@@ -322,7 +413,7 @@ describe('pathPrefix', () => {
     expect(fetchMock.mock.calls[0]?.[0]).toBe(`${SERVICE_URL}/api/stock-item`);
   });
 
-  it('answers 502 with a code when the service cannot be reached', async () => {
+  it('answers 502 with an UpstreamUnavailable problem when the service cannot be reached', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(() => Promise.reject(new TypeError('fetch failed'))),
@@ -335,7 +426,13 @@ describe('pathPrefix', () => {
 
     expect(response.status).toBe(502);
     expect(response.headers.get('cache-control')).toBe('no-store');
-    expect(await response.json()).toMatchObject({ code: UPSTREAM_UNAVAILABLE });
+    expect(response.headers.get('content-type')).toBe(
+      'application/problem+json',
+    );
+    expect(decodeProblem(await response.json())).toMatchObject({
+      _tag: 'UpstreamUnavailable',
+      category: 'unavailable',
+    });
   });
 
   it('still passes an upstream 500 through as the service answered it', async () => {

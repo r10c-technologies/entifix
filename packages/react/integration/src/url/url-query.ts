@@ -1,5 +1,4 @@
 import {
-  EntifixLogicError,
   type Entity,
   type EntityFilter,
   type EntityFiltering,
@@ -160,20 +159,16 @@ export function defineUrlQuery<TKey extends string, TContext = undefined>({
   const pageKeys = keys.filter(key => isPageParam(params[key]));
   // Two would be two answers to "which page", and the request has one.
   if (pageKeys.length > 1) {
-    throw new EntifixLogicError(
+    throw new Error(
       `A URL query declares one page parameter at most; found ${pageKeys.join(', ')}.`,
-      undefined,
-      { pageKeys },
     );
   }
   const [pageKey] = pageKeys;
   const pageSize =
     pageKey === undefined ? undefined : (params[pageKey] as PageParam).pageSize;
   if (pageSize !== undefined && !(Number.isInteger(pageSize) && pageSize > 0)) {
-    throw new EntifixLogicError(
+    throw new Error(
       `The page parameter "${pageKey}" needs a positive integer pageSize; got ${pageSize}.`,
-      undefined,
-      { pageKey, pageSize },
     );
   }
   const stateOf = (values: (key: TKey) => readonly string[]) =>

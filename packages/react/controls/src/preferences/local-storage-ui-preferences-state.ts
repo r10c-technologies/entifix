@@ -1,4 +1,4 @@
-import { EntifixConnError } from '@entifix/core';
+import { Unavailable } from '@entifix/core';
 import { Effect, Layer } from 'effect';
 
 import {
@@ -41,11 +41,7 @@ export function makeLocalStorageUiPreferencesState(
             return undefined;
           }
         },
-        catch: cause =>
-          new EntifixConnError(
-            `Unable to read UI preference "${key}"`,
-            cause,
-          ) as EntifixConnError,
+        catch: () => new Unavailable({ dependency: 'localStorage' }),
       }),
 
     write: <TValue>(key: string, value: TValue) =>
@@ -54,11 +50,7 @@ export function makeLocalStorageUiPreferencesState(
           if (!isBrowser()) return;
           window.localStorage.setItem(storageKey(key), JSON.stringify(value));
         },
-        catch: cause =>
-          new EntifixConnError(
-            `Unable to write UI preference "${key}"`,
-            cause,
-          ) as EntifixConnError,
+        catch: () => new Unavailable({ dependency: 'localStorage' }),
       }),
 
     remove: (key: string) =>
@@ -67,11 +59,7 @@ export function makeLocalStorageUiPreferencesState(
           if (!isBrowser()) return;
           window.localStorage.removeItem(storageKey(key));
         },
-        catch: cause =>
-          new EntifixConnError(
-            `Unable to remove UI preference "${key}"`,
-            cause,
-          ) as EntifixConnError,
+        catch: () => new Unavailable({ dependency: 'localStorage' }),
       }),
   };
 }

@@ -1,4 +1,3 @@
-import { EntifixBuildError } from '@entifix/core';
 import { type Context, createContext, useContext } from 'react';
 
 export function createAdaptersContext<TAdapters>() {
@@ -13,7 +12,7 @@ export function useAdaptersContext<TAdapters>(context: Context<TAdapters>) {
   // for strings, arrays and null, none of which can reach here, and it was the
   // single import crossing out of entifix.
   if (Object.keys(contextValue as object).length === 0) {
-    throw new EntifixBuildError(
+    throw new Error(
       'Adapters context is empty. Make sure to wrap your component tree with the appropriate AdaptersProvider.',
     );
   }

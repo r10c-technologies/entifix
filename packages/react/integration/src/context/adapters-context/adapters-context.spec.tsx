@@ -1,4 +1,3 @@
-import { EntifixBuildError } from '@entifix/core';
 import { renderHook } from '@testing-library/react';
 import type { PropsWithChildren } from 'react';
 import { describe, expect, it } from 'vitest';
@@ -36,7 +35,7 @@ describe('adapters context', () => {
     const AdaptersContext = createAdaptersContext<Adapters>();
 
     expect(() => renderHook(() => useAdaptersContext(AdaptersContext))).toThrow(
-      EntifixBuildError,
+      Error,
     );
   });
 
@@ -58,6 +57,6 @@ describe('adapters context', () => {
 
     expect(() =>
       renderHook(() => useAdaptersContext(AdaptersContext), { wrapper }),
-    ).toThrow(EntifixBuildError);
+    ).toThrow(Error);
   });
 });

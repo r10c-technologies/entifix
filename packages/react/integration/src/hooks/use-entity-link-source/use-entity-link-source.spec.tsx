@@ -7,7 +7,6 @@ import {
   accessor,
   describeEntityColumns,
   EntifixConnError,
-  EntifixLogicError,
   type Entity,
   entity,
   type EntityFieldDescriptor,
@@ -283,7 +282,7 @@ describe('useEntityLinkSource', () => {
       renderSource({
         descriptor: brandDescriptor({ linkSearchProperty: 'notes' }),
       }),
-    ).toThrow(EntifixLogicError);
+    ).toThrow(Error);
   });
 
   it('refuses to search a localized member, having no locale to search it in', () => {
@@ -299,7 +298,7 @@ describe('useEntityLinkSource', () => {
       renderSource({
         descriptor: brandDescriptor({ linkSearchProperty: 'nope' }),
       }),
-    ).toThrow(EntifixLogicError);
+    ).toThrow(Error);
   });
 
   it('surfaces a failed suggestion request', async () => {

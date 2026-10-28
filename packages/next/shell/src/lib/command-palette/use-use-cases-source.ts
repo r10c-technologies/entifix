@@ -3,7 +3,6 @@
 import {
   type CommandOption,
   type CommandSource,
-  EntifixLogicError,
   type Entity,
   type EntityConstructor,
   type EntityMetadataSource,
@@ -90,11 +89,9 @@ function useUseCasesSource(
     const options: CommandOption[] = descriptors.map(descriptor => {
       const run = entity.handlers[descriptor.key];
       if (run === undefined) {
-        throw new EntifixLogicError(
+        throw new Error(
           `The use case "${descriptor.key}" on ${name} reaches the command palette but this host registered no handler for it. ` +
             'Add one to the entity’s `handlers`, or stop declaring the verb `unbound`.',
-          undefined,
-          { entity: name, key: descriptor.key },
         );
       }
 

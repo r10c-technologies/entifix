@@ -1,5 +1,5 @@
 import { EntityIdTag, EntityTag } from '@entifix/business';
-import { Entity,type TransitionalFailure } from '@entifix/core';
+import { Entity, type TransitionalFailure } from '@entifix/core';
 import { Context, Effect } from 'effect';
 
 export interface UseEntityMutationState {

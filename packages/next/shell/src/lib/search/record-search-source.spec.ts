@@ -1,6 +1,5 @@
 import {
   accessor,
-  EntifixLogicError,
   type Entity,
   entity,
   type EntityId,
@@ -144,9 +143,7 @@ describe('defineRecordSearchSource', () => {
 
   describe('rejecting a declaration the metadata cannot honour', () => {
     it('refuses a search member the entity does not declare', () => {
-      expect(() => define({ searchProperty: 'nope' })).toThrow(
-        EntifixLogicError,
-      );
+      expect(() => define({ searchProperty: 'nope' })).toThrow(/nope/);
     });
 
     it('refuses a search member that is not filterable', () => {
@@ -194,8 +191,8 @@ describe('defineRecordSearchSource', () => {
         define({ searchProperty: 'secret' });
         expect.unreachable();
       } catch (error) {
-        expect((error as EntifixLogicError).message).toContain('Thing');
-        expect((error as EntifixLogicError).message).toContain('secret');
+        expect((error as Error).message).toContain('Thing');
+        expect((error as Error).message).toContain('secret');
       }
     });
   });

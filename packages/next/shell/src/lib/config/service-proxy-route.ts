@@ -1,6 +1,8 @@
+import { DEADLINE_HEADER, UpstreamUnavailable } from '@entifix/core';
 import { NextResponse } from 'next/server';
 
 import { bearerHeader, sessionToken } from '../session/bearer.js';
+import { problemResponse } from './problem-response.js';
 
 type Params = { params: Promise<{ path: string[] }> };
 
@@ -60,9 +62,33 @@ export interface ServiceProxyRouteOptions {
  * Deliberately a short allow-list rather than copying every header: the
  * upstream's `content-length` and `content-encoding` describe *its* body, and
  * carrying them onto a response this function reconstructs is how a proxy
- * serves a truncated payload.
+ * serves a truncated payload. Beside the cache validators: `retry-after`,
+ * which says when an overloaded service wants to be asked again; `location`,
+ * which a `202` points its tracker at; and `traceparent`, so the browser's
+ * failure toast can name the trace a service logged its side under.
  */
-const CACHE_HEADERS = ['etag', 'cache-control', 'vary'] as const;
+const PASSED_RESPONSE_HEADERS = [
+  'etag',
+  'cache-control',
+  'vary',
+  'retry-after',
+  'location',
+  'traceparent',
+] as const;
+
+/**
+ * Request headers forwarded to the service, beside the bearer it gets from
+ * the session: the validator, so `$metadata` can answer `304`; the
+ * idempotency key, so a retried write is recognised; the trace, so one
+ * request is one trace across the hop; and the caller's remaining budget
+ * ([ADR 0014](../../../../../../docs/adr/0014-retry-once-at-the-layer-above-under-a-budget.md)).
+ */
+const FORWARDED_REQUEST_HEADERS = [
+  'if-none-match',
+  'idempotency-key',
+  'traceparent',
+  DEADLINE_HEADER,
+] as const;
 
 /**
  * Whether the upstream answer must be piped rather than rebuilt.
@@ -77,20 +103,9 @@ const isStreamed = (upstream: Response): boolean =>
   upstream.headers.get('content-type')?.startsWith('text/event-stream') ===
   true;
 
-/**
- * The code a proxy answers when the service behind it could not be reached.
- *
- * `502`, never the `500` an unhandled rejection becomes: the host did nothing
- * wrong, and a `500` sends whoever reads it looking for a bug in the app rather
- * than for a process that is not running. A **code, not a sentence**, so the
- * browser can render it through the host's own `errors` catalog like every
- * other refusal in the framework.
- */
-export const UPSTREAM_UNAVAILABLE = 'upstreamUnavailable';
-
 const passThrough = (upstream: Response): Record<string, string> => {
   const headers: Record<string, string> = {};
-  for (const name of CACHE_HEADERS) {
+  for (const name of PASSED_RESPONSE_HEADERS) {
     const value = upstream.headers.get(name);
     if (value !== null) headers[name] = value;
   }
@@ -113,11 +128,9 @@ export const createServiceProxyRoute = ({
       ...bearerHeader(await sessionToken()),
     };
 
-    // Forwarded, or the validator never reaches the service and every
-    // `$metadata` read is a full document — see {@link CACHE_HEADERS}.
-    const ifNoneMatch = request.headers.get('if-none-match');
-    if (ifNoneMatch !== null) {
-      headers['if-none-match'] = ifNoneMatch;
+    for (const name of FORWARDED_REQUEST_HEADERS) {
+      const value = request.headers.get(name);
+      if (value !== null) headers[name] = value;
     }
 
     const hasBody = request.method !== 'GET' && request.method !== 'DELETE';
@@ -129,13 +142,17 @@ export const createServiceProxyRoute = ({
       { method: request.method, headers, body, cache: 'no-store' },
     ).catch(() => undefined);
 
+    // `502`, never the `500` an unhandled rejection becomes: the host did
+    // nothing wrong, and a `500` sends whoever reads it looking for a bug in
+    // the app rather than for a process that is not running.
     if (upstream === undefined) {
-      return NextResponse.json(
+      return problemResponse(
+        new UpstreamUnavailable(
+          pathPrefix === undefined ? {} : { upstream: pathPrefix },
+        ),
         {
-          error: 'the service behind this route could not be reached',
-          code: UPSTREAM_UNAVAILABLE,
+          status: 502,
         },
-        { status: 502, headers: { 'cache-control': 'no-store' } },
       );
     }
 
@@ -162,13 +179,19 @@ export const createServiceProxyRoute = ({
       });
     }
 
-    // 204s and empty bodies must not be run through `json()`.
+    // 204s and empty bodies must not be given a body. The upstream's content
+    // type is kept, never re-typed: a problem body re-typed as plain JSON is
+    // one the browser can no longer recognise as a failure it can decode.
     const text = await upstream.text();
     return text === ''
       ? new NextResponse(null, { status: upstream.status, headers: passed })
       : new NextResponse(text, {
           status: upstream.status,
-          headers: { ...passed, 'content-type': 'application/json' },
+          headers: {
+            ...passed,
+            'content-type':
+              upstream.headers.get('content-type') ?? 'application/json',
+          },
         });
   };
 

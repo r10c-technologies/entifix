@@ -52,9 +52,23 @@ describe('makeEntityMetadataSource', () => {
   it('fails on a 404 rather than reporting an empty affordance set', async () => {
     respondWith({ code: 'notFound' }, { status: 404 });
 
-    await expect(source.fetchMetadata(UserIdentity)).rejects.toThrow(
-      /status 404/,
+    await expect(source.fetchMetadata(UserIdentity)).rejects.toMatchObject({
+      _tag: 'NotFound',
+    });
+  });
+
+  it.each([
+    ['an error status', 502],
+    ['a success', 200],
+  ])('fails on %s whose body is not JSON', async (_label, status) => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('<html>nope</html>', { status })),
     );
+
+    await expect(source.fetchMetadata(UserIdentity)).rejects.toMatchObject({
+      _tag: 'ProtocolFailure',
+    });
   });
 
   it('fails when the transport does', async () => {
@@ -65,9 +79,10 @@ describe('makeEntityMetadataSource', () => {
       }),
     );
 
-    await expect(source.fetchMetadata(UserIdentity)).rejects.toThrow(
-      /Metadata request/,
-    );
+    await expect(source.fetchMetadata(UserIdentity)).rejects.toMatchObject({
+      _tag: 'Unavailable',
+      dependency: 'user-identity',
+    });
   });
 
   it('fails when the body is not JSON', async () => {

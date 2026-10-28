@@ -22,6 +22,14 @@ setupEntifixServer(
     seen.push(request.headers.get(DEADLINE_HEADER));
     return HttpResponse.json({ ok: true });
   }),
+  http.get(
+    `${URL}/garbled`,
+    () =>
+      new HttpResponse('{ not json', {
+        status: 500,
+        headers: { 'content-type': 'application/problem+json' },
+      }),
+  ),
   http.get(`${URL}/slow`, async ({ request }) => {
     request.signal.addEventListener('abort', () => {
       aborted = true;
@@ -75,5 +83,25 @@ describe('performHttpRequestThroughFetch and the deadline', () => {
     await delay(20);
 
     expect(aborted).toBe(true);
+  });
+});
+
+describe('performHttpRequestThroughFetch and a failure it cannot read', () => {
+  it('answers a problem-typed body that is not JSON as a protocol failure', async () => {
+    const failure = await Effect.runPromise(Effect.flip(get(`${URL}/garbled`)));
+
+    expect(failure).toMatchObject({
+      _tag: 'ProtocolFailure',
+      upstreamStatus: 500,
+    });
+  });
+
+  it('names the address itself when it is not a URL at all', async () => {
+    const failure = await Effect.runPromise(Effect.flip(get('not a url')));
+
+    expect(failure).toMatchObject({
+      _tag: 'Unavailable',
+      dependency: 'not a url',
+    });
   });
 });

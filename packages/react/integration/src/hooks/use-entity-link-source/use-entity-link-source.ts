@@ -3,7 +3,6 @@
 import { EntityIdTag, EntityLoadRequestTag } from '@entifix/business';
 import {
   describeEntityColumns,
-  EntifixLogicError,
   type Entity,
   type EntityLinkSource,
   type EntityLoadRequest,
@@ -46,23 +45,19 @@ function assertSearchable<TTarget extends Entity>(
   if (target?.type === 'localized') {
     // Queried one locale at a time, and this hook holds no locale: the bare
     // member is what the service would refuse.
-    throw new EntifixLogicError(
+    throw new Error(
       `Cannot search ${config.entityConstructor.name} by "${searchProperty}": ` +
         'the member is localized, and a quick search has no locale to search ' +
         'it in. Point the relation at a string member with `linkSearchProperty`.',
-      undefined,
-      { entity: config.entityConstructor.name, searchProperty },
     );
   }
   if (target?.filterable === true) return;
 
-  throw new EntifixLogicError(
+  throw new Error(
     `Cannot search ${config.entityConstructor.name} by "${searchProperty}": ` +
       'the member is not filterable, so the service would reject the query. ' +
       'Declare it `filterable` on the target entity, or point the relation at ' +
       'another member with `linkSearchProperty`.',
-    undefined,
-    { entity: config.entityConstructor.name, searchProperty },
   );
 }
 

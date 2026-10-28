@@ -1,4 +1,4 @@
-import type { EntifixError } from '@entifix/core';
+import type { Unavailable } from '@entifix/core';
 import { Context, type Effect } from 'effect';
 
 /**
@@ -13,9 +13,9 @@ import { Context, type Effect } from 'effect';
  * Values are stored and returned as-is; adapters own their own encoding.
  */
 export interface UiPreferencesState {
-  read<TValue>(key: string): Effect.Effect<TValue | undefined, EntifixError>;
-  write<TValue>(key: string, value: TValue): Effect.Effect<void, EntifixError>;
-  remove(key: string): Effect.Effect<void, EntifixError>;
+  read<TValue>(key: string): Effect.Effect<TValue | undefined, Unavailable>;
+  write<TValue>(key: string, value: TValue): Effect.Effect<void, Unavailable>;
+  remove(key: string): Effect.Effect<void, Unavailable>;
 }
 
 export class UiPreferencesStateTag extends Context.Service<

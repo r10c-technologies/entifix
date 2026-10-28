@@ -4,15 +4,13 @@ import type {
   CommandGroup,
   CommandSource,
   CommandUnavailableSeverity,
+  FailureCategory,
 } from '@entifix/core';
 import { useT, useTranslateKey } from '@entifix/react-controls';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { useLocaleHref } from '../i18n/index.js';
-import type {
-  RecordSearchResponse,
-  RecordSearchUnavailableReason,
-} from '../search/record-search.types.js';
+import type { RecordSearchResponse } from '../search/record-search.types.js';
 import { searchRecords } from '../search/search-records.js';
 import {
   RECORD_SEARCH_DEBOUNCE_MS,
@@ -27,18 +25,17 @@ import {
  * `409` on every keystroke — painting that as an outage teaches them to ignore
  * the row entirely, and then the `timeout` that does matter goes unread too.
  */
-const SEVERITY: Readonly<
-  Record<RecordSearchUnavailableReason, CommandUnavailableSeverity>
-> = {
-  forbidden: 'scope',
-  noActiveOrganization: 'scope',
-  unauthenticated: 'scope',
-  timeout: 'reachability',
-  network: 'reachability',
-  invalidQuery: 'reachability',
-  notFound: 'reachability',
-  unexpected: 'reachability',
-};
+const SCOPE_CODES: ReadonlySet<string> = new Set(['noActiveOrganization']);
+
+const severityOf = (degraded: {
+  readonly reason: string;
+  readonly category: FailureCategory;
+}): CommandUnavailableSeverity =>
+  degraded.category === 'unauthenticated' ||
+  degraded.category === 'forbidden' ||
+  SCOPE_CODES.has(degraded.reason)
+    ? 'scope'
+    : 'reachability';
 
 /** What the browser is currently showing for records. */
 interface RecordsState {
@@ -193,7 +190,7 @@ export function useRecordsSource(
     }));
 
     for (const degraded of state.response.unavailable) {
-      const severity = SEVERITY[degraded.reason];
+      const severity = severityOf(degraded);
       groups.push({
         key: `record:${degraded.source}`,
         // Derived from the entity rather than from the source key, which is an

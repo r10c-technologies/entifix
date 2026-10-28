@@ -1,8 +1,23 @@
+import {
+  Failure,
+  Forbidden,
+  InvalidQuery,
+  NotFound,
+  problemOf,
+  Unauthenticated,
+  Unavailable,
+} from '@entifix/core';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { RecordSearchResponse } from './record-search.types.js';
 import { createRecordSearchRoute } from './record-search-route.js';
 import type { RecordSearchSource } from './record-search-source.js';
+
+/** The service shell's refusal, restated: a host reads it by code. */
+class NoActiveOrganization extends Failure.conflict<NoActiveOrganization>()(
+  'NoActiveOrganization',
+  'noActiveOrganization',
+) {}
 
 const cookieValue = vi.fn<() => string | undefined>(() => 'the-token');
 
@@ -191,29 +206,73 @@ describe('createRecordSearchRoute', () => {
 
   describe('a source that produces nothing', () => {
     it.each([
-      [400, 'invalidQuery'],
-      [401, 'unauthenticated'],
-      [403, 'forbidden'],
-      [404, 'notFound'],
-      [409, 'noActiveOrganization'],
-      [500, 'unexpected'],
-      [503, 'unexpected'],
-    ])('reports a %i as %s, with the status', async (status, reason) => {
+      [new InvalidQuery({ reason: 'bad' }), 'invalidQuery', 'invalid'],
+      [new Unauthenticated(), 'unauthenticated', 'unauthenticated'],
+      [new Forbidden({}), 'forbidden', 'forbidden'],
+      [new NotFound({}), 'notFound', 'notFound'],
+      [new NoActiveOrganization(), 'noActiveOrganization', 'conflict'],
+      [new Unavailable({}), 'unavailable', 'unavailable'],
+    ])(
+      'reports a %s by its code and category, with the status',
+      async (failure, reason, category) => {
+        const problem = problemOf(failure);
+        stubFetch(url =>
+          url.startsWith('http://things.test')
+            ? answering(problem.status, problem)
+            : answering(200),
+        );
+
+        const { body } = await get('?q=acme');
+
+        expect(body.groups.map(group => group.source)).toEqual(['person']);
+        expect(body.unavailable).toEqual([
+          {
+            source: 'thing',
+            entity: 'thing',
+            reason,
+            category,
+            status: problem.status,
+          },
+        ]);
+      },
+    );
+
+    it('reports an error that is not a problem body as protocol', async () => {
       stubFetch(url =>
         url.startsWith('http://things.test')
-          ? answering(status, { error: 'nope' })
+          ? answering(500, { error: 'nope' })
           : answering(200),
       );
 
       const { body } = await get('?q=acme');
 
-      expect(body.groups.map(group => group.source)).toEqual(['person']);
       expect(body.unavailable).toEqual([
-        { source: 'thing', entity: 'thing', reason, status },
+        {
+          source: 'thing',
+          entity: 'thing',
+          reason: 'protocol',
+          category: 'protocol',
+          status: 500,
+        },
       ]);
     });
 
-    it('reports a body it cannot read as unexpected', async () => {
+    it('reports an error whose body is not JSON as protocol', async () => {
+      stubFetch(url =>
+        url.startsWith('http://things.test')
+          ? new Response('<html>bad gateway</html>', { status: 502 })
+          : answering(200),
+      );
+
+      const { body } = await get('?q=acme');
+
+      expect(body.unavailable[0]).toMatchObject({
+        reason: 'protocol',
+        status: 502,
+      });
+    });
+
+    it('reports a body it cannot read as protocol', async () => {
       stubFetch(url =>
         url.startsWith('http://things.test')
           ? answering(200, { notAPage: true })
@@ -223,11 +282,17 @@ describe('createRecordSearchRoute', () => {
       const { body } = await get('?q=acme');
 
       expect(body.unavailable).toEqual([
-        { source: 'thing', entity: 'thing', reason: 'unexpected', status: 200 },
+        {
+          source: 'thing',
+          entity: 'thing',
+          reason: 'protocol',
+          category: 'protocol',
+          status: 200,
+        },
       ]);
     });
 
-    it('reports a body that is not JSON as unexpected', async () => {
+    it('reports a body that is not JSON as protocol', async () => {
       stubFetch(url =>
         url.startsWith('http://things.test')
           ? new Response('<html>gateway</html>', { status: 200 })
@@ -236,7 +301,7 @@ describe('createRecordSearchRoute', () => {
 
       const { body } = await get('?q=acme');
 
-      expect(body.unavailable[0]).toMatchObject({ reason: 'unexpected' });
+      expect(body.unavailable[0]).toMatchObject({ reason: 'protocol' });
     });
 
     // The done-when: one slow service costs one group, not the search.
@@ -253,12 +318,17 @@ describe('createRecordSearchRoute', () => {
       const { body } = await get('?q=acme');
 
       expect(body.unavailable).toEqual([
-        { source: 'thing', entity: 'thing', reason: 'timeout' },
+        {
+          source: 'thing',
+          entity: 'thing',
+          reason: 'timeout',
+          category: 'timeout',
+        },
       ]);
       expect(body.groups.map(group => group.source)).toEqual(['person']);
     });
 
-    it('reports any other throw as a network failure', async () => {
+    it('reports any other throw as the upstream being unavailable', async () => {
       stubFetch(url => {
         if (url.startsWith('http://things.test')) {
           return Promise.reject(
@@ -271,7 +341,12 @@ describe('createRecordSearchRoute', () => {
       const { body } = await get('?q=acme');
 
       expect(body.unavailable).toEqual([
-        { source: 'thing', entity: 'thing', reason: 'network' },
+        {
+          source: 'thing',
+          entity: 'thing',
+          reason: 'upstreamUnavailable',
+          category: 'unavailable',
+        },
       ]);
     });
   });

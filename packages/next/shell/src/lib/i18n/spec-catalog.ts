@@ -58,6 +58,7 @@ const errors = {
   noActiveOrganization: 'Selecciona una organización para ver estos registros.',
   alreadyRetired: 'El registro ya estaba retirado.',
   unexpected: 'Ocurrió un error inesperado.',
+  internal: 'Algo falló de nuestro lado.',
 } as const;
 
 registerFallbackCatalog('errors', { es: errors, en: errors });

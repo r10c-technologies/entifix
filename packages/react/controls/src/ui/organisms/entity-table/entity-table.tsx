@@ -2,7 +2,6 @@
 
 import {
   emptySelection,
-  EntifixLogicError,
   type Entity,
   type EntityId,
   type EntitySelection,
@@ -196,7 +195,7 @@ export function EntityTable<TEntity extends Entity>({
   // than a state, so it costs the render — the same call `EntityForm` makes
   // for a link source aimed at a member no picker can edit.
   if (onSelect !== undefined && selection !== undefined) {
-    throw new EntifixLogicError(
+    throw new Error(
       'EntityTable was given both `onSelect` and `selection`. A picker picks one ' +
         'row and a selection accumulates many, so the row control cannot be both. ' +
         'Drop `selection` inside a picker, or drop `onSelect` outside one.',

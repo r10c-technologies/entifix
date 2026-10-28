@@ -1,12 +1,60 @@
 import {
   currentRemainingMs,
   DEADLINE_HEADER,
-  EntifixConnError,
+  decodeProblem,
+  type EntifixFailure,
+  Overloaded,
+  PROBLEM_CONTENT_TYPE,
+  ProtocolFailure,
   Timeout,
+  Unavailable,
 } from '@entifix/core';
 import { Effect } from 'effect';
 
 import { HttpRequest, HttpResponse } from '../types.js';
+
+/** The host a request went to, which is what a failure names as its dependency. */
+const dependencyOf = (url: string): string => {
+  try {
+    return new URL(url).host;
+  } catch {
+    return url;
+  }
+};
+
+/**
+ * The failure a non-2xx answer carries. `Retry-After` in seconds is copied
+ * onto an `Overloaded` that did not say itself when to come back.
+ */
+const failureOf = (response: Response, request: HttpRequest<unknown>) =>
+  Effect.gen(function* () {
+    const text = yield* Effect.promise(() => response.text());
+    const isProblem =
+      response.headers.get('content-type')?.startsWith(PROBLEM_CONTENT_TYPE) ===
+      true;
+    if (!isProblem)
+      return new ProtocolFailure({
+        reason: `${request.method} ${request.url} answered ${String(response.status)} without a problem body`,
+        upstreamStatus: response.status,
+      }) as EntifixFailure;
+
+    const failure = decodeProblem(parseOr(text), response.status);
+    const retryAfter = Number(response.headers.get('retry-after'));
+    return failure._tag === 'Overloaded' &&
+      !('retryAfterSeconds' in failure) &&
+      Number.isFinite(retryAfter) &&
+      retryAfter > 0
+      ? new Overloaded({ retryAfterSeconds: retryAfter })
+      : failure;
+  });
+
+const parseOr = (text: string): unknown => {
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return undefined;
+  }
+};
 
 export const performHttpRequestThroughFetch = <TResponseBody>(
   request: HttpRequest<unknown>,
@@ -33,51 +81,26 @@ export const performHttpRequestThroughFetch = <TResponseBody>(
           body: request.body ? JSON.stringify(request.body) : undefined,
           signal,
         }),
-      catch: error =>
-        new EntifixConnError(`HTTP request to ${request.url} failed`, error, {
-          url: request.url,
-          method: request.method,
-        }),
+      // Only reached without an answer: a network error or a refused
+      // connection. An interruption aborts through the signal instead.
+      catch: () => new Unavailable({ dependency: dependencyOf(request.url) }),
     });
 
-    // Check if the response is successful (status code 2xx)
+    // A failure answers as the failure that was sent: a problem body decodes
+    // into its registered class with its typed fields, so a business `409`
+    // reaches the browser as the refusal it is and never as a connection
+    // error. A body that is not a problem — a proxy's, a host route that still
+    // writes its own — decodes as `ProtocolFailure` carrying the status.
     if (!response.ok) {
-      // Services answer a failure with `{ error, code, detail }`. Carrying the
-      // `code` into `details` is what lets the browser render a translated
-      // message instead of the service's English `error` string. A body that is
-      // not JSON is not itself a failure — the status already is one.
-      const failure = yield* Effect.promise(() =>
-        response.json().then(
-          (parsed: unknown) => parsed as Record<string, unknown>,
-          () => ({}) as Record<string, unknown>,
-        ),
-      );
-      const code = failure['code'];
-
-      yield* Effect.fail(
-        new EntifixConnError(
-          `HTTP request failed with status ${response.status}: ${response.statusText}`,
-          undefined,
-          {
-            status: response.status,
-            statusText: response.statusText,
-            url: request.url,
-            method: request.method,
-            ...(typeof code === 'string' ? { code } : {}),
-          },
-        ),
-      );
+      return yield* Effect.fail(yield* failureOf(response, request));
     }
 
-    // Parse the response body as JSON. If parse fails, fail with an EntifixExternalError with details about the failure.
     const body = yield* Effect.tryPromise({
       try: () => response.json() as Promise<TResponseBody>,
-      catch: error =>
-        new EntifixConnError('Failed to parse response body as JSON', error, {
-          url: request.url,
-          method: request.method,
-          status: response.status,
-          statusText: response.statusText,
+      catch: () =>
+        new ProtocolFailure({
+          reason: `${request.method} ${request.url} answered a body that is not JSON`,
+          upstreamStatus: response.status,
         }),
     });
 

@@ -1,4 +1,4 @@
-import { EntifixConnError, type EntifixError } from '@entifix/core';
+import { Unavailable } from '@entifix/core';
 import { Effect, Layer } from 'effect';
 import { type IDBPDatabase, openDB } from 'idb';
 
@@ -24,7 +24,7 @@ function hasIndexedDb(): boolean {
  *
  * The port is unchanged: every method closes over the namespace, so each is
  * `R = never`. Values are stored via structured clone (no JSON round-trip), and
- * a failed I/O surfaces as an {@link EntifixConnError} the caller can fall back
+ * a failed I/O surfaces as an `Unavailable` the caller can fall back
  * from — a stale view should degrade to defaults, not break.
  */
 export function makeIndexedDbUiPreferencesState(
@@ -44,14 +44,10 @@ export function makeIndexedDbUiPreferencesState(
     action: string,
     key: string,
     run: () => Promise<TValue>,
-  ): Effect.Effect<TValue, EntifixError> =>
+  ): Effect.Effect<TValue, Unavailable> =>
     Effect.tryPromise({
       try: run,
-      catch: cause =>
-        new EntifixConnError(
-          `Unable to ${action} UI preference "${key}"`,
-          cause,
-        ) as EntifixError,
+      catch: () => new Unavailable({ dependency: 'indexeddb' }),
     });
 
   return {

@@ -1,7 +1,6 @@
 import {
   describeChildColumns,
   editableChildColumns,
-  EntifixLogicError,
   EntityCollectionLink,
   type EntityDraft,
   type EntityDraftValue,
@@ -574,7 +573,7 @@ export function readSchemaIssues(
   const result = schema['~standard'].validate(values);
 
   if (result instanceof Promise) {
-    throw new EntifixLogicError(
+    throw new Error(
       'useEntityForm cannot run an async schema: its validation pass is ' +
         'synchronous. Move the asynchronous rule into the `validate` option.',
     );

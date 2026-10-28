@@ -1,5 +1,5 @@
 import { EntityIdTag } from '@entifix/business';
-import { type Entity,type TransitionalFailure } from '@entifix/core';
+import { type Entity, type TransitionalFailure } from '@entifix/core';
 import { Context, Effect } from 'effect';
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 

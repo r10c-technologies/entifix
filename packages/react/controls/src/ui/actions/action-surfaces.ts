@@ -1,5 +1,4 @@
 import {
-  EntifixLogicError,
   type UseCaseBinding,
   type UseCaseDescriptor,
   type UseCasePlacement,
@@ -69,14 +68,12 @@ function surfaceForCell(
   const surface = SURFACE_BY_CELL[`${binding}:${placement}`];
 
   if (surface === undefined) {
-    throw new EntifixLogicError(
+    throw new Error(
       `The use case "${key}" is declared ${binding} + ${placement}, which no surface renders. ` +
         'A `determining` action finalizes a page — it is an object page’s footer — and a list ' +
         'screen has no page to finalize, so a collection-bound verb cannot be determining. ' +
         'Declare it `context-dependent` to reach the bulk bar, or `context-independent` to sit ' +
         'in the table toolbar.',
-      undefined,
-      { key, binding, placement },
     );
   }
 

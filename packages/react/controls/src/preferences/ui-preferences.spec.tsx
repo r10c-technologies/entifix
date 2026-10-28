@@ -1,4 +1,4 @@
-import { EntifixConnError } from '@entifix/core';
+import { Unavailable } from '@entifix/core';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { Effect } from 'effect';
 import type { PropsWithChildren } from 'react';
@@ -27,11 +27,11 @@ const makeRecordingStore = (
     failWrites: false,
     read: <TValue,>(key: string) =>
       store.failReads
-        ? Effect.fail(new EntifixConnError('read failed'))
+        ? Effect.fail(new Unavailable({}))
         : Effect.succeed(entries.get(key) as TValue | undefined),
     write: <TValue,>(key: string, value: TValue) =>
       store.failWrites
-        ? Effect.fail(new EntifixConnError('write failed'))
+        ? Effect.fail(new Unavailable({}))
         : Effect.sync(() => {
             written.push([key, value]);
             entries.set(key, value);

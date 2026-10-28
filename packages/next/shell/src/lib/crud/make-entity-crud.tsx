@@ -9,15 +9,13 @@ import {
 } from '@entifix/business';
 import {
   describeEntityColumns,
-  EntifixBuildError,
-  type EntifixError,
-  EntifixLogicError,
   type Entity,
   type EntityConstructor,
   type EntityMetadataSource,
   envelopeEntityName,
   extractMetaEntity,
   type FilterGroup,
+  Internal,
   type TransitionalFailure,
 } from '@entifix/core';
 import { EntityTable, useCasesForSurface } from '@entifix/react-controls';
@@ -112,18 +110,18 @@ export function mergeCrudContext<TAdapters>(
 /**
  * A rejected verb, as something the form's error slot can render.
  *
- * `useErrorMessage` resolves `details.code` through the shared `errors`
- * catalog, so a shell that throws an `EntifixError` carrying one gets its
- * translated sentence; anything else — a network failure, a thrown string —
- * keeps its message rather than being relabelled with a code it never had.
+ * A typed failure is kept as it is: `useErrorMessage` translates its own code,
+ * a business refusal and an outage alike, and the failure toast that tells
+ * them apart arrives with the optimistic API. Anything else that carries a
+ * message keeps it rather than being relabelled with a code it never had; a
+ * thrown value with no message at all is `Internal`.
  */
-function asEntifixError(failure: unknown): EntifixError {
-  return failure instanceof EntifixLogicError ||
-    failure instanceof EntifixBuildError
-    ? failure
-    : new EntifixLogicError(
-        failure instanceof Error ? failure.message : String(failure),
-      );
+function asFailure(failure: unknown): TransitionalFailure {
+  // A typed failure is an `Error` too — Effect's tagged errors extend it — so
+  // one check keeps both it and a legacy error carrying its own message.
+  return failure instanceof Error
+    ? (failure as TransitionalFailure)
+    : new Internal();
 }
 
 /**
@@ -167,7 +165,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
   } = options;
 
   if (givenMetadataSource !== undefined && metadata !== undefined) {
-    throw new EntifixBuildError(
+    throw new Error(
       `${entityConstructor.name} was given both metadataSource and metadata; pass one`,
     );
   }
@@ -180,7 +178,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
 
   const meta = extractMetaEntity(entityConstructor);
   if (meta.key !== catalogKey) {
-    throw new EntifixBuildError(
+    throw new Error(
       `${entityConstructor.name} declares key "${String(meta.key)}" but was given catalog key "${catalogKey}"`,
     );
   }
@@ -192,7 +190,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
   // rather than on the render that first tries to title a tab with `undefined`.
   const { labelKey: entityLabelKey, pluralKey: entityPluralKey } = meta;
   if (entityLabelKey === undefined || entityPluralKey === undefined) {
-    throw new EntifixBuildError(
+    throw new Error(
       `${entityConstructor.name} must declare labelKey and pluralKey on @entity() to be generated`,
     );
   }
@@ -209,7 +207,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
   const linkPlans = links.map(link => {
     const descriptor = descriptors.find(entry => entry.name === link.field);
     if (descriptor === undefined) {
-      throw new EntifixBuildError(
+      throw new Error(
         `${entityConstructor.name} has no member "${link.field}" for a link source`,
       );
     }
@@ -308,7 +306,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
           setUseCaseError(undefined);
           void runUseCase(key, item.id).then(
             () => queryClient.invalidateQueries({ queryKey: scope }),
-            (failure: unknown) => setUseCaseError(asEntifixError(failure)),
+            (failure: unknown) => setUseCaseError(asFailure(failure)),
           );
         }
       : undefined;
@@ -487,7 +485,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
             setUseCaseError(undefined);
             void runUseCase(key, id).then(
               () => reload(),
-              (failure: unknown) => setUseCaseError(asEntifixError(failure)),
+              (failure: unknown) => setUseCaseError(asFailure(failure)),
             );
           };
 

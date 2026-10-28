@@ -1,6 +1,10 @@
 'use client';
 
-import type { EntityFieldDescriptor } from '@entifix/core';
+import {
+  type EntityFieldDescriptor,
+  isFailure,
+  problemOf,
+} from '@entifix/core';
 import { useCallback, useMemo } from 'react';
 
 import { useTranslateKey } from './i18n-context.js';
@@ -50,15 +54,46 @@ export function useEnumLabel(): (
   );
 }
 
+const ENVELOPE: ReadonlySet<string> = new Set([
+  'type',
+  'title',
+  'status',
+  'code',
+  'category',
+  'detail',
+  'instance',
+  'traceId',
+]);
+
+/**
+ * A failure's own fields — `slug` on a `DuplicateSlug`, `entity` on a
+ * `NotFound` — as a catalog sentence interpolates them: what its problem body
+ * carries beside the envelope. Anything that is not a typed failure has none.
+ */
+export const failureFields = (failure: unknown): Record<string, unknown> =>
+  isFailure(failure)
+    ? Object.fromEntries(
+        Object.entries(problemOf(failure)).filter(
+          ([key]) => !ENVELOPE.has(key),
+        ),
+      )
+    : {};
+
+/** {@link failureFields}, memoised on the failure. */
+export function useFailureFields(failure: unknown): Record<string, unknown> {
+  return useMemo(() => failureFields(failure), [failure]);
+}
+
 /**
  * Renders a failed request in the reader's language.
  *
  * A typed failure carries its `code` on itself
- * ([ADR 0013](../../../../../docs/adr/0013-failures-are-typed-values-decided-at-the-shell.md));
- * an `EntifixError` from a service that still answers `{ error, code, detail }`
- * carries it on `details`. Falling back to `message` keeps a failure that
- * predates the vocabulary — or one raised client-side — readable rather than
- * blank.
+ * ([ADR 0013](../../../../../docs/adr/0013-failures-are-typed-values-decided-at-the-shell.md)),
+ * and its own fields are handed to the sentence, so `errors:duplicateSlug`
+ * can say which slug. An error from a service that still answers
+ * `{ error, code, detail }` carries its code on `details`. Falling back to
+ * `message` keeps a failure that predates the vocabulary — or one raised
+ * client-side — readable rather than blank.
  */
 export function useErrorMessage(): (error: {
   message: string;
@@ -72,7 +107,7 @@ export function useErrorMessage(): (error: {
       const code =
         typeof error.code === 'string' ? error.code : error.details?.['code'];
       return typeof code === 'string'
-        ? translate(`errors:${code}`)
+        ? translate(`errors:${code}`, failureFields(error))
         : error.message;
     },
     [translate],
