@@ -119,11 +119,11 @@ changing it is a queue reset.
 > in a header on a copy it republishes after a capped backoff, and quarantines
 > at `maxAttempts`. `x-delivery-limit` still bounds the redeliveries a crashed
 > consumer causes, which the broker does count. The host sizes it so
-that in-process attempts × deliveries stays inside one fleet delivery budget,
-and because a consumer never retries in-process that product is the delivery
-limit itself. Classification is [ADR 0013](0013-failures-are-typed-values-decided-at-the-shell.md)'s:
-business and `protocol` failures are poison and quarantined at once, the
-transient categories are redelivered.
+> that in-process attempts × deliveries stays inside one fleet delivery budget,
+> and because a consumer never retries in-process that product is the delivery
+> limit itself. Classification is [ADR 0013](0013-failures-are-typed-values-decided-at-the-shell.md)'s:
+> business and `protocol` failures are poison and quarantined at once, the
+> transient categories are redelivered.
 
 ## Consequences
 
