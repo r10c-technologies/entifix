@@ -3,7 +3,7 @@ import {
   type TenantDatabaseResolver,
   TenantDatabaseResolverTag,
 } from '@entifix/business';
-import { EntifixConnError } from '@entifix/core';
+import { Internal } from '@entifix/core';
 import { Effect, Layer } from 'effect';
 import type { Db } from 'mongodb';
 
@@ -41,13 +41,7 @@ export const MongoTenantFacetCounterFactoryLayer = Layer.effect(
     return {
       for: (entityConstructor, scope) =>
         scope.organizationId === undefined
-          ? Effect.fail(
-              new EntifixConnError(
-                'A per-organization store was asked for a facet counter with no organization',
-                undefined,
-                { entity: entityConstructor.name },
-              ),
-            )
+          ? Effect.fail(new Internal())
           : Effect.map(resolver.forOrganization(scope.organizationId), db =>
               makeMongoFacetCounter(db, entityConstructor),
             ),

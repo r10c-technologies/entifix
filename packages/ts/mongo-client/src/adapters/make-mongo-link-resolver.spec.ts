@@ -1,11 +1,5 @@
 import { EntityLinkResolverTag } from '@entifix/business';
-import {
-  accessor,
-  EntifixLogicError,
-  type Entity,
-  entity,
-  type EntityId,
-} from '@entifix/core';
+import { accessor, type Entity, entity, type EntityId } from '@entifix/core';
 import { makeFakeMongoDb } from '@entifix/testing-unit/drivers';
 import { Cause, Context, Effect, Exit, Option } from 'effect';
 import type { Db } from 'mongodb';
@@ -109,8 +103,7 @@ describe('makeMongoLinkResolver', () => {
     const error = Exit.isFailure(exit)
       ? Option.getOrUndefined(Cause.findErrorOption(exit.cause))
       : undefined;
-    expect(error).toBeInstanceOf(EntifixLogicError);
-    expect((error as EntifixLogicError).message).toContain('Category');
+    expect(error).toMatchObject({ _tag: 'Internal' });
   });
 
   it('propagates a not-found from the repository', async () => {

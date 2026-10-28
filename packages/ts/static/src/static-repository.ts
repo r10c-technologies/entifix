@@ -3,10 +3,8 @@ import {
   applyFiltering,
   applySorting,
   countFacets,
+  Declined,
   deserializeSingleEntity,
-  EntifixConnError,
-  type EntifixError,
-  EntifixLogicError,
   type Entity,
   type EntityConstructor,
   type EntityFacetQuery,
@@ -14,7 +12,9 @@ import {
   type EntityLoadRequest,
   type EntityPage,
   extractMetaAccessors,
+  NotFound,
   serializeEntity,
+  type TransitionalFailure,
 } from '@entifix/core';
 import { Effect } from 'effect';
 
@@ -31,7 +31,7 @@ const DEFAULT_PAGE_SIZE = 10;
  */
 function copyOf<TEntity extends Entity>(
   record: TEntity,
-): Effect.Effect<TEntity, EntifixError> {
+): Effect.Effect<TEntity, TransitionalFailure> {
   const entityConstructor = record.constructor as EntityConstructor<TEntity>;
   if (extractMetaAccessors(entityConstructor).length === 0) {
     return Effect.succeed(
@@ -46,7 +46,7 @@ function copyOf<TEntity extends Entity>(
   return deserializeSingleEntity(
     entityConstructor,
     serializeEntity(entityConstructor, record),
-  ) as Effect.Effect<TEntity, EntifixError>;
+  ) as Effect.Effect<TEntity, TransitionalFailure>;
 }
 
 export interface StaticRepositoryOptions {
@@ -64,7 +64,7 @@ export interface StaticRepositoryOptions {
  * path into a localized member, multi-key sorting, and 1-based paging that
  * defaults to ten. Both hand out copies.
  *
- * `save` and `delete` fail with an `EntifixLogicError`: a static source is
+ * `save` and `delete` fail with `Declined`: a static source is
  * read-only, and pretending otherwise is worse than refusing.
  *
  * It holds instances. Records that arrive as JSON go through
@@ -79,22 +79,15 @@ export function makeStaticRepository<TEntity extends Entity>(
 
   const readOnly = (verb: string) =>
     Effect.fail(
-      new EntifixLogicError(
-        `Cannot ${verb} a ${label}: it is served from static content, which is read-only`,
-        undefined,
-        { entity: label, operation: verb },
-      ),
+      new Declined({
+        reason: `Cannot ${verb} a ${label}: it is served from static content, which is read-only`,
+      }),
     );
 
   const get = (id: EntityId) => {
     const found = stored.find(record => record.id === id);
     return found === undefined
-      ? Effect.fail(
-          new EntifixConnError('Entity not found', undefined, {
-            entity: label,
-            id,
-          }),
-        )
+      ? Effect.fail(new NotFound({ entity: label }))
       : copyOf(found);
   };
 

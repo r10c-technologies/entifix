@@ -1,5 +1,5 @@
 import { type ShutdownHook, ShutdownRegistryTag } from '@entifix/business';
-import { EntifixConnError } from '@entifix/core';
+import { EntifixConnError, Unavailable } from '@entifix/core';
 import { Duration, Effect, Layer, Logger } from 'effect';
 import { TestClock } from 'effect/testing';
 import { describe, expect, it } from 'vitest';
@@ -65,7 +65,7 @@ const makeStore = (
     get: () => Effect.succeed(undefined),
     findStale: () =>
       options.failFind
-        ? Effect.fail(new EntifixConnError('store down'))
+        ? Effect.fail(new Unavailable({ dependency: 'store' }))
         : Effect.succeed(instances),
     claimForResume: sagaId =>
       Effect.succeed(

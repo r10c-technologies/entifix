@@ -1,6 +1,7 @@
-import { EntifixConnError } from '@entifix/core';
 import { Effect, Option } from 'effect';
 import type { ClientSession, Db } from 'mongodb';
+
+import { translateMongoFault } from '../errors/translate-mongo-error.js';
 
 /**
  * Where a participant records the command ids it has acted on — in the
@@ -30,10 +31,7 @@ export const ensureCommandInboxIndexes = (db: Db) =>
         .collection<CommandClaim>(COMMAND_INBOX_COLLECTION)
         .createIndex({ commandId: 1 }, { unique: true, name: 'commandId_1' });
     },
-    catch: error =>
-      new EntifixConnError('Failed to ensure command inbox indexes', error, {
-        database: db.databaseName,
-      }),
+    catch: error => translateMongoFault(error),
   });
 
 /** The claim document a unit inserts inside its session. */
@@ -63,10 +61,7 @@ export const readCommandReplay = (db: Db, commandId: string) =>
       db
         .collection<CommandClaim>(COMMAND_INBOX_COLLECTION)
         .findOne({ commandId }, { projection: { _id: 0 } }),
-    catch: error =>
-      new EntifixConnError('Failed to read a command claim', error, {
-        commandId,
-      }),
+    catch: error => translateMongoFault(error),
   }).pipe(
     Effect.map(claim =>
       claim === null || claim.replay === undefined

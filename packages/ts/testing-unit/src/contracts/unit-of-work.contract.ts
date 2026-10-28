@@ -1,4 +1,4 @@
-import { type DomainEvent, EntifixConnError } from '@entifix/core';
+import { type DomainEvent, type StoreFault, Unavailable } from '@entifix/core';
 import type { UnitOfWork } from '@entifix/transactions';
 import { Effect, Option } from 'effect';
 import { describe, expect, it } from 'vitest';
@@ -7,9 +7,9 @@ import { describe, expect, it } from 'vitest';
 export interface UnitOfWorkContractHarness<H> {
   readonly unitOfWork: UnitOfWork<H>;
   /** Writes one record through the unit's handle. */
-  write(handle: H, id: string): Effect.Effect<void, EntifixConnError>;
+  write(handle: H, id: string): Effect.Effect<void, StoreFault>;
   /** Whether a record exists, read through the unit's handle. */
-  readIn(handle: H, id: string): Effect.Effect<boolean, EntifixConnError>;
+  readIn(handle: H, id: string): Effect.Effect<boolean, StoreFault>;
   /** Whether a record is durable, read outside any unit. */
   stored(id: string): Promise<boolean>;
   /** The ids of every event the outbox holds. */
@@ -84,14 +84,14 @@ export const describeUnitOfWorkContract = <H>(
               .write(unit.handle, 'w-3')
               .pipe(
                 Effect.andThen(
-                  Effect.fail(new EntifixConnError('store went away')),
+                  Effect.fail(new Unavailable({ dependency: 'store' })),
                 ),
               ),
           )
           .pipe(Effect.flip),
       );
 
-      expect(error).toBeInstanceOf(EntifixConnError);
+      expect(error).toMatchObject({ _tag: 'Unavailable' });
       expect(await harness.stored('w-3')).toBe(false);
     });
 

@@ -1,4 +1,10 @@
-import { type DomainEvent, EntifixConnError } from '@entifix/core';
+import {
+  Contention,
+  type DomainEvent,
+  isFailure,
+  isStoreFault,
+  type StoreFault,
+} from '@entifix/core';
 import type {
   UnitClaim,
   UnitOfWork,
@@ -8,6 +14,7 @@ import type {
 import { Context, Effect, Layer, Option, Result, Schedule } from 'effect';
 import type { ClientSession, Db } from 'mongodb';
 
+import { translateMongoFault } from '../errors/translate-mongo-error.js';
 import {
   ensureInboxIndexes,
   INBOX_COLLECTION,
@@ -84,26 +91,17 @@ const labelledInChain = (error: unknown, label: string): boolean => {
   return false;
 };
 
+/** A transient conflict, which reruns the whole unit. */
 const isTransient = (error: unknown): boolean =>
-  error instanceof EntifixConnError &&
-  labelledInChain(error, 'TransientTransactionError');
+  isFailure(error) && error._tag === 'Contention';
 
-const driver = <A>(
-  message: string,
-  run: () => Promise<A>,
-  details?: Record<string, unknown>,
-) =>
-  Effect.tryPromise({
-    try: run,
-    catch: error => new EntifixConnError(message, error, details),
-  });
+const fault = (error: unknown): StoreFault => translateMongoFault(error);
+
+const driver = <A>(run: () => Promise<A>) =>
+  Effect.tryPromise({ try: run, catch: fault });
 
 /** A duplicate-key rejection answered as `duplicate` rather than as an error. */
-const insertOrDuplicate = (
-  message: string,
-  run: () => Promise<unknown>,
-  details?: Record<string, unknown>,
-) =>
+const insertOrDuplicate = (run: () => Promise<unknown>) =>
   Effect.tryPromise({
     try: async () => {
       try {
@@ -114,49 +112,48 @@ const insertOrDuplicate = (
         throw error;
       }
     },
-    catch: error => new EntifixConnError(message, error, details),
+    catch: fault,
   });
 
 const takeClaim = (db: Db, session: ClientSession, claim: UnitClaim) =>
   claim.kind === 'event'
-    ? insertOrDuplicate(
-        'Failed to claim an event',
-        () =>
-          db
-            .collection(INBOX_COLLECTION)
-            .insertOne(inboxDocument(claim.consumer, claim.eventId), {
-              session,
-            }),
-        { consumer: claim.consumer, eventId: claim.eventId },
+    ? insertOrDuplicate(() =>
+        db
+          .collection(INBOX_COLLECTION)
+          .insertOne(inboxDocument(claim.consumer, claim.eventId), {
+            session,
+          }),
       )
-    : insertOrDuplicate(
-        'Failed to claim a command',
-        () =>
-          db
-            .collection(COMMAND_INBOX_COLLECTION)
-            .insertOne(commandClaimDocument(claim.commandId), { session }),
-        { commandId: claim.commandId },
+    : insertOrDuplicate(() =>
+        db
+          .collection(COMMAND_INBOX_COLLECTION)
+          .insertOne(commandClaimDocument(claim.commandId), { session }),
       );
 
 /**
  * Commits, retrying a commit whose result the server could not report. Such a
  * commit may or may not have applied, and Mongo makes retrying it safe.
  */
+/**
+ * Retried on the **driver's** error, before translation: the label that says
+ * the commit's result is unknown lives on it, and a translated failure no
+ * longer carries it.
+ */
 const commit = (session: ClientSession) =>
-  driver('Failed to commit a unit of work', () =>
-    session.commitTransaction(),
-  ).pipe(
+  Effect.tryPromise({
+    try: () => session.commitTransaction(),
+    catch: error => error,
+  }).pipe(
     Effect.retry({
       times: ATTEMPTS - 1,
       while: error => labelledInChain(error, 'UnknownTransactionCommitResult'),
     }),
+    Effect.mapError(fault),
   );
 
 /** Rolls back, and never fails: the unit is already ending for another reason. */
 const abort = (session: ClientSession) =>
-  driver('Failed to abort a unit of work', () =>
-    session.abortTransaction(),
-  ).pipe(Effect.ignore);
+  driver(() => session.abortTransaction()).pipe(Effect.ignore);
 
 type Decision<A> =
   | { readonly kind: 'commit'; readonly value: A }
@@ -175,7 +172,7 @@ export const makeMongoUnitsOfWork = (client: MongoSessionSource) => {
       const key = db.databaseName;
       const done = ensured.get(key);
       if (done !== undefined) {
-        return driver('Failed to ensure unit-of-work indexes', () => done);
+        return driver(() => done);
       }
       const pending = Effect.runPromise(
         Effect.all([
@@ -187,7 +184,7 @@ export const makeMongoUnitsOfWork = (client: MongoSessionSource) => {
       ensured.set(key, pending);
       // A failed ensure must be retried by the next unit, not remembered.
       pending.catch(() => ensured.delete(key));
-      return driver('Failed to ensure unit-of-work indexes', () => pending);
+      return driver(() => pending);
     });
 
   const forDatabase = (db: Db): UnitOfWork<MongoUnit> => {
@@ -204,8 +201,7 @@ export const makeMongoUnitsOfWork = (client: MongoSessionSource) => {
           Effect.gen(function* () {
             yield* Effect.try({
               try: () => session.startTransaction(),
-              catch: error =>
-                new EntifixConnError('Failed to start a unit of work', error),
+              catch: fault,
             });
 
             const work = Effect.gen(function* () {
@@ -224,12 +220,10 @@ export const makeMongoUnitsOfWork = (client: MongoSessionSource) => {
               });
 
               if (emitted.length > 0) {
-                const written = yield* insertOrDuplicate(
-                  'Failed to record a unit of work’s events',
-                  () =>
-                    db
-                      .collection(OUTBOX_COLLECTION)
-                      .insertMany(emitted.map(outboxDocument), { session }),
+                const written = yield* insertOrDuplicate(() =>
+                  db
+                    .collection(OUTBOX_COLLECTION)
+                    .insertMany(emitted.map(outboxDocument), { session }),
                 );
                 // An event id already recorded is the outbox's own
                 // idempotency claim: what it announces committed before.
@@ -240,7 +234,7 @@ export const makeMongoUnitsOfWork = (client: MongoSessionSource) => {
 
               if (claim?.kind === 'command' && options?.replay) {
                 const replay = options.replay(value);
-                yield* driver('Failed to remember a command’s answer', () =>
+                yield* driver(() =>
                   rememberCommandReplay(db, session, claim.commandId, replay),
                 );
               }
@@ -252,23 +246,18 @@ export const makeMongoUnitsOfWork = (client: MongoSessionSource) => {
             if (Result.isFailure(decided)) {
               yield* abort(session);
               const failure = decided.failure;
-              if (failure instanceof EntifixConnError) {
+              if (isStoreFault(failure)) {
                 return yield* Effect.fail(failure);
               }
-              // A conflict the body surfaced without wrapping is still the
+              // A conflict the body surfaced without translating is still the
               // store's, not a business decision: it is retried, not aborted.
               if (labelledInChain(failure, 'TransientTransactionError')) {
-                return yield* Effect.fail(
-                  new EntifixConnError(
-                    'A unit of work hit a transient conflict',
-                    failure,
-                  ),
-                );
+                return yield* Effect.fail(new Contention());
               }
               return {
                 _tag: 'aborted',
-                reason: failure as Exclude<E, EntifixConnError>,
-              } as UnitOutcome<A, Exclude<E, EntifixConnError>>;
+                reason: failure as Exclude<E, StoreFault>,
+              } as UnitOutcome<A, Exclude<E, StoreFault>>;
             }
 
             if (decided.success.kind === 'duplicate') {
@@ -279,7 +268,7 @@ export const makeMongoUnitsOfWork = (client: MongoSessionSource) => {
                   : Option.none();
               return { _tag: 'duplicate', replay } as UnitOutcome<
                 A,
-                Exclude<E, EntifixConnError>
+                Exclude<E, StoreFault>
               >;
             }
 
@@ -287,12 +276,9 @@ export const makeMongoUnitsOfWork = (client: MongoSessionSource) => {
             return {
               _tag: 'committed',
               value: decided.success.value,
-            } as UnitOutcome<A, Exclude<E, EntifixConnError>>;
+            } as UnitOutcome<A, Exclude<E, StoreFault>>;
           }),
-        session =>
-          driver('Failed to end a session', () => session.endSession()).pipe(
-            Effect.ignore,
-          ),
+        session => driver(() => session.endSession()).pipe(Effect.ignore),
       );
 
     return {

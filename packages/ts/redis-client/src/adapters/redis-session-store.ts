@@ -7,14 +7,11 @@ import {
   type SessionStore,
   SessionStoreTag,
 } from '@entifix/business';
-import {
-  EntifixConnError,
-  EntifixLogicError,
-  type EntityId,
-} from '@entifix/core';
+import { type EntityId,NotFound } from '@entifix/core';
 import { Effect, Layer } from 'effect';
 import type { Redis } from 'ioredis';
 
+import { translateRedisError } from '../errors/translate-redis-error.js';
 import { RedisTag } from '../redis-connection/redis-connection.js';
 
 /** Default key prefix; every key this adapter writes lives under it. */
@@ -55,7 +52,7 @@ export const makeRedisSessionStore = (
   const attempt = <T>(what: string, run: () => Promise<T>) =>
     Effect.tryPromise({
       try: run,
-      catch: error => new EntifixConnError(what, error),
+      catch: error => translateRedisError(error),
     });
 
   /**
@@ -126,11 +123,7 @@ export const makeRedisSessionStore = (
           redis.get(sessionKey(sessionId)),
         );
         if (raw === null) {
-          return yield* Effect.fail(
-            new EntifixLogicError('Session not found or expired', undefined, {
-              sessionId,
-            }),
-          );
+          return yield* Effect.fail(new NotFound({ entity: 'session' }));
         }
         return parseRecord(raw);
       }),
@@ -141,11 +134,7 @@ export const makeRedisSessionStore = (
           redis.get(sessionKey(sessionId)),
         );
         if (raw === null) {
-          return yield* Effect.fail(
-            new EntifixLogicError('Session not found or expired', undefined, {
-              sessionId,
-            }),
-          );
+          return yield* Effect.fail(new NotFound({ entity: 'session' }));
         }
 
         const record = parseRecord(raw);
@@ -163,16 +152,7 @@ export const makeRedisSessionStore = (
           yield* attempt('Redis session index cleanup failed', () =>
             redis.srem(userKey(record.userId), sessionId),
           );
-          return yield* Effect.fail(
-            new EntifixLogicError(
-              'Session reached its absolute lifetime',
-              undefined,
-              {
-                sessionId,
-                absoluteExpiresAt: record.absoluteExpiresAt,
-              },
-            ),
-          );
+          return yield* Effect.fail(new NotFound({ entity: 'session' }));
         }
 
         const ttlSeconds = Math.min(idleTtlSeconds, secondsToCeiling);

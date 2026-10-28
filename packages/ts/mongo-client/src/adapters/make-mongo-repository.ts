@@ -4,19 +4,19 @@ import type { EntityRepository } from '@entifix/business';
 import {
   deserializeEntityCollection,
   deserializeSingleEntity,
-  EntifixConnError,
-  EntifixError,
   Entity,
   EntityConstructor,
   EntityId,
   EntityLoadRequest,
   EntityPage,
   extractMetaEntity,
+  NotFound,
   serializeEntity,
 } from '@entifix/core';
 import { Effect } from 'effect';
 import type { ClientSession, Db } from 'mongodb';
 
+import { translateMongoError } from '../errors/translate-mongo-error.js';
 import { translateFiltering, translateSorting } from './filter-translator.js';
 
 /** Projection that drops Mongo's internal `_id` from read results. */
@@ -45,7 +45,8 @@ function toEntityId(entityOrId: EntityId | Entity): EntityId {
  * Collection name = the entity's `key` (falling back to its class name). Reads
  * reuse the shared entifix deserializer (rebuilding links from embedded objects
  * or scalar FKs); writes reuse the shared serializer. Mongo failures surface as
- * {@link EntifixConnError}.
+ * categorised failures — `NotFound`, `DuplicateKey`, `Unavailable` and the
+ * rest — through `translateMongoError`.
  *
  * This is the Mongo mirror of the REST `buildEntityRestAdapter*` builders.
  *
@@ -61,16 +62,6 @@ export function makeMongoRepository<TEntity extends Entity>(
   const collection = db.collection(mongoCollectionName(entityConstructor));
   // Spread into every call, so a repository with no session passes none.
   const inSession = options?.session ? { session: options.session } : {};
-
-  const fail = (
-    message: string,
-    error: unknown,
-    details?: Record<string, unknown>,
-  ) =>
-    new EntifixConnError(message, error, {
-      entity: entityConstructor.name,
-      ...details,
-    });
 
   const load = <T extends Entity>(request: EntityLoadRequest<T>) =>
     Effect.gen(function* () {
@@ -88,11 +79,11 @@ export function makeMongoRepository<TEntity extends Entity>(
             .skip(skip)
             .limit(pageSize)
             .toArray(),
-        catch: error => fail('Failed to load entities from MongoDB', error),
+        catch: error => translateMongoError(error),
       });
       const total = yield* Effect.tryPromise({
         try: () => collection.countDocuments(filter, inSession),
-        catch: error => fail('Failed to count entities in MongoDB', error),
+        catch: error => translateMongoError(error),
       });
 
       const items = yield* deserializeEntityCollection(entityConstructor, docs);
@@ -109,12 +100,13 @@ export function makeMongoRepository<TEntity extends Entity>(
       const doc = yield* Effect.tryPromise({
         try: () =>
           collection.findOne({ id }, { ...WITHOUT_MONGO_ID, ...inSession }),
-        catch: error =>
-          fail('Failed to read entity from MongoDB', error, { id }),
+        catch: error => translateMongoError(error),
       });
       const entity = yield* deserializeSingleEntity(entityConstructor, doc);
       if (entity === undefined) {
-        return yield* Effect.fail(fail(`Entity not found`, undefined, { id }));
+        return yield* Effect.fail(
+          new NotFound({ entity: extractMetaEntity(entityConstructor).key }),
+        );
       }
       return entity as unknown as T;
     });
@@ -139,7 +131,7 @@ export function makeMongoRepository<TEntity extends Entity>(
             { ...doc, id },
             { upsert: true, ...inSession },
           ),
-        catch: error => fail('Failed to save entity to MongoDB', error, { id }),
+        catch: error => translateMongoError(error),
       });
       entity.id = id;
       return entity;
@@ -150,8 +142,7 @@ export function makeMongoRepository<TEntity extends Entity>(
       const id = toEntityId(entityOrId);
       yield* Effect.tryPromise({
         try: () => collection.deleteOne({ id }, inSession),
-        catch: error =>
-          fail('Failed to delete entity from MongoDB', error, { id }),
+        catch: error => translateMongoError(error),
       });
     });
 
@@ -164,5 +155,3 @@ export function makeMongoRepository<TEntity extends Entity>(
     delete: del,
   } as unknown as EntityRepository;
 }
-
-export type { EntifixError };

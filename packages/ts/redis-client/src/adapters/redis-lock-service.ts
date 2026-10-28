@@ -1,10 +1,11 @@
 import { randomUUID } from 'node:crypto';
 
-import { EntifixConnError, EntifixLockError } from '@entifix/core';
+import { Contention } from '@entifix/core';
 import { type LockService, LockServiceTag } from '@entifix/transactions';
 import { Duration, Effect, Layer } from 'effect';
 import type { Redis } from 'ioredis';
 
+import { translateRedisError } from '../errors/translate-redis-error.js';
 import { RedisTag } from '../redis-connection/redis-connection.js';
 
 /** How long a held lock survives without renewal — bounds a crashed holder. */
@@ -31,28 +32,19 @@ export const makeRedisLockService = (redis: Redis): LockService => ({
       for (let attempt = 0; attempt < LOCK_RETRIES; attempt += 1) {
         const result = yield* Effect.tryPromise({
           try: () => redis.set(key, token, 'PX', LOCK_TTL_MS, 'NX'),
-          catch: error =>
-            new EntifixLockError('Redis SET NX failed', error, { key }),
+          catch: error => translateRedisError(error),
         });
         if (result === 'OK') {
           return { key, token };
         }
         yield* Effect.sleep(Duration.millis(LOCK_RETRY_DELAY_MS));
       }
-      return yield* Effect.fail(
-        new EntifixLockError(`Could not acquire lock "${key}"`, undefined, {
-          key,
-          retries: LOCK_RETRIES,
-        }),
-      );
+      return yield* Effect.fail(new Contention());
     }),
   release: handle =>
     Effect.tryPromise({
       try: () => redis.eval(RELEASE_SCRIPT, 1, handle.key, handle.token),
-      catch: error =>
-        new EntifixConnError('Redis lock release failed', error, {
-          key: handle.key,
-        }),
+      catch: error => translateRedisError(error),
     }).pipe(Effect.asVoid),
 });
 

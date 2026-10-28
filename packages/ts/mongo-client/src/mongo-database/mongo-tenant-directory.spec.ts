@@ -1,4 +1,3 @@
-import { EntifixConnError } from '@entifix/core';
 import { Effect } from 'effect';
 import type { MongoClient } from 'mongodb';
 import { describe, expect, it } from 'vitest';
@@ -43,7 +42,6 @@ describe('makeMongoTenantDirectory', () => {
 
     const error = await Effect.runPromise(directory.list().pipe(Effect.flip));
 
-    expect(error).toBeInstanceOf(EntifixConnError);
-    expect(error.details).toEqual({ prefix: 'tenant_' });
+    expect(error).toMatchObject({ _tag: 'Unavailable' });
   });
 });

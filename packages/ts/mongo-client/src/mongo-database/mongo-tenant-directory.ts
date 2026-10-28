@@ -1,7 +1,8 @@
 import type { TenantDirectory } from '@entifix/business';
-import { EntifixConnError } from '@entifix/core';
 import { Effect } from 'effect';
 import type { Db, MongoClient } from 'mongodb';
+
+import { translateMongoError } from '../errors/translate-mongo-error.js';
 
 /**
  * Lists every database named `<prefix><organizationId>` on one client — the
@@ -36,9 +37,6 @@ export const makeMongoTenantDirectory = (
             handle: client.db(name),
           }));
       },
-      catch: error =>
-        new EntifixConnError('Failed to list tenant databases', error, {
-          prefix,
-        }),
+      catch: error => translateMongoError(error),
     }),
 });

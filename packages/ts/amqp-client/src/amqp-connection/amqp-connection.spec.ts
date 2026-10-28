@@ -1,4 +1,3 @@
-import { EntifixConnError } from '@entifix/core';
 import type * as amqp from 'amqplib';
 import { Cause, Effect, Exit, Option } from 'effect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -307,7 +306,7 @@ describe('AmqpLayer', () => {
     const failure = Exit.isFailure(exit)
       ? Option.getOrUndefined(Cause.findErrorOption(exit.cause))
       : undefined;
-    expect(String(failure)).toContain('Failed to connect to RabbitMQ');
+    expect(failure).toMatchObject({ _tag: 'Unavailable', dependency: 'amqp' });
   });
 
   it('provides a connector and closes it on release', async () => {
@@ -323,7 +322,7 @@ describe('AmqpLayer', () => {
     expect(fake.connection.close).toHaveBeenCalled();
   });
 
-  it('maps a boot failure onto EntifixConnError', async () => {
+  it('maps a boot failure onto Unavailable', async () => {
     connect.mockRejectedValue(new Error('ECONNREFUSED'));
 
     const exit = await Effect.runPromiseExit(
@@ -335,6 +334,6 @@ describe('AmqpLayer', () => {
     const failure = Exit.isFailure(exit)
       ? Option.getOrUndefined(Cause.findErrorOption(exit.cause))
       : undefined;
-    expect(failure).toBeInstanceOf(EntifixConnError);
+    expect(failure).toMatchObject({ category: 'unavailable' });
   });
 });

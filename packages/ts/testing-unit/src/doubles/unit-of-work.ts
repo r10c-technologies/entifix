@@ -1,4 +1,4 @@
-import { type DomainEvent, EntifixConnError } from '@entifix/core';
+import { type DomainEvent, isStoreFault } from '@entifix/core';
 import type { UnitClaim, UnitOfWork } from '@entifix/transactions';
 import { Effect, Option, Result } from 'effect';
 
@@ -64,7 +64,7 @@ export const makeInMemoryUnitOfWork = (
         );
 
         if (Result.isFailure(outcome)) {
-          if (outcome.failure instanceof EntifixConnError) {
+          if (isStoreFault(outcome.failure)) {
             return yield* Effect.fail(outcome.failure);
           }
           return {

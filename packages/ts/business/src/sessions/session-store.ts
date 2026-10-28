@@ -1,4 +1,4 @@
-import type { EntifixError, EntityId } from '@entifix/core';
+import type { EntityId, NotFound, StoreFailure } from '@entifix/core';
 import { Context } from 'effect';
 import { Effect } from 'effect/Effect';
 
@@ -115,15 +115,18 @@ export interface SessionStore {
   create(
     data: SessionData,
     lifetime: SessionLifetimeSeconds,
-  ): Effect<string, EntifixError>;
+  ): Effect<string, StoreFailure | NotFound>;
   /** Read a live session, failing if it is unknown, revoked, or expired. */
-  read(sessionId: string): Effect<SessionRecord, EntifixError>;
+  read(sessionId: string): Effect<SessionRecord, StoreFailure | NotFound>;
   /**
    * Renew the sliding window, **clamped to the session's own
    * {@link SessionRecord.absoluteExpiresAt}**. Fails once the ceiling is passed,
    * which is how a long-lived session finally ends.
    */
-  touch(sessionId: string, idleTtlSeconds: number): Effect<void, EntifixError>;
+  touch(
+    sessionId: string,
+    idleTtlSeconds: number,
+  ): Effect<void, StoreFailure | NotFound>;
   /**
    * Every live session a user holds.
    *
@@ -131,11 +134,13 @@ export interface SessionStore {
    * there is no way to show someone where they are signed in, and "sign out
    * everywhere" is an action with no visible subject.
    */
-  listForUser(userId: EntityId): Effect<readonly SessionRecord[], EntifixError>;
+  listForUser(
+    userId: EntityId,
+  ): Effect<readonly SessionRecord[], StoreFailure | NotFound>;
   /** Revoke a single session — the next {@link read} fails immediately. */
-  revoke(sessionId: string): Effect<void, EntifixError>;
+  revoke(sessionId: string): Effect<void, StoreFailure | NotFound>;
   /** Revoke every session for a user (e.g. password change, admin kick). */
-  revokeAllForUser(userId: EntityId): Effect<void, EntifixError>;
+  revokeAllForUser(userId: EntityId): Effect<void, StoreFailure | NotFound>;
   /**
    * Revoke every session for a user EXCEPT one.
    *
@@ -146,7 +151,7 @@ export interface SessionStore {
   revokeAllForUserExcept(
     userId: EntityId,
     keepSessionId: string,
-  ): Effect<void, EntifixError>;
+  ): Effect<void, StoreFailure | NotFound>;
 }
 
 /** DI tag the composition root binds to a concrete {@link SessionStore}. */

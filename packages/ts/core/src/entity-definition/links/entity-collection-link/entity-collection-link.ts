@@ -1,6 +1,6 @@
 import { Effect } from 'effect';
 
-import { EntifixError } from '../../../base-entities/entifix-error/index.js';
+import type { TransitionalFailure } from '../../../failure/failure.js';
 import { Entity, EntityConstructor, EntityId } from '../../../types/Entity.js';
 import { EntityLinkResolver } from '../entity-link/index.js';
 
@@ -54,7 +54,7 @@ export class EntityCollectionLink<TEntity extends Entity> {
   /**
    * Fetches every referenced target through the resolver and caches the result.
    */
-  reload(resolver: EntityLinkResolver): Effect.Effect<TEntity[], EntifixError> {
+  reload(resolver: EntityLinkResolver): Effect.Effect<TEntity[], TransitionalFailure> {
     return Effect.forEach(
       this.#ids,
       id => resolver.resolve(this.entityConstructor, id),
@@ -64,7 +64,7 @@ export class EntityCollectionLink<TEntity extends Entity> {
 
   resolve(
     resolver: EntityLinkResolver,
-  ): Effect.Effect<TEntity[], EntifixError> {
+  ): Effect.Effect<TEntity[], TransitionalFailure> {
     return this.#values !== undefined
       ? Effect.succeed(this.#values)
       : this.reload(resolver);

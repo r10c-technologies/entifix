@@ -1,7 +1,7 @@
 import type {
   DomainEvent,
-  EntifixConnError,
-  EntifixError,
+  StoreFailure,
+  TransitionalFailure,
 } from '@entifix/core';
 import { Context, type Effect } from 'effect';
 
@@ -79,7 +79,7 @@ export interface Subscription {
  * ever seeing the envelope that carried them.
  */
 export interface EventBus {
-  publish(event: DomainEvent): Effect.Effect<void, EntifixConnError>;
+  publish(event: DomainEvent): Effect.Effect<void, StoreFailure>;
   /**
    * Register a consumer for the events matching `subscription.pattern`.
    *
@@ -97,8 +97,8 @@ export interface EventBus {
    */
   subscribe(
     subscription: Subscription,
-    handler: (event: DomainEvent) => Effect.Effect<void, EntifixError>,
-  ): Effect.Effect<void, EntifixConnError>;
+    handler: (event: DomainEvent) => Effect.Effect<void, TransitionalFailure>,
+  ): Effect.Effect<void, StoreFailure>;
 }
 
 export class EventBusTag extends Context.Service<EventBusTag, EventBus>()(

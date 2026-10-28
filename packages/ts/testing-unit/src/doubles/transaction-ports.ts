@@ -1,9 +1,9 @@
 import {
+  Contention,
   type DomainEvent,
-  EntifixConnError,
-  type EntifixError,
-  EntifixLockError,
   matchesEventPattern,
+  type TransitionalFailure,
+  Unavailable,
 } from '@entifix/core';
 import type {
   EventBus,
@@ -23,7 +23,7 @@ export interface InMemoryLockService extends LockService {
   readonly log: ReadonlyArray<{ action: 'acquire' | 'release'; key: string }>;
   /**
    * Marks `key` as already taken by someone else, so the next `acquire` fails
-   * with {@link EntifixLockError} — the 409 path of the transaction facade.
+   * with {@link Contention} — the 409 path of the transaction facade.
    */
   contendOn(key: string): void;
 }
@@ -44,11 +44,7 @@ export const makeInMemoryLockService = (): InMemoryLockService => {
     acquire: key =>
       Effect.suspend(() => {
         if (contended.has(key) || tokens.has(key)) {
-          return Effect.fail(
-            new EntifixLockError(`Could not acquire lock "${key}"`, undefined, {
-              key,
-            }),
-          );
+          return Effect.fail(new Contention());
         }
         const token = `token-${(counter += 1)}`;
         tokens.set(key, token);
@@ -108,7 +104,7 @@ export interface RecordingEventBus extends EventBus {
    * broker's job in production, so a double that ignored it would let a
    * consumer pass its tests while receiving traffic it never bound to.
    */
-  deliver(event: DomainEvent): Effect.Effect<void, EntifixError>;
+  deliver(event: DomainEvent): Effect.Effect<void, TransitionalFailure>;
   /** Makes the next `publish` fail, for the broker-unavailable branch. */
   failNextPublish(): void;
 }
@@ -122,7 +118,7 @@ export const makeRecordingEventBus = (): RecordingEventBus => {
   const published: DomainEvent[] = [];
   const handlers: Array<{
     pattern: string;
-    handle: (event: DomainEvent) => Effect.Effect<void, EntifixError>;
+    handle: (event: DomainEvent) => Effect.Effect<void, TransitionalFailure>;
   }> = [];
   let failNext = false;
 
@@ -131,11 +127,7 @@ export const makeRecordingEventBus = (): RecordingEventBus => {
       Effect.suspend(() => {
         if (failNext) {
           failNext = false;
-          return Effect.fail(
-            new EntifixConnError('Event bus unavailable', undefined, {
-              eventId: event.id,
-            }),
-          );
+          return Effect.fail(new Unavailable({ dependency: 'bus' }));
         }
         published.push(event);
         return Effect.void;

@@ -1,9 +1,11 @@
 import type {
-  EntifixConnError,
   Entity,
   EntityConstructor,
   EntityFacetCounts,
   EntityFacetQuery,
+  Internal,
+  Invalid,
+  StoreFailure,
 } from '@entifix/core';
 import { Context, type Effect } from 'effect';
 
@@ -43,7 +45,7 @@ export interface EntityFacetCounterFactory {
   readonly for: <T extends Entity>(
     entityConstructor: EntityConstructor<T>,
     scope: RepositoryScope,
-  ) => Effect.Effect<EntityFacetCounter, EntifixConnError>;
+  ) => Effect.Effect<EntityFacetCounter, StoreFailure | Invalid | Internal>;
 }
 
 export class EntityFacetCounterFactoryTag extends Context.Service<

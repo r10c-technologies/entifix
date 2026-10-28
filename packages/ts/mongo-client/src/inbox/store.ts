@@ -1,7 +1,8 @@
-import { EntifixConnError } from '@entifix/core';
 import type { InboxClaim, TransactionInbox } from '@entifix/transactions';
 import { Effect } from 'effect';
 import type { Db } from 'mongodb';
+
+import { translateMongoError } from '../errors/translate-mongo-error.js';
 
 /**
  * The inbox collection, and it lives in **whichever database the side effect it
@@ -61,10 +62,7 @@ export const ensureInboxIndexes = (db: Db) =>
         .collection<InboxClaim>(INBOX_COLLECTION)
         .createIndex({ consumer: 1, eventId: 1 }, { unique: true });
     },
-    catch: error =>
-      new EntifixConnError('Failed to ensure inbox indexes', error, {
-        database: db.databaseName,
-      }),
+    catch: error => translateMongoError(error),
   });
 
 /**
@@ -95,11 +93,7 @@ export const makeMongoInbox = (db: Db, consumer: string): TransactionInbox => {
             throw error;
           }
         },
-        catch: error =>
-          new EntifixConnError('Failed to claim inbox entry', error, {
-            consumer,
-            eventId,
-          }),
+        catch: error => translateMongoError(error),
       }),
   };
 };

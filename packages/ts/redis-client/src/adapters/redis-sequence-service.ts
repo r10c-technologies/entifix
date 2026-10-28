@@ -1,4 +1,3 @@
-import { EntifixConnError } from '@entifix/core';
 import {
   type SequenceService,
   SequenceServiceTag,
@@ -6,6 +5,7 @@ import {
 import { Effect, Layer } from 'effect';
 import type { Redis } from 'ioredis';
 
+import { translateRedisError } from '../errors/translate-redis-error.js';
 import { RedisTag } from '../redis-connection/redis-connection.js';
 
 /** Namespace so sequence keys never collide with lock keys. */
@@ -20,8 +20,7 @@ export const makeRedisSequenceService = (redis: Redis): SequenceService => ({
   next: name =>
     Effect.tryPromise({
       try: () => redis.incr(`${SEQ_PREFIX}${name}`),
-      catch: error =>
-        new EntifixConnError('Redis INCR failed', error, { name }),
+      catch: error => translateRedisError(error),
     }),
 });
 

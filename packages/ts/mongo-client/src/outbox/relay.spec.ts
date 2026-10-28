@@ -3,7 +3,12 @@ import {
   type TenantDirectory,
   TenantDirectoryTag,
 } from '@entifix/business';
-import { type DomainEvent, EntifixConnError } from '@entifix/core';
+import {
+  type DomainEvent,
+  ProtocolFailure,
+  type StoreFailure,
+  Unavailable,
+} from '@entifix/core';
 import { makeFakeMongoDb } from '@entifix/testing-unit/drivers';
 import {
   type EventBus,
@@ -81,13 +86,18 @@ const recordingOutbox = (entries: readonly OutboxEntry[]) => {
 };
 
 /** A bus that refuses the named events and accepts everything else. */
-const busRefusing = (unpublishable: readonly string[]) => {
+const busRefusing = (
+  unpublishable: readonly string[],
+  failure: StoreFailure = new ProtocolFailure({
+    reason: 'routing key too long',
+  }),
+) => {
   const published: string[] = [];
 
   const bus: EventBus = {
     publish: event =>
       unpublishable.includes(event.id)
-        ? Effect.fail(new EntifixConnError('routing key too long'))
+        ? Effect.fail(failure)
         : Effect.sync(() => {
             published.push(event.id);
           }),
@@ -167,6 +177,15 @@ describe('drainOutbox', () => {
         quarantine: false,
       },
     ]);
+  });
+
+  it('records the code when the failure carries no message', async () => {
+    const { outbox, failures } = recordingOutbox([anEntry('tx-1:accepted')]);
+    const { bus } = busRefusing(['tx-1:accepted'], new Unavailable({}));
+
+    await runDrain(outbox, bus);
+
+    expect(failures[0]?.error).toBe('unavailable');
   });
 
   /**
@@ -268,7 +287,7 @@ describe('sweepOutbox', () => {
   it('logs a failed pass rather than ending the daemon', async () => {
     const failing: TransactionOutbox = {
       enqueue: () => Effect.succeed('enqueued' as const),
-      pending: () => Effect.fail(new EntifixConnError('connection reset')),
+      pending: () => Effect.fail(new Unavailable({})),
       markSent: () => Effect.void,
       recordFailure: () => Effect.void,
       stats: () => Effect.succeed({ pending: 0, quarantined: 0 }),
@@ -465,7 +484,7 @@ describe('sweepTenantOutboxes', () => {
   it('logs a directory it could not list rather than failing the daemon', async () => {
     const { bus } = busRefusing([]);
     const directory: TenantDirectory<Db> = {
-      list: () => Effect.fail(new EntifixConnError('not authorized')),
+      list: () => Effect.fail(new Unavailable({})),
     };
 
     await expect(

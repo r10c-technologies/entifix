@@ -20,6 +20,7 @@ import {
   Invalid,
   InvalidEnvelope,
   InvalidQuery,
+  isStoreFault,
   NotFound,
   Overloaded,
   ProtocolFailure,
@@ -312,6 +313,16 @@ describe('the problem codec', () => {
   });
 });
 
+describe('isStoreFault', () => {
+  it('admits the store failing to answer, and nothing else', () => {
+    expect(isStoreFault(new Unavailable({}))).toBe(true);
+    expect(isStoreFault(new Contention())).toBe(true);
+    expect(isStoreFault(new DuplicateKey({}))).toBe(false);
+    expect(isStoreFault(null)).toBe(false);
+    expect(isStoreFault('Unavailable')).toBe(false);
+  });
+});
+
 describe('the fleet-generic failures', () => {
   it.each([
     [new Invalid({ errors: [{ pointer: '/a', detail: 'd', code: 'c' }] })],
@@ -339,6 +350,11 @@ describe('the fleet-generic failures', () => {
     expect(Schema.encodeUnknownSync(Schema.Unknown)(decoded)).toMatchObject(
       Object.fromEntries(Object.entries(failure)),
     );
+  });
+
+  it('says why it declined, when it was told', () => {
+    expect(new Declined({ reason: 'card' }).message).toBe('card');
+    expect(new Declined({}).message).toBe('');
   });
 
   it('answers the idempotency refusals with their decided statuses', () => {

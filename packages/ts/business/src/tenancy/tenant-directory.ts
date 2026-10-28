@@ -1,4 +1,4 @@
-import type { EntifixConnError } from '@entifix/core';
+import type { StoreFailure } from '@entifix/core';
 import { Context, type Effect } from 'effect';
 
 /** One organization's storage, as a {@link TenantDirectory} lists it. */
@@ -22,7 +22,7 @@ export interface TenantEntry<THandle> {
 export interface TenantDirectory<THandle> {
   readonly list: () => Effect.Effect<
     readonly TenantEntry<THandle>[],
-    EntifixConnError
+    StoreFailure
   >;
 }
 

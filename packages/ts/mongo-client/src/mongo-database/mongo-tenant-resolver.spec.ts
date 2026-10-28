@@ -1,4 +1,3 @@
-import { EntifixConnError } from '@entifix/core';
 import { Effect, Exit } from 'effect';
 import type { Db, MongoClient } from 'mongodb';
 import { describe, expect, it, vi } from 'vitest';
@@ -62,7 +61,7 @@ describe('makeMongoTenantResolver', () => {
     expect(db).not.toHaveBeenCalled();
   });
 
-  it('fails with a connection error the service already knows how to map', async () => {
+  it('refuses an unsafe id as an invalid request, never echoing it', async () => {
     const { client } = fakeClient();
     const resolver = makeMongoTenantResolver(client, 'tenant_');
 
@@ -70,6 +69,10 @@ describe('makeMongoTenantResolver', () => {
       Effect.flip(resolver.forOrganization('bad/id')),
     );
 
-    expect(error).toBeInstanceOf(EntifixConnError);
+    expect(error).toMatchObject({
+      _tag: 'Invalid',
+      errors: [{ code: 'unsafeOrganizationId' }],
+    });
+    expect(JSON.stringify(error)).not.toContain('bad/id');
   });
 });

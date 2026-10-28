@@ -1,4 +1,4 @@
-import { EntifixConnError } from '@entifix/core';
+import { Unavailable } from '@entifix/core';
 import * as amqp from 'amqplib';
 import { Context, Effect, Layer } from 'effect';
 
@@ -247,7 +247,7 @@ export const makeAmqpConnector = (uri: string) => {
  */
 export const AmqpLayer = (
   settings: AmqpSettings,
-): Layer.Layer<AmqpChannelTag, EntifixConnError> =>
+): Layer.Layer<AmqpChannelTag, Unavailable> =>
   Layer.effect(
     AmqpChannelTag,
     Effect.acquireRelease(
@@ -257,8 +257,7 @@ export const AmqpLayer = (
           await built.connector.withChannel(async () => undefined);
           return built;
         },
-        catch: error =>
-          new EntifixConnError('Failed to connect to RabbitMQ', error),
+        catch: error => new Unavailable({ dependency: 'amqp' }),
       }),
       built => Effect.promise(() => built.close()),
     ).pipe(Effect.map(built => built.connector)),

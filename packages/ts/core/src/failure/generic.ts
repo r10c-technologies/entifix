@@ -80,6 +80,7 @@ export class Declined extends defineFailure('declined')<Declined>()(
   'Declined',
   'declined',
   { reason: Schema.optionalKey(Schema.String) },
+  { message: ({ reason }) => reason ?? '' },
 ) {}
 
 /** Lost a race that a retry can win — a claim taken, a transaction aborted. */
@@ -156,3 +157,32 @@ export class IdempotencyKeyInFlight extends defineFailure(
   'IdempotencyKeyInFlight',
   'idempotencyKeyInFlight',
 ) {}
+
+/**
+ * What a store adapter fails with — a datastore, a cache, a bus: the value it
+ * guarded already exists, someone else got there first, it could not be
+ * reached, it did not answer in time, or it answered something unreadable.
+ * A port that talks to storage names this as its failure.
+ */
+export type StoreFailure =
+  DuplicateKey | Contention | Unavailable | Timeout | ProtocolFailure;
+
+/**
+ * The technical part of {@link StoreFailure}: the store failing to answer, as
+ * opposed to answering no. A unit of work rolls back and surfaces these; a
+ * business failure — a `DuplicateKey` included — is its abort.
+ */
+export type StoreFault = Exclude<StoreFailure, DuplicateKey>;
+
+const STORE_FAULT_TAGS: ReadonlySet<string> = new Set([
+  'Contention',
+  'Unavailable',
+  'Timeout',
+  'ProtocolFailure',
+]);
+
+/** Whether `value` is a {@link StoreFault}, read by tag. */
+export const isStoreFault = (value: unknown): value is StoreFault =>
+  typeof value === 'object' &&
+  value !== null &&
+  STORE_FAULT_TAGS.has((value as { readonly _tag?: unknown })._tag as string);

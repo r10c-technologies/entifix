@@ -17,6 +17,16 @@ import { recordOutboxStats } from './metrics.js';
 import { ensureOutboxIndexes, makeMongoOutbox } from './store.js';
 
 /** How often the sweep looks for entries the fast path did not carry. */
+/**
+ * What an outbox entry records as the reason its publish failed: the failure's
+ * own message, or its code when it carries none — never empty, because an
+ * operator reading a quarantined entry has nothing else to go on.
+ */
+const failureText = (failure: {
+  readonly message: string;
+  readonly code: string;
+}) => (failure.message === '' ? failure.code : failure.message);
+
 export const SWEEP_INTERVAL = Duration.seconds(15);
 /** Entries drained per pass, per database. */
 export const BATCH = 100;
@@ -74,7 +84,11 @@ export const drainOutbox = (
         const attempts = entry.attempts + 1;
         const quarantine = attempts >= options.maxAttempts;
 
-        yield* outbox.recordFailure(entry, outcome.failure.message, quarantine);
+        yield* outbox.recordFailure(
+          entry,
+          failureText(outcome.failure),
+          quarantine,
+        );
 
         if (!quarantine) {
           return sent;
@@ -86,7 +100,7 @@ export const drainOutbox = (
             eventId: entry.eventId,
             eventName: entry.event.name,
             attempts,
-            lastError: outcome.failure.message,
+            lastError: failureText(outcome.failure),
           }),
         );
         continue;

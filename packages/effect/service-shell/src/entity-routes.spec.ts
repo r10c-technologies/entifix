@@ -13,10 +13,10 @@ import {
 import {
   accessor,
   EntifixBuildError,
-  EntifixConnError,
   type Entity,
   entity,
   type EntityId,
+  Unavailable,
 } from '@entifix/core';
 import { makeInMemoryEntityRepository } from '@entifix/testing-unit';
 import { Effect, Layer } from 'effect';
@@ -90,7 +90,7 @@ const storeFor = (organizationId = '') => {
   }
   return store;
 };
-let factoryFailure: EntifixConnError | undefined;
+let factoryFailure: Unavailable | undefined;
 
 const factory = Layer.succeed(EntityRepositoryFactoryTag, {
   for: (_entity, scope) =>
@@ -396,7 +396,7 @@ describe('makeEntityRoutes, public reads and guarded writes', () => {
   });
 
   it('answers a store that is not there as a 503 on every verb', async () => {
-    factoryFailure = new EntifixConnError('no pool');
+    factoryFailure = new Unavailable({});
     try {
       const editor = bearer(['editor']);
       const statuses = await Promise.all([

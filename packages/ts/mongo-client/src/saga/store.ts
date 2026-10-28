@@ -1,4 +1,3 @@
-import { EntifixConnError } from '@entifix/core';
 import {
   type SagaInstance,
   type SagaState,
@@ -9,6 +8,7 @@ import {
 import { Effect, Layer } from 'effect';
 import type { Db } from 'mongodb';
 
+import { translateMongoError } from '../errors/translate-mongo-error.js';
 import {
   MongoClientTag,
   MongoDatabaseTag,
@@ -23,9 +23,6 @@ export const SAGA_COLLECTION = 'saga_instances';
 
 /** The two states a sweep treats as unfinished. */
 const UNFINISHED: readonly SagaState[] = ['RUNNING', 'COMPENSATING'];
-
-const failed = (message: string, sagaId: string) => (error: unknown) =>
-  new EntifixConnError(message, error, { sagaId });
 
 const sagaCollection = (db: Db) => db.collection<SagaInstance>(SAGA_COLLECTION);
 
@@ -43,10 +40,7 @@ export const ensureSagaIndexes = (db: Db) =>
       await sagaCollection(db).createIndex({ sagaId: 1 }, { unique: true });
       await sagaCollection(db).createIndex({ state: 1, updatedAt: 1 });
     },
-    catch: error =>
-      new EntifixConnError('Failed to ensure saga indexes', error, {
-        database: db.databaseName,
-      }),
+    catch: error => translateMongoError(error),
   });
 
 /** {@link SagaStore} over one Mongo database. */
@@ -67,7 +61,7 @@ export const makeMongoSagaStore = (db: Db): SagaStore => {
             { upsert: true },
           );
         },
-        catch: failed('Failed to start the saga instance', instance.sagaId),
+        catch: error => translateMongoError(error),
       }),
 
     beginStep: (sagaId, stepIndex) =>
@@ -78,7 +72,7 @@ export const makeMongoSagaStore = (db: Db): SagaStore => {
             { $set: { stepIndex, updatedAt: stamp() } },
           );
         },
-        catch: failed('Failed to record the step transition', sagaId),
+        catch: error => translateMongoError(error),
       }),
 
     recordOutcome: (sagaId, outcome: SagaStepOutcome) =>
@@ -92,7 +86,7 @@ export const makeMongoSagaStore = (db: Db): SagaStore => {
             { $push: { outcomes: outcome }, $set: { updatedAt: stamp() } },
           );
         },
-        catch: failed('Failed to record the step outcome', sagaId),
+        catch: error => translateMongoError(error),
       }),
 
     settle: (sagaId, state, error) =>
@@ -103,7 +97,7 @@ export const makeMongoSagaStore = (db: Db): SagaStore => {
             { $set: { state, error, updatedAt: stamp() } },
           );
         },
-        catch: failed('Failed to settle the saga instance', sagaId),
+        catch: error => translateMongoError(error),
       }),
 
     /**
@@ -129,7 +123,7 @@ export const makeMongoSagaStore = (db: Db): SagaStore => {
           );
           return (claimed ?? undefined) as SagaInstance | undefined;
         },
-        catch: failed('Failed to claim the saga instance', sagaId),
+        catch: error => translateMongoError(error),
       }),
 
     /**
@@ -151,7 +145,7 @@ export const makeMongoSagaStore = (db: Db): SagaStore => {
             { arrayFilters: [{ 'entry.stepId': stepId }] },
           );
         },
-        catch: failed('Failed to mark the step compensated', sagaId),
+        catch: error => translateMongoError(error),
       }),
 
     get: sagaId =>
@@ -159,7 +153,7 @@ export const makeMongoSagaStore = (db: Db): SagaStore => {
         try: async () =>
           ((await collection.findOne({ sagaId }, { projection: { _id: 0 } })) ??
             undefined) as SagaInstance | undefined,
-        catch: failed('Failed to read the saga instance', sagaId),
+        catch: error => translateMongoError(error),
       }),
 
     /**
@@ -179,7 +173,7 @@ export const makeMongoSagaStore = (db: Db): SagaStore => {
               { projection: { _id: 0 } },
             )
             .toArray()) as SagaInstance[],
-        catch: failed('Failed to find stale saga instances', ''),
+        catch: error => translateMongoError(error),
       }),
   };
 };

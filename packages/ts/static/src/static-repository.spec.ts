@@ -1,7 +1,5 @@
 import {
   accessor,
-  EntifixConnError,
-  EntifixLogicError,
   type Entity,
   entity,
   type EntityId,
@@ -48,7 +46,7 @@ describe('makeStaticRepository', () => {
       await runExit(repository.delete<ContractWidget>('w-1')),
     );
 
-    expect(saved).toBeInstanceOf(EntifixLogicError);
+    expect(saved).toMatchObject({ _tag: 'Declined', category: 'declined' });
     expect((saved as Error).message).toBe(
       'Cannot save a ContractWidget: it is served from static content, which is read-only',
     );
@@ -65,11 +63,7 @@ describe('makeStaticRepository', () => {
       await runExit(labelled.get<ContractWidget>('nope')),
     );
 
-    expect(failure).toBeInstanceOf(EntifixConnError);
-    expect((failure as EntifixConnError).details).toEqual({
-      entity: 'widgets.json',
-      id: 'nope',
-    });
+    expect(failure).toMatchObject({ _tag: 'NotFound', entity: 'widgets.json' });
   });
 
   it('copies a record whose class declares no accessors member by member', async () => {

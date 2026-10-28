@@ -1,5 +1,5 @@
 import type { TenantDatabaseResolver } from '@entifix/business';
-import { EntifixConnError } from '@entifix/core';
+import { Invalid } from '@entifix/core';
 import { Effect } from 'effect';
 import type { Db, MongoClient } from 'mongodb';
 
@@ -34,23 +34,31 @@ export const makeMongoTenantResolver = (
     Effect.gen(function* () {
       if (!SAFE_ORGANIZATION_ID.test(organizationId)) {
         return yield* Effect.fail(
-          new EntifixConnError(
-            'Refusing to resolve a tenant database from an unsafe organization id',
-            undefined,
-            // The id itself is deliberately not logged: it arrived unvalidated.
-            { prefix },
-          ),
+          new Invalid({
+            errors: [
+              {
+                pointer: '/organizationId',
+                // The id itself is deliberately not echoed: it arrived unvalidated.
+                detail: 'not a safe organization id',
+                code: 'unsafeOrganizationId',
+              },
+            ],
+          }),
         );
       }
 
       const name = `${prefix}${organizationId}`;
       if (name.length > MAX_DB_NAME_LENGTH) {
         return yield* Effect.fail(
-          new EntifixConnError(
-            'Tenant database name exceeds the Mongo limit',
-            undefined,
-            { prefix, length: name.length },
-          ),
+          new Invalid({
+            errors: [
+              {
+                pointer: '/organizationId',
+                detail: `the tenant database name exceeds ${MAX_DB_NAME_LENGTH} characters`,
+                code: 'organizationIdTooLong',
+              },
+            ],
+          }),
         );
       }
 

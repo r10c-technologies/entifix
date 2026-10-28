@@ -104,12 +104,7 @@ describe('ensureInboxIndexes', () => {
 
     expect(outcome._tag).toBe('Failure');
     if (outcome._tag === 'Failure') {
-      expect(outcome.failure.message).toContain(
-        'Failed to ensure inbox indexes',
-      );
-      expect(outcome.failure.details).toMatchObject({
-        database: 'transaction_manager',
-      });
+      expect(outcome.failure).toMatchObject({ category: 'unavailable' });
     }
   });
 });
@@ -146,12 +141,7 @@ describe('makeMongoInbox', () => {
 
     expect(outcome._tag).toBe('Failure');
     if (outcome._tag === 'Failure') {
-      expect(outcome.failure.message).toContain('Failed to claim inbox entry');
-      // Both halves of the key, so a failed claim is queryable by either.
-      expect(outcome.failure.details).toMatchObject({
-        consumer: 'a',
-        eventId: 'tx-1:completed',
-      });
+      expect(outcome.failure).toMatchObject({ category: 'unavailable' });
     }
   });
 

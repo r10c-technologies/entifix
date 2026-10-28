@@ -100,7 +100,7 @@ describe('makeRedisSessionStore', () => {
 
     const error = await runFailure(store.read('nope'));
 
-    expect(error._tag).toBe('EntifixLogicError');
+    expect(error).toMatchObject({ _tag: 'NotFound' });
   });
 
   it('renews a live session on touch', async () => {
@@ -117,7 +117,7 @@ describe('makeRedisSessionStore', () => {
 
     const error = await runFailure(store.touch('gone', 120));
 
-    expect(error._tag).toBe('EntifixLogicError');
+    expect(error).toMatchObject({ _tag: 'NotFound' });
   });
 
   it('stamps the ceiling and keeps the user index alive for it', async () => {
@@ -192,7 +192,7 @@ describe('makeRedisSessionStore', () => {
     atTime(1_000_000 + 3_601_000);
     const error = await runFailure(store.touch(sessionId, 120));
 
-    expect(error._tag).toBe('EntifixLogicError');
+    expect(error).toMatchObject({ _tag: 'NotFound' });
     // Gone from the store AND from the index, so a session list cannot show a
     // row that can never be renewed again.
     expect(
@@ -215,7 +215,7 @@ describe('makeRedisSessionStore', () => {
       fake.read(`${DEFAULT_SESSION_NAMESPACE}:${sessionId}`),
     ).toBeUndefined();
     await expect(runFailure(store.read(sessionId))).resolves.toMatchObject({
-      _tag: 'EntifixLogicError',
+      _tag: 'NotFound',
     });
     expect(fake.commands).toContainEqual({
       command: 'srem',
@@ -296,7 +296,7 @@ describe('makeRedisSessionStore', () => {
 
       const error = await runFailure(store.touch(sessionId, 60));
 
-      expect(error._tag).toBe('EntifixLogicError');
+      expect(error).toMatchObject({ _tag: 'NotFound' });
     });
 
     it('reads back with a ceiling rather than undefined', async () => {
@@ -383,14 +383,14 @@ describe('makeRedisSessionStore', () => {
     await expect(run(store.revokeAllForUser('ghost'))).resolves.toBeUndefined();
   });
 
-  it('surfaces a driver failure as an EntifixConnError', async () => {
+  it('surfaces a driver failure as Unavailable', async () => {
     const { fake, redis } = withFakeRedis();
     const store = makeRedisSessionStore(redis);
     fake.failWith(new Error('connection reset'));
 
     const error = await runFailure(store.create(sampleData, lifetime));
 
-    expect(error._tag).toBe('EntifixConnError');
+    expect(error).toMatchObject({ _tag: 'Unavailable' });
   });
 
   it('provides SessionStoreTag through the layer', async () => {

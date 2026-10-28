@@ -2,7 +2,6 @@ import {
   EntityRepositoryFactoryTag,
   TenantDatabaseResolverTag,
 } from '@entifix/business';
-import { EntifixConnError } from '@entifix/core';
 import { ContractWidget } from '@entifix/testing-unit/contracts';
 import { makeFakeMongoDb } from '@entifix/testing-unit/drivers';
 import { Effect, Layer } from 'effect';
@@ -69,9 +68,9 @@ describe('MongoTenantRepositoryFactoryLayer', () => {
   it('refuses a request that names no organization', async () => {
     const resolved: string[] = [];
 
-    await expect(totalOf(tenantLayer(resolved))).rejects.toBeInstanceOf(
-      EntifixConnError,
-    );
+    await expect(totalOf(tenantLayer(resolved))).rejects.toMatchObject({
+      _tag: 'Internal',
+    });
     expect(resolved).toEqual([]);
   });
 });

@@ -4,19 +4,20 @@ import type { EntityRepository } from '@entifix/business';
 import {
   deserializeEntityCollection,
   deserializeSingleEntity,
-  EntifixConnError,
-  type EntifixError,
   type Entity,
   type EntityConstructor,
   type EntityId,
   type EntityLoadRequest,
   type EntityPage,
   extractMetaEntity,
+  InvalidQuery,
+  NotFound,
   serializeEntity,
 } from '@entifix/core';
 import { Effect } from 'effect';
 import type { SqlClient } from 'effect/sql';
 
+import { translateSqlError } from '../errors/translate-sql-error.js';
 import {
   translateFiltering,
   translateSorting,
@@ -70,16 +71,6 @@ export function makeSqlRepository<TEntity extends Entity>(
 ): EntityRepository {
   const table = sql(tableName(entityConstructor));
 
-  const fail = (
-    message: string,
-    error: unknown,
-    details?: Record<string, unknown>,
-  ) =>
-    new EntifixConnError(message, error, {
-      entity: entityConstructor.name,
-      ...details,
-    });
-
   const load = <T extends Entity>(request: EntityLoadRequest<T>) =>
     Effect.gen(function* () {
       // The translators are framework-free and reject an undeclared member by
@@ -98,7 +89,9 @@ export function makeSqlRepository<TEntity extends Entity>(
             request.sorting as EntityLoadRequest<TEntity>['sorting'],
           ),
         }),
-        catch: error => error as EntifixError,
+        // The translator refuses a member the entity did not declare, by
+        // throwing: that is the caller's query, answered as a 400.
+        catch: error => new InvalidQuery({ reason: (error as Error).message }),
       });
 
       const where =
@@ -116,18 +109,12 @@ export function makeSqlRepository<TEntity extends Entity>(
 
       const rows = yield* sql<SqlRow>`
         SELECT * FROM ${table} ${where} ${orderBy} LIMIT ${pageSize} OFFSET ${offset}
-      `.pipe(
-        Effect.mapError(error =>
-          fail('Failed to load entities from SQL', error),
-        ),
-      );
+      `.pipe(Effect.mapError(error => translateSqlError(error)));
 
       const counted = yield* sql<{
         readonly count: number;
       }>`SELECT COUNT(*)::int AS count FROM ${table} ${where}`.pipe(
-        Effect.mapError(error =>
-          fail('Failed to count entities in SQL', error),
-        ),
+        Effect.mapError(error => translateSqlError(error)),
       );
 
       const items = yield* deserializeEntityCollection(entityConstructor, [
@@ -145,18 +132,16 @@ export function makeSqlRepository<TEntity extends Entity>(
     Effect.gen(function* () {
       const rows = yield* sql<SqlRow>`
         SELECT * FROM ${table} WHERE ${sql('id')} = ${id} LIMIT 1
-      `.pipe(
-        Effect.mapError(error =>
-          fail('Failed to read entity from SQL', error, { id }),
-        ),
-      );
+      `.pipe(Effect.mapError(error => translateSqlError(error)));
 
       const entity = yield* deserializeSingleEntity(
         entityConstructor,
         rows[0] ?? null,
       );
       if (entity === undefined) {
-        return yield* Effect.fail(fail('Entity not found', undefined, { id }));
+        return yield* Effect.fail(
+          new NotFound({ entity: extractMetaEntity(entityConstructor).key }),
+        );
       }
       return entity as unknown as T;
     });
@@ -189,11 +174,7 @@ export function makeSqlRepository<TEntity extends Entity>(
       yield* sql`
         INSERT INTO ${table} ${sql.insert(row)}
         ON CONFLICT (${sql('id')}) ${onConflict}
-      `.pipe(
-        Effect.mapError(error =>
-          fail('Failed to save entity to SQL', error, { id }),
-        ),
-      );
+      `.pipe(Effect.mapError(error => translateSqlError(error)));
 
       entity.id = id;
       return entity;
@@ -203,9 +184,7 @@ export function makeSqlRepository<TEntity extends Entity>(
     Effect.gen(function* () {
       const id = toEntityId(entityOrId);
       yield* sql`DELETE FROM ${table} WHERE ${sql('id')} = ${id}`.pipe(
-        Effect.mapError(error =>
-          fail('Failed to delete entity from SQL', error, { id }),
-        ),
+        Effect.mapError(error => translateSqlError(error)),
       );
     });
 
@@ -218,5 +197,3 @@ export function makeSqlRepository<TEntity extends Entity>(
     delete: del,
   } as unknown as EntityRepository;
 }
-
-export type { EntifixError };

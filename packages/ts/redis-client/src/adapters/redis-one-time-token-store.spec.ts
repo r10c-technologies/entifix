@@ -67,7 +67,7 @@ describe('makeRedisOneTimeTokenStore', () => {
     const error = await runFailure(store.consume(PURPOSE, token));
 
     // A copy in a mail archive or a proxy log is already worthless.
-    expect(error._tag).toBe('EntifixLogicError');
+    expect(error).toMatchObject({ _tag: 'NotFound' });
   });
 
   it('refuses a token minted for a different purpose', async () => {
@@ -78,7 +78,7 @@ describe('makeRedisOneTimeTokenStore', () => {
     const error = await runFailure(store.consume(PURPOSE, token));
 
     // Namespacing is what stops one flow's token being redeemed as another's.
-    expect(error._tag).toBe('EntifixLogicError');
+    expect(error).toMatchObject({ _tag: 'NotFound' });
   });
 
   it('refuses a token that was never issued', async () => {
@@ -87,7 +87,7 @@ describe('makeRedisOneTimeTokenStore', () => {
 
     const error = await runFailure(store.consume(PURPOSE, 'invented'));
 
-    expect(error._tag).toBe('EntifixLogicError');
+    expect(error).toMatchObject({ _tag: 'NotFound' });
   });
 
   it('honours a custom namespace', async () => {
@@ -101,14 +101,14 @@ describe('makeRedisOneTimeTokenStore', () => {
     ).toBe(true);
   });
 
-  it('surfaces a driver failure as an EntifixConnError', async () => {
+  it('surfaces a driver failure as Unavailable', async () => {
     const { fake, redis } = withFakeRedis();
     const store = makeRedisOneTimeTokenStore(redis);
     fake.failWith(new Error('connection reset'));
 
     const error = await runFailure(store.issue(PURPOSE, 'user-1', 900));
 
-    expect(error._tag).toBe('EntifixConnError');
+    expect(error).toMatchObject({ _tag: 'Unavailable' });
   });
 
   it('surfaces a driver failure on consume too', async () => {
@@ -118,7 +118,7 @@ describe('makeRedisOneTimeTokenStore', () => {
 
     const error = await runFailure(store.consume(PURPOSE, 'anything'));
 
-    expect(error._tag).toBe('EntifixConnError');
+    expect(error).toMatchObject({ _tag: 'Unavailable' });
   });
 
   it('provides OneTimeTokenStoreTag through the layer', async () => {

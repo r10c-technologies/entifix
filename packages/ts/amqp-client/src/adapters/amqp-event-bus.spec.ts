@@ -5,7 +5,7 @@ import {
   WiringRegistryTag,
 } from '@entifix/business';
 import type { DomainEvent } from '@entifix/core';
-import { EntifixBuildError, EntifixConnError } from '@entifix/core';
+import { Invalid, ProtocolFailure, Unavailable } from '@entifix/core';
 import { describeEventBusContract } from '@entifix/testing-unit/contracts';
 import { makeFakeAmqpChannel } from '@entifix/testing-unit/drivers';
 import { EventBusTag, type Subscription } from '@entifix/transactions';
@@ -14,7 +14,10 @@ import { Effect, Exit, Layer } from 'effect';
 import { describe, expect, it } from 'vitest';
 
 import type { AmqpConnector } from '../amqp-connection/amqp-connection.js';
-import { AmqpChannelTag } from '../amqp-connection/amqp-connection.js';
+import {
+  AmqpChannelTag,
+  EVENTS_DLX,
+} from '../amqp-connection/amqp-connection.js';
 import {
   AmqpEventBusLayer,
   makeAmqpEventBus,
@@ -261,41 +264,85 @@ describe('makeAmqpEventBus', () => {
     expect(fake.acked).toHaveLength(0);
   });
 
-  it('quarantines a payload its own consumer rejects, with no retry either', async () => {
+  /** The quarantine republish a poison message gets, with its reason. */
+  const quarantined = (fake: ReturnType<typeof withFakeChannel>['fake']) =>
+    fake.published.filter(entry => entry.exchange === EVENTS_DLX);
+
+  it('quarantines a payload its own consumer rejects, with its reason and no retry', async () => {
     // ⚠️ Measured on `catalog.published`, not imagined: a payload the domain
     // contract rejected took five deliveries to reach the quarantine it
     // belonged in immediately.
     //
-    // The transport validates `meta` and deliberately **not** `data` — inventing
-    // an opinion about a payload is how the bus would start knowing about
-    // domains — so the consumer's own decoder is the only thing that can tell a
-    // malformed payload from a bad afternoon at the database. It says so by
-    // failing with `EntifixBuildError`, which by that class's definition means
-    // the client's fault, and a client's fault never fixes itself on a retry.
+    // The transport validates `meta` and deliberately **not** `data`, so the
+    // consumer's own decoder is the only thing that can tell a malformed
+    // payload from a bad afternoon at the database. It says so with a
+    // business failure, and an answer never changes on a retry.
     const { fake, bus } = withFakeChannel();
     await Effect.runPromise(
       bus.subscribe(WORK, () =>
-        Effect.fail(
-          new EntifixBuildError('payload is missing currency') as never,
-        ),
+        Effect.fail(new Invalid({ errors: [] }) as never),
       ),
     );
 
     await fake.deliver(anEnvelope(anEvent()));
 
-    expect(fake.nacked).toEqual([
-      { message: expect.anything(), allUpTo: false, requeue: false },
+    expect(quarantined(fake)).toEqual([
+      expect.objectContaining({
+        routingKey: WORK_QUEUE,
+        headers: expect.objectContaining({
+          'x-failure-code': 'invalid',
+          'x-failure-category': 'invalid',
+        }),
+      }),
     ]);
-    expect(fake.acked).toHaveLength(0);
+    expect(fake.acked).toHaveLength(1);
+    expect(fake.nacked).toHaveLength(0);
   });
 
-  it('still requeues a connection failure, which is exactly what a retry is for', async () => {
+  it('decides by category on a failure that is no class instance at all', async () => {
+    // What a failure decoded off a wire, or defined in a second copy of core,
+    // looks like: the facts, and no prototype to `instanceof` against.
+    const { fake, bus } = withFakeChannel();
+    await Effect.runPromise(
+      bus.subscribe(WORK, () =>
+        Effect.fail({
+          _tag: 'CurrencyMissing',
+          code: 'currencyMissing',
+          category: 'declined',
+          family: 'business',
+          message: '',
+        } as never),
+      ),
+    );
+
+    await fake.deliver(anEnvelope(anEvent()));
+
+    expect(quarantined(fake)[0]?.headers).toMatchObject({
+      'x-failure-code': 'currencyMissing',
+      'x-failure-category': 'declined',
+    });
+  });
+
+  it('quarantines a protocol failure, which no retry decodes', async () => {
+    const { fake, bus } = withFakeChannel();
+    await Effect.runPromise(
+      bus.subscribe(WORK, () =>
+        Effect.fail(new ProtocolFailure({ reason: 'bad shape' }) as never),
+      ),
+    );
+
+    await fake.deliver(anEnvelope(anEvent()));
+
+    expect(quarantined(fake)).toHaveLength(1);
+  });
+
+  it('still requeues an unreachable store, which is exactly what a retry is for', async () => {
     // The other half of the same rule: a Mongo blip must not send a perfectly
     // good message to the quarantine.
     const { fake, bus } = withFakeChannel();
     await Effect.runPromise(
       bus.subscribe(WORK, () =>
-        Effect.fail(new EntifixConnError('replica set unreachable') as never),
+        Effect.fail(new Unavailable({ dependency: 'mongo' }) as never),
       ),
     );
 
@@ -304,6 +351,7 @@ describe('makeAmqpEventBus', () => {
     expect(fake.nacked).toEqual([
       { message: expect.anything(), allUpTo: false, requeue: true },
     ]);
+    expect(quarantined(fake)).toHaveLength(0);
   });
 
   it('quarantines a poison payload without spending a single retry', async () => {
@@ -312,12 +360,12 @@ describe('makeAmqpEventBus', () => {
 
     await fake.deliverRaw(JSON.stringify({ not: 'an envelope' }));
 
-    // `requeue: false` goes straight to the dead-letter exchange. A payload
-    // `readEventEnvelope` rejects never becomes readable, so retrying it only
-    // spends the budget of the messages behind it.
-    expect(fake.nacked).toEqual([
-      { message: expect.anything(), allUpTo: false, requeue: false },
-    ]);
+    // A payload `readEventEnvelope` rejects never becomes readable, so
+    // retrying it only spends the budget of the messages behind it.
+    expect(quarantined(fake)[0]?.headers).toMatchObject({
+      'x-failure-code': 'invalidEnvelope',
+    });
+    expect(fake.nacked).toHaveLength(0);
   });
 
   it('quarantines a payload that is not even JSON', async () => {
@@ -327,8 +375,24 @@ describe('makeAmqpEventBus', () => {
     await fake.deliverRaw('not json at all');
 
     // `JSON.parse` throws synchronously. Outside the Effect it escaped into
-    // amqplib's callback and the message was never nacked at all — a third
-    // poison class the adapter used to have no path for.
+    // amqplib's callback and the message was never settled at all.
+    expect(quarantined(fake)).toEqual([
+      expect.objectContaining({
+        body: 'not json at all',
+        headers: expect.objectContaining({
+          'x-failure-code': 'invalidEnvelope',
+        }),
+      }),
+    ]);
+  });
+
+  it('still quarantines, reasonless, when the republish is refused', async () => {
+    const { fake, bus } = withFakeChannel();
+    await Effect.runPromise(bus.subscribe(WORK, () => Effect.void));
+    fake.failWith(new Error('channel closed'));
+
+    await fake.deliverRaw('not json at all');
+
     expect(fake.nacked).toEqual([
       { message: expect.anything(), allUpTo: false, requeue: false },
     ]);
@@ -363,7 +427,7 @@ describe('makeAmqpEventBus', () => {
     expect(fake.nacked).toHaveLength(0);
   });
 
-  it('maps a publish failure onto EntifixConnError', async () => {
+  it('maps a publish failure onto Unavailable', async () => {
     const { fake, bus } = withFakeChannel();
     fake.failWith(new Error('channel closed'));
 
@@ -372,7 +436,7 @@ describe('makeAmqpEventBus', () => {
     expect(Exit.isFailure(exit)).toBe(true);
   });
 
-  it('maps a subscribe failure onto EntifixConnError', async () => {
+  it('maps a subscribe failure onto Unavailable', async () => {
     const { fake, bus } = withFakeChannel();
     fake.failWith(new Error('channel closed'));
 

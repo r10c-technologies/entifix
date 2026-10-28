@@ -1,4 +1,4 @@
-import type { EntifixConnError, EntifixLockError } from '@entifix/core';
+import type { Contention, StoreFailure } from '@entifix/core';
 import { Context, type Effect } from 'effect';
 
 /** A held lock; `token` proves ownership so release only frees our own lock. */
@@ -14,10 +14,10 @@ export interface LockHandle {
 export interface LockService {
   /**
    * Acquire `key`, retrying up to the adapter's bounded budget. Fails with
-   * {@link EntifixLockError} on contention (surfaced as `409`), not a `500`.
+   * {@link Contention} on contention (surfaced as `409`), not a `500`.
    */
-  acquire(key: string): Effect.Effect<LockHandle, EntifixLockError>;
-  release(handle: LockHandle): Effect.Effect<void, EntifixConnError>;
+  acquire(key: string): Effect.Effect<LockHandle, StoreFailure>;
+  release(handle: LockHandle): Effect.Effect<void, StoreFailure>;
 }
 
 export class LockServiceTag extends Context.Service<

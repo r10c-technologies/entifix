@@ -5,10 +5,11 @@ import {
   OneTimeTokenStoreTag,
   type TokenPurpose,
 } from '@entifix/business';
-import { EntifixConnError, EntifixLogicError } from '@entifix/core';
+import { NotFound } from '@entifix/core';
 import { Effect, Layer } from 'effect';
 import type { Redis } from 'ioredis';
 
+import { translateRedisError } from '../errors/translate-redis-error.js';
 import { RedisTag } from '../redis-connection/redis-connection.js';
 
 /** Default key prefix; every key this adapter writes lives under it. */
@@ -48,7 +49,7 @@ export const makeRedisOneTimeTokenStore = (
   const attempt = <T>(what: string, run: () => Promise<T>) =>
     Effect.tryPromise({
       try: run,
-      catch: error => new EntifixConnError(what, error),
+      catch: error => translateRedisError(error),
     });
 
   return {
@@ -70,9 +71,7 @@ export const makeRedisOneTimeTokenStore = (
           redis.getdel(key(purpose, token)),
         );
         if (subject === null) {
-          return yield* Effect.fail(
-            new EntifixLogicError('Token is unknown, expired or already used'),
-          );
+          return yield* Effect.fail(new NotFound({ entity: 'one-time-token' }));
         }
         return subject;
       }),

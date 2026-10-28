@@ -1,4 +1,4 @@
-import type { DomainEvent, EntifixConnError } from '@entifix/core';
+import type { DomainEvent, StoreFailure } from '@entifix/core';
 import { Context, type Effect } from 'effect';
 
 /**
@@ -102,7 +102,7 @@ export interface TransactionOutbox {
   /** Record an event durably. Idempotent per `event.id`. */
   enqueue(
     event: DomainEvent,
-  ): Effect.Effect<OutboxEnqueueResult, EntifixConnError>;
+  ): Effect.Effect<OutboxEnqueueResult, StoreFailure>;
   /**
    * Unsent, un-quarantined entries, oldest first — the relay's input.
    *
@@ -111,13 +111,13 @@ export interface TransactionOutbox {
    */
   pending(
     limit: number,
-  ): Effect.Effect<readonly OutboxEntry[], EntifixConnError>;
+  ): Effect.Effect<readonly OutboxEntry[], StoreFailure>;
   /**
    * Mark an entry published. A crash between the publish and this call re-sends
    * the event on the next drain, which is why delivery is at-least-once and why
    * a consumer that must not fold twice dedupes on `event.id`.
    */
-  markSent(entry: OutboxEntry): Effect.Effect<void, EntifixConnError>;
+  markSent(entry: OutboxEntry): Effect.Effect<void, StoreFailure>;
   /**
    * Record a failed publish: increments `attempts` and stores `error`.
    *
@@ -130,7 +130,7 @@ export interface TransactionOutbox {
     entry: OutboxEntry,
     error: string,
     quarantine: boolean,
-  ): Effect.Effect<void, EntifixConnError>;
+  ): Effect.Effect<void, StoreFailure>;
   /**
    * Depth and age, for the relay to sample once per sweep.
    *
@@ -139,7 +139,7 @@ export interface TransactionOutbox {
    * full" and not "how far behind are we" — which are the same number right up
    * to the moment the second one starts to matter.
    */
-  stats(): Effect.Effect<OutboxStats, EntifixConnError>;
+  stats(): Effect.Effect<OutboxStats, StoreFailure>;
 }
 
 export class TransactionOutboxTag extends Context.Service<

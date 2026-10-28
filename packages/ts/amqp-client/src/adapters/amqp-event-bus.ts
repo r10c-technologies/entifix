@@ -1,10 +1,10 @@
 import type { WiringRegistry } from '@entifix/business';
 import { ShutdownRegistryTag, WiringRegistryTag } from '@entifix/business';
 import {
-  EntifixBuildError,
-  EntifixConnError,
+  isFailure,
   makeEventEnvelope,
   readEventEnvelope,
+  Unavailable,
 } from '@entifix/core';
 import {
   type EventBus,
@@ -55,7 +55,40 @@ const DELIVERY_POLL = Duration.millis(25);
  * A *business* failure is neither, and never reaches here: that message was
  * handled successfully and produced its own `failed` event.
  */
-type DeliveryFailure = 'transient' | 'poison';
+interface DeliveryFailure {
+  readonly kind: 'transient' | 'poison';
+  /** The failure's code and category, carried onto a quarantined message. */
+  readonly code: string;
+  readonly category: string;
+}
+
+/**
+ * The poison rule, by category and never by class
+ * ([ADR 0013](../../../../../docs/adr/0013-failures-are-typed-values-decided-at-the-shell.md)):
+ * an answer redelivered is the same answer, so every business failure is
+ * poison, and so is `protocol` — bytes that did not decode will not decode on
+ * the fifth try. The transient categories are redelivered, bounded by
+ * `x-delivery-limit`, and so is anything uncategorised: not knowing what went
+ * wrong is not evidence that retrying is pointless.
+ */
+const classify = (error: unknown): DeliveryFailure =>
+  isFailure(error)
+    ? {
+        kind:
+          error.family === 'business' || error.category === 'protocol'
+            ? 'poison'
+            : 'transient',
+        code: error.code,
+        category: error.category,
+      }
+    : { kind: 'transient', code: 'internal', category: 'internal' };
+
+/** A payload that is not JSON: the sender's fault, decided before any handler. */
+const UNREADABLE: DeliveryFailure = {
+  kind: 'poison',
+  code: 'invalidEnvelope',
+  category: 'invalid',
+};
 
 /**
  * The queue a subscription binds.
@@ -137,8 +170,47 @@ const declareQueue = async (
  * requeue is bounded. A broadcast queue has neither a ceiling nor a dead-letter
  * path, so requeueing there is an unbounded loop.
  */
+/**
+ * Settles a delivery that failed.
+ *
+ * Poison on a `work` queue is republished to the dead-letter exchange **with
+ * its reason** — `x-failure-code` and `x-failure-category` — and then acked,
+ * rather than nacked: a nack cannot carry headers, and a quarantine of
+ * messages nobody can say anything about is a queue an operator has to replay
+ * blind. If that publish is refused the nack still quarantines it, reasonless.
+ *
+ * A transient failure is nacked for the broker to redeliver; a `broadcast`
+ * queue has no quarantine, so its failures are dropped.
+ */
+const settleFailure = (
+  channel: Channel,
+  message: ConsumeMessage,
+  queue: string,
+  mode: SubscriptionMode,
+  failure: DeliveryFailure,
+): void => {
+  if (failure.kind === 'poison' && mode === 'work') {
+    try {
+      channel.publish(EVENTS_DLX, queue, message.content, {
+        ...message.properties,
+        persistent: true,
+        headers: {
+          ...message.properties?.headers,
+          'x-failure-code': failure.code,
+          'x-failure-category': failure.category,
+        },
+      });
+      channel.ack(message);
+      return;
+    } catch {
+      // Fall through: quarantined without its reason beats not quarantined.
+    }
+  }
+  channel.nack(message, false, requeues(failure, mode));
+};
+
 const requeues = (failure: DeliveryFailure, mode: SubscriptionMode): boolean =>
-  failure === 'transient' && mode === 'work';
+  failure.kind === 'transient' && mode === 'work';
 
 /**
  * RabbitMQ-backed {@link EventBus}. Events go out as `event` envelopes on the
@@ -193,11 +265,7 @@ export const makeAmqpEventBus = (
               { persistent: true },
             );
           }),
-        catch: error =>
-          new EntifixConnError('AMQP publish failed', error, {
-            eventId: event.id,
-            name: event.name,
-          }),
+        catch: error => new Unavailable({ dependency: 'amqp' }),
         // Recorded **after** the publish succeeds, so `GET /api/$service` reports
         // what this process actually put on the exchange. Recording the intent
         // instead would make the declared-vs-observed diff pass on a service whose
@@ -262,39 +330,27 @@ export const makeAmqpEventBus = (
                 // the message was never even nacked.
                 const settle = Effect.try({
                   try: () => JSON.parse(message.content.toString()) as unknown,
-                  catch: (): DeliveryFailure => 'poison',
+                  catch: (): DeliveryFailure => UNREADABLE,
                 }).pipe(
                   Effect.flatMap(parsed =>
-                    readEventEnvelope(parsed).pipe(
-                      Effect.mapError((): DeliveryFailure => 'poison'),
-                    ),
+                    readEventEnvelope(parsed).pipe(Effect.mapError(classify)),
                   ),
                   // The handler carries no requirements (the subscriber closes over
                   // its store), so it runs standalone.
                   //
-                  // ⚠️ A handler failure is transient **except** an
-                  // `EntifixBuildError`, which means malformed input — the
-                  // client's fault, by that class's own definition. The
-                  // transport validates `meta` and deliberately not `data`
-                  // (`readEventEnvelope` says so: inventing an opinion about a
-                  // payload is how the bus would start knowing about domains),
-                  // so a consumer that decodes its own payload is the *only*
-                  // thing that can tell a malformed one from a bad afternoon at
-                  // the database. Without this arm such a message is requeued
-                  // and retried to `x-delivery-limit` before it reaches the
-                  // quarantine it belonged in immediately — spending the budget
-                  // of every message behind it, which is exactly what giving
-                  // poison zero retries avoids. Measured on
-                  // `catalog.published`: a payload the contract rejects took
-                  // five deliveries to quarantine.
+                  // ⚠️ A handler's failure is classified by its category, not
+                  // treated as transient across the board. The transport
+                  // validates `meta` and deliberately not `data` (inventing an
+                  // opinion about a payload is how the bus would start knowing
+                  // about domains), so a consumer that decodes its own payload
+                  // is the *only* thing that can tell a malformed one from a bad
+                  // afternoon at the database — and it says so by failing with
+                  // a business or `protocol` failure, which quarantines at once
+                  // instead of spending `x-delivery-limit` on every message
+                  // behind it. Measured on `catalog.published`: a payload the
+                  // contract rejected used to take five deliveries to quarantine.
                   Effect.flatMap(event =>
-                    handler(event).pipe(
-                      Effect.mapError((error): DeliveryFailure =>
-                        error instanceof EntifixBuildError
-                          ? 'poison'
-                          : 'transient',
-                      ),
-                    ),
+                    handler(event).pipe(Effect.mapError(classify)),
                   ),
                 );
 
@@ -317,13 +373,15 @@ export const makeAmqpEventBus = (
                           ),
                         ),
                       onFailure: failure =>
-                        recordFailed(tags, failure).pipe(
+                        recordFailed(tags, failure.kind).pipe(
                           Effect.andThen(
                             Effect.sync(() =>
-                              channel.nack(
+                              settleFailure(
+                                channel,
                                 message,
-                                false,
-                                requeues(failure, subscription.mode),
+                                queue,
+                                subscription.mode,
+                                failure,
                               ),
                             ),
                           ),
@@ -337,11 +395,7 @@ export const makeAmqpEventBus = (
             );
             return [consumerTag];
           }),
-        catch: error =>
-          new EntifixConnError('AMQP subscribe failed', error, {
-            slice: subscription.slice,
-            pattern: subscription.pattern,
-          }),
+        catch: error => new Unavailable({ dependency: 'amqp' }),
       }),
   };
 

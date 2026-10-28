@@ -81,7 +81,7 @@ describe('makeInMemoryLockService', () => {
 
     const error = await runFailure(locks.acquire('busy'));
 
-    expect(String(error)).toContain('busy');
+    expect(error).toMatchObject({ _tag: 'Contention' });
   });
 });
 

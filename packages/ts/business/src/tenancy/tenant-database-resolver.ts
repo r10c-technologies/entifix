@@ -1,4 +1,4 @@
-import type { EntifixConnError } from '@entifix/core';
+import type { Invalid, StoreFailure } from '@entifix/core';
 import { Context, type Effect } from 'effect';
 
 /**
@@ -27,7 +27,7 @@ import { Context, type Effect } from 'effect';
 export interface TenantDatabaseResolver<THandle> {
   readonly forOrganization: (
     organizationId: string,
-  ) => Effect.Effect<THandle, EntifixConnError>;
+  ) => Effect.Effect<THandle, StoreFailure | Invalid>;
 }
 
 /**

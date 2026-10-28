@@ -133,7 +133,7 @@ describe('makeMongoRepository', () => {
     expect(fake.read(COLLECTION)[0]?.['id']).toBe(saved.id);
   });
 
-  it('maps a driver failure onto EntifixConnError', async () => {
+  it('maps a driver failure onto Unavailable', async () => {
     const { fake, repository } = withFakeDb([
       makeContractWidget('w-1', 'Alpha', 10),
     ]);

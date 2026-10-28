@@ -1,7 +1,6 @@
 import type { EntityFacetCounter } from '@entifix/business';
 import {
   compareStoredValues,
-  EntifixConnError,
   type Entity,
   type EntityConstructor,
   type EntityFacetCounts,
@@ -11,6 +10,7 @@ import {
 import { Effect } from 'effect';
 import type { ClientSession, Db, Document } from 'mongodb';
 
+import { translateMongoError } from '../errors/translate-mongo-error.js';
 import { translateFiltering } from './filter-translator.js';
 import { mongoCollectionName } from './make-mongo-repository.js';
 
@@ -78,10 +78,7 @@ export function makeMongoFacetCounter<TEntity extends Entity>(
               inSession,
             )
             .toArray(),
-        catch: error =>
-          new EntifixConnError('Failed to count facets in MongoDB', error, {
-            entity: entityConstructor.name,
-          }),
+        catch: error => translateMongoError(error),
       });
 
       const counts: Record<string, readonly EntityFacetValue[]> = {};

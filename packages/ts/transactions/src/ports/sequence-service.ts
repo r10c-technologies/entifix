@@ -1,4 +1,4 @@
-import type { EntifixConnError } from '@entifix/core';
+import type { StoreFailure } from '@entifix/core';
 import { Context, type Effect } from 'effect';
 
 /**
@@ -9,7 +9,7 @@ import { Context, type Effect } from 'effect';
  */
 export interface SequenceService {
   /** Atomically increments the named sequence and returns the new value. */
-  next(name: string): Effect.Effect<number, EntifixConnError>;
+  next(name: string): Effect.Effect<number, StoreFailure>;
 }
 
 export class SequenceServiceTag extends Context.Service<

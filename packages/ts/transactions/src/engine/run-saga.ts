@@ -1,4 +1,4 @@
-import type { EntifixConnError } from '@entifix/core';
+import type { EntifixConnError, StoreFailure } from '@entifix/core';
 import { Effect } from 'effect';
 
 import {
@@ -394,7 +394,11 @@ const unwind = (
   definition: SagaDefinition,
   taken: Taken,
   error: string,
-): Effect.Effect<SagaResult, EntifixConnError, SagaDispatcherTag> =>
+): Effect.Effect<
+  SagaResult,
+  StoreFailure | EntifixConnError,
+  SagaDispatcherTag
+> =>
   Effect.gen(function* () {
     const outcomes = taken.map(entry => entry.outcome);
     const failures: string[] = [];
@@ -455,7 +459,11 @@ const walk = (
   store: SagaStore,
   options: RunSagaOptions,
   from: { readonly taken: Taken; readonly startIndex: number },
-): Effect.Effect<SagaResult, EntifixConnError, SagaDispatcherTag> =>
+): Effect.Effect<
+  SagaResult,
+  StoreFailure | EntifixConnError,
+  SagaDispatcherTag
+> =>
   Effect.gen(function* () {
     const { sagaId, definition, inputs } = options;
     // Step and outcome are kept **together**: looking the step back up by id
@@ -541,7 +549,7 @@ export const runSaga = (
   options: RunSagaOptions,
 ): Effect.Effect<
   SagaResult,
-  EntifixConnError,
+  StoreFailure | EntifixConnError,
   SagaDispatcherTag | SagaStoreTag
 > =>
   Effect.gen(function* () {
@@ -595,7 +603,7 @@ export const resumeSaga = (
   options: ResumeSagaOptions,
 ): Effect.Effect<
   SagaResult,
-  EntifixConnError,
+  StoreFailure | EntifixConnError,
   SagaDispatcherTag | SagaStoreTag
 > =>
   Effect.gen(function* () {

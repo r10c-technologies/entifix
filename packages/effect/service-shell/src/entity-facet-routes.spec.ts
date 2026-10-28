@@ -8,10 +8,10 @@ import {
 import {
   accessor,
   EntifixBuildError,
-  EntifixConnError,
   type Entity,
   entity,
   type EntityId,
+  Unavailable,
 } from '@entifix/core';
 import { makeInMemoryFacetCounter } from '@entifix/testing-unit';
 import { Effect, Layer } from 'effect';
@@ -73,7 +73,7 @@ const ROWS = [
 ];
 
 const opened: { organizationId?: string }[] = [];
-let failure: EntifixConnError | undefined;
+let failure: Unavailable | undefined;
 
 const factory = Layer.succeed(EntityFacetCounterFactoryTag, {
   for: (_entity, scope) => {
@@ -198,7 +198,7 @@ describe('makeEntityFacetRoutes', () => {
   });
 
   it('answers a counter it could not open with a 503', async () => {
-    failure = new EntifixConnError('down');
+    failure = new Unavailable({});
 
     const { status } = await call('/api/widget/$facets?facet=brand');
 
