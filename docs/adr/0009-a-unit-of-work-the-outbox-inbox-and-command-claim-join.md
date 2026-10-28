@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-25
 - Revised: 2026-10-28 by [ADR 0013](0013-failures-are-typed-values-decided-at-the-shell.md) — the store failing is a technical-family failure (`unavailable`, `timeout`, `contention`), not `EntifixConnError`; a business-family failure is still the abort
+- Revised: 2026-10-28 by [ADR 0018](0018-one-outbox-ordered-per-aggregate.md) — the outbox is `Outbox`, keyed by aggregate and version and drained per aggregate; the unit of work gains a SQL implementation; the saga runner, lock and sequence ports it sat beside are removed by #127
 - Area: adapters
 - Read when: a write has to announce itself on the bus, a consumer has to fold a message exactly once, or a participant has to answer a redelivered command with what it decided the first time — and you are about to open a driver session by hand to make two of those one fact
 
@@ -87,9 +88,11 @@ than at the next sweep.
 
 ### What stays
 
-`TransactionOutbox` and `TransactionInbox` keep their standalone `enqueue` and
-`claim` for the code that can use them outside a transaction. Nothing is
-removed; a write that needs atomicity has a port for it now.
+`Outbox` and `TransactionInbox` keep their standalone `enqueue` and `claim` for
+the code that can use them outside a transaction. The outbox's shape and drain
+order are [ADR 0018](0018-one-outbox-ordered-per-aggregate.md)'s, and the unit of
+work has a SQL implementation beside the Mongo one, so a Postgres store joins
+state, outbox and command claim in one transaction too.
 
 ## Consequences
 

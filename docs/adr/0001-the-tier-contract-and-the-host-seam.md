@@ -7,6 +7,7 @@
 - Revised: 2026-10-20 by [ADR 0005](0005-content-an-entity-describes.md) — locales are a host value now, and `@entifix/static` is a 24th package
 - Revised: 2026-10-23 by [ADR 0006](0006-the-public-contract-is-entities-use-cases-and-ports.md) — what a package's public API may ask of its caller
 - Revised: 2026-10-23 — the source citations of r10c's records are rewritten and a check keeps them out; the appendix that mapped them is removed
+- Revised: 2026-10-28 by [ADR 0016](0016-a-flow-engine-port-and-a-durable-workflow-adapter.md) — `workflow` joins tier 2, its Postgres storage and socket runner behind optional peers
 - Area: platform
 - Read when: adding a package, adding a dependency between two, deciding whether something is public API, or about to bake a host's value into framework code — a downward edge can still be illegal, and the seam takes values rather than paths
 
@@ -53,7 +54,7 @@ inherits it.
 T0  standalone     style · tooling
 T1  entity         core · business
 T2  adapters       mongo · sql · redis · amqp · rest · transactions
-                   jwt · zitadel · posthog · i18n
+                   workflow · jwt · zitadel · posthog · i18n
 T3  ui             react-controls · react-integration
 T4  app framework  authz · service-shell · next-shell · next-i18n
 T5  testing        testing-unit · testing-e2e · testing-auth
