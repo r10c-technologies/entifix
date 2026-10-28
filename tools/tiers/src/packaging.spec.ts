@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { readManifest, REPO_ROOT } from './manifests.js';
 import {
   ALWAYS_SHIPPED,
+  effectVersions,
   exportTargets,
   shipsFile,
   unresolvableSpecifiers,
@@ -140,6 +141,30 @@ describe('A package can be published at all', () => {
         `([ADR 0001](../../../docs/adr/0001-the-tier-contract-and-the-host-seam.md)):\n  ${versions.join(
           '\n  ',
         )}`,
+    ).toHaveLength(1);
+  });
+});
+
+describe('Every package builds against one effect', () => {
+  it('finds a stale pin beside a current peer floor', () => {
+    expect(
+      effectVersions([
+        { devDependencies: { effect: '4.0.5' } },
+        { peerDependencies: { effect: '^4.0.6' } },
+      ]),
+    ).toEqual(['4.0.5', '4.0.6']);
+  });
+
+  it('pins one version, dev pin and peer floor alike', () => {
+    const versions = effectVersions(
+      PACKAGES.map(pkg => readManifest(pkg.dir)),
+    );
+
+    expect(
+      versions,
+      'every package moves to a new effect in one release — a second version ' +
+        'here is a package that compiles against one effect and hands its ' +
+        `consumer another:\n  ${versions.join('\n  ')}`,
     ).toHaveLength(1);
   });
 });

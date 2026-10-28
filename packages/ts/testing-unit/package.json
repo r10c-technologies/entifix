@@ -84,7 +84,7 @@
   "peerDependencies": {
     "@entifix/react-controls": "workspace:*",
     "@testing-library/react": "*",
-    "effect": "^4.0.5",
+    "effect": "^4.0.6",
     "msw": ">=3",
     "react": "*",
     "vitest": "*"
@@ -110,6 +110,6 @@
     }
   },
   "devDependencies": {
-    "effect": "4.0.5"
+    "effect": "4.0.6"
   }
 }
