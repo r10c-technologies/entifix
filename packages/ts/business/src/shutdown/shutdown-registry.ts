@@ -79,6 +79,27 @@ export interface ShutdownRegistry {
  * `entifix-ts-*-client` package can register a hook without depending on a
  * shell.
  */
+/**
+ * What a drain did, for the host to log
+ * ([ADR 0013](../../../../../docs/adr/0013-failures-are-typed-values-decided-at-the-shell.md)):
+ * the registry says it, the shell that made it decides how loud.
+ */
+export type ShutdownOutcome =
+  | { readonly _tag: 'draining'; readonly hooks: number }
+  | {
+      readonly _tag: 'hookFailed';
+      readonly hook: string;
+      readonly phase: ShutdownPhase;
+      /** `Cause.pretty`: a timeout and a failure stay distinguishable. */
+      readonly cause: string;
+    }
+  | { readonly _tag: 'drained' };
+
+/** Where a drain reports what it did. */
+export type ShutdownOutcomeSink = (
+  outcome: ShutdownOutcome,
+) => Effect.Effect<void>;
+
 export class ShutdownRegistryTag extends Context.Service<
   ShutdownRegistryTag,
   ShutdownRegistry
@@ -87,26 +108,25 @@ export class ShutdownRegistryTag extends Context.Service<
 /**
  * Runs one hook and swallows whatever it does.
  *
- * A failure and a timeout are logged the same way on purpose: both mean this
+ * A failure and a timeout are reported the same way on purpose: both mean this
  * hook did not do its job, both leave the ones behind it still worth running,
  * and neither is something a terminating process can act on. `Cause.pretty`
- * keeps them distinguishable in Loki, where someone reading them actually is.
+ * keeps them distinguishable for whoever reads the log the host writes.
  */
-const runHook = (hook: ShutdownHook): Effect.Effect<void> =>
-  hook.run.pipe(
-    Effect.timeout(HOOK_TIMEOUT),
-    Effect.catchCause(cause =>
-      Effect.logError('shutdown hook did not complete').pipe(
-        // Annotations, not a rendered message: the tooling logger emits these
-        // as structured fields, so which hook stalled a rollout is queryable.
-        Effect.annotateLogs({
+const runHook =
+  (report: ShutdownOutcomeSink) =>
+  (hook: ShutdownHook): Effect.Effect<void> =>
+    hook.run.pipe(
+      Effect.timeout(HOOK_TIMEOUT),
+      Effect.catchCause(cause =>
+        report({
+          _tag: 'hookFailed',
           hook: hook.name,
           phase: hook.phase,
           cause: Cause.pretty(cause),
         }),
       ),
-    ),
-  );
+    );
 
 /**
  * Builds the registry and the synchronous latch that flips it.
@@ -118,7 +138,9 @@ const runHook = (hook: ShutdownHook): Effect.Effect<void> =>
  * ready the instant the signal lands rather than whenever the finalizers get
  * around to running.
  */
-export const makeShutdownRegistry = (): {
+export const makeShutdownRegistry = (
+  report: ShutdownOutcomeSink = () => Effect.void,
+): {
   registry: ShutdownRegistry;
   begin: () => void;
 } => {
@@ -135,20 +157,18 @@ export const makeShutdownRegistry = (): {
 
     drain: Effect.gen(function* () {
       terminating = true;
-      yield* Effect.logInfo('draining before shutdown').pipe(
-        Effect.annotateLogs({ hooks: hooks.length }),
-      );
+      yield* report({ _tag: 'draining', hooks: hooks.length });
       for (const phase of SHUTDOWN_PHASES) {
         // Sequential, and in registration order: `stop-intake` before `flush`
         // is the whole contract, and within a phase a later hook may depend on
         // an earlier one having stopped.
         yield* Effect.forEach(
           hooks.filter(hook => hook.phase === phase),
-          runHook,
+          runHook(report),
           { discard: true },
         );
       }
-      yield* Effect.logInfo('drained');
+      yield* report({ _tag: 'drained' });
     }),
   };
 

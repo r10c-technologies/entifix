@@ -8,7 +8,7 @@ import {
   PROBLEM_CONTENT_TYPE,
   Unavailable,
 } from '@entifix/core';
-import { Effect, Layer, Schema } from 'effect';
+import { Effect, Layer, Logger, References, Schema } from 'effect';
 import { HttpRouter, HttpServerResponse } from 'effect/http';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -16,6 +16,7 @@ import {
   defaultFailurePolicy,
   extendFailurePolicy,
   logLevelFor,
+  logMechanismOutcome,
   mountRoutes,
   problemResponse,
   respond,
@@ -253,5 +254,68 @@ describe('respond and mountRoutes, served', () => {
     );
 
     expect(HttpServerResponse.toWeb(response).status).toBe(409);
+  });
+});
+
+describe('logMechanismOutcome', () => {
+  const capture = async (
+    outcome: Parameters<typeof logMechanismOutcome>[0],
+  ) => {
+    const records: Array<{
+      level: string;
+      message: unknown;
+      annotations: object;
+    }> = [];
+    await Effect.runPromise(
+      logMechanismOutcome(outcome).pipe(
+        Effect.provide(
+          Logger.layer([
+            Logger.make(({ logLevel, message, fiber }) => {
+              records.push({
+                level: logLevel,
+                message,
+                annotations: {
+                  ...fiber.getRef(References.CurrentLogAnnotations),
+                },
+              });
+            }),
+          ]),
+        ),
+        Effect.provideService(References.MinimumLogLevel, 'All'),
+      ),
+    );
+    return records[0];
+  };
+
+  it('logs a quarantine at error, with a typed failure’s code and category', async () => {
+    const record = await capture({
+      _tag: 'quarantined',
+      database: 'tenant_a',
+      failure: new DuplicateKey({}),
+    });
+
+    expect(record?.level).toBe('Error');
+    expect(record?.annotations).toMatchObject({
+      database: 'tenant_a',
+      code: 'duplicateKey',
+      category: 'conflict',
+    });
+  });
+
+  it('names an untyped failure internal, never its text', async () => {
+    const record = await capture({
+      _tag: 'sweepFailed',
+      failure: new Error('password hunter2'),
+    });
+
+    expect(record?.annotations).toMatchObject({ code: 'internal' });
+    expect(JSON.stringify(record)).not.toContain('hunter2');
+  });
+
+  it('logs what it has no level for at debug, and needs no failure', async () => {
+    const record = await capture({ _tag: 'somethingNew', count: 2 });
+
+    expect(record?.level).toBe('Debug');
+    expect(record?.annotations).toEqual({ count: 2 });
   });
 });

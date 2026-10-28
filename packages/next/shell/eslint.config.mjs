@@ -1,6 +1,6 @@
 import nx from '@nx/eslint-plugin';
 
-import baseConfig from '../../../eslint.config.mjs';
+import baseConfig, { mechanismsDoNotLog } from '../../../eslint.config.mjs';
 
 export default [
   ...baseConfig,
@@ -16,4 +16,6 @@ export default [
   {
     ignores: ['**/out-tsc'],
   },
+  // Last: the React preset above replaces `no-restricted-syntax` (ADR 0013).
+  mechanismsDoNotLog,
 ];

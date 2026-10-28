@@ -48,6 +48,58 @@ const specConstraints = sourceConstraints.map(c =>
 
 const allowEslintConfig = ['^.*/eslint(\\.base)?\\.config\\.[cm]?[jt]s$'];
 
+/**
+ * Mechanisms never log; the fork site does
+ * ([ADR 0013](docs/adr/0013-failures-are-typed-values-decided-at-the-shell.md)).
+ * A relay, an adapter, a hook or a control says what happened as a value —
+ * an outcome, a failure — and the host that started it decides the level
+ * and the sink, so one failure is logged once and where someone set the
+ * policy. `tools/conventions` lints a planted violation with this very
+ * config, so the rule cannot quietly stop matching.
+ *
+ * BasePath-agnostic: Nx runs ESLint from each project's own directory, so a
+ * workspace-rooted glob would match nothing. The places allowed to log opt
+ * out in their own configs — the testing packages, `ts/tooling` (the logger
+ * itself) and the tools; an example is a host and opts out the day it logs —
+ * or are named here: the service shell's policy (`observability.ts`,
+ * `respond.ts`), and the saga engine, which the workflow interpreter replaces
+ * wholesale.
+ *
+ * Exported because a preset spread after the base — Nx's `flat/react` sets its
+ * own `no-restricted-syntax` — replaces the rule wholesale, and a project that
+ * spreads one has to put this back last. The planted-violation spec is what
+ * found that.
+ */
+export const mechanismsDoNotLog = {
+  files: ['**/src/**/*.ts', '**/src/**/*.tsx'],
+  ignores: [
+    '**/*.spec.ts',
+    '**/*.spec.tsx',
+    '**/*.test.ts',
+    '**/*.test.tsx',
+    '**/*.stories.tsx',
+    '**/src/engine/**',
+    '**/src/observability.ts',
+    '**/src/respond.ts',
+  ],
+  rules: {
+    'no-restricted-syntax': [
+      'error',
+      {
+        selector:
+          "MemberExpression[object.name='Effect'][property.name=/^(log[A-Za-z]*|annotateLogs|withLogSpan)$/]",
+        message:
+          'A mechanism does not log: return or report an outcome, and let the fork site that started it decide the level (ADR 0013).',
+      },
+      {
+        selector: "MemberExpression[object.name='console']",
+        message:
+          'A mechanism does not log: return or report an outcome, and let the fork site that started it decide the level (ADR 0013).',
+      },
+    ],
+  },
+};
+
 export default [
   ...nx.configs['flat/base'],
   ...nx.configs['flat/typescript'],
@@ -182,4 +234,5 @@ export default [
       ],
     },
   },
+  mechanismsDoNotLog,
 ];

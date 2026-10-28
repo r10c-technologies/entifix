@@ -1,8 +1,11 @@
 import { makeStaticPolicyDecision, PolicyDecisionTag } from '@entifix/authz';
-import { type TokenClaims, TokenServiceTag } from '@entifix/business';
+import {
+  InvalidToken,
+  type TokenClaims,
+  TokenServiceTag,
+} from '@entifix/business';
 import {
   accessor,
-  EntifixBuildError,
   type Entity,
   entity,
   type EntityId,
@@ -82,7 +85,7 @@ const fakeTokens = TokenServiceTag.of({
   verify: token =>
     Effect.try({
       try: () => JSON.parse(token) as TokenClaims,
-      catch: () => new EntifixBuildError('invalid token'),
+      catch: () => new InvalidToken(),
     }),
 });
 

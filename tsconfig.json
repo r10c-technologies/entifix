@@ -104,6 +104,9 @@
     },
     {
       "path": "./packages/ts/static"
+    },
+    {
+      "path": "./tools/conventions"
     }
   ],
   "compilerOptions": {

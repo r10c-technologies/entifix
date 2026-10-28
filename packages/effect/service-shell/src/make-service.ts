@@ -15,7 +15,7 @@ import { HttpRouter } from 'effect/http';
 
 import type { SharedToken } from './auth/shared-token.js';
 import { healthRoutes } from './health-routes.js';
-import { problemNet } from './respond.js';
+import { logMechanismOutcome, problemNet } from './respond.js';
 import { serviceDescriptionRoute } from './service-description-route.js';
 
 /**
@@ -184,7 +184,7 @@ export const makeServerLayer = <RRoutes>(
  * Deployment for a service. It lands with the first one.
  */
 export const makeService = <RRoutes>(def: ServiceDefinition<RRoutes>): void => {
-  const shutdown = makeShutdownRegistry();
+  const shutdown = makeShutdownRegistry(logMechanismOutcome);
   process.once('SIGTERM', shutdown.begin);
   process.once('SIGINT', shutdown.begin);
 

@@ -12,6 +12,8 @@ packages:
   # Not shipped code: the check that asserts the tier contract against the tree.
   - 'tools/tiers'
   - 'tools/docs'
+  # The conventions checked rather than stated, each with a planted violation.
+  - 'tools/conventions'
   # Not shipped either: the local loop that copies a build into a consumer.
   - 'tools/dev'
 allowBuilds:

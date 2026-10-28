@@ -1,6 +1,9 @@
 import { makeStaticPolicyDecision, PolicyDecisionTag } from '@entifix/authz';
-import { type TokenClaims, TokenServiceTag } from '@entifix/business';
-import { EntifixBuildError } from '@entifix/core';
+import {
+  InvalidToken,
+  type TokenClaims,
+  TokenServiceTag,
+} from '@entifix/business';
 import { Effect, Layer } from 'effect';
 import { HttpRouter, HttpServerResponse } from 'effect/http';
 
@@ -12,7 +15,7 @@ const fakeTokens = TokenServiceTag.of({
   verify: token =>
     Effect.try({
       try: () => JSON.parse(token) as TokenClaims,
-      catch: () => new EntifixBuildError('invalid token'),
+      catch: () => new InvalidToken(),
     }),
 });
 

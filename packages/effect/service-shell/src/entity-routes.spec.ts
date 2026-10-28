@@ -7,6 +7,7 @@ import {
 import {
   type EntityRepository,
   EntityRepositoryFactoryTag,
+  InvalidToken,
   type TokenClaims,
   TokenServiceTag,
 } from '@entifix/business';
@@ -194,7 +195,7 @@ const fakeTokens = TokenServiceTag.of({
   verify: token =>
     Effect.try({
       try: () => JSON.parse(token) as TokenClaims,
-      catch: () => new EntifixBuildError('invalid token'),
+      catch: () => new InvalidToken(),
     }),
 });
 

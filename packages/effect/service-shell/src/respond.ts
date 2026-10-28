@@ -285,3 +285,44 @@ export const problemNet = HttpRouter.middleware(
   effect => effect.pipe(Effect.catchDefect(answerDefect)),
   { global: true },
 );
+
+/**
+ * What a mechanism reports instead of logging — a relay pass, a shutdown drain
+ * ([ADR 0013](../../../../docs/adr/0013-failures-are-typed-values-decided-at-the-shell.md)).
+ * Structural, so the shell can log an outcome from a package it does not
+ * depend on.
+ */
+export interface MechanismOutcome {
+  readonly _tag: string;
+  readonly failure?: unknown;
+  readonly [field: string]: unknown;
+}
+
+/** The level each outcome is logged at; anything unnamed is `Debug`. */
+export const MECHANISM_OUTCOME_LEVELS: Readonly<Record<string, Severity>> = {
+  quarantined: 'Error',
+  sweepFailed: 'Error',
+  hookFailed: 'Error',
+  drainFailed: 'Warn',
+  draining: 'Info',
+  drained: 'Debug',
+};
+
+/**
+ * The fork site's logger for a mechanism's outcomes: the level from the
+ * outcome's tag, the outcome's own fields as annotations, and a typed
+ * failure's code and category beside them — never `String(error)`.
+ */
+export const logMechanismOutcome = (
+  outcome: MechanismOutcome,
+): Effect.Effect<void> => {
+  const { _tag, failure, ...fields } = outcome;
+  const typed = isFailure(failure)
+    ? { code: failure.code, category: failure.category, tag: failure._tag }
+    : failure === undefined
+      ? {}
+      : { code: 'internal', category: 'internal' };
+  return Effect.logWithLevel(MECHANISM_OUTCOME_LEVELS[_tag] ?? 'Debug')(
+    _tag,
+  ).pipe(Effect.annotateLogs({ ...fields, ...typed }));
+};

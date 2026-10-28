@@ -16,7 +16,7 @@ import {
   type OutboxEntry,
   type TransactionOutbox,
 } from '@entifix/transactions';
-import { Effect, Layer, Logger, References } from 'effect';
+import { Effect, Layer } from 'effect';
 import type { Db } from 'mongodb';
 import { describe, expect, it } from 'vitest';
 
@@ -25,6 +25,7 @@ import {
   drainOutbox,
   drainOutboxNow,
   OutboxMaxAttempts,
+  type RelayOutcome,
   startOutboxRelay,
   startTenantOutboxRelay,
   sweepOutbox,
@@ -109,34 +110,20 @@ const busRefusing = (
 
 const OPTIONS = { maxAttempts: 3, database: 'tenant_acme' };
 
-/** Runs the drain and returns its result plus the log records it emitted. */
+/** Runs the drain and returns its result plus the outcomes it reported. */
 const runDrain = async (
   outbox: TransactionOutbox,
   bus: EventBus,
   options = OPTIONS,
 ) => {
-  const logs: Array<{
-    message: string;
-    annotations: Record<string, unknown>;
-  }> = [];
-
+  const outcomes: RelayOutcome[] = [];
   const sent = await Effect.runPromise(
-    drainOutbox(outbox, bus, options).pipe(
-      Effect.provide(
-        Logger.layer([
-          Logger.make(({ message, fiber }) => {
-            logs.push({
-              message: String(message),
-              annotations: {
-                ...fiber.getRef(References.CurrentLogAnnotations),
-              },
-            });
-          }),
-        ]),
-      ),
-    ),
+    drainOutbox(outbox, bus, {
+      ...options,
+      onOutcome: outcome => Effect.sync(() => void outcomes.push(outcome)),
+    }),
   );
-  return { sent, logs };
+  return { sent, outcomes };
 };
 describe('drainOutbox', () => {
   it('publishes pending entries oldest-first and marks each sent', async () => {
@@ -220,26 +207,35 @@ describe('drainOutbox', () => {
    * they are what "visible without a mongosh session" means, and a quarantined
    * entry nobody can see is indistinguishable from a dropped one.
    */
-  it('logs the quarantine with the tenant and the reason', async () => {
+  it('reports the quarantine with the tenant, the code and the reason', async () => {
     const { outbox } = recordingOutbox([anEntry('tx-1:accepted', 2)]);
     const { bus } = busRefusing(['tx-1:accepted']);
 
-    const { logs } = await runDrain(outbox, bus);
+    const { outcomes } = await runDrain(outbox, bus);
 
-    expect(logs).toEqual([
+    expect(outcomes).toEqual([
       {
-        message: 'outbox entry quarantined',
-        // Structured fields, so an operator can find *which* tenant is stuck
-        // without reading a rendered string, and without a mongosh session.
-        annotations: {
-          database: 'tenant_acme',
-          eventId: 'tx-1:accepted',
-          eventName: 'transaction.accepted',
-          attempts: 3,
-          lastError: 'routing key too long',
-        },
+        _tag: 'quarantined',
+        // Fields, not a rendered string, so the host's log line says *which*
+        // tenant is stuck and an operator needs no mongosh session to find it.
+        database: 'tenant_acme',
+        eventId: 'tx-1:accepted',
+        eventName: 'transaction.accepted',
+        attempts: 3,
+        code: 'protocol',
+        reason: 'routing key too long',
       },
+      { _tag: 'drained', database: 'tenant_acme', sent: 0 },
     ]);
+  });
+
+  it('quarantines quietly when nobody listens', async () => {
+    const { outbox, failures } = recordingOutbox([anEntry('tx-1:accepted', 2)]);
+    const { bus } = busRefusing(['tx-1:accepted']);
+
+    await Effect.runPromise(drainOutbox(outbox, bus, OPTIONS));
+
+    expect(failures[0]?.quarantine).toBe(true);
   });
 
   it('does not quarantine before the ceiling is actually reached', async () => {
@@ -284,7 +280,7 @@ describe('sweepOutbox', () => {
    * nothing to do — so the failure is caught, and *logged* rather than
    * swallowed.
    */
-  it('logs a failed pass rather than ending the daemon', async () => {
+  it('reports a failed pass rather than ending the daemon', async () => {
     const failing: TransactionOutbox = {
       enqueue: () => Effect.succeed('enqueued' as const),
       pending: () => Effect.fail(new Unavailable({})),
@@ -293,21 +289,29 @@ describe('sweepOutbox', () => {
       stats: () => Effect.succeed({ pending: 0, quarantined: 0 }),
     };
     const { bus } = busRefusing([]);
-    const logs: string[] = [];
+    const outcomes: RelayOutcome[] = [];
 
     await Effect.runPromise(
-      sweepOutbox(failing, bus, { maxAttempts: 3, database: 'order' }).pipe(
-        Effect.provide(
-          Logger.layer([
-            Logger.make(({ message }) => {
-              logs.push(String(message));
-            }),
-          ]),
-        ),
-      ),
+      sweepOutbox(failing, bus, {
+        maxAttempts: 3,
+        database: 'order',
+        onOutcome: outcome => Effect.sync(() => void outcomes.push(outcome)),
+      }),
     );
 
-    expect(logs).toContain('outbox sweep failed');
+    expect(outcomes).toEqual([
+      {
+        _tag: 'sweepFailed',
+        database: 'order',
+        failure: expect.objectContaining({ _tag: 'Unavailable' }),
+      },
+    ]);
+    // And with nobody listening, it still swallows the failure.
+    await expect(
+      Effect.runPromise(
+        sweepOutbox(failing, bus, { maxAttempts: 3, database: 'order' }),
+      ),
+    ).resolves.toBeUndefined();
   });
 
   it('records through the default sink when none is given', async () => {
@@ -380,6 +384,7 @@ describe('startOutboxRelay', () => {
             Effect.sync(() => {
               sampled.push(database);
             }),
+          onOutcome: () => Effect.void,
         }).pipe(Effect.provide(layer)),
       ),
     );
@@ -412,16 +417,26 @@ describe('drainOutboxNow', () => {
     expect(fake.read(OUTBOX_COLLECTION)[0]?.['sent']).toBe(true);
   });
 
-  it('logs a drain that failed and leaves the entry for the sweep', async () => {
+  it('reports a drain that failed and leaves the entry for the sweep', async () => {
     const fake = makeFakeMongoDb();
     fake.failOn('find', new Error('network down'));
     const { bus } = busRefusing([]);
+    const outcomes: RelayOutcome[] = [];
 
     await expect(
       Effect.runPromise(
         drainOutboxNow(fake.db as Db).pipe(Effect.provide(withBus(bus))),
       ),
     ).resolves.toBeUndefined();
+    await Effect.runPromise(
+      drainOutboxNow(fake.db as Db, outcome =>
+        Effect.sync(() => void outcomes.push(outcome)),
+      ).pipe(Effect.provide(withBus(bus))),
+    );
+
+    expect(outcomes).toEqual([
+      expect.objectContaining({ _tag: 'drainFailed' }),
+    ]);
   });
 });
 
@@ -449,16 +464,21 @@ describe('sweepTenantOutboxes', () => {
     const healthy = tenantDb('tenant_b', [anEntry('b:1')]);
     const { bus, published } = busRefusing([]);
     const sampled: string[] = [];
+    const outcomes: RelayOutcome[] = [];
 
     await Effect.runPromise(
       sweepTenantOutboxes(directoryOf([broken.db, healthy.db]), bus, {
         maxAttempts: 3,
         onStats: database => Effect.sync(() => void sampled.push(database)),
+        onOutcome: outcome => Effect.sync(() => void outcomes.push(outcome)),
       }),
     );
 
     expect(published).toEqual(['b:1']);
     expect(sampled).toEqual(['tenant_b']);
+    expect(outcomes).toContainEqual(
+      expect.objectContaining({ _tag: 'sweepFailed', database: 'tenant_a' }),
+    );
   });
 
   it('ensures a tenant’s indexes once across passes', async () => {
@@ -492,6 +512,20 @@ describe('sweepTenantOutboxes', () => {
         sweepTenantOutboxes(directory, bus, { maxAttempts: 3 }),
       ),
     ).resolves.toBeUndefined();
+
+    const outcomes: RelayOutcome[] = [];
+    await Effect.runPromise(
+      sweepTenantOutboxes(directory, bus, {
+        maxAttempts: 3,
+        onOutcome: outcome => Effect.sync(() => void outcomes.push(outcome)),
+      }),
+    );
+    expect(outcomes).toEqual([
+      {
+        _tag: 'sweepFailed',
+        failure: expect.objectContaining({ _tag: 'Unavailable' }),
+      },
+    ]);
   });
 });
 
@@ -509,6 +543,7 @@ describe('startTenantOutboxRelay', () => {
       Effect.scoped(
         startTenantOutboxRelay({
           onStats: database => Effect.sync(() => void sampled.push(database)),
+          onOutcome: () => Effect.void,
         }).pipe(
           Effect.provide(
             Layer.mergeAll(
