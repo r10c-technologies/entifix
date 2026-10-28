@@ -1,3 +1,13 @@
+## 0.10.1 (2026-10-28)
+
+### 🩹 Fixes
+
+- **source:** count a consumer's redeliveries in the adapter, since RabbitMQ 4 does not ([#131](https://github.com/r10c-technologies/entifix/pull/131))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.10.0 (2026-10-28)
 
 ### 🚀 Features
