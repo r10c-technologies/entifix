@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-28
+- Revised: 2026-10-28 — a transient delivery is bounded by `maxAttempts` as the adapter counts it, not by `x-delivery-limit`, which RabbitMQ 4 does not apply to a requeued nack (#130)
 - Area: platform
 - Read when: adding a refusal or an error type, mapping a failure to an HTTP status, writing an error body by hand, catching an adapter's error with `instanceof`, deciding whether a bus message is poison, or about to call `Effect.log*` from a package that is not a shell
 
@@ -172,7 +173,9 @@ The default log table: business at `debug`; `unavailable`, `timeout`,
   poison — quarantined at once, with `x-failure-code` and `x-failure-category`
   headers — because redelivering an answer produces the same answer.
   `unavailable`, `timeout`, `contention`, `exhausted` and an uncategorised
-  defect are transient, bounded by `x-delivery-limit`.
+  defect are transient, bounded by the subscription's `maxAttempts` — counted
+  by the adapter on the message it republishes, because RabbitMQ 4 does not
+  count a requeued nack toward `x-delivery-limit` (#130).
 
 ### Idempotency refusals are fleet-generic
 

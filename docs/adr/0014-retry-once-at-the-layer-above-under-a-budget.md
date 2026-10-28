@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-28
+- Revised: 2026-10-28 — a consumer's redeliveries are counted by the adapter against `maxAttempts`; `x-delivery-limit` bounds only what a crashed consumer leaves behind (#130)
 - Area: platform
 - Read when: adding a retry, a backoff or a `Schedule` to a call, sizing a queue's `maxAttempts`, an outage gets worse when its dependency comes back, a request keeps working after its caller gave up, or about to retry inside a bus consumer
 
@@ -42,8 +43,8 @@ means:
 - **A coordinator retries a participant.** The participant does not retry its
   own datastore on the coordinator's behalf.
 - **A bus consumer's only retry is redelivery.** A handler never wraps itself in
-  `Effect.retry`; the queue's `x-delivery-limit` is its retry, and the host
-  sizes it.
+  `Effect.retry`; redelivery is its retry, bounded by the subscription's
+  `maxAttempts`, and the host sizes it.
 - **The browser does not retry.** `QueryProvider` defaults `retry: false`. The
   service it called already retried what was worth retrying.
 
@@ -107,13 +108,22 @@ still wait. It is a remainder, not a timestamp, for the reason gRPC's
 
 ### Bus redelivery is sized against the same budget
 
-A queue's `x-delivery-limit` stays a per-subscription dial — it is immutable
-once the queue exists, and changing it is a queue reset. The host sizes it so
-that in-process attempts × deliveries stays inside one fleet delivery budget,
-and because a consumer never retries in-process that product is the delivery
-limit itself. Classification is [ADR 0013](0013-failures-are-typed-values-decided-at-the-shell.md)'s:
-business and `protocol` failures are poison and quarantined at once, the
-transient categories are redelivered.
+A subscription's `maxAttempts` stays a per-subscription dial. It is also the
+queue's `x-delivery-limit`, which is immutable once the queue exists, so
+changing it is a queue reset.
+
+> **2026-10-28 (#130):** the broker does not enforce this ceiling for a
+> handler's failure. RabbitMQ 4 does not count a requeued `basic.nack` toward a
+> quorum queue's `x-delivery-limit` — measured on 4.3.5, a queue limited to 2
+> delivered one message 8 times — so the AMQP adapter counts attempts itself,
+> in a header on a copy it republishes after a capped backoff, and quarantines
+> at `maxAttempts`. `x-delivery-limit` still bounds the redeliveries a crashed
+> consumer causes, which the broker does count. The host sizes it so
+> that in-process attempts × deliveries stays inside one fleet delivery budget,
+> and because a consumer never retries in-process that product is the delivery
+> limit itself. Classification is [ADR 0013](0013-failures-are-typed-values-decided-at-the-shell.md)'s:
+> business and `protocol` failures are poison and quarantined at once, the
+> transient categories are redelivered.
 
 ## Consequences
 

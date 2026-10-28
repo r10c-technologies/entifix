@@ -10,6 +10,8 @@ import { matchesEventPattern } from '@entifix/core';
 
 export interface FakeAmqpMessage {
   content: Buffer;
+  /** Present only for a delivery made with headers. */
+  properties?: { headers: Record<string, unknown> };
 }
 
 export interface FakeAmqpChannel {
@@ -83,7 +85,11 @@ export interface FakeAmqpChannel {
    * would. The routing key defaults to the envelope's own `meta.event.name`,
    * which is what the adapter publishes with.
    */
-  deliver(body: unknown, routingKey?: string): Promise<void>;
+  deliver(
+    body: unknown,
+    routingKey?: string,
+    headers?: Record<string, unknown>,
+  ): Promise<void>;
   /** Pushes a raw payload, for malformed-message paths. */
   deliverRaw(payload: string): Promise<void>;
   /** Simulates the broker cancelling the consumer (amqplib delivers `null`). */
@@ -240,14 +246,23 @@ export const makeFakeAmqpChannel = (): FakeAmqpChannel => {
    * the malformed-payload path, where the message reached the queue and it is
    * the *content* that is wrong.
    */
-  const push = async (payload: string, routingKey: string | undefined) => {
+  const push = async (
+    payload: string,
+    routingKey: string | undefined,
+    headers?: Record<string, unknown>,
+  ) => {
     if (consumer === undefined) {
       throw new Error('fake amqp: nothing subscribed yet');
     }
     if (routingKey !== undefined && !routes(routingKey)) {
       return;
     }
-    consumer({ content: Buffer.from(payload) });
+    consumer({
+      content: Buffer.from(payload),
+      // Only when asked for, so a delivery without headers stays exactly the
+      // shape amqplib hands over for a message published with none.
+      ...(headers === undefined ? {} : { properties: { headers } }),
+    });
     await settle();
   };
 
@@ -276,8 +291,8 @@ export const makeFakeAmqpChannel = (): FakeAmqpChannel => {
     get cancelled() {
       return cancelled;
     },
-    deliver: (body, routingKey) =>
-      push(JSON.stringify(body), routingKey ?? routingKeyOf(body)),
+    deliver: (body, routingKey, headers) =>
+      push(JSON.stringify(body), routingKey ?? routingKeyOf(body), headers),
     deliverRaw: payload => push(payload, undefined),
     deliverCancellation: async () => {
       if (consumer === undefined) {

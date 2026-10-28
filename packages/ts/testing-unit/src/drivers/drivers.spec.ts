@@ -874,6 +874,25 @@ describe('makeFakeAmqpChannel', () => {
     expect(received).toEqual([{ a: 1 }]);
   });
 
+  it('hands over the headers a delivery was made with, and none otherwise', async () => {
+    const fake = makeFakeAmqpChannel();
+    const received: unknown[] = [];
+    await channelOf(fake).bindQueue('work', 'events', 'widget.*');
+    await channelOf(fake).consume('work', message => {
+      received.push(
+        (message as { properties?: { headers?: unknown } } | null)?.properties
+          ?.headers,
+      );
+    });
+
+    await fake.deliver({ a: 1 }, 'widget.created', { 'x-attempts': 2 });
+    await fake.deliver({ a: 1 }, 'widget.created');
+
+    // A republished copy comes back carrying what it was published with; a
+    // first delivery carries no `properties` at all, as amqplib's does not.
+    expect(received).toEqual([{ 'x-attempts': 2 }, undefined]);
+  });
+
   // Routing is the broker's job, so the fake has to do it too: a fake that
   // handed every message to every consumer would let a wrong bind pattern pass
   // every test the adapters have.
