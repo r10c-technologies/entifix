@@ -1,3 +1,13 @@
+## 0.10.2 (2026-10-28)
+
+### 🚀 Features
+
+- **source:** a host sizes the redelivery backoff, and the bus counts its quarantines ([#133](https://github.com/r10c-technologies/entifix/pull/133))
+
+### ❤️ Thank You
+
+- Herber Colop
+
 ## 0.10.1 (2026-10-28)
 
 ### 🩹 Fixes
