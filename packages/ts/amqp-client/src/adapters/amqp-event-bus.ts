@@ -10,7 +10,6 @@ import {
   type EventBus,
   EventBusTag,
   type Subscription,
-  type SubscriptionMode,
 } from '@entifix/transactions';
 import type { Channel, ConsumeMessage } from 'amqplib';
 import { Duration, Effect, Layer } from 'effect';
@@ -67,9 +66,10 @@ interface DeliveryFailure {
  * ([ADR 0013](../../../../../docs/adr/0013-failures-are-typed-values-decided-at-the-shell.md)):
  * an answer redelivered is the same answer, so every business failure is
  * poison, and so is `protocol` — bytes that did not decode will not decode on
- * the fifth try. The transient categories are redelivered, bounded by
- * `x-delivery-limit`, and so is anything uncategorised: not knowing what went
- * wrong is not evidence that retrying is pointless.
+ * the fifth try. The transient categories are redelivered, bounded by the
+ * subscription's `maxAttempts` as the adapter counts them, and so is anything
+ * uncategorised: not knowing what went wrong is not evidence that retrying is
+ * pointless.
  */
 const classify = (error: unknown): DeliveryFailure =>
   isFailure(error)
@@ -117,9 +117,11 @@ export const queueNameFor = (subscription: Subscription): string =>
  *
  * A **work** queue is durable and quorum-backed, so it survives the consumer's
  * restart and accumulates while it is gone — the hop the outbox relay's
- * durability chain was missing. Its retry ceiling is `x-delivery-limit`, a queue argument
- * rather than logic every consumer reimplements, so it also counts a
- * redelivery after a crash.
+ * durability chain was missing. Its retry ceiling is the subscription's
+ * `maxAttempts`, counted by the adapter in {@link ATTEMPTS_HEADER} because the
+ * broker does not count a requeued nack (#130). The same number is the queue's
+ * `x-delivery-limit`, which bounds what the broker *does* count — a redelivery
+ * after a consumer crash.
  *
  * The quarantine is declared **first**: a message dead-lettered the instant the
  * work queue exists must have somewhere to land, and a `direct` exchange with
@@ -163,54 +165,118 @@ const declareQueue = async (
 };
 
 /**
- * Whether a failed delivery should go back on the queue.
+ * The adapter's own count of the attempts a message has failed, carried on the
+ * copy it republishes (#130).
  *
- * Only a transient failure on a **work** queue: there the broker counts the
- * redelivery against `x-delivery-limit` and dead-letters at the ceiling, so a
- * requeue is bounded. A broadcast queue has neither a ceiling nor a dead-letter
- * path, so requeueing there is an unbounded loop.
+ * The broker cannot be trusted with it. RabbitMQ 4 does not count a requeued
+ * `basic.nack` toward a quorum queue's `x-delivery-limit` — measured on 4.3.5:
+ * a queue limited to 2 delivered one message 8 times and never set
+ * `x-delivery-count` — so a transient failure that never cleared was
+ * redelivered without a ceiling and without a pause. `x-delivery-limit` stays
+ * on the queue, where it still bounds the redeliveries a crashed consumer
+ * causes, which the broker does count.
  */
+export const ATTEMPTS_HEADER = 'x-entifix-attempts';
+
+const attemptsSoFar = (message: ConsumeMessage): number => {
+  const value: unknown = message.properties?.headers?.[ATTEMPTS_HEADER];
+  return typeof value === 'number' && Number.isInteger(value) && value > 0
+    ? value
+    : 0;
+};
+
+/** How long a transient failure waits before its copy goes back on the queue. */
+export type RedeliveryBackoff = (attempt: number) => Duration.Duration;
+
+/**
+ * Doubling from 100 ms, capped at two seconds. The wait holds the delivery —
+ * the queue is `prefetch(1)`, so it pauses this consumer — which is the point:
+ * a dependency that is down is not helped by asking it again at once.
+ */
+export const DEFAULT_REDELIVERY_BACKOFF: RedeliveryBackoff = attempt =>
+  Duration.millis(Math.min(100 * 2 ** (attempt - 1), 2_000));
+
 /**
  * Settles a delivery that failed.
  *
- * Poison on a `work` queue is republished to the dead-letter exchange **with
- * its reason** — `x-failure-code` and `x-failure-category` — and then acked,
- * rather than nacked: a nack cannot carry headers, and a quarantine of
- * messages nobody can say anything about is a queue an operator has to replay
- * blind. If that publish is refused the nack still quarantines it, reasonless.
+ * Poison on a `work` queue — and a transient failure that has spent the
+ * subscription's `maxAttempts` — is republished to the dead-letter exchange
+ * **with its reason**: `x-failure-code`, `x-failure-category` and the attempts
+ * spent. It is then acked rather than nacked, because a nack cannot carry
+ * headers, and a quarantine of messages nobody can say anything about is a
+ * queue an operator has to replay blind. If that publish is refused the nack
+ * still quarantines it, reasonless.
  *
- * A transient failure is nacked for the broker to redeliver; a `broadcast`
- * queue has no quarantine, so its failures are dropped.
+ * A transient failure under the ceiling waits its backoff, goes back on its own
+ * queue as a copy carrying the attempt count, and the original is acked. If
+ * that publish is refused it is nacked for the broker to redeliver, which is
+ * the old behaviour and still better than losing it. A `broadcast` queue has no
+ * quarantine and no ceiling, so its failures are dropped.
  */
 const settleFailure = (
   channel: Channel,
   message: ConsumeMessage,
   queue: string,
-  mode: SubscriptionMode,
+  subscription: Subscription,
   failure: DeliveryFailure,
-): void => {
-  if (failure.kind === 'poison' && mode === 'work') {
-    try {
-      channel.publish(EVENTS_DLX, queue, message.content, {
-        ...message.properties,
-        persistent: true,
-        headers: {
-          ...message.properties?.headers,
-          'x-failure-code': failure.code,
-          'x-failure-category': failure.category,
-        },
-      });
-      channel.ack(message);
-      return;
-    } catch {
-      // Fall through: quarantined without its reason beats not quarantined.
-    }
+  backoff: RedeliveryBackoff,
+): Effect.Effect<void> => {
+  if (subscription.mode === 'broadcast') {
+    return Effect.sync(() => channel.nack(message, false, false));
   }
-  channel.nack(message, false, requeues(failure, mode));
+  const attempts =
+    failure.kind === 'transient' ? attemptsSoFar(message) + 1 : 0;
+  if (failure.kind === 'poison' || attempts >= subscription.maxAttempts) {
+    return Effect.sync(() =>
+      quarantine(channel, message, queue, failure, attempts),
+    );
+  }
+  const wait = backoff(attempts);
+  return (Duration.isZero(wait) ? Effect.void : Effect.sleep(wait)).pipe(
+    Effect.andThen(
+      Effect.sync(() => {
+        try {
+          channel.publish('', queue, message.content, {
+            ...message.properties,
+            persistent: true,
+            headers: {
+              ...message.properties?.headers,
+              [ATTEMPTS_HEADER]: attempts,
+            },
+          });
+          channel.ack(message);
+        } catch {
+          channel.nack(message, false, true);
+        }
+      }),
+    ),
+  );
 };
 
-const requeues = (failure: DeliveryFailure, mode: SubscriptionMode): boolean =>
-  failure.kind === 'transient' && mode === 'work';
+const quarantine = (
+  channel: Channel,
+  message: ConsumeMessage,
+  queue: string,
+  failure: DeliveryFailure,
+  attempts: number,
+): void => {
+  try {
+    channel.publish(EVENTS_DLX, queue, message.content, {
+      ...message.properties,
+      persistent: true,
+      headers: {
+        ...message.properties?.headers,
+        'x-failure-code': failure.code,
+        'x-failure-category': failure.category,
+        ...(attempts > 0 ? { [ATTEMPTS_HEADER]: attempts } : {}),
+      },
+    });
+    channel.ack(message);
+  } catch {
+    // Quarantined without its reason beats not quarantined.
+    channel.nack(message, false, false);
+  }
+};
 
 /**
  * RabbitMQ-backed {@link EventBus}. Events go out as `event` envelopes on the
@@ -242,7 +308,9 @@ const requeues = (failure: DeliveryFailure, mode: SubscriptionMode): boolean =>
 export const makeAmqpEventBus = (
   connector: AmqpConnector,
   wiring: WiringRegistry,
+  options: { readonly redeliveryBackoff?: RedeliveryBackoff } = {},
 ): { bus: EventBus; drainDeliveries: Effect.Effect<void> } => {
+  const backoff = options.redeliveryBackoff ?? DEFAULT_REDELIVERY_BACKOFF;
   /**
    * Handlers started and not yet settled.
    *
@@ -346,7 +414,7 @@ export const makeAmqpEventBus = (
                   // is the *only* thing that can tell a malformed one from a bad
                   // afternoon at the database — and it says so by failing with
                   // a business or `protocol` failure, which quarantines at once
-                  // instead of spending `x-delivery-limit` on every message
+                  // instead of spending `maxAttempts` on every message
                   // behind it. Measured on `catalog.published`: a payload the
                   // contract rejected used to take five deliveries to quarantine.
                   Effect.flatMap(event =>
@@ -375,14 +443,13 @@ export const makeAmqpEventBus = (
                       onFailure: failure =>
                         recordFailed(tags, failure.kind).pipe(
                           Effect.andThen(
-                            Effect.sync(() =>
-                              settleFailure(
-                                channel,
-                                message,
-                                queue,
-                                subscription.mode,
-                                failure,
-                              ),
+                            settleFailure(
+                              channel,
+                              message,
+                              queue,
+                              subscription,
+                              failure,
+                              backoff,
                             ),
                           ),
                         ),

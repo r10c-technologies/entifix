@@ -10,7 +10,7 @@ import { describeEventBusContract } from '@entifix/testing-unit/contracts';
 import { makeFakeAmqpChannel } from '@entifix/testing-unit/drivers';
 import { EventBusTag, type Subscription } from '@entifix/transactions';
 import type { Channel } from 'amqplib';
-import { Effect, Exit, Layer } from 'effect';
+import { Duration, Effect, Exit, Layer } from 'effect';
 import { describe, expect, it } from 'vitest';
 
 import type { AmqpConnector } from '../amqp-connection/amqp-connection.js';
@@ -20,6 +20,8 @@ import {
 } from '../amqp-connection/amqp-connection.js';
 import {
   AmqpEventBusLayer,
+  ATTEMPTS_HEADER,
+  DEFAULT_REDELIVERY_BACKOFF,
   makeAmqpEventBus,
   queueNameFor,
 } from './amqp-event-bus.js';
@@ -102,7 +104,14 @@ const withFakeChannel = () => {
   return {
     fake,
     wiring,
-    ...makeAmqpEventBus(connectorFor(fake.channel as Channel), wiring.registry),
+    ...makeAmqpEventBus(
+      connectorFor(fake.channel as Channel),
+      wiring.registry,
+      {
+        // No wait between attempts, so a spec settles in one tick.
+        redeliveryBackoff: () => Duration.zero,
+      },
+    ),
   };
 };
 
@@ -244,7 +253,11 @@ describe('makeAmqpEventBus', () => {
     expect(fake.nacked).toHaveLength(0);
   });
 
-  it('requeues a transient handler failure so the broker counts it', async () => {
+  /** The copies the adapter puts back on a work queue, with their count. */
+  const redelivered = (fake: ReturnType<typeof withFakeChannel>['fake']) =>
+    fake.published.filter(entry => entry.exchange === '');
+
+  it('puts a transient handler failure back on its queue, counting the attempt itself', async () => {
     const { fake, bus } = withFakeChannel();
     await Effect.runPromise(
       bus.subscribe(WORK, () =>
@@ -254,14 +267,102 @@ describe('makeAmqpEventBus', () => {
 
     await fake.deliver(anEnvelope(anEvent()));
 
-    // `requeue: true` is what hands the retry to the broker: it increments the
-    // delivery count and dead-letters at `x-delivery-limit`. Requeueing is
-    // bounded *because* the ceiling exists — before it, this was an infinite
-    // loop, which is why the old adapter discarded instead.
+    // Not a requeued nack: RabbitMQ 4 does not count one toward
+    // `x-delivery-limit`, so the broker would redeliver it forever (#130). The
+    // copy carries the count, on the queue's own name through the default
+    // exchange, and the original is acked.
+    expect(redelivered(fake)).toEqual([
+      expect.objectContaining({
+        routingKey: WORK_QUEUE,
+        headers: { [ATTEMPTS_HEADER]: 1 },
+      }),
+    ]);
+    expect(fake.acked).toHaveLength(1);
+    expect(fake.nacked).toHaveLength(0);
+  });
+
+  it('quarantines a transient failure once it has spent maxAttempts, with its reason', async () => {
+    const { fake, bus } = withFakeChannel();
+    await Effect.runPromise(
+      bus.subscribe(WORK, () =>
+        Effect.fail(new Unavailable({ dependency: 'mongo' }) as never),
+      ),
+    );
+
+    // Each copy the adapter republishes is what the broker hands back next.
+    await fake.deliver(anEnvelope(anEvent()));
+    for (let attempt = 1; attempt < WORK.maxAttempts; attempt += 1) {
+      const copy = redelivered(fake).at(-1);
+      await fake.deliver(copy?.body, undefined, copy?.headers);
+    }
+
+    expect(
+      redelivered(fake).map(entry => entry.headers?.[ATTEMPTS_HEADER]),
+    ).toEqual([1, 2, 3, 4]);
+    expect(quarantined(fake)).toEqual([
+      expect.objectContaining({
+        headers: {
+          [ATTEMPTS_HEADER]: WORK.maxAttempts,
+          'x-failure-code': 'unavailable',
+          'x-failure-category': 'unavailable',
+        },
+      }),
+    ]);
+    expect(fake.acked).toHaveLength(WORK.maxAttempts);
+    expect(fake.nacked).toHaveLength(0);
+  });
+
+  it('falls back to the broker’s requeue when the copy cannot be published', async () => {
+    const { fake, bus } = withFakeChannel();
+    let calls = 0;
+    await Effect.runPromise(
+      bus.subscribe(WORK, () =>
+        Effect.suspend(() => {
+          calls += 1;
+          // The channel goes down between the handler failing and the copy
+          // being published.
+          fake.failWith(new Error('channel closed'));
+          return Effect.fail(new Error('handler failed') as never);
+        }),
+      ),
+    );
+
+    await fake.deliver(anEnvelope(anEvent()));
+
+    expect(calls).toBe(1);
+    expect(redelivered(fake)).toEqual([]);
     expect(fake.nacked).toEqual([
       { message: expect.anything(), allUpTo: false, requeue: true },
     ]);
-    expect(fake.acked).toHaveLength(0);
+  });
+
+  it('waits its backoff before the copy goes back', async () => {
+    const fake = makeFakeAmqpChannel();
+    const { bus } = makeAmqpEventBus(
+      connectorFor(fake.channel as Channel),
+      recordingWiring().registry,
+      { redeliveryBackoff: () => Duration.millis(20) },
+    );
+    await Effect.runPromise(
+      bus.subscribe(WORK, () =>
+        Effect.fail(new Error('handler failed') as never),
+      ),
+    );
+
+    await fake.deliver(anEnvelope(anEvent()));
+    const before = fake.published.length;
+    await new Promise(resolve => setTimeout(resolve, 60));
+
+    expect(before).toBe(0);
+    expect(fake.published).toHaveLength(1);
+  });
+
+  it('backs off doubling from 100 ms, capped at two seconds', () => {
+    expect(
+      [1, 2, 3, 5, 9].map(attempt =>
+        Duration.toMillis(DEFAULT_REDELIVERY_BACKOFF(attempt)),
+      ),
+    ).toEqual([100, 200, 400, 1_600, 2_000]);
   });
 
   /** The quarantine republish a poison message gets, with its reason. */
@@ -348,9 +449,7 @@ describe('makeAmqpEventBus', () => {
 
     await fake.deliver(anEnvelope(anEvent()));
 
-    expect(fake.nacked).toEqual([
-      { message: expect.anything(), allUpTo: false, requeue: true },
-    ]);
+    expect(redelivered(fake)).toHaveLength(1);
     expect(quarantined(fake)).toHaveLength(0);
   });
 
