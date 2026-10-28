@@ -53,20 +53,24 @@ export function useEnumLabel(): (
 /**
  * Renders a failed request in the reader's language.
  *
- * Services answer with `{ error, code, detail }`, and the rest client carries
- * the `code` onto `EntifixError.details`. Falling back to `message` keeps a
- * failure that predates the vocabulary — or one raised client-side — readable
- * rather than blank.
+ * A typed failure carries its `code` on itself
+ * ([ADR 0013](../../../../../docs/adr/0013-failures-are-typed-values-decided-at-the-shell.md));
+ * an `EntifixError` from a service that still answers `{ error, code, detail }`
+ * carries it on `details`. Falling back to `message` keeps a failure that
+ * predates the vocabulary — or one raised client-side — readable rather than
+ * blank.
  */
 export function useErrorMessage(): (error: {
   message: string;
+  code?: unknown;
   details?: Record<string, unknown>;
 }) => string {
   const translate = useTranslateKey();
 
   return useCallback(
     error => {
-      const code = error.details?.['code'];
+      const code =
+        typeof error.code === 'string' ? error.code : error.details?.['code'];
       return typeof code === 'string'
         ? translate(`errors:${code}`)
         : error.message;

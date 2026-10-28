@@ -2,6 +2,7 @@ import {
   type EntifixConnError,
   type EntifixError,
   type EntityId,
+  type InvalidEnvelope,
   readEnvelope,
 } from '@entifix/core';
 import { Context, Effect } from 'effect';
@@ -103,7 +104,7 @@ export interface TransactionAccepted {
  */
 export function readTransactionAcceptedEnvelope(
   body: unknown,
-): Effect.Effect<TransactionAccepted, EntifixError> {
+): Effect.Effect<TransactionAccepted, InvalidEnvelope> {
   return Effect.map(
     readEnvelope<TransactionAccepted>(
       body,
@@ -125,7 +126,7 @@ export function readTransactionAcceptedEnvelope(
  */
 export function readTransactionRecordEnvelope(
   body: unknown,
-): Effect.Effect<TransactionRecord, EntifixError> {
+): Effect.Effect<TransactionRecord, InvalidEnvelope> {
   return Effect.map(
     readEnvelope<TransactionRecord>(
       body,
@@ -150,7 +151,10 @@ export function readTransactionRecordEnvelope(
 export interface TransactionStatusReader {
   read(
     transactionId: string,
-  ): Effect.Effect<TransactionRecord | undefined, EntifixError>;
+  ): Effect.Effect<
+    TransactionRecord | undefined,
+    EntifixError | InvalidEnvelope
+  >;
 }
 
 export class TransactionStatusReaderTag extends Context.Service<

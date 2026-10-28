@@ -130,7 +130,7 @@ describe('useEnumLabel', () => {
 function Failure({
   error,
 }: {
-  error: { message: string; details?: Record<string, unknown> };
+  error: { message: string; code?: unknown; details?: Record<string, unknown> };
 }) {
   const errorMessage = useErrorMessage();
   return <span data-testid="failure">{errorMessage(error)}</span>;
@@ -146,6 +146,18 @@ describe('useErrorMessage', () => {
             details: { code: 'invalidQuery' },
           }}
         />
+      </I18nProvider>,
+    );
+
+    expect(screen.getByTestId('failure')).toHaveTextContent(
+      'La consulta no es válida.',
+    );
+  });
+
+  it('renders the code a typed failure carries on itself', () => {
+    render(
+      <I18nProvider locale="es">
+        <Failure error={{ message: '', code: 'invalidQuery' }} />
       </I18nProvider>,
     );
 

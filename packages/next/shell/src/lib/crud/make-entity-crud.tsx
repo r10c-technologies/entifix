@@ -18,6 +18,7 @@ import {
   envelopeEntityName,
   extractMetaEntity,
   type FilterGroup,
+  type TransitionalFailure,
 } from '@entifix/core';
 import { EntityTable, useCasesForSurface } from '@entifix/react-controls';
 import {
@@ -289,9 +290,9 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     // what it has; `runUseCase` takes an id, because that is what a route needs
     // The list has no error slot of its own, so a failure lands in the
     // table's own error region — the same one a failed page read uses.
-    const [useCaseError, setUseCaseError] = useState<EntifixError | undefined>(
-      undefined,
-    );
+    const [useCaseError, setUseCaseError] = useState<
+      TransitionalFailure | undefined
+    >(undefined);
     // Called unconditionally and the *result* gated, the way the surfaces are
     // read in `EntityForm`: the name begins with `use`, so short-circuiting it
     // reads to `react-hooks/rules-of-hooks` as a conditional hook.
@@ -360,9 +361,9 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     const params = useParams<{ slug: string }>();
     // A verb's failure is this page's, not the record fetch's or the mutation's,
     // so it needs a slot of its own to reach the form's error area.
-    const [useCaseError, setUseCaseError] = useState<EntifixError | undefined>(
-      undefined,
-    );
+    const [useCaseError, setUseCaseError] = useState<
+      TransitionalFailure | undefined
+    >(undefined);
     const id = slugToEntityId(slug ?? params.slug);
 
     const ctx = mergeCrudContext(adapters, repository, pending);

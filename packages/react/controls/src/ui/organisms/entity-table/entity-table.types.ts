@@ -1,6 +1,5 @@
 import type {
   BulkOutcome,
-  EntifixError,
   Entity,
   EntityConstructor,
   EntityFieldDescriptor,
@@ -9,6 +8,7 @@ import type {
   EntitySelection,
   EntitySorting,
   FilterGroup,
+  TransitionalFailure,
 } from '@entifix/core';
 import type { ReactNode } from 'react';
 
@@ -61,7 +61,7 @@ export interface EntityTableProps<TEntity extends Entity> {
    * It arrives for free from `useDataLoading`, whose whole state is spread into
    * this component.
    */
-  error?: EntifixError;
+  error?: TransitionalFailure;
   items: ReadonlyArray<TEntity>;
   totalItems: number;
   currentPage: number;

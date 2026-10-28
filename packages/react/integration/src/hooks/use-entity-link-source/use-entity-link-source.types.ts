@@ -1,12 +1,12 @@
 import type { EntityIdTag, EntityLoadRequestTag } from '@entifix/business';
 import type {
-  EntifixError,
   Entity,
   EntityConstructor,
   EntityFieldDescriptor,
   EntityId,
   EntityPage,
   FilterGroup,
+  TransitionalFailure,
 } from '@entifix/core';
 import type { Context, Effect } from 'effect';
 
@@ -24,7 +24,7 @@ export interface EntityLinkSourceConfig<TTarget extends Entity, TContext> {
   /** Lists the targets. Supplies {@link EntityLoadRequestTag} per request. */
   loadUc: Effect.Effect<
     EntityPage<TTarget>,
-    EntifixError,
+    TransitionalFailure,
     EntityLoadRequestTag | TContext
   >;
   /**
@@ -32,7 +32,7 @@ export interface EntityLinkSourceConfig<TTarget extends Entity, TContext> {
    * foreign key back into a name. Omit it and the input falls back to showing
    * the bare key.
    */
-  getUc?: Effect.Effect<TTarget, EntifixError, EntityIdTag | TContext>;
+  getUc?: Effect.Effect<TTarget, TransitionalFailure, EntityIdTag | TContext>;
   ctx: Context.Context<TContext>;
   /**
    * ANDed into every quick and browse request, so a caller can narrow the

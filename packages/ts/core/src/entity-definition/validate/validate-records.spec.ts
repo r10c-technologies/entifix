@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { EntifixBuildError } from '../../base-entities/entifix-error/index.js';
 import { defineLocales, resetLocales } from '../../i18n/locales.js';
 import type { Entity, EntityId } from '../../types/Entity.js';
 import { accessor } from '../decorators/accessor/index.js';
@@ -9,7 +8,7 @@ import { describeEntityColumns } from '../describe/index.js';
 import { EntityCollectionLink } from '../links/entity-collection-link/index.js';
 import { EntityLink } from '../links/entity-link/index.js';
 import {
-  RecordValidationError,
+  InvalidRecords,
   validateRecords,
   validRecordsOrThrow,
 } from './validate-records.js';
@@ -314,19 +313,22 @@ describe('validRecordsOrThrow', () => {
     expect(validRecordsOrThrow(Period, [valid])).toHaveLength(1);
   });
 
-  it('throws every problem at once, as a build error', () => {
-    let error: RecordValidationError | undefined;
+  it('throws every problem at once, as an invalid failure', () => {
+    let error: InvalidRecords | undefined;
     try {
       validRecordsOrThrow(Period, [{ ...valid, role: '', hours: 'x' }], {
         source: 'periods.json',
       });
     } catch (caught) {
-      error = caught as RecordValidationError;
+      error = caught as InvalidRecords;
     }
 
-    expect(error).toBeInstanceOf(RecordValidationError);
-    expect(error).toBeInstanceOf(EntifixBuildError);
-    expect(error?.problems).toHaveLength(2);
+    expect(error).toMatchObject({
+      _tag: 'InvalidRecords',
+      code: 'invalidRecords',
+      category: 'invalid',
+    });
+    expect(error?.errors).toHaveLength(2);
     expect(error?.message).toBe(
       'Records are invalid:\n' +
         '  periods.json › p-1 › role is required, and is missing\n' +

@@ -1,4 +1,4 @@
-import type { EntifixError } from '@entifix/core';
+import type { EntifixError, InvalidEnvelope } from '@entifix/core';
 import {
   readTransactionRecordEnvelope,
   type TransactionRecord,
@@ -43,7 +43,10 @@ export const buildTransactionStatusReader = (
   return {
     read: (
       transactionId: string,
-    ): Effect.Effect<TransactionRecord | undefined, EntifixError> =>
+    ): Effect.Effect<
+      TransactionRecord | undefined,
+      EntifixError | InvalidEnvelope
+    > =>
       Effect.gen(function* () {
         const url = yield* adapterMixins.buildEntityBaseUrl(
           configuration,
@@ -59,7 +62,7 @@ export const buildTransactionStatusReader = (
         return yield* readTransactionRecordEnvelope(response.body);
       }).pipe(
         Effect.catch(error =>
-          error.details?.['status'] === 404
+          'details' in error && error.details?.['status'] === 404
             ? Effect.succeed(undefined)
             : Effect.fail(error),
         ),

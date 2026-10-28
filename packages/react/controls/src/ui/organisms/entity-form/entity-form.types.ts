@@ -1,5 +1,4 @@
 import type {
-  EntifixError,
   Entity,
   EntityConstructor,
   EntityDraft,
@@ -7,6 +6,7 @@ import type {
   EntityFieldDescriptor,
   EntityLinkSource,
   EntityMetadataDocument,
+  TransitionalFailure,
 } from '@entifix/core';
 import type { ReactNode } from 'react';
 
@@ -168,7 +168,7 @@ export interface EntityFormProps<TEntity extends Entity> {
   isSaving?: boolean;
   isDeleting?: boolean;
   /** The failure of the last load/save, shown as an alert. */
-  error?: EntifixError;
+  error?: TransitionalFailure;
 
   /** Link to return to, rendered as a `Back` action. Omit to hide it. */
   backHref?: string;

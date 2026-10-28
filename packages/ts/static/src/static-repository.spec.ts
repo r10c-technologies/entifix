@@ -5,7 +5,7 @@ import {
   type Entity,
   entity,
   type EntityId,
-  RecordValidationError,
+  InvalidRecords,
 } from '@entifix/core';
 import { run, runExit } from '@entifix/testing-unit';
 import {
@@ -145,7 +145,7 @@ describe('staticRepositoryFromRecords', () => {
       staticRepositoryFromRecords(Event, [{ id: 'e-1', at: 'soon' }], {
         source: 'events.json',
       }),
-    ).toThrow(RecordValidationError);
+    ).toThrow(InvalidRecords);
     expect(() =>
       staticRepositoryFromRecords(Event, [{ id: 'e-1', at: 'soon' }], {
         source: 'events.json',

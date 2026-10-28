@@ -26,7 +26,7 @@ export type StaticRecordsOptions = ValidateRecordsOptions &
  * `required`, each member's type, dates parsed, link ids against the targets
  * given, item counts, `notBefore`, cardinality, localized completeness, the
  * caller's rules — every problem collected, and thrown together as a
- * `RecordValidationError`, so a broken record fails the build rather than a
+ * `InvalidRecords`, so a broken record fails the build rather than a
  * visitor's page.
  */
 export function staticRepositoryFromRecords<TEntity extends Entity>(

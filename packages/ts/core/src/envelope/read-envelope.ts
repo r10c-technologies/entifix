@@ -1,11 +1,11 @@
 import { Effect } from 'effect';
 
-import { EntifixBuildError } from '../base-entities/entifix-error/index.js';
 import type { EntityMetadataDocument } from '../entity-definition/metadata/index.js';
 import {
   deserializeEntityCollection,
   deserializeSingleEntity,
 } from '../entity-definition/serializer/index.js';
+import { InvalidEnvelope } from '../failure/generic.js';
 import type { Entity, EntityConstructor } from '../types/Entity.js';
 import type {
   EntityFacetCounts,
@@ -37,32 +37,28 @@ export function isEntifixEnvelope(body: unknown): body is EntifixEnvelope {
 
 /**
  * Narrows an arbitrary body to an envelope of the expected `meta.type`, failing
- * with an {@link EntifixBuildError} otherwise. A wrong shape must never
+ * with an {@link InvalidEnvelope} otherwise. A wrong shape must never
  * silently deserialize into a half-populated entity.
  */
 function assertEnvelope<TEntity extends Entity, TData>(
   entityConstructor: EntityConstructor<TEntity>,
   body: unknown,
   expected: EntifixEnvelopeType,
-): Effect.Effect<EntifixEnvelope<TData>, EntifixBuildError> {
+): Effect.Effect<EntifixEnvelope<TData>, InvalidEnvelope> {
   const entity = envelopeEntityName(entityConstructor);
 
   if (!isEntifixEnvelope(body)) {
     return Effect.fail(
-      new EntifixBuildError(
-        `Expected an EntifixEnvelope for "${entity}" but the payload carried no meta.type`,
-        undefined,
-        { entity, expected, body },
-      ),
+      new InvalidEnvelope({
+        reason: `Expected an EntifixEnvelope for "${entity}" but the payload carried no meta.type`,
+      }),
     );
   }
   if (body.meta.type !== expected) {
     return Effect.fail(
-      new EntifixBuildError(
-        `Expected an EntifixEnvelope of type "${expected}" for "${entity}" but got "${body.meta.type}"`,
-        undefined,
-        { entity, expected, actual: body.meta.type },
-      ),
+      new InvalidEnvelope({
+        reason: `Expected an EntifixEnvelope of type "${expected}" for "${entity}" but got "${body.meta.type}"`,
+      }),
     );
   }
   return Effect.succeed(body as EntifixEnvelope<TData>);
@@ -77,23 +73,19 @@ export function readEnvelope<TData>(
   body: unknown,
   expected: EntifixEnvelopeType,
   label = 'message',
-): Effect.Effect<EntifixEnvelope<TData>, EntifixBuildError> {
+): Effect.Effect<EntifixEnvelope<TData>, InvalidEnvelope> {
   if (!isEntifixEnvelope(body)) {
     return Effect.fail(
-      new EntifixBuildError(
-        `Expected an EntifixEnvelope for "${label}" but the payload carried no meta.type`,
-        undefined,
-        { label, expected, body },
-      ),
+      new InvalidEnvelope({
+        reason: `Expected an EntifixEnvelope for "${label}" but the payload carried no meta.type`,
+      }),
     );
   }
   if (body.meta.type !== expected) {
     return Effect.fail(
-      new EntifixBuildError(
-        `Expected an EntifixEnvelope of type "${expected}" for "${label}" but got "${body.meta.type}"`,
-        undefined,
-        { label, expected, actual: body.meta.type },
-      ),
+      new InvalidEnvelope({
+        reason: `Expected an EntifixEnvelope of type "${expected}" for "${label}" but got "${body.meta.type}"`,
+      }),
     );
   }
   return Effect.succeed(body as EntifixEnvelope<TData>);
@@ -115,13 +107,11 @@ export const readEntityEnvelope = <TEntity extends Entity>(
     );
     if (entity === undefined) {
       return yield* Effect.fail(
-        new EntifixBuildError(
-          `EntifixEnvelope for "${envelopeEntityName(
+        new InvalidEnvelope({
+          reason: `EntifixEnvelope for "${envelopeEntityName(
             entityConstructor,
           )}" carried no data`,
-          undefined,
-          { entity: envelopeEntityName(entityConstructor) },
-        ),
+        }),
       );
     }
     return entity;
@@ -188,13 +178,11 @@ export const readEntityMetadataEnvelope = <TEntity extends Entity>(
       !Array.isArray(document?.useCases)
     ) {
       return yield* Effect.fail(
-        new EntifixBuildError(
-          `EntifixEnvelope for "${envelopeEntityName(
+        new InvalidEnvelope({
+          reason: `EntifixEnvelope for "${envelopeEntityName(
             entityConstructor,
           )}" carried no metadata document`,
-          undefined,
-          { entity: envelopeEntityName(entityConstructor) },
-        ),
+        }),
       );
     }
     return document;
@@ -232,13 +220,11 @@ export const readEntityFacetsEnvelope = <TEntity extends Entity>(
       );
     if (!wellFormed) {
       return yield* Effect.fail(
-        new EntifixBuildError(
-          `EntifixEnvelope for "${envelopeEntityName(
+        new InvalidEnvelope({
+          reason: `EntifixEnvelope for "${envelopeEntityName(
             entityConstructor,
           )}" carried no facet counts`,
-          undefined,
-          { entity: envelopeEntityName(entityConstructor) },
-        ),
+        }),
       );
     }
     return counts;
@@ -263,7 +249,7 @@ const REQUIRED_EVENT_META = ['name', 'id', 'source', 'at'] as const;
  */
 export function readEventEnvelope<TData = unknown>(
   body: unknown,
-): Effect.Effect<DomainEvent<TData>, EntifixBuildError> {
+): Effect.Effect<DomainEvent<TData>, InvalidEnvelope> {
   return Effect.gen(function* () {
     const envelope = yield* readEnvelope<TData>(body, 'event', 'event');
     const event = envelope.meta.event;
@@ -272,13 +258,11 @@ export function readEventEnvelope<TData = unknown>(
     );
     if (missing.length > 0) {
       return yield* Effect.fail(
-        new EntifixBuildError(
-          `event envelope carried incomplete meta.event (missing ${missing.join(
+        new InvalidEnvelope({
+          reason: `event envelope carried incomplete meta.event (missing ${missing.join(
             ', ',
           )})`,
-          undefined,
-          { missing, body },
-        ),
+        }),
       );
     }
     return { ...(event as EntifixEventMeta), data: envelope.data };

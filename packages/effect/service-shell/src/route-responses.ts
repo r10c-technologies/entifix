@@ -1,4 +1,4 @@
-import { EntifixBuildError } from '@entifix/core';
+import { defaultStatus, EntifixBuildError, isFailure } from '@entifix/core';
 import { HttpServerResponse } from 'effect/http';
 
 /**
@@ -32,26 +32,37 @@ const refusalCode = (error: EntifixBuildError): string | undefined =>
 
 /**
  * The answer to a request the route refused: a `400` for what the client sent
- * wrong, the refusal's own status for a rule a save broke, and a `500` for
- * anything else.
+ * wrong, the refusal's own status for a rule a save broke, a business-family
+ * failure's category status, and a `500` for anything else.
  */
 export const invalid = (error: unknown, label: string, code: string) =>
-  error instanceof EntifixBuildError
+  isFailure(error) && error.family === 'business'
     ? HttpServerResponse.json(
         {
           error: label,
-          code: refusalCode(error) ?? code,
-          detail: error.message,
+          // A body that is not an envelope is the route's own refusal, named
+          // by the route as it always was; any other failure names itself.
+          code: error._tag === 'InvalidEnvelope' ? code : error.code,
+          ...(error.message === '' ? {} : { detail: error.message }),
         },
-        { status: 400 },
+        { status: defaultStatus(error.category) },
       )
-    : error instanceof EntityRouteRefusal
+    : error instanceof EntifixBuildError
       ? HttpServerResponse.json(
           {
-            error: 'the record cannot be saved',
-            code: error.code,
-            ...(error.detail === undefined ? {} : { detail: error.detail }),
+            error: label,
+            code: refusalCode(error) ?? code,
+            detail: error.message,
           },
-          { status: error.status },
+          { status: 400 },
         )
-      : routeFailure(error);
+      : error instanceof EntityRouteRefusal
+        ? HttpServerResponse.json(
+            {
+              error: 'the record cannot be saved',
+              code: error.code,
+              ...(error.detail === undefined ? {} : { detail: error.detail }),
+            },
+            { status: error.status },
+          )
+        : routeFailure(error);

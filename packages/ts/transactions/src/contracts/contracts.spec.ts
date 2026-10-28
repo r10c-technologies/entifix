@@ -74,7 +74,10 @@ describe('command envelopes', () => {
       Effect.flip(readCommandEnvelope({ transactionId: TX })),
     );
 
-    expect(error).toBeInstanceOf(EntifixBuildError);
+    expect(error).toMatchObject({
+      _tag: 'InvalidEnvelope',
+      category: 'invalid',
+    });
     expect(error.message).toContain('no meta.type');
   });
 

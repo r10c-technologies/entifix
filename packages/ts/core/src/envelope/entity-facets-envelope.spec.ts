@@ -1,7 +1,6 @@
 import { Cause, Effect, Exit } from 'effect';
 import { describe, expect, it } from 'vitest';
 
-import { EntifixBuildError } from '../base-entities/entifix-error/index.js';
 import { accessor } from '../entity-definition/decorators/accessor/index.js';
 import { entity } from '../entity-definition/decorators/entity/index.js';
 import type { Entity, EntityId } from '../types/Entity.js';
@@ -82,6 +81,9 @@ describe('the entityFacets envelope', () => {
       { meta: { type: 'entityFacets' }, data: { brand: [null] } },
     ],
   ])('refuses %s', async (_, body) => {
-    expect(await failureOf(body)).toBeInstanceOf(EntifixBuildError);
+    expect(await failureOf(body)).toMatchObject({
+      _tag: 'InvalidEnvelope',
+      category: 'invalid',
+    });
   });
 });

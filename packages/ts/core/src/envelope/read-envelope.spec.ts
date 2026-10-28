@@ -1,7 +1,6 @@
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 
-import { EntifixBuildError } from '../base-entities/entifix-error/index.js';
 import { accessor } from '../entity-definition/decorators/accessor/index.js';
 import { entity } from '../entity-definition/decorators/entity/index.js';
 import type { Entity, EntityId } from '../types/Entity.js';
@@ -128,7 +127,10 @@ describe('readEnvelope', () => {
       ),
     );
 
-    expect(error).toBeInstanceOf(EntifixBuildError);
+    expect(error).toMatchObject({
+      _tag: 'InvalidEnvelope',
+      category: 'invalid',
+    });
     expect(error.message).toContain('no meta.type');
     expect(error.message).toContain('saga message');
   });
@@ -151,10 +153,6 @@ describe('readEnvelope', () => {
 
     expect(error.message).toContain('type "transactionRecord"');
     expect(error.message).toContain('but got "command"');
-    expect(error.details).toMatchObject({
-      expected: 'transactionRecord',
-      actual: 'command',
-    });
   });
 });
 
