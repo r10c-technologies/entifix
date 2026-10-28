@@ -102,17 +102,11 @@ export interface UnitOfWork<H> {
   run<A, E, R>(
     body: (unit: Unit<H>) => Effect.Effect<A, E, R>,
     options?: UnitRunOptions<A, R>,
-  ): Effect.Effect<
-    UnitOutcome<A, Exclude<E, StoreFault>>,
-    StoreFault,
-    R
-  >;
+  ): Effect.Effect<UnitOutcome<A, Exclude<E, StoreFault>>, StoreFault, R>;
   /**
    * What the run that took this `command` claim asked to be remembered, or
    * `none` if no run has taken it — for a caller that has to answer a duplicate
    * outside a unit.
    */
-  replay(
-    commandId: string,
-  ): Effect.Effect<Option.Option<unknown>, StoreFault>;
+  replay(commandId: string): Effect.Effect<Option.Option<unknown>, StoreFault>;
 }

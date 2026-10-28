@@ -54,7 +54,9 @@ export class EntityCollectionLink<TEntity extends Entity> {
   /**
    * Fetches every referenced target through the resolver and caches the result.
    */
-  reload(resolver: EntityLinkResolver): Effect.Effect<TEntity[], TransitionalFailure> {
+  reload(
+    resolver: EntityLinkResolver,
+  ): Effect.Effect<TEntity[], TransitionalFailure> {
     return Effect.forEach(
       this.#ids,
       id => resolver.resolve(this.entityConstructor, id),

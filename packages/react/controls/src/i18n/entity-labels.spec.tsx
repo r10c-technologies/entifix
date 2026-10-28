@@ -1,6 +1,6 @@
 import type { EntityFieldDescriptor } from '@entifix/core';
 import { DuplicateKey, NotFound } from '@entifix/core';
-import { render, renderHook,screen } from '@testing-library/react';
+import { render, renderHook, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { I18nProvider } from '../i18next/index.js';

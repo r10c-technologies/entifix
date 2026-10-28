@@ -20,7 +20,7 @@ had to guess the rest:
   non-2xx into `EntifixConnError`, so a business `409` — "that slug is taken" —
   arrived in the browser as a connection failure and was shown as one.
 - **The bus decided poison by class.** `error instanceof EntifixBuildError ?
-  'poison' : 'transient'` retried a business refusal and a protocol mismatch to
+'poison' : 'transient'` retried a business refusal and a protocol mismatch to
   `x-delivery-limit`, and an `instanceof` across two copies of the module
   answers `false` for an error that is plainly the class.
 - **Datastore errors carried no meaning.** A duplicate key, a lost connection
@@ -56,20 +56,20 @@ There are two families, and the difference is the whole point of having them:
 - **technical** — _a non-answer_. Something stopped the request being answered.
   May be retried by the layer directly above it ([ADR 0014](0014-retry-once-at-the-layer-above-under-a-budget.md)).
 
-| Family    | Category          | Default status | Meaning                                                 |
-| --------- | ----------------- | -------------- | ------------------------------------------------------- |
-| business  | `invalid`         | 400            | the request is malformed or breaks a rule on its own    |
-| business  | `unauthenticated` | 401            | no credential, or one that does not verify              |
-| business  | `forbidden`       | 403            | a verified caller without the grant                     |
-| business  | `notFound`        | 404            | the addressed record does not exist                     |
-| business  | `conflict`        | 409            | the request contradicts the stored state                |
-| business  | `declined`        | 422            | a rule over other records, or a third party, said no    |
-| technical | `contention`      | 409            | lost a race that a retry can win                        |
-| technical | `exhausted`       | 429            | a limit or a budget is spent                            |
-| technical | `unavailable`     | 503            | a dependency could not be reached                       |
-| technical | `timeout`         | 504            | a dependency did not answer in time                     |
-| technical | `protocol`        | 502            | a peer answered something that does not decode          |
-| technical | `internal`        | 500            | a bug, surfaced as a value                              |
+| Family    | Category          | Default status | Meaning                                              |
+| --------- | ----------------- | -------------- | ---------------------------------------------------- |
+| business  | `invalid`         | 400            | the request is malformed or breaks a rule on its own |
+| business  | `unauthenticated` | 401            | no credential, or one that does not verify           |
+| business  | `forbidden`       | 403            | a verified caller without the grant                  |
+| business  | `notFound`        | 404            | the addressed record does not exist                  |
+| business  | `conflict`        | 409            | the request contradicts the stored state             |
+| business  | `declined`        | 422            | a rule over other records, or a third party, said no |
+| technical | `contention`      | 409            | lost a race that a retry can win                     |
+| technical | `exhausted`       | 429            | a limit or a budget is spent                         |
+| technical | `unavailable`     | 503            | a dependency could not be reached                    |
+| technical | `timeout`         | 504            | a dependency did not answer in time                  |
+| technical | `protocol`        | 502            | a peer answered something that does not decode       |
+| technical | `internal`        | 500            | a bug, surfaced as a value                           |
 
 The categories are closed because every layer branches on them — the shell's
 status and log tables, the bus's poison rule, the client's inline-versus-toast
@@ -81,11 +81,7 @@ answering `409` beside `conflict` comes from: the code is what tells them apart.
 ### Failures are defined through one helper and registered at load
 
 ```ts
-class DuplicateSlug extends Failure.conflict<DuplicateSlug>()(
-  'DuplicateSlug',
-  'duplicateSlug',
-  { slug: Schema.String },
-) {}
+class DuplicateSlug extends Failure.conflict<DuplicateSlug>()('DuplicateSlug', 'duplicateSlug', { slug: Schema.String }) {}
 ```
 
 `Failure.<category>` builds the `Schema.TaggedError` and records

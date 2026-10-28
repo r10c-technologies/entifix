@@ -156,9 +156,7 @@ describe('Every package builds against one effect', () => {
   });
 
   it('pins one version, dev pin and peer floor alike', () => {
-    const versions = effectVersions(
-      PACKAGES.map(pkg => readManifest(pkg.dir)),
-    );
+    const versions = effectVersions(PACKAGES.map(pkg => readManifest(pkg.dir)));
 
     expect(
       versions,

@@ -7,7 +7,7 @@ import {
   type SessionStore,
   SessionStoreTag,
 } from '@entifix/business';
-import { type EntityId,NotFound } from '@entifix/core';
+import { type EntityId, NotFound } from '@entifix/core';
 import { Effect, Layer } from 'effect';
 import type { Redis } from 'ioredis';
 

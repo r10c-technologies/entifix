@@ -100,18 +100,14 @@ export interface OutboxStats {
  */
 export interface TransactionOutbox {
   /** Record an event durably. Idempotent per `event.id`. */
-  enqueue(
-    event: DomainEvent,
-  ): Effect.Effect<OutboxEnqueueResult, StoreFailure>;
+  enqueue(event: DomainEvent): Effect.Effect<OutboxEnqueueResult, StoreFailure>;
   /**
    * Unsent, un-quarantined entries, oldest first — the relay's input.
    *
    * Excluding the quarantined ones here rather than in the relay is deliberate:
    * a skip the caller has to remember is a skip the next caller forgets.
    */
-  pending(
-    limit: number,
-  ): Effect.Effect<readonly OutboxEntry[], StoreFailure>;
+  pending(limit: number): Effect.Effect<readonly OutboxEntry[], StoreFailure>;
   /**
    * Mark an entry published. A crash between the publish and this call re-sends
    * the event on the next drain, which is why delivery is at-least-once and why
