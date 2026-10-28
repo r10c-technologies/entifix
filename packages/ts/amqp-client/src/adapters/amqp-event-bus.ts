@@ -12,7 +12,7 @@ import {
   type Subscription,
 } from '@entifix/transactions';
 import type { Channel, ConsumeMessage } from 'amqplib';
-import { Duration, Effect, Layer } from 'effect';
+import { Context, Duration, Effect, Layer, Option } from 'effect';
 
 import {
   AmqpChannelTag,
@@ -25,6 +25,7 @@ import {
   recordFailed,
   recordPublished,
   recordPublishFailure,
+  recordQuarantined,
   type SubscriptionTags,
 } from './bus-metrics.js';
 
@@ -189,12 +190,37 @@ const attemptsSoFar = (message: ConsumeMessage): number => {
 export type RedeliveryBackoff = (attempt: number) => Duration.Duration;
 
 /**
- * Doubling from 100 ms, capped at two seconds. The wait holds the delivery —
- * the queue is `prefetch(1)`, so it pauses this consumer — which is the point:
- * a dependency that is down is not helped by asking it again at once.
+ * A backoff doubling from `baseMs`, capped at `capMs`. The wait holds the
+ * delivery — the queue is `prefetch(1)`, so it pauses this consumer — which is
+ * the point: a dependency that is down is not helped by asking it again at
+ * once.
  */
-export const DEFAULT_REDELIVERY_BACKOFF: RedeliveryBackoff = attempt =>
-  Duration.millis(Math.min(100 * 2 ** (attempt - 1), 2_000));
+export const exponentialRedeliveryBackoff =
+  (dials: {
+    readonly baseMs: number;
+    readonly capMs: number;
+  }): RedeliveryBackoff =>
+  attempt =>
+    Duration.millis(Math.min(dials.baseMs * 2 ** (attempt - 1), dials.capMs));
+
+/** Doubling from 100 ms, capped at two seconds. */
+export const DEFAULT_REDELIVERY_BACKOFF: RedeliveryBackoff =
+  exponentialRedeliveryBackoff({ baseMs: 100, capMs: 2_000 });
+
+/**
+ * The redelivery backoff {@link AmqpEventBusLayer} uses, when a composition
+ * provides one; {@link DEFAULT_REDELIVERY_BACKOFF} otherwise.
+ *
+ * A tag rather than a layer option because the dials it is sized from are
+ * runtime configuration a host reads at boot, after the layer value already
+ * exists. Read with `Effect.serviceOption`, so a host that never sizes it
+ * provides nothing — which also means nothing forces one that meant to, and
+ * the spec pins both arms.
+ */
+export class RedeliveryBackoffTag extends Context.Service<
+  RedeliveryBackoffTag,
+  RedeliveryBackoff
+>()('RedeliveryBackoffTag') {}
 
 /**
  * Settles a delivery that failed.
@@ -220,6 +246,7 @@ const settleFailure = (
   subscription: Subscription,
   failure: DeliveryFailure,
   backoff: RedeliveryBackoff,
+  tags: SubscriptionTags,
 ): Effect.Effect<void> => {
   if (subscription.mode === 'broadcast') {
     return Effect.sync(() => channel.nack(message, false, false));
@@ -229,7 +256,7 @@ const settleFailure = (
   if (failure.kind === 'poison' || attempts >= subscription.maxAttempts) {
     return Effect.sync(() =>
       quarantine(channel, message, queue, failure, attempts),
-    );
+    ).pipe(Effect.andThen(recordQuarantined(tags, failure.category)));
   }
   const wait = backoff(attempts);
   return (Duration.isZero(wait) ? Effect.void : Effect.sleep(wait)).pipe(
@@ -450,6 +477,7 @@ export const makeAmqpEventBus = (
                               subscription,
                               failure,
                               backoff,
+                              tags,
                             ),
                           ),
                         ),
@@ -489,7 +517,10 @@ export const AmqpEventBusLayer = Layer.effect(
     const connector = yield* AmqpChannelTag;
     const wiring = yield* WiringRegistryTag;
     const shutdown = yield* ShutdownRegistryTag;
-    const { bus, drainDeliveries } = makeAmqpEventBus(connector, wiring);
+    const redeliveryBackoff = yield* Effect.serviceOption(RedeliveryBackoffTag);
+    const { bus, drainDeliveries } = makeAmqpEventBus(connector, wiring, {
+      redeliveryBackoff: Option.getOrUndefined(redeliveryBackoff),
+    });
 
     // `stop-intake`, and both halves are it: cancelling stops the broker
     // handing over anything new, then the drain waits for the deliveries

@@ -5,11 +5,13 @@ import {
   busEventsConsumed,
   busEventsFailed,
   busEventsPublished,
+  busEventsQuarantined,
   busPublishFailures,
   recordConsumed,
   recordFailed,
   recordPublished,
   recordPublishFailure,
+  recordQuarantined,
   type SubscriptionTags,
 } from './bus-metrics.js';
 
@@ -97,6 +99,18 @@ describe('bus metrics', () => {
 
     expect(await readCounter(busEventsFailed, poisonTags)).toBe(poison + 1);
     expect(await readCounter(busEventsFailed, transientTags)).toBe(transient);
+  });
+
+  it('counts a quarantine by category, apart from the failures before it', async () => {
+    const invalid = { ...tagsOf(WORK), category: 'invalid' };
+    const unavailable = { ...tagsOf(WORK), category: 'unavailable' };
+    const before = await readCounter(busEventsQuarantined, invalid);
+    const other = await readCounter(busEventsQuarantined, unavailable);
+
+    await Effect.runPromise(recordQuarantined(WORK, 'invalid'));
+
+    expect(await readCounter(busEventsQuarantined, invalid)).toBe(before + 1);
+    expect(await readCounter(busEventsQuarantined, unavailable)).toBe(other);
   });
 
   it('keeps two subscriptions on one pattern apart', async () => {
