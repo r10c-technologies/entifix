@@ -1,11 +1,9 @@
 import type { Permission } from '@entifix/authz';
+import type { RequestPrincipal } from '@entifix/business';
 import { Effect } from 'effect';
 
 import { NoActiveOrganization, refuse } from './failures.js';
-import {
-  type RequestPrincipal,
-  requirePermission,
-} from './require-principal.js';
+import { requirePermission } from './require-principal.js';
 
 /**
  * `409` rather than `403`: the caller is authenticated and permitted, but the
