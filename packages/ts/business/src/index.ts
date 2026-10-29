@@ -1,3 +1,4 @@
+export * from './entity-api/index.js';
 export * from './health/health-registry.js';
 export * from './idempotency/index.js';
 export * from './repository/config.repository.js';

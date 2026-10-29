@@ -150,12 +150,21 @@ endpoint names an undeclared use case.
 
 ### Generic routes move too
 
-`entityApi(Entity, entityKey(Entity, 'k'), { verbs, guard, narrowing?, override? })`
-returns the group for:
+An entity's endpoints are **declared** where its domain lives and **served**
+by the shell. `defineEntityApi(Entity, entityKey(Entity, 'k'), { verbs, guard,
+narrowing?, facets?, prepare?, override?, useCases? })` and `verbEndpoint` are
+in `@entifix/business`: a declaration is a value, its handlers take the decoded
+request and the caller, and nothing in it needs HTTP. The shell serves it with
+`entityApi(declaration, { compositions? })` from service-shell — the
+recipes and variants `$metadata` resolves verbs against are composition, so
+they are added there and nowhere else. That returns the group for:
 
 - list, get, create, update and delete;
 - `$metadata`;
 - `$facets`.
+
+So a domain's cell can be held to "descriptors and handlers only" by an import
+ban, with no HTTP type to reach for.
 
 `entityKey` returns the literal and throws at load when it differs from
 `@entity({ key })`. `$metadata` and `$facets` are registered before `/:id`.

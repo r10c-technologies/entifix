@@ -1,6 +1,7 @@
 import {
   dryRun,
-  type ResolutionRule,
+  type Narrowing,
+  type NarrowingRules,
   type VerifiedContext,
 } from '@entifix/business';
 import type {
@@ -9,25 +10,6 @@ import type {
   EntityLoadRequest,
   FilterGroup,
 } from '@entifix/core';
-
-/**
- * Which records of an entity a caller may see: every one, none, or those a
- * filter keeps ([ADR 0015](../../../../docs/adr/0015-composed-flows-and-use-case-resolution.md)).
- * A filter is conjoined onto the load request, so a query string can only
- * narrow it further and no `or` in it can escape.
- */
-export type Narrowing<T extends Entity> =
-  'unscoped' | 'nothing' | FilterGroup<T>;
-
-/**
- * A read's narrowing as ordered resolver rules over the verified context: the
- * first variant the caller is entitled to and whose predicate holds builds the
- * narrowing. A caller no rule matches sees **nothing** — the direction a
- * missing rule must fail in.
- */
-export type NarrowingRules<T extends Entity> = readonly ResolutionRule<
-  (context: VerifiedContext) => Narrowing<T>
->[];
 
 /** The narrowing `rules` choose for `context`. */
 export const narrowingFor = <T extends Entity>(

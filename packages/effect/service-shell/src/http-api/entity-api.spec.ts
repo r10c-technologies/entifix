@@ -5,6 +5,7 @@ import {
   ServiceCrossingPolicyTag,
 } from '@entifix/authz';
 import {
+  defineEntityApi,
   type EntityFacetCounter,
   EntityFacetCounterFactoryTag,
   type EntityRepository,
@@ -14,6 +15,7 @@ import {
   Otherwise,
   type TokenClaims,
   TokenServiceTag,
+  verbEndpoint,
   When,
 } from '@entifix/business';
 import {
@@ -51,7 +53,7 @@ import {
   serveTestService,
 } from '../serve-test-service.js';
 import { endpointsOf, type ServedRequirements } from './build-api.js';
-import { entityApi, verbEndpoint } from './entity-api.js';
+import { entityApi } from './entity-api.js';
 
 @entity({ domain: 'catalog', key: 'gadget' })
 class Gadget implements Entity {
@@ -204,72 +206,82 @@ const gadgetVerbs = [
   }),
 ];
 
-const gadgets = entityApi(Gadget, 'gadget', {
-  useCases: gadgetVerbs,
-  verbs: ['list', 'get', 'create', 'update', 'delete'],
-  guard: { read: { kind: 'public' }, write: { kind: 'permission' } },
-  facets: true,
-  errors: [NameTaken],
-  compositions: POLISHING,
-  prepare: (gadget, { verb }) =>
-    gadget.name === 'taken'
-      ? Effect.fail(new NameTaken({ name: 'taken' }))
-      : Effect.succeed(
-          Object.assign(gadget, {
-            owner: verb === 'create' ? 'ada' : gadget.owner,
-          }),
-        ),
-});
+const gadgets = entityApi(
+  defineEntityApi(Gadget, 'gadget', {
+    useCases: gadgetVerbs,
+    verbs: ['list', 'get', 'create', 'update', 'delete'],
+    guard: { read: { kind: 'public' }, write: { kind: 'permission' } },
+    facets: true,
+    errors: [NameTaken],
+    prepare: (gadget, { verb }) =>
+      gadget.name === 'taken'
+        ? Effect.fail(new NameTaken({ name: 'taken' }))
+        : Effect.succeed(
+            Object.assign(gadget, {
+              owner: verb === 'create' ? 'ada' : gadget.owner,
+            }),
+          ),
+  }),
+  { compositions: POLISHING },
+);
 
-const owned = entityApi(Gadget, 'owned-gadget' as 'gadget', {
-  useCases: gadgetVerbs,
-  verbs: ['list', 'get'],
-  guard: { kind: 'organization' },
-  facets: true,
-  compositions: POLISHING,
-  narrowing: [
-    When(context => context.partyId === 'nobody').use({
-      name: 'nothing',
-      impl: () => 'nothing' as const,
-    }),
-    Otherwise.use({
-      name: 'owner',
-      impl: context => ({
-        operator: 'and' as const,
-        values: [
-          {
-            property: 'owner' as const,
-            operator: 'eq' as const,
-            value: context.partyId ?? '',
-          },
-        ],
+const owned = entityApi(
+  defineEntityApi(Gadget, 'owned-gadget' as 'gadget', {
+    useCases: gadgetVerbs,
+    verbs: ['list', 'get'],
+    guard: { kind: 'organization' },
+    facets: true,
+    narrowing: [
+      When(context => context.partyId === 'nobody').use({
+        name: 'nothing',
+        impl: () => 'nothing' as const,
       }),
-    }),
-  ],
-});
+      Otherwise.use({
+        name: 'owner',
+        impl: context => ({
+          operator: 'and' as const,
+          values: [
+            {
+              property: 'owner' as const,
+              operator: 'eq' as const,
+              value: context.partyId ?? '',
+            },
+          ],
+        }),
+      }),
+    ],
+  }),
+  { compositions: POLISHING },
+);
 
-const orders = entityApi(Order, 'order', {
-  verbs: ['create', 'get'],
-  useCases: [shipOrder],
-  guard: { kind: 'permission' },
-  override: {
-    create: {
-      guard: { kind: 'crossing', organization: true },
-      idempotent: 'unit',
-      payload: Schema.Struct({ basket: Schema.String }),
-      handler: ({ payload }, { organizationId, links }) =>
-        Effect.map(IdempotencyKeyTag, key => ({
-          meta: { type: 'entity', entity: 'order', links: links.record('o1') },
-          data: {
-            id: 'o1',
-            basket: (payload as { basket: string }).basket,
-            organizationId,
-            key,
-          },
-        })),
+const orders = entityApi(
+  defineEntityApi(Order, 'order', {
+    verbs: ['create', 'get'],
+    useCases: [shipOrder],
+    guard: { kind: 'permission' },
+    override: {
+      create: {
+        guard: { kind: 'crossing', organization: true },
+        idempotent: 'unit',
+        payload: Schema.Struct({ basket: Schema.String }),
+        handler: ({ payload }, { organizationId, links }) =>
+          Effect.map(IdempotencyKeyTag, key => ({
+            meta: {
+              type: 'entity',
+              entity: 'order',
+              links: links.record('o1'),
+            },
+            data: {
+              id: 'o1',
+              basket: (payload as { basket: string }).basket,
+              organizationId,
+              key,
+            },
+          })),
+      },
     },
-  },
-});
+  }),
+);
 
 @entity({ domain: 'catalog', key: 'note' })
 class Note implements Entity {
@@ -294,10 +306,12 @@ class Note implements Entity {
 }
 
 // Writes only: its links name neither a list nor a read.
-const notes = entityApi(Note, 'note', {
-  verbs: ['create', 'delete'],
-  guard: { kind: 'public' },
-});
+const notes = entityApi(
+  defineEntityApi(Note, 'note', {
+    verbs: ['create', 'delete'],
+    guard: { kind: 'public' },
+  }),
+);
 
 const fakeTokens = TokenServiceTag.of({
   sign: claims => Effect.succeed(JSON.stringify(claims)),
@@ -765,11 +779,13 @@ describe('verbs derived from @useCase()', () => {
 
   it('refuses to build a group that leaves a declared verb without an endpoint', () => {
     expect(() =>
-      entityApi(Gadget, 'gadget', {
-        verbs: ['get'],
-        guard: { kind: 'public' },
-        compositions: POLISHING,
-      }),
+      entityApi(
+        defineEntityApi(Gadget, 'gadget', {
+          verbs: ['get'],
+          guard: { kind: 'public' },
+        }),
+        { compositions: POLISHING },
+      ),
     ).toThrow(
       "the 'gadget' endpoints serve no endpoint for @useCase() 'polish', 'inspect', 'tally'",
     );
@@ -777,12 +793,14 @@ describe('verbs derived from @useCase()', () => {
 
   it('refuses to build a group that serves another entity’s verb', () => {
     expect(() =>
-      entityApi(Gadget, 'gadget', {
-        verbs: ['get'],
-        guard: { kind: 'public' },
-        compositions: POLISHING,
-        useCases: [...gadgetVerbs, shipOrder],
-      }),
+      entityApi(
+        defineEntityApi(Gadget, 'gadget', {
+          verbs: ['get'],
+          guard: { kind: 'public' },
+          useCases: [...gadgetVerbs, shipOrder],
+        }),
+        { compositions: POLISHING },
+      ),
     ).toThrow("serve 'ship', declared on another entity");
   });
 });

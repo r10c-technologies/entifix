@@ -10,6 +10,13 @@ import {
 } from '@entifix/authz';
 import {
   deleteUCFactory,
+  type EntityApiContext,
+  type EntityApiDeclaration,
+  type EntityApiGuard,
+  type EntityApiLinks,
+  type EntityApiOptions,
+  type EntityApiRequest,
+  type EntityApiVerb,
   EntityFacetCounterFactoryTag,
   EntityFacetCounterTag,
   EntityIdTag,
@@ -20,11 +27,12 @@ import {
   facetCountsUCFactory,
   getUCFactory,
   loadUCFactory,
+  type Narrowing,
   OrganizationIdTag,
   type RequestPrincipal,
   RequestPrincipalTag,
   saveUCFactory,
-  type VerifiedContext,
+  type VerbEndpoint,
   VerifiedContextTag,
 } from '@entifix/business';
 import {
@@ -32,21 +40,14 @@ import {
   defineEndpoint,
   describeEntityUseCases,
   type EndpointGuard,
-  type EndpointIdempotency,
-  type EndpointSchema,
-  type EntifixEnvelopeLink,
-  type EntifixFailure,
   type Entity,
   ENTITY_ACTIONS,
   type EntityConstructor,
   type EntityFacetCounts,
   type EntityFacetQuery,
-  type EntityId,
   type EntityLoadRequest,
   type EntityMetadataDocument,
   Envelope,
-  extractUseCase,
-  type FailureClass,
   implement,
   type Implemented,
   InvalidQuery,
@@ -55,12 +56,10 @@ import {
   makeEntityFacetsEnvelope,
   makeEntityMetadataEnvelope,
   makeEntityPageEnvelope,
-  type MetaUseCase,
   NotFound,
   parseFacetQueryParams,
   parseLoadRequestParams,
   readEntityEnvelope,
-  type UseCaseConstructor,
   verbPath,
 } from '@entifix/core';
 import { Effect, Option, Schema } from 'effect';
@@ -74,118 +73,10 @@ import {
 } from '../metadata-composition.js';
 import {
   narrowedByIdRequest,
-  type Narrowing,
   narrowingFor,
-  type NarrowingRules,
   narrowLoadRequest,
 } from '../narrowing.js';
 import type { EndpointGroup } from './build-api.js';
-
-/** The five generic verbs an entity group can serve. */
-export type EntityApiVerb = 'list' | 'get' | 'create' | 'update' | 'delete';
-
-/**
- * Who may reach an entity's endpoints. The permission is derived from the
- * entity and the verb, so it is never written here.
- */
-export type EntityApiGuard =
-  | { readonly kind: 'public' }
-  | { readonly kind: 'permission' }
-  | { readonly kind: 'organization' }
-  | { readonly kind: 'crossing'; readonly organization: boolean };
-
-/** What a `prepare`, an override or a narrowing knows about the caller. */
-export interface EntityApiContext {
-  readonly organizationId?: string;
-  readonly principal?: RequestPrincipal;
-  readonly verified?: VerifiedContext;
-  readonly links: EntityApiLinks;
-}
-
-/** The affordances the group derives from the verbs it serves. */
-export interface EntityApiLinks {
-  readonly record: (id: EntityId) => EntifixEnvelopeLink[];
-  readonly collection: () => EntifixEnvelopeLink[];
-}
-
-/** What an override's handler receives: the decoded parts of its request. */
-export interface EntityApiRequest {
-  readonly params?: { readonly id?: string };
-  readonly payload?: unknown;
-}
-
-/**
- * One verb served by a handler of the host's instead of the generic one. It
- * keeps the group's path and links, and may change the guard, the payload,
- * the failures and the idempotency the verb declares.
- */
-export interface EntityVerbOverride<R> {
-  readonly guard?: EntityApiGuard;
-  readonly idempotent?: EndpointIdempotency;
-  readonly errors?: readonly FailureClass[];
-  /** The body the verb takes instead of an entity envelope. */
-  readonly payload?: EndpointSchema;
-  readonly handler: (
-    request: EntityApiRequest,
-    context: EntityApiContext,
-  ) => Effect.Effect<unknown, EntifixFailure, R>;
-}
-
-export interface EntityApiOptions<T extends Entity, R> {
-  readonly verbs: readonly EntityApiVerb[];
-  /** One guard for every verb, or one for the reads and one for the writes. */
-  readonly guard:
-    | EntityApiGuard
-    | { readonly read: EntityApiGuard; readonly write: EntityApiGuard };
-  /** Narrows the reads, and the facet counts, to what this caller may see. */
-  readonly narrowing?: NarrowingRules<T>;
-  /** The compositions `$metadata` reports for the entity's verbs. */
-  readonly compositions?: MetadataCompositions;
-  /** Serve `$facets` beside the list, under the list's guard and narrowing. */
-  readonly facets?: boolean;
-  /** Runs on every generic create and update, before the save. */
-  readonly prepare?: (
-    entity: T,
-    context: EntityApiContext & { readonly verb: 'create' | 'update' },
-  ) => Effect.Effect<T, EntifixFailure, R>;
-  /** The business failures `prepare` may answer with, for the contract. */
-  readonly errors?: readonly FailureClass[];
-  readonly override?: Partial<Record<EntityApiVerb, EntityVerbOverride<R>>>;
-  /**
-   * The entity's `@useCase()` verbs, one endpoint each. Every verb the entity
-   * declares must be here and none another entity declares, or building the
-   * group throws.
-   */
-  readonly useCases?: readonly VerbEndpoint<R>[];
-}
-
-/**
- * A `@useCase()` verb's endpoint: its path, method, permission and contract
- * come from the declaration, and only who may call it and what it does are
- * written here.
- */
-export interface VerbEndpoint<R> {
-  readonly useCase: MetaUseCase;
-  /** Defaults to the group's write guard. */
-  readonly guard?: EntityApiGuard;
-  readonly idempotent?: EndpointIdempotency;
-  readonly handler: (
-    request: EntityApiRequest,
-    context: EntityApiContext,
-  ) => Effect.Effect<unknown, EntifixFailure, R>;
-}
-
-/** Serve a `@useCase()` class's verb on its entity's group. */
-export const verbEndpoint = <
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- inferred from the options
-  const O extends Omit<VerbEndpoint<any>, 'useCase'>,
->(
-  useCaseClass: UseCaseConstructor,
-  options: O,
-): O & { readonly useCase: MetaUseCase } => ({
-  ...options,
-  useCase: extractUseCase(useCaseClass),
-});
 
 /** A collection verb's body: the selection, in its wire form. */
 const SelectionBody = Schema.Struct({ selection: Schema.Unknown });
@@ -337,6 +228,12 @@ export type EntityEndpoint<
   readonly idempotent?: Idempotency;
 };
 
+/** What the shell adds when it serves an entity's declared endpoints. */
+export interface EntityApiServing {
+  /** The compositions `$metadata` reports for the entity's verbs. */
+  readonly compositions?: MetadataCompositions;
+}
+
 /**
  * The generic endpoints of an entity — list, get, create, update, delete,
  * `$metadata` and, when asked, `$facets` — as one group named for its key
@@ -348,6 +245,10 @@ export type EntityEndpoint<
  * `invalidQuery`. A narrowing is conjoined onto every read and count, never
  * substituted, and a reader it leaves with nothing gets an empty page and a
  * `404`, never a `403`.
+ *
+ * It serves a declaration the domain made with `defineEntityApi`; what the
+ * shell alone knows — the recipes and variants `$metadata` resolves verbs
+ * against — is added here.
  */
 export const entityApi = <
   T extends Entity,
@@ -355,9 +256,8 @@ export const entityApi = <
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- inferred from the options
   const O extends EntityApiOptions<T, any>,
 >(
-  entityConstructor: EntityConstructor<T>,
-  key: K,
-  options: O,
+  declaration: EntityApiDeclaration<T, K, O>,
+  serving: EntityApiServing = {},
 ): EndpointGroup<
   EntityEndpoint<EntityGuardKinds<O>, EntityIdempotencies<O>>,
   | OptionsRequirements<O>
@@ -365,12 +265,13 @@ export const entityApi = <
   | PolicyDecisionTag
   | (O['facets'] extends true ? EntityFacetCounterFactoryTag : never)
 > => {
+  const { entity: entityConstructor, key, options } = declaration;
   const base = `/api/${key}` as const;
   const record = `${base}/:id` as const;
   const mounted = new Set(options.verbs);
   const notFound = new NotFound({ entity: key });
 
-  const compositions = options.compositions ?? {};
+  const compositions = serving.compositions ?? {};
   assertCompositionsDeclared(
     describeEntityUseCases(entityConstructor),
     compositions,

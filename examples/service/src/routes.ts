@@ -1,4 +1,4 @@
-import { IdempotencyKeyTag } from '@entifix/business';
+import { defineEntityApi, IdempotencyKeyTag } from '@entifix/business';
 import {
   defineEndpoint,
   Failure,
@@ -23,10 +23,12 @@ import { placeOrder, placeOrderInputs } from './place-order.saga.ts';
  * factory the app layer provides. A stock item is created by being put at its
  * code, so there is no `create` and no `delete`.
  */
-export const stockItems = entityApi(StockItem, 'stock-item', {
-  verbs: ['list', 'get', 'update'],
-  guard: { kind: 'permission' },
-});
+export const stockItems = entityApi(
+  defineEntityApi(StockItem, 'stock-item', {
+    verbs: ['list', 'get', 'update'],
+    guard: { kind: 'permission' },
+  }),
+);
 
 /** The saga ran its compensations: the order did not happen. */
 export class OrderRefused extends Failure.conflict<OrderRefused>()(
