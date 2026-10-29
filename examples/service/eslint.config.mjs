@@ -1,4 +1,4 @@
-import baseConfig from '../../eslint.config.mjs';
+import baseConfig, { speaksHttp } from '../../eslint.config.mjs';
 
 export default [
   ...baseConfig,
@@ -22,4 +22,6 @@ export default [
   {
     ignores: ['**/out-tsc'],
   },
+  // A host: it serves what the shell builds, and mounts raw routes beside it.
+  speaksHttp(['**/src/**/*.ts']),
 ];

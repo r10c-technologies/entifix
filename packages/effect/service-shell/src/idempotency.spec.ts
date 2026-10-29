@@ -131,11 +131,21 @@ describe('requireIdempotencyKey', () => {
 
   // Key order is not a different request.
   it('treats the same JSON in another key order as the same request', () => {
+    const target = 'POST /api/payment';
     expect(
-      requestFingerprint('{"a":1,"b":{"c":2,"d":[1,{"f":1,"e":2}]}}'),
-    ).toBe(requestFingerprint('{"b":{"d":[1,{"e":2,"f":1}],"c":2},"a":1}'));
-    expect(requestFingerprint('not json')).not.toBe(
-      requestFingerprint('not json!'),
+      requestFingerprint(target, '{"a":1,"b":{"c":2,"d":[1,{"f":1,"e":2}]}}'),
+    ).toBe(
+      requestFingerprint(target, '{"b":{"d":[1,{"e":2,"f":1}],"c":2},"a":1}'),
+    );
+    expect(requestFingerprint(target, 'not json')).not.toBe(
+      requestFingerprint(target, 'not json!'),
+    );
+  });
+
+  // One key on two records of one route is two requests, not a retry.
+  it('tells two concrete targets apart under one body', () => {
+    expect(requestFingerprint('POST /api/order/o1', '{}')).not.toBe(
+      requestFingerprint('POST /api/order/o2', '{}'),
     );
   });
 
@@ -144,7 +154,7 @@ describe('requireIdempotencyKey', () => {
     await Effect.runPromise(
       store.claim(
         'fleet|POST /api/payment|k',
-        requestFingerprint('{"amount":10}'),
+        requestFingerprint('POST /api/payment', '{"amount":10}'),
       ),
     );
 

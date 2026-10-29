@@ -61,7 +61,7 @@ const forbidden = (permission: Permission) =>
  * `Authorization: Bearer` header and verifies it statelessly via
  * {@link TokenServiceTag} — no store round trip on the hot path.
  */
-const resolvePrincipal = Effect.gen(function* () {
+export const resolveRequestPrincipal = Effect.gen(function* () {
   const req = yield* HttpServerRequest.HttpServerRequest;
   const token =
     req.cookies[ACCESS_COOKIE] ?? bearerToken(req.headers['authorization']);
@@ -74,6 +74,18 @@ const resolvePrincipal = Effect.gen(function* () {
   return Option.map(claims, claimsToPrincipal);
 });
 
+/** Whether the policy lets `principal` do what `permission` names. */
+export const permits = (principal: RequestPrincipal, permission: Permission) =>
+  Effect.gen(function* () {
+    const { resource, action } = parsePermission(permission);
+    const policy = yield* PolicyDecisionTag;
+    return policy.decide({
+      subject: { roles: principal.roles },
+      resource,
+      action,
+    });
+  });
+
 /**
  * Guard a handler behind a valid access token — authentication only. Any
  * missing or invalid token is a `401`; the wrapped handler's own errors are
@@ -83,7 +95,7 @@ export const requirePrincipal = <A, E, R>(
   use: (principal: RequestPrincipal) => Effect.Effect<A, E, R>,
 ) =>
   Effect.gen(function* () {
-    const principal = yield* resolvePrincipal;
+    const principal = yield* resolveRequestPrincipal;
     if (Option.isNone(principal)) {
       return yield* unauthenticated;
     }
@@ -103,19 +115,12 @@ export const requirePermission =
   (permission: Permission) =>
   <A, E, R>(use: (principal: RequestPrincipal) => Effect.Effect<A, E, R>) =>
     Effect.gen(function* () {
-      const principal = yield* resolvePrincipal;
+      const principal = yield* resolveRequestPrincipal;
       if (Option.isNone(principal)) {
         return yield* unauthenticated;
       }
 
-      const { resource, action } = parsePermission(permission);
-      const policy = yield* PolicyDecisionTag;
-      const allowed = policy.decide({
-        subject: { roles: principal.value.roles },
-        resource,
-        action,
-      });
-      if (!allowed) {
+      if (!(yield* permits(principal.value, permission))) {
         return yield* forbidden(permission);
       }
 

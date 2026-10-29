@@ -1,5 +1,6 @@
 import baseConfig, {
   compositionStaysAtTheShell,
+  speaksHttp,
 } from '../../../eslint.config.mjs';
 
 export default [
@@ -22,4 +23,5 @@ export default [
     ignores: ['**/out-tsc'],
   },
   compositionStaysAtTheShell(['**/src/**/*.ts', '**/src/**/*.tsx']),
+  speaksHttp(['**/src/endpoint/**/*.ts']),
 ];

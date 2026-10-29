@@ -3,11 +3,11 @@ import { Effect, Layer } from 'effect';
 import { HttpRouter, HttpServerResponse } from 'effect/http';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import type { SharedToken } from './auth/shared-token.js';
-import type { RunningTestService } from './serve-test-service.js';
-import { serveTestService } from './serve-test-service.js';
-import type { ServiceDescription } from './service-description-route.js';
-import { SERVICE_DESCRIPTION_PATH } from './service-description-route.js';
+import type { SharedToken } from '../auth/shared-token.js';
+import type { RunningTestService } from '../serve-test-service.js';
+import { serveTestService } from '../serve-test-service.js';
+import type { ServiceDescription } from './service-group.js';
+import { OPENAPI_PATH, SERVICE_DESCRIPTION_PATH } from './service-group.js';
 
 const SERVICE_NAME = 'wiring-test-service';
 const GUARD: SharedToken = { header: 'x-fleet-token', token: () => 'a-secret' };
@@ -100,7 +100,7 @@ afterEach(async () => {
   running = undefined;
 });
 
-describe('serviceDescriptionRoute', () => {
+describe('the $service endpoint', () => {
   // No guard means no route, never an open one: the document is a map of the
   // service's wiring.
   it('is not mounted when the service names no guard', async () => {
@@ -210,6 +210,47 @@ describe('serviceDescriptionRoute', () => {
     expect(await ready.json()).toEqual({
       status: 'ready',
       service: SERVICE_NAME,
+    });
+  });
+
+  it('lists every endpoint the service serves', async () => {
+    const description = await describeService(await serve());
+
+    expect(description.endpoints).toEqual(
+      expect.arrayContaining([
+        'GET /api/health',
+        'GET /api/health/ready',
+        `GET ${SERVICE_DESCRIPTION_PATH}`,
+        `GET ${OPENAPI_PATH}`,
+      ]),
+    );
+  });
+
+  it('serves the OpenAPI document behind the same token', async () => {
+    const baseUrl = await serve();
+
+    const without = await fetch(`${baseUrl}${OPENAPI_PATH}`);
+    const document = (await (
+      await fetch(`${baseUrl}${OPENAPI_PATH}`, {
+        headers: { [GUARD.header]: GUARD.token() },
+      })
+    ).json()) as { readonly paths: Record<string, unknown> };
+
+    expect(without.status).toBe(401);
+    expect(Object.keys(document.paths)).toEqual(
+      expect.arrayContaining(['/api/health', '/api/health/ready']),
+    );
+  });
+
+  it('answers a path nothing serves with a 404 problem', async () => {
+    const baseUrl = await serve();
+
+    const response = await fetch(`${baseUrl}/nowhere/at/all`);
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toMatchObject({
+      code: 'notFound',
+      instance: '/nowhere/at/all',
     });
   });
 });

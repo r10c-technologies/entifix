@@ -131,6 +131,52 @@ export const compositionStaysAtTheShell = files => ({
   },
 });
 
+/**
+ * HTTP is the service shell's
+ * ([ADR 0020](docs/adr/0020-endpoints-are-descriptors-and-the-shell-builds-an-httpapi.md)):
+ * a cell declares endpoints as Schema descriptors and the shell builds the
+ * `HttpApi`, so nothing else in the framework imports `effect/http` or
+ * `effect/http-api`. Two places opt out in their own configs: the service
+ * shell, and `@entifix/rest`'s endpoint client, which decodes what the shell
+ * serves. A host — an example service with a held-open stream — opts out the
+ * way it would to log.
+ *
+ * `@typescript-eslint/no-restricted-imports` rather than the core rule, which
+ * `compositionStaysAtTheShell` already configures: two config objects naming
+ * one rule replace each other's options rather than adding up.
+ */
+export const HTTP_IMPORT_RULE = '@typescript-eslint/no-restricted-imports';
+
+export const httpStaysInTheShell = {
+  files: ['**/src/**/*.ts', '**/src/**/*.tsx'],
+  ignores: ['**/*.spec.ts', '**/*.spec.tsx', '**/*.test.ts', '**/*.test.tsx'],
+  rules: {
+    [HTTP_IMPORT_RULE]: [
+      'error',
+      {
+        patterns: [
+          {
+            group: [
+              'effect/http',
+              'effect/http/*',
+              'effect/http-api',
+              'effect/http-api/*',
+            ],
+            message:
+              'Only the service shell speaks HTTP: declare an endpoint with defineEndpoint and let the shell build the API (ADR 0020).',
+          },
+        ],
+      },
+    ],
+  },
+};
+
+/** The opt-out for the places that serve or decode HTTP themselves. */
+export const speaksHttp = files => ({
+  files,
+  rules: { [HTTP_IMPORT_RULE]: 'off' },
+});
+
 /** Tier-2 and tier-5 packages that lint with the root config alone. */
 const ROOT_LINTED_BELOW_THE_SHELL = [
   'packages/ts/redis-client/src/**/*.ts',
@@ -275,5 +321,6 @@ export default [
     },
   },
   mechanismsDoNotLog,
+  httpStaysInTheShell,
   compositionStaysAtTheShell(ROOT_LINTED_BELOW_THE_SHELL),
 ];

@@ -22,14 +22,17 @@ import type { Entity, EntityConstructor } from '../types/Entity.js';
  *   owner was handed to it rather than chosen.
  * - `fleet` — the shared token one service of the fleet presents to another.
  */
+/** A permission as `<domain>:<entityKey>:<action>`. */
+export type EndpointPermission = `${string}:${string}:${string}`;
+
 export type EndpointGuard =
   | { readonly kind: 'public' }
   | { readonly kind: 'session' }
-  | { readonly kind: 'permission'; readonly permission: string }
-  | { readonly kind: 'organization'; readonly permission: string }
+  | { readonly kind: 'permission'; readonly permission: EndpointPermission }
+  | { readonly kind: 'organization'; readonly permission: EndpointPermission }
   | {
       readonly kind: 'crossing';
-      readonly permission: string;
+      readonly permission: EndpointPermission;
       readonly organization: boolean;
     }
   | { readonly kind: 'fleet' };
@@ -72,6 +75,10 @@ export interface EndpointDescriptor<
   Payload extends EndpointSchema | undefined = EndpointSchema | undefined,
   Success extends Schema.Top = Schema.Top,
   Errors extends ReadonlyArray<FailureClass> = ReadonlyArray<FailureClass>,
+  Guard extends EndpointGuard = EndpointGuard,
+  Idempotency extends EndpointIdempotency | undefined =
+    | EndpointIdempotency
+    | undefined,
 > {
   readonly name: Name;
   readonly method: Method;
@@ -86,8 +93,8 @@ export interface EndpointDescriptor<
    * listed — every endpoint may answer with one.
    */
   readonly errors: Errors;
-  readonly guard: EndpointGuard;
-  readonly idempotent?: EndpointIdempotency;
+  readonly guard: Guard;
+  readonly idempotent?: Idempotency;
   /** The `@useCase()` this endpoint serves, when it is a verb. */
   readonly useCase?: string;
 }
@@ -101,7 +108,9 @@ export type AnyEndpoint = EndpointDescriptor<
   EndpointSchema | undefined,
   EndpointSchema | undefined,
   Schema.Top,
-  ReadonlyArray<FailureClass>
+  ReadonlyArray<FailureClass>,
+  EndpointGuard,
+  EndpointIdempotency | undefined
 >;
 
 /**
@@ -117,6 +126,8 @@ export const defineEndpoint = <
   Params extends EndpointSchema | undefined = undefined,
   Query extends EndpointSchema | undefined = undefined,
   Payload extends EndpointSchema | undefined = undefined,
+  const Guard extends EndpointGuard = EndpointGuard,
+  const Idempotency extends EndpointIdempotency | undefined = undefined,
 >(
   descriptor: EndpointDescriptor<
     Name,
@@ -126,7 +137,9 @@ export const defineEndpoint = <
     Query,
     Payload,
     Success,
-    Errors
+    Errors,
+    Guard,
+    Idempotency
   >,
 ): EndpointDescriptor<
   Name,
@@ -136,7 +149,9 @@ export const defineEndpoint = <
   Query,
   Payload,
   Success,
-  Errors
+  Errors,
+  Guard,
+  Idempotency
 > => descriptor;
 
 /** Declare several endpoints, keeping each one's literal types. */
@@ -163,7 +178,9 @@ export type DeclaredFailure<D> =
     EndpointSchema | undefined,
     EndpointSchema | undefined,
     Schema.Top,
-    infer Errors
+    infer Errors,
+    EndpointGuard,
+    EndpointIdempotency | undefined
   >
     ? InstanceType<Errors[number]>
     : never;
@@ -178,7 +195,9 @@ export type EndpointRequest<D> =
     infer Query,
     infer Payload,
     Schema.Top,
-    ReadonlyArray<FailureClass>
+    ReadonlyArray<FailureClass>,
+    EndpointGuard,
+    EndpointIdempotency | undefined
   >
     ? (Params extends EndpointSchema
         ? { readonly params: TypeOf<Params> }
@@ -201,7 +220,9 @@ export type EndpointSuccess<D> =
     EndpointSchema | undefined,
     EndpointSchema | undefined,
     infer Success,
-    ReadonlyArray<FailureClass>
+    ReadonlyArray<FailureClass>,
+    EndpointGuard,
+    EndpointIdempotency | undefined
   >
     ? Success['Type']
     : never;

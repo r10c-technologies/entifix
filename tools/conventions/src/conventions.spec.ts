@@ -113,3 +113,54 @@ describe('nothing below the shell composes a flow', () => {
     }
   });
 });
+
+const SPEAKS_HTTP = [
+  "import { HttpRouter } from 'effect/http';\nexport const x = HttpRouter;\n",
+  "import { HttpApi } from 'effect/http-api';\nexport const x = HttpApi;\n",
+  "import * as Api from 'effect/http-api/HttpApiBuilder';\nexport const x = Api;\n",
+];
+
+describe('only the service shell speaks HTTP', () => {
+  it.each([
+    ['the business layer', 'packages/ts/business/src/planted.ts'],
+    ['core', 'packages/ts/core/src/planted.ts'],
+    ['an adapter', 'packages/ts/mongo-client/src/planted.ts'],
+    [
+      'an adapter linted by the root config',
+      'packages/ts/transactions/src/planted.ts',
+    ],
+    [
+      'the REST client, outside its endpoint client',
+      'packages/ts/rest-client/src/planted.ts',
+    ],
+    ['the Next shell', 'packages/next/shell/src/planted.ts'],
+  ])('is refused in %s', async (_label, path) => {
+    for (const code of SPEAKS_HTTP) {
+      expect(
+        await violations(
+          path,
+          code,
+          '@typescript-eslint/no-restricted-imports',
+        ),
+        code,
+      ).not.toEqual([]);
+    }
+  });
+
+  it.each([
+    ['the service shell', 'packages/effect/service-shell/src/planted.ts'],
+    ['the endpoint client', 'packages/ts/rest-client/src/endpoint/planted.ts'],
+    ['a spec', 'packages/ts/core/src/planted.spec.ts'],
+  ])('is allowed in %s', async (_label, path) => {
+    for (const code of SPEAKS_HTTP) {
+      expect(
+        await violations(
+          path,
+          code,
+          '@typescript-eslint/no-restricted-imports',
+        ),
+        code,
+      ).toEqual([]);
+    }
+  });
+});

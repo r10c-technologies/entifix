@@ -99,8 +99,10 @@ encoding failure with a `500` problem.
 | `crossing`     | `x-crossing-token` plus the permission; `organization: true` adds `x-organization-id` | `OrganizationIdTag` when named              |
 | `fleet`        | the shared service token                                                              | —                                           |
 
-- Each kind is one `HttpApiMiddleware.Service`. Its security scheme documents
-  the credential in OpenAPI.
+- Each kind is one `HttpApiMiddleware.Service` that reads the request
+  itself. It does not use a security scheme, because a scheme decodes a
+  missing credential as an empty `Redacted` and the first scheme that decodes
+  wins.
 - Every one of them fails `unauthenticated` on an **empty** credential, so the
   empty `Redacted` never reaches a decision.
 - A request carrying both a session and a crossing token to a crossing endpoint
@@ -159,7 +161,10 @@ returns the group for:
 `@entity({ key })`. `$metadata` and `$facets` are registered before `/:id`.
 
 Health, `$service` and `GET /api/$openapi` are served from the built API. One
-encoder, one guard implementation, one OpenAPI document.
+encoder, one guard implementation, one OpenAPI document. A service that is not
+ready answers a `notReady` problem with the failing probes rather than a body of
+its own. `$service` and `$openapi` are behind the fleet token, and neither is
+mounted for a service that names none.
 
 ### A client decodes by code, never by status
 
