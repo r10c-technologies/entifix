@@ -1,4 +1,6 @@
-import baseConfig from '../../../eslint.config.mjs';
+import baseConfig, {
+  compositionStaysAtTheShell,
+} from '../../../eslint.config.mjs';
 
 export default [
   ...baseConfig,
@@ -21,4 +23,5 @@ export default [
   },
   // A host, a tool or test tooling: allowed to log (ADR 0013).
   { rules: { 'no-restricted-syntax': 'off' } },
+  compositionStaysAtTheShell(['**/src/**/*.ts', '**/src/**/*.tsx']),
 ];

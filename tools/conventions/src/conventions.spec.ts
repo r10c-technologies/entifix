@@ -13,13 +13,17 @@ const RULE = 'no-restricted-syntax';
  * not exist, linted as if it did, through the config Nx lints that project
  * with.
  */
-const violations = async (path: string, code: string): Promise<string[]> => {
+const violations = async (
+  path: string,
+  code: string,
+  rule: string = RULE,
+): Promise<string[]> => {
   const eslint = new ESLint({ cwd: REPO_ROOT });
   const [result] = await eslint.lintText(code, {
     filePath: join(REPO_ROOT, path),
   });
   return (result?.messages ?? [])
-    .filter(message => message.ruleId === RULE)
+    .filter(message => message.ruleId === rule)
     .map(message => message.message);
 };
 
@@ -66,6 +70,46 @@ describe('a mechanism does not log', () => {
   ])('is allowed in %s', async (_label, path) => {
     for (const code of LOGS) {
       expect(await violations(path, code), code).toEqual([]);
+    }
+  });
+});
+
+const COMPOSES = [
+  "import { compose } from '@entifix/business/compose';\nexport const x = compose;\n",
+  "import { verifiedContext } from '@entifix/business/verified';\nexport const x = verifiedContext;\n",
+];
+
+describe('nothing below the shell composes a flow', () => {
+  it.each([
+    [
+      'an adapter with a config of its own',
+      'packages/ts/mongo-client/src/planted.ts',
+    ],
+    [
+      'an adapter linted by the root config',
+      'packages/ts/amqp-client/src/planted.ts',
+    ],
+    ['the transactions package', 'packages/ts/transactions/src/planted.ts'],
+    ['a test double', 'packages/ts/testing-unit/src/planted.ts'],
+    ['the e2e helpers', 'packages/ts/testing-e2e/src/planted.ts'],
+  ])('is refused in %s', async (_label, path) => {
+    for (const code of COMPOSES) {
+      expect(
+        await violations(path, code, 'no-restricted-imports'),
+        code,
+      ).not.toEqual([]);
+    }
+  });
+
+  it.each([
+    ['the service shell', 'packages/effect/service-shell/src/planted.ts'],
+    ['a spec below the shell', 'packages/ts/testing-unit/src/planted.spec.ts'],
+  ])('is allowed in %s', async (_label, path) => {
+    for (const code of COMPOSES) {
+      expect(
+        await violations(path, code, 'no-restricted-imports'),
+        code,
+      ).toEqual([]);
     }
   });
 });
