@@ -8,8 +8,10 @@ import {
   type EntityRepository,
   EntityRepositoryFactoryTag,
   InvalidToken,
+  Otherwise,
   type TokenClaims,
   TokenServiceTag,
+  When,
 } from '@entifix/business';
 import {
   accessor,
@@ -148,6 +150,35 @@ const router = Layer.mergeAll(
           ? 'none'
           : ownerScope(principal?.subject ?? ''),
       ),
+  }),
+  // Per organization, narrowed by resolver rules over the verified context.
+  makeEntityRoutes(Widget, {
+    basePath: '/api/narrowed/widget',
+    verbs: ['list', 'get'],
+    guard: { kind: 'organization' },
+    narrowing: [
+      When(context => context.partyId === 'nobody').use({
+        name: 'nothing',
+        impl: () => 'nothing' as const,
+      }),
+      When(context => context.roles.includes('auditor')).use({
+        name: 'auditor',
+        impl: () => 'unscoped' as const,
+      }),
+      Otherwise.use({
+        name: 'owner',
+        impl: context => ({
+          operator: 'and' as const,
+          values: [
+            {
+              property: 'owner' as const,
+              operator: 'eq' as const,
+              value: context.partyId ?? '',
+            },
+          ],
+        }),
+      }),
+    ],
   }),
   // Write only, no prepare: a record's links name no read it cannot serve.
   makeEntityRoutes(Widget, {
@@ -513,6 +544,84 @@ describe('makeEntityRoutes, per organization and scoped to the caller', () => {
     });
 
     expect(res.status).toBe(409);
+  });
+});
+
+describe('makeEntityRoutes, narrowed by resolver rules', () => {
+  beforeAll(() => {
+    storeFor('org-2').seed([
+      aWidget('n-1', 'mine', 'ada'),
+      aWidget('n-2', 'theirs', 'grace'),
+    ]);
+  });
+
+  const as = (partyId: string, roles: readonly string[] = ['reader']) =>
+    bearer(roles, { activeOrganizationId: 'org-2', partyId });
+  const ids = async (res: Response) =>
+    (
+      (await res.json()) as { data: { items: Array<{ id: string }> } }
+    ).data.items.map(item => item.id);
+
+  it('lists only what the narrowing keeps', async () => {
+    expect(
+      await ids(await call('/api/narrowed/widget', { headers: as('ada') })),
+    ).toEqual(['n-1']);
+  });
+
+  // Conjoined, never substituted: a query naming another party's record
+  // narrows further, to nothing.
+  it('answers an empty page to a query naming another party', async () => {
+    expect(
+      await ids(
+        await call('/api/narrowed/widget?rsql=owner==grace', {
+          headers: as('ada'),
+        }),
+      ),
+    ).toEqual([]);
+  });
+
+  it('answers a record out of the narrowing exactly as an absent one', async () => {
+    expect(
+      (await call('/api/narrowed/widget/n-1', { headers: as('ada') })).status,
+    ).toBe(200);
+    expect(
+      (await call('/api/narrowed/widget/n-2', { headers: as('ada') })).status,
+    ).toBe(404);
+    expect(
+      (await call('/api/narrowed/widget/n-9', { headers: as('ada') })).status,
+    ).toBe(404);
+  });
+
+  it('gives a caller narrowed to nothing an empty page and a 404', async () => {
+    const page = await call('/api/narrowed/widget', { headers: as('nobody') });
+
+    expect(await ids(page)).toEqual([]);
+    expect(
+      (await call('/api/narrowed/widget/n-1', { headers: as('nobody') }))
+        .status,
+    ).toBe(404);
+  });
+
+  it('leaves an unscoped caller every record, by list and by id', async () => {
+    const auditor = as('ada', ['reader', 'auditor']);
+
+    expect(
+      await ids(await call('/api/narrowed/widget', { headers: auditor })),
+    ).toEqual(['n-1', 'n-2']);
+    expect(
+      (await call('/api/narrowed/widget/n-2', { headers: auditor })).status,
+    ).toBe(200);
+  });
+
+  it('refuses a route set naming both narrowing and scope', () => {
+    expect(() =>
+      makeEntityRoutes(Widget, {
+        verbs: ['list'],
+        guard: { kind: 'public' },
+        narrowing: [],
+        scope: () => Effect.succeed('all' as const),
+      }),
+    ).toThrow('name both `narrowing` and `scope`');
   });
 });
 

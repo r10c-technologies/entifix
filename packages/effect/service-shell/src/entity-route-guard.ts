@@ -4,7 +4,11 @@ import {
   type PolicyDecisionTag,
   type ServiceCrossingPolicyTag,
 } from '@entifix/authz';
-import type { RepositoryScope, TokenServiceTag } from '@entifix/business';
+import type {
+  RepositoryScope,
+  TokenServiceTag,
+  VerifiedContext,
+} from '@entifix/business';
 import type { Entity, EntityConstructor, FilterGroup } from '@entifix/core';
 import type { Effect } from 'effect';
 
@@ -15,6 +19,7 @@ import {
   requirePermission,
   requireServiceCrossing,
   type ServiceCrossingTokenTag,
+  withVerifiedContext,
 } from './auth/index.js';
 
 /**
@@ -39,6 +44,8 @@ export type EntityRouteGuard =
 /** What a route learned about its caller from its guard. */
 export interface EntityRouteContext extends RepositoryScope {
   readonly principal?: RequestPrincipal;
+  /** The caller's verified context, built by the guard from the principal. */
+  readonly verified?: VerifiedContext;
 }
 
 /**
@@ -82,20 +89,26 @@ export const guardRoute = <T extends Entity, A, E, R>(
   use: (context: EntityRouteContext) => Effect.Effect<A, E, R>,
 ) => {
   const permission = permissionForEntity(entityConstructor, action);
+  // Every guard ends here: the context is built once, from what the guard
+  // verified, and provided to everything the route runs.
+  const verify = (context: EntityRouteContext) =>
+    withVerifiedContext(context.principal, verified =>
+      use({ ...context, verified }),
+    );
   switch (guard.kind) {
     case 'public':
-      return use({});
+      return verify({});
     case 'permission':
-      return requirePermission(permission)(principal => use({ principal }));
+      return requirePermission(permission)(principal => verify({ principal }));
     case 'organization':
       return requireOrganization(permission)((organizationId, principal) =>
-        use({ organizationId, principal }),
+        verify({ organizationId, principal }),
       );
     case 'crossing':
       return guard.organization
         ? requireServiceCrossing(permission)(organizationId =>
-            use({ organizationId }),
+            verify({ organizationId }),
           )
-        : requireCrossing(permission)(use({}));
+        : requireCrossing(permission)(verify({}));
   }
 };

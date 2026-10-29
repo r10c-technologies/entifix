@@ -93,6 +93,7 @@ describe('requirePrincipal', () => {
         subject: 'user-1',
         sessionId: 'session-1',
         roles: ['admin'],
+        entitlements: [],
         // Volatile attributes never ride in the token.
         attributes: {},
       });

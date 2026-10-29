@@ -25,6 +25,11 @@ import {
   type GuardServices,
 } from './entity-route-guard.js';
 import {
+  type Narrowing,
+  narrowingFor,
+  type NarrowingRules,
+} from './narrowing.js';
+import {
   defaultFailurePolicy,
   type FailurePolicy,
   respond,
@@ -48,6 +53,11 @@ export interface EntityFacetRoutesOptions<
   readonly scope?: (
     context: EntityRouteContext,
   ) => Effect.Effect<EntityReadScope<T>, never, R>;
+  /**
+   * The same narrowing the entity's `list` takes, as resolver rules — so a
+   * count equals the narrowed list. Replaces `scope`; naming both throws.
+   */
+  readonly narrowing?: NarrowingRules<T>;
   /** How the count's failures are answered and logged. */
   readonly policy?: FailurePolicy;
 }
@@ -88,24 +98,37 @@ export const makeEntityFacetRoutes = <
     });
   });
 
-  const scoped = (
+  const narrowed = (
     queries: EntityFacetQuery<T>[],
-    scope: EntityReadScope<T>,
+    narrowing: Exclude<Narrowing<T>, 'nothing'>,
   ): EntityFacetQuery<T>[] =>
-    scope === 'all' || scope === 'none'
+    narrowing === 'unscoped'
       ? queries
       : queries.map(query => ({
           ...query,
-          filtering: [...(query.filtering ?? []), scope.filter],
+          filtering: [...(query.filtering ?? []), narrowing],
         }));
+
+  if (options.narrowing !== undefined && options.scope !== undefined)
+    throw new Error(
+      `the facet route for '${envelopeEntityName(entityConstructor)}' names both ` +
+        '`narrowing` and `scope`; `narrowing` replaces `scope`, so name one.',
+    );
+
+  /** A scope, as the narrowing this route applies. */
+  const asNarrowing = (scope: EntityReadScope<T>): Narrowing<T> =>
+    scope === 'all' ? 'unscoped' : scope === 'none' ? 'nothing' : scope.filter;
 
   const count = (context: EntityRouteContext) =>
     Effect.gen(function* () {
       const queries = yield* readQueries;
-      const scope = options.scope
-        ? yield* options.scope(context)
-        : ('all' as const);
-      if (scope === 'none') {
+      const narrowing =
+        options.narrowing !== undefined && context.verified !== undefined
+          ? narrowingFor(options.narrowing, context.verified)
+          : asNarrowing(
+              options.scope ? yield* options.scope(context) : ('all' as const),
+            );
+      if (narrowing === 'nothing') {
         // Still parsed: whether a query is well-formed must not depend on who
         // asked.
         const empty: EntityFacetCounts = Object.fromEntries(
@@ -122,7 +145,7 @@ export const makeEntityFacetRoutes = <
           : { organizationId: context.organizationId }),
       });
       const counts = yield* facetCountsUCFactory<T>(
-        scoped(queries, scope),
+        narrowed(queries, narrowing),
       ).pipe(Effect.provideService(EntityFacetCounterTag, counter));
       return yield* HttpServerResponse.json(
         makeEntityFacetsEnvelope(entityConstructor, counts),

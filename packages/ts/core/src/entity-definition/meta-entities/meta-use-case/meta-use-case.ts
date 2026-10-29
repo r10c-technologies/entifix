@@ -77,6 +77,14 @@ export interface MetaUseCaseOptions<
   confirm?: UseCaseConfirm;
   /** Names a form a surface should open instead of acting immediately. */
   form?: string;
+  /**
+   * The use case whose variants this verb resolves between, by name: the
+   * service holds the rules, and `$metadata` reports which one this caller
+   * resolves to.
+   */
+  variants?: string;
+  /** The recipe this verb starts a flow from, by name — the flow-backed verbs. */
+  recipe?: string;
 }
 
 /**
@@ -101,6 +109,8 @@ export class MetaUseCase {
   readonly keywordsKey?: string;
   readonly confirm?: UseCaseConfirm;
   readonly form?: string;
+  readonly variants?: string;
+  readonly recipe?: string;
   //#endregion
 
   //#region Constructors
@@ -114,6 +124,8 @@ export class MetaUseCase {
     this.keywordsKey = options.keywordsKey;
     this.confirm = options.confirm;
     this.form = options.form;
+    this.variants = options.variants;
+    this.recipe = options.recipe;
   }
   //#endregion
 

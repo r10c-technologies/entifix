@@ -50,7 +50,8 @@ const sameSchema = (
   a === b ||
   JSON.stringify(jsonSchemaOf(a)) === JSON.stringify(jsonSchemaOf(b));
 
-const unmet = (
+/** The requirements `facts` do not meet, described; empty when all are met. */
+export const unmetRequirements = (
   requires: FragmentRequirements,
   facts: RequirementFacts,
 ): string[] => {
@@ -190,7 +191,7 @@ export const validateSlip = (
       provided.set(key, schema);
 
     if (options.context !== undefined && fragment.requires !== undefined) {
-      const missing = unmet(fragment.requires, options.context);
+      const missing = unmetRequirements(fragment.requires, options.context);
       if (missing.length > 0)
         violations.push({
           tag: 'UnmetRequirement',

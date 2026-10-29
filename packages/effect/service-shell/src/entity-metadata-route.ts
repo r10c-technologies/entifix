@@ -20,7 +20,12 @@ import {
 import { Effect } from 'effect';
 import { HttpServerRequest, HttpServerResponse } from 'effect/http';
 
-import { requirePrincipal } from './auth/index.js';
+import { requirePrincipal, withVerifiedContext } from './auth/index.js';
+import {
+  assertCompositionsDeclared,
+  compositionFor,
+  type MetadataCompositions,
+} from './metadata-composition.js';
 import { respond } from './respond.js';
 
 /**
@@ -43,8 +48,13 @@ import { respond } from './respond.js';
  */
 export const entityMetadataRoute = <TEntity extends Entity>(
   entityConstructor: EntityConstructor<TEntity>,
-) =>
-  respond(
+  compositions: MetadataCompositions = {},
+) => {
+  assertCompositionsDeclared(
+    describeEntityUseCases(entityConstructor),
+    compositions,
+  );
+  return respond(
     requirePrincipal(principal =>
       Effect.gen(function* () {
         const policy = yield* PolicyDecisionTag;
@@ -71,9 +81,28 @@ export const entityMetadataRoute = <TEntity extends Entity>(
           actions: ENTITY_ACTIONS.filter(action =>
             allows(permissionForEntity(entityConstructor, action)),
           ),
-          useCases: describeEntityUseCases(entityConstructor).filter(
-            descriptor =>
-              allows(permissionForUseCase(entityConstructor, descriptor.key)),
+          useCases: yield* withVerifiedContext(principal, verified =>
+            Effect.succeed(
+              describeEntityUseCases(entityConstructor)
+                .filter(descriptor =>
+                  allows(
+                    permissionForUseCase(entityConstructor, descriptor.key),
+                  ),
+                )
+                // A verb the caller resolves to nothing is omitted, like one
+                // they may not invoke; the rest carry what they resolve to.
+                .flatMap(descriptor => {
+                  const composition = compositionFor(
+                    descriptor,
+                    verified,
+                    compositions,
+                  );
+                  if (composition === 'unreachable') return [];
+                  return composition === undefined
+                    ? [descriptor]
+                    : [{ ...descriptor, composition }];
+                }),
+            ),
           ),
         };
 
@@ -104,6 +133,7 @@ export const entityMetadataRoute = <TEntity extends Entity>(
       }),
     ),
   );
+};
 
 /**
  * The response varies by principal, so it must never land in a shared cache.
