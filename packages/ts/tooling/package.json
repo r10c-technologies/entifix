@@ -1,6 +1,6 @@
 {
   "name": "@entifix/tooling",
-  "version": "0.10.2",
+  "version": "0.11.0",
   "description": "Framework-free logging and product-analytics facades on OpenTelemetry, usable from the browser, Next.js and Node alike.",
   "license": "MIT",
   "repository": {
