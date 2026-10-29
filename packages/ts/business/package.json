@@ -28,6 +28,12 @@
       "types": "./dist/flow/index.d.ts",
       "import": "./dist/flow/index.js",
       "default": "./dist/flow/index.js"
+    },
+    "./verified": {
+      "@entifix/source": "./src/verified/index.ts",
+      "types": "./dist/verified/index.d.ts",
+      "import": "./dist/verified/index.js",
+      "default": "./dist/verified/index.js"
     }
   },
   "files": [

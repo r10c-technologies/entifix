@@ -5,6 +5,7 @@ export * from './repository/entity-facet-counter.js';
 export * from './repository/entity-link-resolver.repository.js';
 export * from './repository/entity-mixins.repository.js';
 export * from './repository/entity-repository-factory.js';
+export * from './resolve/index.js';
 export * from './sessions/one-time-token-store.js';
 export * from './sessions/session-store.js';
 export * from './shutdown/shutdown-registry.js';
