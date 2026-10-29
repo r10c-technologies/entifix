@@ -10,11 +10,14 @@ import {
   Unavailable,
 } from '../index.js';
 import {
+  bodyEncodingOf,
   defineEndpoint,
   defineEndpoints,
   entityKey,
+  formBody,
   implement,
   JsonBody,
+  TextBody,
 } from './endpoint.js';
 
 @entity({ domain: 'shop', key: 'basket' })
@@ -170,5 +173,18 @@ describe('JsonBody', () => {
     });
     expect(Schema.encodeSync(JsonBody)(undefined)).toBeNull();
     expect(Schema.decodeSync(JsonBody)({ a: 1 })).toEqual({ a: 1 });
+  });
+});
+
+describe('the payload encodings', () => {
+  it('marks a text body and a form body, and leaves JSON unmarked', () => {
+    expect(bodyEncodingOf(TextBody)).toBe('text');
+    expect(bodyEncodingOf(formBody({ token: Schema.String }))).toBe('form');
+    expect(bodyEncodingOf(Schema.Struct({ token: Schema.String }))).toBe(
+      undefined,
+    );
+    expect(
+      Schema.decodeSync(formBody({ token: Schema.String }))({ token: 't' }),
+    ).toEqual({ token: 't' });
   });
 });

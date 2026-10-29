@@ -6,6 +6,7 @@ import type {
 } from '@entifix/business';
 import {
   type AnyEndpoint,
+  bodyEncodingOf,
   Contention,
   type DeadlineTag,
   type EndpointSchema,
@@ -41,6 +42,7 @@ import {
   HttpApiError,
   HttpApiGroup,
   HttpApiMiddleware,
+  HttpApiSchema,
 } from 'effect/http-api';
 
 import { NoActiveOrganization } from '../auth/failures.js';
@@ -197,6 +199,21 @@ const toSchema = (schema: EndpointSchema | undefined) =>
       ? schema
       : Schema.Struct(schema);
 
+/** A payload on the wire it declared: JSON unless it said text or a form. */
+const toPayload = (schema: EndpointSchema | undefined) => {
+  const payload = toSchema(schema);
+  if (payload === undefined) return undefined;
+  switch (bodyEncodingOf(payload)) {
+    case 'text':
+      // `TextBody` is a string schema; the marker is what says so here.
+      return (payload as Schema.String).pipe(HttpApiSchema.asText());
+    case 'form':
+      return payload.pipe(HttpApiSchema.asFormUrlEncoded());
+    default:
+      return payload;
+  }
+};
+
 /**
  * The outermost middleware of every endpoint: `respond` under the API's
  * policy, after a schema error has become `invalid` with one entry per broken
@@ -246,7 +263,8 @@ const respondLayer = (policy: FailurePolicy) =>
 const toEndpoint = (descriptor: AnyEndpoint, policy: FailurePolicy) => {
   const params = toSchema(descriptor.params);
   const query = toSchema(descriptor.query);
-  const payload = toSchema(descriptor.payload);
+  const payload = toPayload(descriptor.payload);
+  const headers = toSchema(descriptor.headers);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- assembled at runtime
   let endpoint: any = HttpApiEndpoint.make(descriptor.method)(
     descriptor.name,
@@ -255,6 +273,7 @@ const toEndpoint = (descriptor: AnyEndpoint, policy: FailurePolicy) => {
       ...(params === undefined ? {} : { params }),
       ...(query === undefined ? {} : { query }),
       ...(payload === undefined ? {} : { payload }),
+      ...(headers === undefined ? {} : { headers }),
       success: descriptor.success,
       error: errorSchemas(descriptor, policy),
     } as never,

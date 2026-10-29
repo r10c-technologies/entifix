@@ -17,9 +17,11 @@ import {
   ACCESS_COOKIE,
   defineEndpoint,
   Failure,
+  formBody,
   IDEMPOTENCY_KEY_HEADER,
   implement,
   PROBLEM_CONTENT_TYPE,
+  TextBody,
   Unavailable,
 } from '@entifix/core';
 import { makeInMemoryIdempotencyStore } from '@entifix/testing-unit';
@@ -201,6 +203,29 @@ const lookup = defineEndpoint({
   guard: { kind: 'fleet' },
 });
 
+/** A webhook whose authentication is a MAC over the bytes, and its header. */
+const hook = defineEndpoint({
+  name: 'hook',
+  method: 'POST',
+  path: '/api/hook',
+  payload: TextBody,
+  headers: { 'x-signature': Schema.String },
+  success: Schema.Struct({ body: Schema.String, signature: Schema.String }),
+  errors: [],
+  guard: { kind: 'public' },
+});
+
+/** A caller a specification makes post a form. */
+const logout = defineEndpoint({
+  name: 'logout',
+  method: 'POST',
+  path: '/api/form-logout',
+  payload: formBody({ logout_token: Schema.String }),
+  success: Schema.String,
+  errors: [],
+  guard: { kind: 'public' },
+});
+
 let charges = 0;
 
 const groups = [
@@ -212,6 +237,10 @@ const groups = [
         : Effect.succeed({ slug: params.slug, times: query.times ?? 1 }),
     ),
     implement(brew, () => Effect.fail(new PotRefused())),
+    implement(hook, ({ payload, headers }) =>
+      Effect.succeed({ body: payload, signature: headers['x-signature'] }),
+    ),
+    implement(logout, ({ payload }) => Effect.succeed(payload.logout_token)),
     implement(boom, () => Effect.die(new Error('the password is hunter2'))),
     implement(
       stray,
@@ -349,6 +378,44 @@ describe('a business failure', () => {
 
     expect(answer.status).toBe(409);
     expect(answer.body).toMatchObject({ code: 'specNotDeclared' });
+  });
+});
+
+describe('a payload that is not JSON', () => {
+  it('hands a text body over as the exact bytes, beside the header it declared', async () => {
+    // Spacing a JSON parse would normalise away: a MAC over these bytes is
+    // what the handler has to be able to check.
+    const raw = '{ "subject":"u-1",  "endsSessions":true }';
+    const res = await call('/api/hook', {
+      method: 'POST',
+      headers: { 'content-type': 'text/plain', 'x-signature': 'mac' },
+      body: raw,
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ body: raw, signature: 'mac' });
+  });
+
+  it('refuses a text endpoint without the header it declared', async () => {
+    const res = await call('/api/hook', {
+      method: 'POST',
+      headers: { 'content-type': 'text/plain' },
+      body: 'anything',
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.type).toContain(PROBLEM_CONTENT_TYPE);
+  });
+
+  it('decodes a form body', async () => {
+    const res = await call('/api/form-logout', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: 'logout_token=the-token',
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toBe('the-token');
   });
 });
 
@@ -602,7 +669,7 @@ describe('idempotency', () => {
 describe('the built API', () => {
   it('lists its endpoints as METHOD /path', () => {
     expect(endpointsOf(groups)).toContain('POST /api/slug/:slug');
-    expect(endpointsOf(groups)).toHaveLength(13);
+    expect(endpointsOf(groups)).toHaveLength(15);
   });
 
   it('refuses two endpoints on one method and path', () => {

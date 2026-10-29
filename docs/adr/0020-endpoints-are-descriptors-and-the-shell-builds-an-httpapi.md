@@ -42,7 +42,7 @@ showed it fits **with caveats**:
 A cell declares each endpoint with `defineEndpoint` from `@entifix/core`:
 
 ```ts
-{ name, method, path, params?, query?, payload?, success,
+{ name, method, path, params?, query?, payload?, headers?, success,
   errors: [FailureClass, …], guard, idempotent?: 'unit' | 'edge', useCase? }
 ```
 
@@ -54,6 +54,13 @@ A cell declares each endpoint with `defineEndpoint` from `@entifix/core`:
   every endpoint carries implicitly.
 - A descriptor carries **no status, content type or HTTP annotation**, so core
   never depends on `effect/http*`.
+- A payload is JSON unless it says otherwise. `TextBody` is the exact text
+  that arrived, for an endpoint authenticated by a signature over those bytes
+  — a decoded object re-serialised is a different byte sequence, so the MAC
+  would not verify — and `formBody(fields)` is a form-encoded one, for a
+  caller a specification makes post a form. Each is a schema carrying a
+  marker the shell reads; `headers` names the request headers a handler
+  reads, and a header it does not name is not its input.
 
 The service shell's `serveEndpoints({ name, groups, policy })` returns two
 things built from the same descriptors, so they cannot disagree:

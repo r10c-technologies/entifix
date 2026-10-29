@@ -78,6 +78,7 @@ export interface EndpointDescriptor<
   Guard extends EndpointGuard = EndpointGuard,
   Idempotency extends EndpointIdempotency | undefined =
     EndpointIdempotency | undefined,
+  Headers extends EndpointSchema | undefined = EndpointSchema | undefined,
 > {
   readonly name: Name;
   readonly method: Method;
@@ -85,6 +86,11 @@ export interface EndpointDescriptor<
   readonly params?: Params;
   readonly query?: Query;
   readonly payload?: Payload;
+  /**
+   * The request headers the handler reads, by lower-case name. Most endpoints
+   * declare none: a header an endpoint does not name is not its input.
+   */
+  readonly headers?: Headers;
   readonly success: Success;
   /**
    * Every business failure the handler may answer with. Only failure classes:
@@ -109,7 +115,8 @@ export type AnyEndpoint = EndpointDescriptor<
   Schema.Top,
   ReadonlyArray<FailureClass>,
   EndpointGuard,
-  EndpointIdempotency | undefined
+  EndpointIdempotency | undefined,
+  EndpointSchema | undefined
 >;
 
 /**
@@ -127,6 +134,7 @@ export const defineEndpoint = <
   Payload extends EndpointSchema | undefined = undefined,
   const Guard extends EndpointGuard = EndpointGuard,
   const Idempotency extends EndpointIdempotency | undefined = undefined,
+  Headers extends EndpointSchema | undefined = undefined,
 >(
   descriptor: EndpointDescriptor<
     Name,
@@ -138,7 +146,8 @@ export const defineEndpoint = <
     Success,
     Errors,
     Guard,
-    Idempotency
+    Idempotency,
+    Headers
   >,
 ): EndpointDescriptor<
   Name,
@@ -150,7 +159,8 @@ export const defineEndpoint = <
   Success,
   Errors,
   Guard,
-  Idempotency
+  Idempotency,
+  Headers
 > => descriptor;
 
 /** Declare several endpoints, keeping each one's literal types. */
@@ -196,7 +206,8 @@ export type EndpointRequest<D> =
     Schema.Top,
     ReadonlyArray<FailureClass>,
     EndpointGuard,
-    EndpointIdempotency | undefined
+    EndpointIdempotency | undefined,
+    infer Headers
   >
     ? (Params extends EndpointSchema
         ? { readonly params: TypeOf<Params> }
@@ -206,6 +217,9 @@ export type EndpointRequest<D> =
           : unknown) &
         (Payload extends EndpointSchema
           ? { readonly payload: TypeOf<Payload> }
+          : unknown) &
+        (Headers extends EndpointSchema
+          ? { readonly headers: TypeOf<Headers> }
           : unknown)
     : never;
 
@@ -287,3 +301,33 @@ export const JsonBody: Schema.Codec<unknown, unknown> = Schema.Unknown.pipe(
     }),
   ),
 );
+
+/** The annotation a body schema carries when it is not JSON on the wire. */
+export const BODY_ENCODING = 'entifix/bodyEncoding';
+
+/** How a payload travels, when it is not JSON. */
+export type BodyEncoding = 'text' | 'form';
+
+/**
+ * A payload taken as the exact text that arrived, for an endpoint whose
+ * authentication is a signature over those bytes: a decoded object
+ * re-serialised is a different byte sequence, and the MAC would not verify.
+ */
+export const TextBody: Schema.String = Schema.String.annotate({
+  [BODY_ENCODING]: 'text',
+});
+
+/**
+ * A form-encoded payload (`application/x-www-form-urlencoded`), for a caller
+ * a specification makes post one — an OpenID back-channel logout, say.
+ */
+export const formBody = <const Fields extends Schema.Struct.Fields>(
+  fields: Fields,
+): Schema.Struct<Fields> =>
+  Schema.Struct(fields).annotate({ [BODY_ENCODING]: 'form' });
+
+/** The wire encoding a payload schema declared, or `undefined` for JSON. */
+export const bodyEncodingOf = (schema: Schema.Top): BodyEncoding | undefined =>
+  (schema.ast.annotations as Record<string, unknown> | undefined)?.[
+    BODY_ENCODING
+  ] as BodyEncoding | undefined;
