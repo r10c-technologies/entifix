@@ -9,6 +9,7 @@
  * the manifest — importing this module without that peer installed is the
  * error, and it is the adopter's to make deliberately.
  */
+export * from '../idempotency/store.js';
 export * from '../inbox/store.js';
 export * from '../outbox/metrics.js';
 export * from '../outbox/relay.js';

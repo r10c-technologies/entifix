@@ -3,6 +3,7 @@ export * from './doubles/configuration.js';
 export * from './doubles/entity-facet-counter.js';
 export * from './doubles/entity-repository.js';
 export * from './doubles/flow-engine.js';
+export * from './doubles/idempotency-store.js';
 export * from './doubles/link-resolver.js';
 export * from './doubles/outbox.js';
 export * from './doubles/transaction-ports.js';

@@ -7,7 +7,7 @@ import { drainOutbox } from './relay.js';
 import { ensureOutboxIndexes, makeMongoOutbox } from './store.js';
 
 // The Mongo outbox and its relay, held to the contract every outbox meets,
-// over a fake driver one level below the adapter (ADR 0063).
+// over a fake driver one level below the adapter.
 describeOutboxContract('mongo over a fake driver', () => {
   const db = makeFakeMongoDb().db as Db;
   const outbox = makeMongoOutbox(db);

@@ -1,4 +1,5 @@
 export * from './health/health-registry.js';
+export * from './idempotency/index.js';
 export * from './repository/config.repository.js';
 export * from './repository/entity.repository.js';
 export * from './repository/entity-facet-counter.js';
