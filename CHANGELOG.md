@@ -1,3 +1,17 @@
+## 0.11.0 (2026-10-29)
+
+### 🚀 Features
+
+- ⚠️ **source:** m15 wave 2, the envelope codec, one outbox, idempotency keys and composed flows ([#135](https://github.com/r10c-technologies/entifix/pull/135))
+
+### ⚠️ Breaking Changes
+
+- **source:** m15 wave 2, the envelope codec, one outbox, idempotency keys and composed flows ([#135](https://github.com/r10c-technologies/entifix/pull/135))
+
+### ❤️ Thank You
+
+- Herber Colop
+
 ## 0.10.2 (2026-10-28)
 
 ### 🚀 Features
