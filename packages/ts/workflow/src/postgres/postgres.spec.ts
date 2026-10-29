@@ -72,7 +72,9 @@ describe('the SQL flow status store', () => {
       }),
     );
     fake.respondTo('WHERE correlation', []);
-    expect(Option.isNone(await run(store.findByCorrelation('order-8')))).toBe(true);
+    expect(Option.isNone(await run(store.findByCorrelation('order-8')))).toBe(
+      true,
+    );
   });
 
   it('finds a flow, or none', async () => {
@@ -148,14 +150,22 @@ describe('the SQL flow status store', () => {
 describe('the durable engine layers', () => {
   it('compose for one runner and for one of several', () => {
     expect(
-      Layer.isLayer(SingleRunnerFlowEngineLayer({ catalog: flowEngineContractCatalog, source: 'spec' })),
+      Layer.isLayer(
+        SingleRunnerFlowEngineLayer({
+          catalog: flowEngineContractCatalog,
+          source: 'spec',
+        }),
+      ),
     ).toBe(true);
     expect(
       Layer.isLayer(
-        SocketRunnerFlowEngineLayer({ catalog: flowEngineContractCatalog, source: 'spec' }, {
-          host: 'localhost',
-          port: 34103,
-        }),
+        SocketRunnerFlowEngineLayer(
+          { catalog: flowEngineContractCatalog, source: 'spec' },
+          {
+            host: 'localhost',
+            port: 34103,
+          },
+        ),
       ),
     ).toBe(true);
   });

@@ -438,9 +438,8 @@ const INTERPRETERS = { 1: interpretV1 } as const satisfies Record<
 >;
 
 /** Every `slipVersion` the interpreter walks — each must have a journal. */
-export const interpretedSlipVersions: readonly number[] = Object.keys(
-  INTERPRETERS,
-).map(Number);
+export const interpretedSlipVersions: readonly number[] =
+  Object.keys(INTERPRETERS).map(Number);
 
 export const interpretSlip = (slip: Slip) =>
   INTERPRETERS[slip.slipVersion](slip);

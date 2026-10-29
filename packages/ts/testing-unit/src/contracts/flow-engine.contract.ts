@@ -188,7 +188,9 @@ export const describeFlowEngineContract = (
       );
       expect(stranger._tag).toBe('FlowNotFound');
 
-      await run(engine.signalCorrelated('order-7', 'await', { delivered: true }));
+      await run(
+        engine.signalCorrelated('order-7', 'await', { delivered: true }),
+      );
       expect(await state(engine, 'flow-1')).toBe('completed');
     });
 
