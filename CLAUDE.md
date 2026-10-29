@@ -77,7 +77,7 @@ tests need no build. A consumer resolves `dist`.
   [ADR 0003](docs/adr/0003-releasing-without-a-credential.md).
 - **Never rename `.github/workflows/release.yml`, and never add an npm
   credential.** Every package's npm trusted-publisher claim names that file and
-  the `npm-publish` environment; renaming it breaks publishing for all 24
+  the `npm-publish` environment; renaming it breaks publishing for all 25
   silently. Releasing is merging the `chore(release): X.Y.Z` pull request that
   `release_prepare.yml` opens — it is rebuilt from `main` on every push, and a
   version change closes the old one in favour of the new.

@@ -1,0 +1,94 @@
+{
+  "name": "@entifix/workflow",
+  "version": "0.11.0",
+  "description": "Durable flows: the slip interpreter on Effect Workflow, behind the flow engine port, with Postgres storage and socket runners.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/r10c-technologies/entifix.git",
+    "directory": "packages/ts/workflow"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@entifix/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./postgres": {
+      "@entifix/source": "./src/postgres/index.ts",
+      "types": "./dist/postgres/index.d.ts",
+      "import": "./dist/postgres/index.js",
+      "default": "./dist/postgres/index.js"
+    },
+    "./socket-runner": {
+      "@entifix/source": "./src/socket-runner/index.ts",
+      "types": "./dist/socket-runner/index.d.ts",
+      "import": "./dist/socket-runner/index.js",
+      "default": "./dist/socket-runner/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo",
+    "LICENSE"
+  ],
+  "nx": {
+    "tags": [
+      "tier:2"
+    ],
+    "sourceRoot": "packages/ts/workflow/src",
+    "targets": {
+      "build": {
+        "executor": "@nx/js:swc",
+        "outputs": [
+          "{options.outputPath}"
+        ],
+        "options": {
+          "outputPath": "packages/ts/workflow/dist",
+          "main": "packages/ts/workflow/src/index.ts",
+          "tsConfig": "packages/ts/workflow/tsconfig.lib.json",
+          "skipTypeCheck": true,
+          "stripLeadingPaths": true
+        }
+      },
+      "test-integration": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "vitest run --config vitest.integration.mts",
+          "cwd": "packages/ts/workflow"
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "@entifix/business": "workspace:*",
+    "@entifix/core": "workspace:*",
+    "@entifix/sql": "workspace:*",
+    "@entifix/transactions": "workspace:*",
+    "@swc/helpers": "0.5.23"
+  },
+  "devDependencies": {
+    "@effect/platform-node": "4.0.6",
+    "@effect/sql-pg": "4.0.6",
+    "@entifix/testing-unit": "workspace:*",
+    "effect": "4.0.6"
+  },
+  "peerDependencies": {
+    "@effect/platform-node": "^4.0.6",
+    "effect": "^4.0.6"
+  },
+  "peerDependenciesMeta": {
+    "@effect/platform-node": {
+      "optional": true
+    }
+  }
+}

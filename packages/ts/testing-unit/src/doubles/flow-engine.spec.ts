@@ -1,3 +1,4 @@
+import { Declined, Internal } from '@entifix/core';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 
@@ -49,9 +50,11 @@ describe('makeFakeFlowEngine', () => {
 
   // A step the catalog does not know is treated as retriable: after the
   // commit point, so its failure suspends rather than compensating.
-  it('suspends on an unknown step, and reports an untyped failure as internal', async () => {
+  it('suspends on an unknown step, and reports the failure’s code', async () => {
     const engine = makeFakeFlowEngine(flowEngineContractCatalog, step =>
-      step.step === 'mystery' ? Effect.fail('boom') : Effect.succeed({}),
+      step.step === 'mystery'
+        ? Effect.fail(new Internal())
+        : Effect.succeed({}),
     );
     await Effect.runPromise(engine.start(slip, 'k'));
 
@@ -63,12 +66,12 @@ describe('makeFakeFlowEngine', () => {
 
   it('compensates the compensatable steps that succeeded, in reverse', async () => {
     const engine = makeFakeFlowEngine(flowEngineContractCatalog, step =>
-      step.step === 'take' ? Effect.fail('no') : Effect.succeed({}),
+      step.step === 'take' ? Effect.fail(new Declined({})) : Effect.succeed({}),
     );
     await Effect.runPromise(engine.start(slip, 'k'));
 
     expect(engine.compensations).toEqual(['compensate:hold']);
-    expect(engine.events.at(-1)?.data.failure?.code).toBe('internal');
+    expect(engine.events.at(-1)?.data.failure?.code).toBe('declined');
   });
 
   it('leaves a settled flow settled when interrupted', async () => {
@@ -85,7 +88,7 @@ describe('makeFakeFlowEngine', () => {
 
   it('compensates a failure in a slip with no commit point at all', async () => {
     const engine = makeFakeFlowEngine(flowEngineContractCatalog, () =>
-      Effect.fail('no'),
+      Effect.fail(new Declined({})),
     );
     await Effect.runPromise(
       engine.start(
@@ -112,7 +115,7 @@ describe('makeFakeFlowEngine', () => {
   // Only a compensatable step has anything to undo.
   it('skips a step that succeeded but has no compensation', async () => {
     const engine = makeFakeFlowEngine(flowEngineContractCatalog, step =>
-      step.step === 'take' ? Effect.fail('no') : Effect.succeed({}),
+      step.step === 'take' ? Effect.fail(new Declined({})) : Effect.succeed({}),
     );
     await Effect.runPromise(
       engine.start(

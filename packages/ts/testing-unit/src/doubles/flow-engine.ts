@@ -1,6 +1,6 @@
 import type { FragmentCatalog, Slip, SlipStep } from '@entifix/business/flow';
 import { slipSteps } from '@entifix/business/flow';
-import { type DomainEvent, isFailure } from '@entifix/core';
+import { type DomainEvent, type EntifixFailure } from '@entifix/core';
 import {
   type FlowEngine,
   flowEvent,
@@ -14,7 +14,7 @@ import { Effect } from 'effect';
 /** What a fake participant does for one step: succeed with an outcome, or fail. */
 export type FakeParticipant = (
   step: SlipStep,
-) => Effect.Effect<unknown, unknown>;
+) => Effect.Effect<unknown, EntifixFailure>;
 
 export interface FakeFlowEngine extends FlowEngine {
   /** Every `flow.*` event the engine announced, in order. */
@@ -32,10 +32,10 @@ interface Run {
   readonly done: SlipStep[];
 }
 
-const failureOf = (error: unknown) =>
-  isFailure(error)
-    ? { code: error.code, category: error.category }
-    : { code: 'internal', category: 'internal' };
+const failureOf = (error: EntifixFailure) => ({
+  code: error.code,
+  category: error.category,
+});
 
 /**
  * An in-memory {@link FlowEngine} with the semantics a durable one must have

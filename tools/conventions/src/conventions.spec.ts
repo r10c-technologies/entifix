@@ -164,3 +164,58 @@ describe('only the service shell speaks HTTP', () => {
     }
   });
 });
+
+const RUNS_WORKFLOWS = [
+  "import { Workflow } from 'effect/workflow';\nexport const x = Workflow;\n",
+  "import { ClusterWorkflowEngine } from 'effect/cluster';\nexport const x = ClusterWorkflowEngine;\n",
+  "import * as W from 'effect/workflow/Activity';\nexport const x = W;\n",
+];
+
+describe('only @entifix/workflow runs durable flows', () => {
+  it.each([
+    ['the transactions package', 'packages/ts/transactions/src/planted.ts'],
+    ['the business layer', 'packages/ts/business/src/planted.ts'],
+    ['an adapter', 'packages/ts/sql-client/src/planted.ts'],
+    ['the service shell', 'packages/effect/service-shell/src/planted.ts'],
+  ])('is refused in %s', async (_label, path) => {
+    for (const code of RUNS_WORKFLOWS) {
+      expect(
+        await violations(
+          path,
+          code,
+          '@typescript-eslint/no-restricted-imports',
+        ),
+        code,
+      ).not.toEqual([]);
+    }
+  });
+
+  it.each([
+    ['the workflow package', 'packages/ts/workflow/src/planted.ts'],
+    ['a spec', 'packages/ts/transactions/src/planted.spec.ts'],
+  ])('is allowed in %s', async (_label, path) => {
+    for (const code of RUNS_WORKFLOWS) {
+      expect(
+        await violations(
+          path,
+          code,
+          '@typescript-eslint/no-restricted-imports',
+        ),
+        code,
+      ).toEqual([]);
+    }
+  });
+
+  it('keeps HTTP contained in the workflow package, and workflows in the shell', async () => {
+    const http =
+      "import { HttpRouter } from 'effect/http';\nexport const x = HttpRouter;\n";
+
+    expect(
+      await violations(
+        'packages/ts/workflow/src/planted.ts',
+        http,
+        '@typescript-eslint/no-restricted-imports',
+      ),
+    ).not.toEqual([]);
+  });
+});

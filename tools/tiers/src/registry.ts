@@ -109,6 +109,11 @@ export const PACKAGES: readonly PackageDeclaration[] = [
     tier: 2,
   },
   {
+    name: '@entifix/workflow',
+    dir: 'packages/ts/workflow',
+    tier: 2,
+  },
+  {
     name: '@entifix/posthog',
     dir: 'packages/ts/posthog-client',
     tier: 2,
@@ -212,6 +217,13 @@ export const SIDEWAYS_EDGES: readonly SidewaysEdge[] = [
         'subpath and an optional peer',
     }),
   ),
+  ...['@entifix/transactions', '@entifix/sql'].map(to => ({
+    from: '@entifix/workflow',
+    to,
+    because:
+      'the durable adapter behind the flow engine port, journaling its ' +
+      'flows and their status in SQL',
+  })),
   {
     from: '@entifix/rest',
     to: '@entifix/transactions',
@@ -275,6 +287,13 @@ export const OPTIONAL_CAPABILITIES: readonly OptionalCapability[] = [
     optionalFor: [2],
     otherwiseInstalls: 'the transactional outbox and the saga engine',
     except: [
+      {
+        name: '@entifix/workflow',
+        because:
+          'the package is the durable adapter behind the flow engine port, ' +
+          'so the port is its whole reason to exist rather than an optional ' +
+          'extra a subpath could hold.',
+      },
       {
         name: '@entifix/rest',
         because:

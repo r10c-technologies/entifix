@@ -9,7 +9,7 @@ import {
 } from '@entifix/business/flow';
 import { Declined } from '@entifix/core';
 import type { FlowEngine } from '@entifix/transactions';
-import { Effect, Schema } from 'effect';
+import { Effect, Schedule, Schema } from 'effect';
 import { describe, expect, it } from 'vitest';
 
 import type { FakeParticipant } from '../doubles/flow-engine.js';
@@ -89,15 +89,33 @@ const succeeding: FakeParticipant = () => Effect.succeed({ ok: true });
  */
 export const describeFlowEngineContract = (
   name: string,
-  make: (catalog: FragmentCatalog, participant: FakeParticipant) => FlowEngine,
+  make: (
+    catalog: FragmentCatalog,
+    participant: FakeParticipant,
+  ) => FlowEngine | Promise<FlowEngine>,
 ): void => {
   const run = <A, E>(effect: Effect.Effect<A, E>) => Effect.runPromise(effect);
+  /**
+   * The flow's status once it has stopped moving. A start answers the flow id,
+   * never the outcome — a durable engine runs the slip detached — so a case
+   * reads the state the flow comes to rest in, a wait included.
+   */
+  const settled = (engine: FlowEngine, flowId: string) =>
+    run(
+      engine.status(flowId).pipe(
+        Effect.repeat({
+          until: status => status.state !== 'running',
+          schedule: Schedule.spaced('10 millis'),
+          times: 200,
+        }),
+      ),
+    );
   const state = async (engine: FlowEngine, flowId: string) =>
-    (await run(engine.status(flowId))).state;
+    (await settled(engine, flowId)).state;
 
   describe(`FlowEngine contract: ${name}`, () => {
     it('answers the slip’s flow id, and the same one for a repeated key', async () => {
-      const engine = make(flowEngineContractCatalog, succeeding);
+      const engine = await make(flowEngineContractCatalog, succeeding);
       const slip = slipOf('flow-1', [hold, take, settle]);
 
       const first = await run(engine.start(slip, 'key-1'));
@@ -108,31 +126,31 @@ export const describeFlowEngineContract = (
     });
 
     it('completes a flow whose every step succeeds', async () => {
-      const engine = make(flowEngineContractCatalog, succeeding);
+      const engine = await make(flowEngineContractCatalog, succeeding);
       await run(engine.start(slipOf('flow-1', [hold, take, settle]), 'k'));
 
       expect(await state(engine, 'flow-1')).toBe('completed');
     });
 
     it('compensates a failure before the commit point', async () => {
-      const engine = make(flowEngineContractCatalog, failing('take'));
+      const engine = await make(flowEngineContractCatalog, failing('take'));
       await run(engine.start(slipOf('flow-1', [hold, take, settle]), 'k'));
 
       expect(await state(engine, 'flow-1')).toBe('compensated');
     });
 
     it('suspends a failure after the commit point, at that step', async () => {
-      const engine = make(flowEngineContractCatalog, failing('settle'));
+      const engine = await make(flowEngineContractCatalog, failing('settle'));
       await run(engine.start(slipOf('flow-1', [hold, take, settle]), 'k'));
 
-      expect(await run(engine.status('flow-1'))).toMatchObject({
+      expect(await settled(engine, 'flow-1')).toMatchObject({
         state: 'suspended',
         step: 'settle',
       });
     });
 
     it('waits for the signal it waits for, and refuses any other', async () => {
-      const engine = make(flowEngineContractCatalog, succeeding);
+      const engine = await make(flowEngineContractCatalog, succeeding);
       await run(engine.start(slipOf('flow-1', [take, wait, settle]), 'k'));
 
       expect(await state(engine, 'flow-1')).toBe('waiting');
@@ -149,8 +167,9 @@ export const describeFlowEngineContract = (
     });
 
     it('interrupts a waiting flow', async () => {
-      const engine = make(flowEngineContractCatalog, succeeding);
+      const engine = await make(flowEngineContractCatalog, succeeding);
       await run(engine.start(slipOf('flow-1', [take, wait]), 'k'));
+      expect(await state(engine, 'flow-1')).toBe('waiting');
 
       await run(engine.interrupt('flow-1'));
 
@@ -158,7 +177,7 @@ export const describeFlowEngineContract = (
     });
 
     it('answers FlowNotFound for a flow it never started', async () => {
-      const engine = make(flowEngineContractCatalog, succeeding);
+      const engine = await make(flowEngineContractCatalog, succeeding);
 
       for (const effect of [
         engine.status('nope'),

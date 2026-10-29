@@ -132,49 +132,64 @@ export const compositionStaysAtTheShell = files => ({
 });
 
 /**
- * HTTP is the service shell's
- * ([ADR 0020](docs/adr/0020-endpoints-are-descriptors-and-the-shell-builds-an-httpapi.md)):
- * a cell declares endpoints as Schema descriptors and the shell builds the
- * `HttpApi`, so nothing else in the framework imports `effect/http` or
- * `effect/http-api`. Two places opt out in their own configs: the service
- * shell, and `@entifix/rest`'s endpoint client, which decodes what the shell
- * serves. A host — an example service with a held-open stream — opts out the
- * way it would to log.
+ * Two mechanisms each live in exactly one package, and nothing else imports
+ * them:
  *
+ * - HTTP is the service shell's
+ *   ([ADR 0020](docs/adr/0020-endpoints-are-descriptors-and-the-shell-builds-an-httpapi.md)):
+ *   a cell declares endpoints as Schema descriptors and the shell builds the
+ *   `HttpApi`, so only the shell and `@entifix/rest`'s endpoint client import
+ *   `effect/http` or `effect/http-api`.
+ * - Durable workflows are `@entifix/workflow`'s
+ *   ([ADR 0016](docs/adr/0016-a-flow-engine-port-and-a-durable-workflow-adapter.md)):
+ *   a flow is a pinned slip behind `FlowEngineTag`, so only that package
+ *   imports `effect/workflow` or `effect/cluster`, whose APIs are unstable.
+ *
+ * One rule carries both, because two config objects naming one rule replace
+ * each other's options rather than adding up — and
  * `@typescript-eslint/no-restricted-imports` rather than the core rule, which
- * `compositionStaysAtTheShell` already configures: two config objects naming
- * one rule replace each other's options rather than adding up.
+ * `compositionStaysAtTheShell` configures. A place allowed one mechanism opts
+ * into it with `importsContained`, which re-declares the rule without it.
  */
-export const HTTP_IMPORT_RULE = '@typescript-eslint/no-restricted-imports';
+export const CONTAINED_IMPORT_RULE = '@typescript-eslint/no-restricted-imports';
 
-export const httpStaysInTheShell = {
-  files: ['**/src/**/*.ts', '**/src/**/*.tsx'],
-  ignores: ['**/*.spec.ts', '**/*.spec.tsx', '**/*.test.ts', '**/*.test.tsx'],
-  rules: {
-    [HTTP_IMPORT_RULE]: [
-      'error',
-      {
-        patterns: [
-          {
-            group: [
-              'effect/http',
-              'effect/http/*',
-              'effect/http-api',
-              'effect/http-api/*',
-            ],
-            message:
-              'Only the service shell speaks HTTP: declare an endpoint with defineEndpoint and let the shell build the API (ADR 0020).',
-          },
-        ],
-      },
+const CONTAINED = {
+  http: {
+    group: [
+      'effect/http',
+      'effect/http/*',
+      'effect/http-api',
+      'effect/http-api/*',
     ],
+    message:
+      'Only the service shell speaks HTTP: declare an endpoint with defineEndpoint and let the shell build the API (ADR 0020).',
+  },
+  workflow: {
+    group: [
+      'effect/workflow',
+      'effect/workflow/*',
+      'effect/cluster',
+      'effect/cluster/*',
+    ],
+    message:
+      'Only @entifix/workflow runs durable flows: start a pinned slip through FlowEngineTag (ADR 0016).',
   },
 };
 
-/** The opt-out for the places that serve or decode HTTP themselves. */
-export const speaksHttp = files => ({
+/** The containment rule for `files`, with the mechanisms `allowed` there let through. */
+export const importsContained = (files, allowed = []) => ({
   files,
-  rules: { [HTTP_IMPORT_RULE]: 'off' },
+  ignores: ['**/*.spec.ts', '**/*.spec.tsx', '**/*.test.ts', '**/*.test.tsx'],
+  rules: {
+    [CONTAINED_IMPORT_RULE]: [
+      'error',
+      {
+        patterns: Object.entries(CONTAINED)
+          .filter(([name]) => !allowed.includes(name))
+          .map(([, pattern]) => pattern),
+      },
+    ],
+  },
 });
 
 /** Tier-2 and tier-5 packages that lint with the root config alone. */
@@ -321,6 +336,6 @@ export default [
     },
   },
   mechanismsDoNotLog,
-  httpStaysInTheShell,
+  importsContained(['**/src/**/*.ts', '**/src/**/*.tsx']),
   compositionStaysAtTheShell(ROOT_LINTED_BELOW_THE_SHELL),
 ];

@@ -1098,6 +1098,37 @@ importers:
         specifier: 4.0.6
         version: 4.0.6
 
+  packages/ts/workflow:
+    dependencies:
+      '@entifix/business':
+        specifier: workspace:*
+        version: link:../business
+      '@entifix/core':
+        specifier: workspace:*
+        version: link:../core
+      '@entifix/sql':
+        specifier: workspace:*
+        version: link:../sql-client
+      '@entifix/transactions':
+        specifier: workspace:*
+        version: link:../transactions
+      '@swc/helpers':
+        specifier: 0.5.23
+        version: 0.5.23
+    devDependencies:
+      '@effect/platform-node':
+        specifier: 4.0.6
+        version: 4.0.6(effect@4.0.6)(redis@6.3.0(@node-rs/xxhash@1.7.8)(@opentelemetry/api@1.9.1))
+      '@effect/sql-pg':
+        specifier: 4.0.6
+        version: 4.0.6(effect@4.0.6)
+      '@entifix/testing-unit':
+        specifier: workspace:*
+        version: link:../testing-unit
+      effect:
+        specifier: 4.0.6
+        version: 4.0.6
+
   packages/ts/zitadel-client:
     dependencies:
       '@entifix/business':

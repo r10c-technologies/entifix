@@ -15,6 +15,7 @@ export * from './ports/event-bus.js';
 export * from './ports/event-source.js';
 export * from './ports/flow-engine.js';
 export * from './ports/lock-service.js';
+export * from './ports/participant-client.js';
 export * from './ports/retry-budget.js';
 export * from './ports/saga-dispatcher.js';
 export * from './ports/saga-store.js';
