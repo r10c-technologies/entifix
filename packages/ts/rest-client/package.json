@@ -22,6 +22,12 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./endpoint": {
+      "@entifix/source": "./src/endpoint/index.ts",
+      "types": "./dist/endpoint/index.d.ts",
+      "import": "./dist/endpoint/index.js",
+      "default": "./dist/endpoint/index.js"
     }
   },
   "files": [
