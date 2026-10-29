@@ -290,6 +290,21 @@ export const entityApi = <
         ),
     )
     .map(declared => declared.key);
+  // A record-bound verb declared in a collection cell too is served there,
+  // and only then: a bulk handler for a cell nobody declared is a stray.
+  const inCollectionCell = (verb: VerbEndpoint<unknown>) =>
+    verb.useCase.binding === 'entity' &&
+    (verb.useCase.alsoAt ?? []).some(cell => cell.binding === 'collection');
+  for (const verb of verbs) {
+    if (inCollectionCell(verb) !== (verb.bulk !== undefined))
+      throw new Error(
+        `the '${key}' endpoints ` +
+          (verb.bulk === undefined
+            ? `serve no bulk handler for @useCase() '${verb.useCase.key}', declared in a collection cell`
+            : `serve a bulk handler for @useCase() '${verb.useCase.key}', declared in no collection cell`) +
+          '.',
+      );
+  }
   const strays = verbs.filter(
     verb => verb.useCase.entity !== entityConstructor,
   );
@@ -353,7 +368,8 @@ export const entityApi = <
       ...verbs
         .filter(
           verb =>
-            verb.useCase.binding !== 'entity' && allowed.has(verb.useCase.key),
+            (verb.useCase.binding !== 'entity' || verb.bulk !== undefined) &&
+            allowed.has(verb.useCase.key),
         )
         .map(
           verb =>
@@ -743,6 +759,30 @@ export const entityApi = <
         Effect.flatMap(context, caller =>
           verb.handler(request, caller),
         )) as never) as Implemented;
+    }),
+    ...verbs.flatMap(verb => {
+      const { bulk } = verb;
+      if (bulk === undefined) return [];
+      const { useCase } = verb;
+      const descriptor = defineEndpoint({
+        name: `${useCase.key}-collection`,
+        method: 'POST',
+        path: verbPath(key, useCase.key, 'collection'),
+        payload: SelectionBody,
+        success: JsonBody,
+        errors: [...(useCase.errors ?? [])],
+        guard: endpointGuardFor(verbGuard(verb), () =>
+          permissionForUseCase(entityConstructor, useCase.key),
+        ),
+        useCase: useCase.key,
+        ...(verb.idempotent === undefined
+          ? {}
+          : { idempotent: verb.idempotent }),
+      } as AnyEndpoint);
+      return [
+        implement(descriptor, ((request: EntityApiRequest) =>
+          Effect.flatMap(context, caller => bulk(request, caller))) as never),
+      ] as Implemented[];
     }),
   ];
 

@@ -150,6 +150,12 @@ A `@useCase()` descriptor declares its `payload`, `success` and `errors`.
 - the permission comes from `permissionForUseCase`;
 - the failure union comes from the descriptor.
 
+A record-bound verb that also sits in a collection cell (`alsoAt`) is one act
+under one permission, asked of a record or of a selection, so it is served at
+both paths: `verbEndpoint(UseCase, { handler, bulk })`, the bulk handler taking
+the selection as its payload. A collection cell with no bulk handler, or a bulk
+handler with no cell, fails at mount.
+
 One verb registry per mounted entity feeds three things, all filtered by the
 same principal check:
 

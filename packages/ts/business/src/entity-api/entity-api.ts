@@ -101,6 +101,16 @@ export interface VerbEndpoint<R> {
     request: EntityApiRequest,
     context: EntityApiContext,
   ) => Effect.Effect<unknown, EntifixFailure, R>;
+  /**
+   * The same verb over a selection, for a record-bound verb that also sits in
+   * a collection cell (`alsoAt`): one permission for one act, whether it is
+   * asked of a record or of twenty. Required exactly when that cell is
+   * declared; its request carries the selection as its payload.
+   */
+  readonly bulk?: (
+    request: EntityApiRequest,
+    context: EntityApiContext,
+  ) => Effect.Effect<unknown, EntifixFailure, R>;
 }
 
 /** Serve a `@useCase()` class's verb on its entity's endpoints. */

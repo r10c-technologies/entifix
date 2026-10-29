@@ -15,6 +15,7 @@ import {
   Otherwise,
   type TokenClaims,
   TokenServiceTag,
+  type VerbEndpoint,
   verbEndpoint,
   When,
 } from '@entifix/business';
@@ -157,6 +158,23 @@ const shipOrders = verbEndpoint(ShipOrders, {
   handler: () => Effect.succeed({ shipped: 'all' }),
 });
 
+/** A record verb that also sits in the bulk bar: one class, two cells. */
+@useCase({
+  entity: Order,
+  key: 'archive',
+  binding: 'entity',
+  placement: 'context-independent',
+  alsoAt: [{ binding: 'collection', placement: 'context-dependent' }],
+  labelKey: 'archive',
+})
+class ArchiveOrder {}
+
+const archiveOrder = verbEndpoint(ArchiveOrder, {
+  guard: { kind: 'permission' },
+  handler: ({ params }) => Effect.succeed({ archived: params?.id }),
+  bulk: ({ payload }) => Effect.succeed({ archived: payload }),
+});
+
 class NameTaken extends Failure.conflict<NameTaken>()(
   'SpecNameTaken',
   'specNameTaken',
@@ -271,7 +289,7 @@ const owned = entityApi(
 const orders = entityApi(
   defineEntityApi(Order, 'order', {
     verbs: ['create', 'get'],
-    useCases: [shipOrder, shipOrders],
+    useCases: [shipOrder, shipOrders, archiveOrder],
     guard: { kind: 'permission' },
     override: {
       create: {
@@ -345,6 +363,7 @@ const GRANTS = {
     'catalog:gadget:inspect',
     'catalog:order:read',
     'catalog:order:ship',
+    'catalog:order:archive',
   ],
   reader: ['catalog:gadget:read'],
   user: [],
@@ -803,13 +822,75 @@ describe('verbs derived from @useCase()', () => {
     ]);
   });
 
+  it('serves a record verb’s collection cell from its bulk handler', () => {
+    const archiving = orders.endpoints
+      .filter(({ descriptor }) => descriptor.useCase === 'archive')
+      .map(({ descriptor }) => [descriptor.name, descriptor.path]);
+
+    expect(archiving).toEqual([
+      ['archive', '/api/order/:id/archive'],
+      ['archive-collection', '/api/order/archive'],
+    ]);
+  });
+
+  it('answers the collection cell over the selection it was sent', async () => {
+    const answer = await call(
+      '/api/order/archive',
+      json(
+        'POST',
+        { selection: { mode: 'ids', ids: ['o1'] } },
+        bearer(['admin']),
+      ),
+    );
+
+    expect(answer.status).toBe(200);
+    expect(answer.body).toEqual({
+      archived: { selection: { mode: 'ids', ids: ['o1'] } },
+    });
+  });
+
+  it('refuses a collection cell with no bulk handler, and a bulk handler with no cell', () => {
+    const serve = (verbs: readonly VerbEndpoint<never>[]) => () =>
+      entityApi(
+        defineEntityApi(Order, 'order', {
+          verbs: ['get'],
+          guard: { kind: 'permission' },
+          useCases: [shipOrder, shipOrders, ...verbs],
+        }),
+      );
+
+    expect(
+      serve([
+        verbEndpoint(ArchiveOrder, {
+          handler: () => Effect.succeed('one'),
+        }),
+      ]),
+    ).toThrow("serve no bulk handler for @useCase() 'archive'");
+    expect(() =>
+      entityApi(
+        defineEntityApi(Order, 'order', {
+          verbs: ['get'],
+          guard: { kind: 'permission' },
+          useCases: [
+            verbEndpoint(ShipOrder, {
+              handler: () => Effect.succeed('one'),
+              bulk: () => Effect.succeed('all'),
+            }),
+            shipOrders,
+            archiveOrder,
+          ],
+        }),
+      ),
+    ).toThrow("serve a bulk handler for @useCase() 'ship'");
+  });
+
   it('refuses a group that serves only one binding of a verb declared on both', () => {
     expect(() =>
       entityApi(
         defineEntityApi(Order, 'order', {
           verbs: ['get'],
           guard: { kind: 'permission' },
-          useCases: [shipOrder],
+          useCases: [shipOrder, archiveOrder],
         }),
       ),
     ).toThrow("serve no endpoint for @useCase() 'ship'");

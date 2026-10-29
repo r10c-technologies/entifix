@@ -415,7 +415,9 @@ describe('enumerateCompositions', () => {
   });
 
   it('enumerates a recipe that resolves nothing and provides start keys', () => {
-    const { resolve: _resolve, ...rest } = checkout;
+    const rest = Object.fromEntries(
+      Object.entries(checkout).filter(([member]) => member !== 'resolve'),
+    ) as Omit<typeof checkout, 'resolve'>;
     const started: Recipe<Basket> = {
       ...rest,
       provides: { reservationId: Schema.String },
