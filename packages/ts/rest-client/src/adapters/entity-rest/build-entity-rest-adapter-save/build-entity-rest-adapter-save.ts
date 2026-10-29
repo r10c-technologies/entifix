@@ -19,6 +19,22 @@ import { buildEntityRestAdapterMixins as adapterMixins } from '../build-entity-r
 import { BuildEntityRestOptions } from '../types.js';
 
 /**
+ * The `Idempotency-Key` each entity's pending save was sent under, kept until
+ * that save succeeds.
+ *
+ * Keyed by the entity instance, so a save called again on the same object
+ * after a network error — the case the key exists for — sends the same key and
+ * the service replays its first answer instead of writing twice. A save that
+ * succeeded forgets its key, so the next edit of that object is a new request.
+ * The browser itself never retries (ADR 0014); this is what makes a person's
+ * retry safe.
+ */
+const pendingKeys = new WeakMap<object, string>();
+
+/** A transactional create whose `202` never arrived: same command, same id. */
+const pendingCreates = new WeakSet<object>();
+
+/**
  * Persists an entity over HTTP.
  *
  * An entity without an id has never been stored, so it is created with `POST`
@@ -49,7 +65,7 @@ export const buildEntityRestAdapterSave =
     Effect.gen(function* () {
       const metaEntity = extractMetaEntity(entityConstructor);
       const key = metaEntity.key ?? metaEntity.name;
-      const isCreate = entity.id == null;
+      const isCreate = entity.id == null || pendingCreates.has(entity);
 
       const url = yield* adapterMixins.buildEntityBaseUrl(
         configuration,
@@ -62,7 +78,11 @@ export const buildEntityRestAdapterSave =
         // `crypto.randomUUID` is available in every browser this ships to and in
         // Node — and the id must be a UUID, because the service constrains the
         // key space a caller may address.
-        const transactionId = crypto.randomUUID();
+        // A retried create reuses the id it was first sent with: that id *is*
+        // the idempotency key, so a new one would write a second record.
+        const transactionId = pendingKeys.get(entity) ?? crypto.randomUUID();
+        pendingKeys.set(entity, transactionId);
+        pendingCreates.add(entity);
         entity.id = transactionId;
 
         const command: TransactionCommand = {
@@ -80,12 +100,15 @@ export const buildEntityRestAdapterSave =
             method: 'POST',
             url,
             envelope: makeCommandEnvelope(command),
+            idempotencyKey: transactionId,
           }),
         );
         // Read for its shape, not its contents: this asserts the service really
         // accepted a transaction rather than answering something else with a
         // 2xx, which is the failure the old code path could not distinguish.
         yield* readTransactionAcceptedEnvelope(accepted.body);
+        pendingKeys.delete(entity);
+        pendingCreates.delete(entity);
 
         // Tell whoever is watching that a write is in flight. This is the only
         // point in the system that knows it — the entity returned below is
@@ -113,6 +136,8 @@ export const buildEntityRestAdapterSave =
         return entity;
       }
 
+      const idempotencyKey = pendingKeys.get(entity) ?? crypto.randomUUID();
+      pendingKeys.set(entity, idempotencyKey);
       const httpRequest = adapterMixins.buildEntityRequest({
         method: isCreate ? 'POST' : 'PUT',
         url,
@@ -120,10 +145,12 @@ export const buildEntityRestAdapterSave =
           entityConstructor,
           entity as unknown as TEntity,
         ),
+        idempotencyKey,
       });
 
       const response = yield* performHttpRequestThroughFetch(httpRequest);
       const saved = yield* readEntityEnvelope(entityConstructor, response.body);
+      pendingKeys.delete(entity);
 
       return saved as unknown as TInput;
     });

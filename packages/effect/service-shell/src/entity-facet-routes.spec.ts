@@ -3,8 +3,10 @@ import {
   type EntityFacetCounter,
   EntityFacetCounterFactoryTag,
   InvalidToken,
+  Otherwise,
   type TokenClaims,
   TokenServiceTag,
+  When,
 } from '@entifix/business';
 import {
   accessor,
@@ -86,6 +88,34 @@ const factory = Layer.succeed(EntityFacetCounterFactoryTag, {
 
 const router = Layer.mergeAll(
   makeEntityFacetRoutes(Widget, { guard: { kind: 'public' } }),
+  // The narrowing the entity's list takes, so a count equals the narrowed list.
+  makeEntityFacetRoutes(Widget, {
+    basePath: '/api/narrowed/widget',
+    guard: { kind: 'organization' },
+    narrowing: [
+      When(context => context.partyId === 'nobody').use({
+        name: 'nothing',
+        impl: () => 'nothing' as const,
+      }),
+      When(context => context.partyId === 'everyone').use({
+        name: 'all',
+        impl: () => 'unscoped' as const,
+      }),
+      Otherwise.use({
+        name: 'owner',
+        impl: context => ({
+          operator: 'and' as const,
+          values: [
+            {
+              property: 'owner' as const,
+              operator: 'eq' as const,
+              value: context.partyId,
+            },
+          ],
+        }),
+      }),
+    ],
+  }),
   makeEntityFacetRoutes(Widget, {
     basePath: '/api/tenant/widget',
     guard: { kind: 'organization' },
@@ -126,6 +156,7 @@ const as = (subject: string) => ({
   Authorization: `Bearer ${JSON.stringify({
     userId: 'u-1',
     subject,
+    partyId: subject,
     sessionId: 's-1',
     roles: ['reader'],
     activeOrganizationId: 'org-1',
@@ -223,6 +254,39 @@ describe('makeEntityFacetRoutes', () => {
       owner: [],
     });
     expect(opened).toEqual([{ organizationId: 'org-1' }]);
+  });
+
+  it('counts under a narrowing exactly as the scope did', async () => {
+    const narrowed = await call(`/api/narrowed/widget/$facets?facet=owner`, {
+      headers: as('ada'),
+    });
+    const scoped = await call(`/api/tenant/widget/$facets?facet=owner`, {
+      headers: as('ada'),
+    });
+    const nothing = await call(`/api/narrowed/widget/$facets?facet=owner`, {
+      headers: as('nobody'),
+    });
+    const everything = await call(`/api/narrowed/widget/$facets?facet=owner`, {
+      headers: as('everyone'),
+    });
+
+    expect((narrowed.body as { data: unknown }).data).toEqual(
+      (scoped.body as { data: unknown }).data,
+    );
+    expect((nothing.body as { data: unknown }).data).toEqual({ owner: [] });
+    expect(
+      (everything.body as { data: { owner: unknown[] } }).data.owner.length,
+    ).toBeGreaterThan(1);
+  });
+
+  it('refuses a facet route naming both narrowing and scope', () => {
+    expect(() =>
+      makeEntityFacetRoutes(Widget, {
+        guard: { kind: 'public' },
+        narrowing: [],
+        scope: () => Effect.succeed('all' as const),
+      }),
+    ).toThrow('names both `narrowing` and `scope`');
   });
 
   it('counts everything for a caller scoped to all', async () => {

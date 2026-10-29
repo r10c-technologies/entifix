@@ -190,7 +190,7 @@ describe('buildEntityRestAdapterSave', () => {
     server.use(respondWithMalformedEnvelope(`${BASE_URL}/:id`, 'put'));
 
     await expect(runSave(makeWidget('widget-1', 'Sprocket'))).rejects.toThrow(
-      /no meta.type/,
+      /is not an envelope/,
     );
   });
 
@@ -389,5 +389,66 @@ describe('buildEntityRestAdapterSave, transactional create', () => {
       method: 'PUT',
       url: `${BASE_URL}/widget-1`,
     });
+  });
+});
+
+describe('the Idempotency-Key a save sends', () => {
+  const keysOf = () => {
+    const keys: string[] = [];
+    server.events.on('request:start', ({ request }) => {
+      keys.push(request.headers.get('idempotency-key') ?? '');
+    });
+    return keys;
+  };
+
+  it('is sent on every write as an RFC 9651 String', async () => {
+    const keys = keysOf();
+
+    await runSave(makeWidget('widget-1', 'Sprocket'));
+
+    expect(keys[0]).toMatch(/^"[0-9a-f-]{36}"$/);
+  });
+
+  // The case the key exists for: the same save called again after a network
+  // error reaches the service under the same key.
+  it('is reused by a save retried after a network error, and forgotten after success', async () => {
+    const keys = keysOf();
+    const widget = makeWidget('widget-1', 'Sprocket');
+    server.use(
+      http.put(`${BASE_URL}/:id`, () => HttpResponse.error(), { once: true }),
+    );
+
+    await expect(runSave(widget)).rejects.toThrow();
+    await runSave(widget);
+    await runSave(widget);
+
+    expect(keys[0]).toBe(keys[1]);
+    expect(keys[2]).not.toBe(keys[1]);
+  });
+
+  it('is the transaction id of a command, and a retried create resends that id', async () => {
+    const keys = keysOf();
+    const ids: string[] = [];
+    let first = true;
+    server.use(
+      http.post(BASE_URL, async ({ request }) => {
+        const body = (await request.json()) as {
+          data: { transactionId: string };
+        };
+        ids.push(body.data.transactionId);
+        if (first) {
+          first = false;
+          return HttpResponse.error();
+        }
+        return acceptedTransaction(body.data.transactionId);
+      }),
+    );
+    const widget = makeWidget(undefined, 'Sprocket');
+
+    await expect(runCommandSave(widget)).rejects.toThrow();
+    await runCommandSave(widget);
+
+    expect(ids[0]).toBe(ids[1]);
+    expect(keys[1]).toBe(`"${ids[0] ?? ''}"`);
   });
 });

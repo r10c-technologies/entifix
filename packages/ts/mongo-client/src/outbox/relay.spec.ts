@@ -3,18 +3,14 @@ import {
   type TenantDirectory,
   TenantDirectoryTag,
 } from '@entifix/business';
-import {
-  type DomainEvent,
-  ProtocolFailure,
-  type StoreFailure,
-  Unavailable,
-} from '@entifix/core';
+import { ProtocolFailure, type StoreFailure, Unavailable } from '@entifix/core';
 import { makeFakeMongoDb } from '@entifix/testing-unit/drivers';
 import {
   type EventBus,
   EventBusTag,
+  type Outbox,
   type OutboxEntry,
-  type TransactionOutbox,
+  type OutboxEvent,
 } from '@entifix/transactions';
 import { Effect, Layer } from 'effect';
 import type { Db } from 'mongodb';
@@ -33,17 +29,22 @@ import {
 } from './relay.js';
 import { OUTBOX_COLLECTION } from './store.js';
 
-const anEvent = (id: string): DomainEvent => ({
+/** `<aggregate>:<step>`: entries sharing a prefix share an aggregate. */
+const anEvent = (id: string): OutboxEvent => ({
   name: 'transaction.accepted',
   id,
   source: 'marketplace-admin',
   at: '2026-01-01T00:00:00.000Z',
   correlationId: id.split(':')[0] ?? id,
+  aggregate: { type: 'transaction', id: id.split(':')[0] ?? id },
+  version: 0,
   data: {},
 });
 
 const anEntry = (id: string, attempts = 0): OutboxEntry => ({
   eventId: id,
+  aggregate: anEvent(id).aggregate,
+  version: anEvent(id).version,
   event: anEvent(id),
   sent: false,
   attempts,
@@ -64,7 +65,7 @@ const recordingOutbox = (entries: readonly OutboxEntry[]) => {
     quarantine: boolean;
   }> = [];
 
-  const outbox: TransactionOutbox = {
+  const outbox: Outbox = {
     enqueue: () => Effect.succeed('enqueued' as const),
     pending: () => Effect.succeed(entries),
     markSent: entry =>
@@ -111,11 +112,7 @@ const busRefusing = (
 const OPTIONS = { maxAttempts: 3, database: 'tenant_acme' };
 
 /** Runs the drain and returns its result plus the outcomes it reported. */
-const runDrain = async (
-  outbox: TransactionOutbox,
-  bus: EventBus,
-  options = OPTIONS,
-) => {
+const runDrain = async (outbox: Outbox, bus: EventBus, options = OPTIONS) => {
   const outcomes: RelayOutcome[] = [];
   const sent = await Effect.runPromise(
     drainOutbox(outbox, bus, {
@@ -281,7 +278,7 @@ describe('sweepOutbox', () => {
    * swallowed.
    */
   it('reports a failed pass rather than ending the daemon', async () => {
-    const failing: TransactionOutbox = {
+    const failing: Outbox = {
       enqueue: () => Effect.succeed('enqueued' as const),
       pending: () => Effect.fail(new Unavailable({})),
       markSent: () => Effect.void,
@@ -497,7 +494,7 @@ describe('sweepTenantOutboxes', () => {
 
     expect(
       tenant.fake.operations.filter(op => op.op === 'createIndex'),
-    ).toHaveLength(2);
+    ).toHaveLength(3);
     expect(ensured).toEqual(new Set(['tenant_c']));
   });
 

@@ -100,6 +100,46 @@ export const mechanismsDoNotLog = {
   },
 };
 
+/**
+ * Nothing below the shell composes a flow or mints a verified context
+ * ([ADR 0015](docs/adr/0015-composed-flows-and-use-case-resolution.md)): an
+ * adapter or a double that imported `@entifix/business/compose` could build a
+ * slip the interpreter would run, and one that imported `/verified` could
+ * forge the context a resolver trusts.
+ *
+ * A function of the globs because of the basePath note above: a tier-2 or
+ * tier-5 package with a config of its own spreads it with `**​/src/**`,
+ * and the root applies it to the packages that have none with
+ * workspace-rooted globs. The planted-violation spec checks both.
+ */
+export const compositionStaysAtTheShell = files => ({
+  files,
+  ignores: ['**/*.spec.ts', '**/*.spec.tsx', '**/*.test.ts', '**/*.test.tsx'],
+  rules: {
+    'no-restricted-imports': [
+      'error',
+      {
+        paths: ['@entifix/business/compose', '@entifix/business/verified'].map(
+          name => ({
+            name,
+            message:
+              'Only a shell composes a flow or builds a verified context; an adapter or a double receives a pinned slip and a context it was handed (ADR 0015).',
+          }),
+        ),
+      },
+    ],
+  },
+});
+
+/** Tier-2 and tier-5 packages that lint with the root config alone. */
+const ROOT_LINTED_BELOW_THE_SHELL = [
+  'packages/ts/redis-client/src/**/*.ts',
+  'packages/ts/amqp-client/src/**/*.ts',
+  'packages/ts/transactions/src/**/*.ts',
+  'packages/ts/jwt-client/src/**/*.ts',
+  'packages/ts/zitadel-client/src/**/*.ts',
+];
+
 export default [
   ...nx.configs['flat/base'],
   ...nx.configs['flat/typescript'],
@@ -235,4 +275,5 @@ export default [
     },
   },
   mechanismsDoNotLog,
+  compositionStaysAtTheShell(ROOT_LINTED_BELOW_THE_SHELL),
 ];

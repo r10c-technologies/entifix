@@ -1,4 +1,4 @@
-import type { DomainEvent } from '@entifix/core';
+import type { OutboxEvent } from '@entifix/transactions';
 import { Effect } from 'effect';
 import type { Db } from 'mongodb';
 import { describe, expect, it } from 'vitest';
@@ -136,12 +136,14 @@ describe('reviveQuarantined', () => {
 });
 
 describe('makeMongoOutbox writes', () => {
-  const anEvent = (id = 'e-1'): DomainEvent => ({
+  const anEvent = (id = 'e-1'): OutboxEvent => ({
     name: 'order.placed',
     id,
     source: 'order',
     at: '2026-01-01T00:00:00.000Z',
     correlationId: 'order-1',
+    aggregate: { type: 'product-order', id: 'order-1' },
+    version: 1,
     data: {},
   });
 
@@ -252,6 +254,8 @@ describe('makeMongoOutbox writes', () => {
     await Effect.runPromise(
       outbox.markSent({
         eventId: 'e-1',
+        aggregate: anEvent().aggregate,
+        version: anEvent().version,
         event: anEvent(),
         sent: false,
         attempts: 0,
@@ -277,6 +281,8 @@ describe('makeMongoOutbox writes', () => {
       Effect.result(
         outbox.markSent({
           eventId: 'e-1',
+          aggregate: anEvent().aggregate,
+          version: anEvent().version,
           event: anEvent(),
           sent: false,
           attempts: 0,
@@ -301,6 +307,8 @@ describe('makeMongoOutbox writes', () => {
       outbox.recordFailure(
         {
           eventId: 'e-1',
+          aggregate: anEvent().aggregate,
+          version: anEvent().version,
           event: anEvent(),
           sent: false,
           attempts: 2,
@@ -333,6 +341,8 @@ describe('makeMongoOutbox writes', () => {
         outbox.recordFailure(
           {
             eventId: 'e-1',
+            aggregate: anEvent().aggregate,
+            version: anEvent().version,
             event: anEvent(),
             sent: false,
             attempts: 0,

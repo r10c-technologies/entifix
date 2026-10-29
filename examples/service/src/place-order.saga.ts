@@ -1,4 +1,8 @@
-import { EntifixConnError, serializeEntity } from '@entifix/core';
+import {
+  EntifixConnError,
+  registerEvent,
+  serializeEntity,
+} from '@entifix/core';
 import { Order } from '@entifix/example-service-domain';
 import { MongoClientTag, MongoDatabaseTag } from '@entifix/mongo';
 import {
@@ -13,11 +17,27 @@ import {
   type LocalSagaParticipant,
   type LocalSagaRequest,
 } from '@entifix/transactions/engine';
-import { Effect, Layer } from 'effect';
+import { Effect, Layer, Schema } from 'effect';
 import type { ClientSession, Db, MongoClient } from 'mongodb';
 
 export const ORDERS_SLICE = 'orders';
 export const ORDER_PLACED = 'order.placed';
+
+/**
+ * Every event a bus carries is registered with its schema, so a consumer that
+ * reads it decodes rather than casts. The projection is the only consumer, and
+ * nothing outside the service receives it, so it names no audience.
+ */
+registerEvent(
+  ORDER_PLACED,
+  Schema.Struct({
+    orderId: Schema.String,
+    sku: Schema.String,
+    quantity: Schema.Number,
+    amount: Schema.Number,
+  }),
+  { versioned: true, audience: 'none' },
+);
 export const RESERVATION_COLLECTION = 'reservation';
 export const STOCK_COLLECTION = 'stock-item';
 export const ORDER_COLLECTION = 'order';
@@ -244,6 +264,8 @@ const orders =
             source: ORDERS_SLICE,
             at: new Date().toISOString(),
             correlationId: sagaId,
+            aggregate: { type: 'order', id: sagaId },
+            version: 1,
             data: { orderId: sagaId, sku, quantity, amount },
           }),
           { session },

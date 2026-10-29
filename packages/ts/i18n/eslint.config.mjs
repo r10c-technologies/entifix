@@ -1,4 +1,6 @@
-import baseConfig from '../../../eslint.config.mjs';
+import baseConfig, {
+  compositionStaysAtTheShell,
+} from '../../../eslint.config.mjs';
 
 export default [
   ...baseConfig,
@@ -22,4 +24,5 @@ export default [
   {
     ignores: ['**/out-tsc'],
   },
+  compositionStaysAtTheShell(['**/src/**/*.ts', '**/src/**/*.tsx']),
 ];

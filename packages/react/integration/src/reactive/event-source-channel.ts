@@ -1,5 +1,9 @@
-import { type EntityChangeEvent, readEventEnvelope } from '@entifix/core';
-import { Effect, Result } from 'effect';
+import {
+  type DomainEvent,
+  EntityChangeEnvelope,
+  type EntityChangeEvent,
+} from '@entifix/core';
+import { Effect, Result, Schema } from 'effect';
 
 import type {
   EntityChangeListener,
@@ -25,7 +29,18 @@ import type {
  * last, so a page that mounts no workspace holds none. One connection per URL,
  * not one per listener: SSE shares the origin's HTTP/1.1 connection budget.
  */
-export function makeEventSourceReactiveChannel(url: string): ReactiveChannel {
+export interface EventSourceReactiveChannel extends ReactiveChannel {
+  /**
+   * How many frames this channel dropped because they did not decode as an
+   * entity change. A frame is dropped rather than thrown — see `deliver` — so
+   * the count is the only trace a drifted server leaves in the browser.
+   */
+  dropped(): number;
+}
+
+export function makeEventSourceReactiveChannel(
+  url: string,
+): EventSourceReactiveChannel {
   const listeners = new Set<EntityChangeListener>();
   const connectListeners = new Set<() => void>();
   let source: EventSource | undefined;
@@ -34,6 +49,7 @@ export function makeEventSourceReactiveChannel(url: string): ReactiveChannel {
   // consumer needs to know is "has this channel been connected", not "is this
   // particular `EventSource` object open right now".
   let connected = false;
+  let dropped = 0;
 
   const deliver = (raw: string): void => {
     // A frame this build cannot read is dropped rather than thrown: `onmessage`
@@ -43,16 +59,19 @@ export function makeEventSourceReactiveChannel(url: string): ReactiveChannel {
       Effect.result(
         Effect.flatMap(
           Effect.try(() => JSON.parse(raw) as unknown),
-          readEventEnvelope<EntityChangeEvent>,
+          Schema.decodeUnknownEffect(EntityChangeEnvelope),
         ),
       ),
     );
     if (Result.isFailure(parsed)) {
+      dropped += 1;
       return;
     }
+    const { meta, data } = parsed.success;
+    const event: DomainEvent<EntityChangeEvent> = { ...meta.event, data };
 
     for (const listener of listeners) {
-      listener(parsed.success);
+      listener(event);
     }
   };
 
@@ -84,6 +103,7 @@ export function makeEventSourceReactiveChannel(url: string): ReactiveChannel {
   };
 
   return {
+    dropped: () => dropped,
     subscribe(listener) {
       listeners.add(listener);
       open();

@@ -1,5 +1,4 @@
-import type { DomainEvent } from '@entifix/core';
-import type { OutboxEntry, TransactionOutbox } from '@entifix/transactions';
+import type { Outbox, OutboxEntry, OutboxEvent } from '@entifix/transactions';
 import { Effect } from 'effect';
 import type { Db } from 'mongodb';
 
@@ -21,7 +20,7 @@ import { translateMongoError } from '../errors/translate-mongo-error.js';
  * identically to a per-organization `tenant_<id>` and to a single platform-plane
  * database, and the second publisher is what turned a copy into a seam.
  */
-export const OUTBOX_COLLECTION = 'transaction_outbox';
+export const OUTBOX_COLLECTION = 'outbox';
 
 /** Drop Mongo's internal `_id` from every read. */
 const WITHOUT_MONGO_ID = { projection: { _id: 0 } } as const;
@@ -42,8 +41,10 @@ const isDuplicateKey = (error: unknown): boolean =>
  * cannot live in a framework-free contract. The handler inserts this document
  * itself; everything else goes through {@link makeMongoOutbox}.
  */
-export const outboxDocument = (event: DomainEvent): OutboxEntry => ({
+export const outboxDocument = (event: OutboxEvent): OutboxEntry => ({
   eventId: event.id,
+  aggregate: event.aggregate,
+  version: event.version,
   event,
   sent: false,
   // Defaulted here rather than at each write site because there are two of
@@ -71,7 +72,7 @@ export const outboxDocument = (event: DomainEvent): OutboxEntry => ({
  * walk that would re-publish the whole fleet on every boot and un-quarantine
  * genuine poison each time.
  *
- * Not a `TransactionOutbox` method: the port is framework-free and shared by
+ * Not an `Outbox` method: the port is framework-free and shared by
  * every publisher, and this is a repair specific to the rebuild. `outboxDocument`
  * is exported beside it for the same class of reason.
  *
@@ -97,7 +98,7 @@ export const reviveQuarantined = (db: Db, eventId: string) =>
   });
 
 /**
- * Ensures the two indexes the outbox depends on.
+ * Ensures the three indexes the outbox depends on.
  *
  * The unique one is load-bearing rather than defensive: it *is* the idempotency
  * check behind the client-generated transaction id, so a replayed command is
@@ -124,19 +125,26 @@ export const ensureOutboxIndexes = (db: Db) =>
         { createdAt: 1 },
         { partialFilterExpression: { sent: false, quarantined: false } },
       );
+      // What the per-aggregate order reads, and what a rebuild finds an
+      // aggregate's latest announced version by.
+      await collection.createIndex({
+        'aggregate.type': 1,
+        'aggregate.id': 1,
+        version: 1,
+      });
     },
     catch: error => translateMongoError(error),
   });
 
 /**
- * Mongo-backed {@link TransactionOutbox} over one database.
+ * Mongo-backed {@link Outbox} over one database.
  *
  * `db` is closed over, so every method's Effect has `R = never` — the same
  * technique `makeMongoRepository` uses. There is no publishing here: the relay
  * composes these methods with the event bus, which is what lets the relay be
  * tested without a broker.
  */
-export const makeMongoOutbox = (db: Db): TransactionOutbox => {
+export const makeMongoOutbox = (db: Db): Outbox => {
   const collection = db.collection<OutboxEntry>(OUTBOX_COLLECTION);
 
   return {
@@ -160,12 +168,13 @@ export const makeMongoOutbox = (db: Db): TransactionOutbox => {
 
     pending: limit =>
       Effect.tryPromise({
-        // Oldest first, so `accepted` reaches the bus before the terminal event
-        // for the same transaction and the tracker folds them in order.
+        // Oldest first, then by version: the relay publishes in this order
+        // within each aggregate, so `accepted` reaches the bus before the
+        // terminal event of the same transaction.
         try: () =>
           collection
             .find({ sent: false, quarantined: false }, WITHOUT_MONGO_ID)
-            .sort({ createdAt: 1 })
+            .sort({ createdAt: 1, version: 1 })
             .limit(limit)
             .toArray(),
         catch: error => translateMongoError(error),

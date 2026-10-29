@@ -7,114 +7,66 @@ import {
 } from '../entity-definition/serializer/index.js';
 import { InvalidEnvelope } from '../failure/generic.js';
 import type { Entity, EntityConstructor } from '../types/Entity.js';
-import type {
-  EntityFacetCounts,
-  EntityFacetValue,
-} from '../types/EntityFacets.js';
+import type { EntityFacetCounts } from '../types/EntityFacets.js';
 import type { EntityPage } from '../types/EntityPage.js';
+import { decodeEnvelope } from './codec.js';
 import { envelopeEntityName } from './make-envelope.js';
 import type {
-  DomainEvent,
   EntifixEnvelope,
   EntifixEnvelopeType,
-  EntifixEventMeta,
   SerializedEntityPage,
 } from './types.js';
 
 /**
- * Structural check only — `meta.type` is validated separately so a mismatch
- * reports the expected/actual types rather than a generic "not an envelope".
+ * Decodes a body a **caller sent** — a request to this service — into an
+ * envelope of the expected type, its `data` decoded against the registered
+ * schema.
+ *
+ * The same decode as {@link decodeEnvelope}, failing with an
+ * {@link InvalidEnvelope} instead of a protocol failure: a malformed request is
+ * the sender's fault and answers `400`, where a peer's malformed *answer* is a
+ * `502`.
  */
-export function isEntifixEnvelope(body: unknown): body is EntifixEnvelope {
-  if (body == null || typeof body !== 'object') {
-    return false;
-  }
-  const meta = (body as EntifixEnvelope).meta;
-  return (
-    meta != null && typeof meta === 'object' && typeof meta.type === 'string'
-  );
-}
-
-/**
- * Narrows an arbitrary body to an envelope of the expected `meta.type`, failing
- * with an {@link InvalidEnvelope} otherwise. A wrong shape must never
- * silently deserialize into a half-populated entity.
- */
-function assertEnvelope<TEntity extends Entity, TData>(
-  entityConstructor: EntityConstructor<TEntity>,
-  body: unknown,
-  expected: EntifixEnvelopeType,
-): Effect.Effect<EntifixEnvelope<TData>, InvalidEnvelope> {
-  const entity = envelopeEntityName(entityConstructor);
-
-  if (!isEntifixEnvelope(body)) {
-    return Effect.fail(
-      new InvalidEnvelope({
-        reason: `Expected an EntifixEnvelope for "${entity}" but the payload carried no meta.type`,
-      }),
-    );
-  }
-  if (body.meta.type !== expected) {
-    return Effect.fail(
-      new InvalidEnvelope({
-        reason: `Expected an EntifixEnvelope of type "${expected}" for "${entity}" but got "${body.meta.type}"`,
-      }),
-    );
-  }
-  return Effect.succeed(body as EntifixEnvelope<TData>);
-}
-
-/**
- * Narrows an arbitrary body to an envelope of the expected `meta.type` without
- * requiring an entity constructor — for `command`/`transactionRecord` messages
- * whose `data` is not a serialized entity. `label` only sharpens error text.
- */
-export function readEnvelope<TData>(
+export const decodeRequestEnvelope = (
   body: unknown,
   expected: EntifixEnvelopeType,
   label = 'message',
-): Effect.Effect<EntifixEnvelope<TData>, InvalidEnvelope> {
-  if (!isEntifixEnvelope(body)) {
-    return Effect.fail(
+): Effect.Effect<EntifixEnvelope, InvalidEnvelope> =>
+  Effect.mapError(
+    decodeEnvelope(body, expected),
+    failure =>
       new InvalidEnvelope({
-        reason: `Expected an EntifixEnvelope for "${label}" but the payload carried no meta.type`,
+        reason: `"${label}": ${failure.reason}`,
       }),
-    );
-  }
-  if (body.meta.type !== expected) {
-    return Effect.fail(
-      new InvalidEnvelope({
-        reason: `Expected an EntifixEnvelope of type "${expected}" for "${label}" but got "${body.meta.type}"`,
-      }),
-    );
-  }
-  return Effect.succeed(body as EntifixEnvelope<TData>);
-}
+  );
+
+const decodeFor = <TEntity extends Entity, TData>(
+  entityConstructor: EntityConstructor<TEntity>,
+  body: unknown,
+  expected: EntifixEnvelopeType,
+): Effect.Effect<EntifixEnvelope<TData>, InvalidEnvelope> =>
+  decodeRequestEnvelope(
+    body,
+    expected,
+    envelopeEntityName(entityConstructor),
+  ) as Effect.Effect<EntifixEnvelope<TData>, InvalidEnvelope>;
 
 export const readEntityEnvelope = <TEntity extends Entity>(
   entityConstructor: EntityConstructor<TEntity>,
   body: unknown,
 ) =>
   Effect.gen(function* () {
-    const envelope = yield* assertEnvelope<TEntity, unknown>(
+    const envelope = yield* decodeFor<TEntity, unknown>(
       entityConstructor,
       body,
       'entity',
     );
-    const entity = yield* deserializeSingleEntity(
+    // The registered schema already refused a missing or non-object `data`,
+    // so the deserializer always has a record to build from.
+    return (yield* deserializeSingleEntity(
       entityConstructor,
       envelope.data,
-    );
-    if (entity === undefined) {
-      return yield* Effect.fail(
-        new InvalidEnvelope({
-          reason: `EntifixEnvelope for "${envelopeEntityName(
-            entityConstructor,
-          )}" carried no data`,
-        }),
-      );
-    }
-    return entity;
+    )) as TEntity;
   });
 
 export const readEntityCollectionEnvelope = <TEntity extends Entity>(
@@ -122,7 +74,7 @@ export const readEntityCollectionEnvelope = <TEntity extends Entity>(
   body: unknown,
 ) =>
   Effect.gen(function* () {
-    const envelope = yield* assertEnvelope<TEntity, unknown>(
+    const envelope = yield* decodeFor<TEntity, unknown>(
       entityConstructor,
       body,
       'entityCollection',
@@ -139,132 +91,56 @@ export const readEntityPageEnvelope = <TEntity extends Entity>(
   body: unknown,
 ) =>
   Effect.gen(function* () {
-    const envelope = yield* assertEnvelope<
-      TEntity,
-      SerializedEntityPage<TEntity>
-    >(entityConstructor, body, 'entityPage');
+    const envelope = yield* decodeFor<TEntity, SerializedEntityPage<TEntity>>(
+      entityConstructor,
+      body,
+      'entityPage',
+    );
     const items = yield* deserializeEntityCollection(
       entityConstructor,
-      envelope.data?.items,
+      envelope.data.items,
     );
     return {
       items: items as TEntity[],
-      total: envelope.data?.total ?? 0,
-      request: envelope.data?.request ?? {},
+      total: envelope.data.total,
+      request: envelope.data.request ?? {},
     } satisfies EntityPage<TEntity>;
   });
 
 /**
  * Reads a `$metadata` response back into its document.
  *
- * No deserialization step, and no defaulting of the members either: an envelope
- * whose `data` is missing a list would leave a form guessing whether "no
- * actions" meant "denied" or "malformed", so a broken payload fails loudly here
- * the way a half-populated entity does.
+ * No defaulting of the members: the registered schema refuses a document
+ * missing either list, so a form never has to guess whether "no actions" meant
+ * "denied" or "malformed".
  */
 export const readEntityMetadataEnvelope = <TEntity extends Entity>(
   entityConstructor: EntityConstructor<TEntity>,
   body: unknown,
 ) =>
-  Effect.gen(function* () {
-    const envelope = yield* assertEnvelope<TEntity, EntityMetadataDocument>(
+  Effect.map(
+    decodeFor<TEntity, EntityMetadataDocument>(
       entityConstructor,
       body,
       'entityMetadata',
-    );
-    const document = envelope.data;
-    if (
-      !Array.isArray(document?.actions) ||
-      !Array.isArray(document?.useCases)
-    ) {
-      return yield* Effect.fail(
-        new InvalidEnvelope({
-          reason: `EntifixEnvelope for "${envelopeEntityName(
-            entityConstructor,
-          )}" carried no metadata document`,
-        }),
-      );
-    }
-    return document;
-  });
-
-const isFacetValueRow = (row: unknown): row is EntityFacetValue =>
-  row != null &&
-  typeof row === 'object' &&
-  ['string', 'number', 'boolean'].includes(
-    typeof (row as EntityFacetValue).value,
-  ) &&
-  typeof (row as EntityFacetValue).count === 'number';
+    ),
+    envelope => envelope.data,
+  );
 
 /**
- * Reads a `$facets` response back into its counts, refusing a body whose lists
- * are not `{ value, count }` rows — a panel that rendered a malformed count
- * would show a number nobody computed.
+ * Reads a `$facets` response back into its counts. The registered schema
+ * refuses a body whose lists are not `{ value, count }` rows — a panel that
+ * rendered a malformed count would show a number nobody computed.
  */
 export const readEntityFacetsEnvelope = <TEntity extends Entity>(
   entityConstructor: EntityConstructor<TEntity>,
   body: unknown,
 ) =>
-  Effect.gen(function* () {
-    const envelope = yield* assertEnvelope<TEntity, EntityFacetCounts>(
+  Effect.map(
+    decodeFor<TEntity, EntityFacetCounts>(
       entityConstructor,
       body,
       'entityFacets',
-    );
-    const counts = envelope.data;
-    const wellFormed =
-      counts != null &&
-      typeof counts === 'object' &&
-      Object.values(counts).every(
-        rows => Array.isArray(rows) && rows.every(isFacetValueRow),
-      );
-    if (!wellFormed) {
-      return yield* Effect.fail(
-        new InvalidEnvelope({
-          reason: `EntifixEnvelope for "${envelopeEntityName(
-            entityConstructor,
-          )}" carried no facet counts`,
-        }),
-      );
-    }
-    return counts;
-  });
-
-/** Every member `meta.event` must carry for a message to be routable at all. */
-const REQUIRED_EVENT_META = ['name', 'id', 'source', 'at'] as const;
-
-/**
- * Reads a bus message back into a {@link DomainEvent}.
- *
- * The metadata is validated rather than defaulted, and that is the point: a
- * message missing `id` cannot be deduplicated and a message missing `name`
- * cannot be routed, so both are failures a consumer must see rather than
- * absences it silently works around. It is the same call
- * {@link readEntityMetadataEnvelope} makes — a broken payload fails loudly
- * instead of arriving half-populated.
- *
- * Note this does not validate `data`. The transport has no idea what a
- * `catalog.published` payload should look like, and inventing an opinion here
- * is how the bus would start knowing about domains.
- */
-export function readEventEnvelope<TData = unknown>(
-  body: unknown,
-): Effect.Effect<DomainEvent<TData>, InvalidEnvelope> {
-  return Effect.gen(function* () {
-    const envelope = yield* readEnvelope<TData>(body, 'event', 'event');
-    const event = envelope.meta.event;
-    const missing = REQUIRED_EVENT_META.filter(
-      member => typeof event?.[member] !== 'string' || event[member] === '',
-    );
-    if (missing.length > 0) {
-      return yield* Effect.fail(
-        new InvalidEnvelope({
-          reason: `event envelope carried incomplete meta.event (missing ${missing.join(
-            ', ',
-          )})`,
-        }),
-      );
-    }
-    return { ...(event as EntifixEventMeta), data: envelope.data };
-  });
-}
+    ),
+    envelope => envelope.data,
+  );

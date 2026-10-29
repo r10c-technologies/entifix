@@ -1,9 +1,9 @@
 import type { WiringRegistry } from '@entifix/business';
 import { ShutdownRegistryTag, WiringRegistryTag } from '@entifix/business';
 import {
+  decodeEvent,
+  encodeEvent,
   isFailure,
-  makeEventEnvelope,
-  readEventEnvelope,
   Unavailable,
 } from '@entifix/core';
 import {
@@ -349,23 +349,28 @@ export const makeAmqpEventBus = (
   let inFlight = 0;
 
   const bus: EventBus = {
+    // Encoded before the channel is touched: a message its registration
+    // refuses — no schema, no audience, no version — fails the publish as a
+    // protocol failure instead of reaching a consumer that would quarantine it.
     publish: event =>
-      Effect.tryPromise({
-        try: () =>
-          connector.withChannel(async channel => {
-            channel.publish(
-              EVENTS_EXCHANGE,
-              event.name,
-              Buffer.from(JSON.stringify(makeEventEnvelope(event))),
-              { persistent: true },
-            );
-          }),
-        catch: error => new Unavailable({ dependency: 'amqp' }),
+      Effect.flatMap(encodeEvent(event), envelope =>
+        Effect.tryPromise({
+          try: () =>
+            connector.withChannel(async channel => {
+              channel.publish(
+                EVENTS_EXCHANGE,
+                event.name,
+                Buffer.from(JSON.stringify(envelope)),
+                { persistent: true },
+              );
+            }),
+          catch: () => new Unavailable({ dependency: 'amqp' }),
+        }),
+      ).pipe(
         // Recorded **after** the publish succeeds, so `GET /api/$service` reports
         // what this process actually put on the exchange. Recording the intent
         // instead would make the declared-vs-observed diff pass on a service whose
         // every publish is failing.
-      }).pipe(
         Effect.tap(() =>
           wiring
             .recordPublish(event.name)
@@ -428,22 +433,17 @@ export const makeAmqpEventBus = (
                   catch: (): DeliveryFailure => UNREADABLE,
                 }).pipe(
                   Effect.flatMap(parsed =>
-                    readEventEnvelope(parsed).pipe(Effect.mapError(classify)),
+                    decodeEvent(parsed).pipe(Effect.mapError(classify)),
                   ),
                   // The handler carries no requirements (the subscriber closes over
                   // its store), so it runs standalone.
                   //
-                  // ⚠️ A handler's failure is classified by its category, not
-                  // treated as transient across the board. The transport
-                  // validates `meta` and deliberately not `data` (inventing an
-                  // opinion about a payload is how the bus would start knowing
-                  // about domains), so a consumer that decodes its own payload
-                  // is the *only* thing that can tell a malformed one from a bad
-                  // afternoon at the database — and it says so by failing with
-                  // a business or `protocol` failure, which quarantines at once
-                  // instead of spending `maxAttempts` on every message
-                  // behind it. Measured on `catalog.published`: a payload the
-                  // contract rejected used to take five deliveries to quarantine.
+                  // ⚠️ `data` is decoded against the schema its event name
+                  // registered, so a malformed payload is a `protocol` failure
+                  // here — poison, quarantined at once — before any handler
+                  // runs. A handler's own failure is classified by its category
+                  // the same way: a business or `protocol` failure quarantines
+                  // instead of spending `maxAttempts` on every message behind it.
                   Effect.flatMap(event =>
                     handler(event).pipe(Effect.mapError(classify)),
                   ),

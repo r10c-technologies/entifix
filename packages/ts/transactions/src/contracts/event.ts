@@ -6,6 +6,7 @@ import {
 
 import type { TransactionOutcome } from '../ports/transaction-handler.js';
 import type { TransactionCommand } from './command.js';
+import type { OutboxEvent } from './outbox.js';
 
 /**
  * The lifecycle states a transaction record settles into.
@@ -100,23 +101,35 @@ export const transactionEventId = (
   step: TransactionStep,
 ): string => `${transactionId}:${step}`;
 
-/** Wraps a payload as a routable message from `source`. */
+/** Each step's version of its transaction: `accepted` first, then its end. */
+const STEP_VERSION: Record<TransactionStep, number> = {
+  accepted: 0,
+  completed: 1,
+  failed: 1,
+};
+
+/**
+ * Wraps a payload as a routable message from `source`. The transaction is the
+ * aggregate, so the outbox keeps `accepted` ahead of the step that ends it.
+ */
 const message = (
   source: string,
   data: TransactionEvent,
-): DomainEvent<TransactionEvent> => ({
+): OutboxEvent<TransactionEvent> => ({
   name: transactionEventName(data.step),
   id: transactionEventId(data.transactionId, data.step),
   source,
   at: data.at,
   correlationId: data.transactionId,
+  aggregate: { type: 'transaction', id: data.transactionId },
+  version: STEP_VERSION[data.step],
   data,
 });
 
 export const acceptedEvent = (
   command: TransactionCommand,
   source: string,
-): DomainEvent<TransactionEvent> =>
+): OutboxEvent<TransactionEvent> =>
   message(source, {
     transactionId: command.transactionId,
     entity: command.entity,
@@ -130,7 +143,7 @@ export const completedEvent = (
   command: TransactionCommand,
   outcome: TransactionOutcome,
   source: string,
-): DomainEvent<TransactionEvent> =>
+): OutboxEvent<TransactionEvent> =>
   message(source, {
     transactionId: command.transactionId,
     entity: command.entity,
@@ -146,7 +159,7 @@ export const failedEvent = (
   command: TransactionCommand,
   error: unknown,
   source: string,
-): DomainEvent<TransactionEvent> =>
+): OutboxEvent<TransactionEvent> =>
   message(source, {
     transactionId: command.transactionId,
     entity: command.entity,

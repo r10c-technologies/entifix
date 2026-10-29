@@ -3,3 +3,4 @@ export * from './require-organization.js';
 export * from './require-principal.js';
 export * from './require-service-crossing.js';
 export * from './shared-token.js';
+export * from './verified-context.js';

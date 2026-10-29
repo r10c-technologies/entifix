@@ -26,6 +26,25 @@ export interface UseCaseDescriptor {
   keywordsKey?: string;
   confirm?: UseCaseConfirm;
   form?: string;
+  /** The named variant set this verb resolves between. */
+  variants?: string;
+  /** The named recipe this verb starts a flow from. */
+  recipe?: string;
+  /**
+   * What this verb resolves to **for the caller asking** — present only on a
+   * served `$metadata` document, computed per principal.
+   */
+  composition?: UseCaseComposition;
+}
+
+/** Which variant, and which flow, a verb resolves to for one caller. */
+export interface UseCaseComposition {
+  useCase: string;
+  variant: string;
+  recipe?: string;
+  slipVersion?: number;
+  /** The `id@n` references the recipe can pin, in order. */
+  fragments?: readonly string[];
 }
 
 /**
@@ -51,5 +70,7 @@ export function describeEntityUseCases<TEntity extends Entity>(
     keywordsKey: metaUseCase.keywordsKey,
     confirm: metaUseCase.confirm,
     form: metaUseCase.form,
+    variants: metaUseCase.variants,
+    recipe: metaUseCase.recipe,
   }));
 }

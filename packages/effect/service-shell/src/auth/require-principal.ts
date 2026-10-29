@@ -57,6 +57,12 @@ export interface RequestPrincipal {
    * case the fleet produces.
    */
   readonly expiresAt?: number;
+  /**
+   * What the caller's active organization was provisioned for, off the
+   * verified token. Context for a resolver, never a
+   * grant: a variant requires an entitlement before its predicate is read.
+   */
+  readonly entitlements?: readonly string[];
   readonly attributes: Readonly<Record<string, unknown>>;
 }
 
@@ -87,6 +93,7 @@ const claimsToPrincipal = (claims: TokenClaims): RequestPrincipal => ({
   // `TokenClaims` carries an index signature, so `exp` arrives as `unknown`
   // even though jose always sets it — hence the guard rather than a cast.
   expiresAt: typeof claims.exp === 'number' ? claims.exp : undefined,
+  entitlements: claims.entitlements ?? [],
   // Rich/volatile attributes are not in the token; a handler that needs them
   // reads the session store by `sessionId`.
   attributes: {},

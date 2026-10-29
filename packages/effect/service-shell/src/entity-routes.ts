@@ -36,6 +36,13 @@ import {
   guardRoute,
   type GuardServices,
 } from './entity-route-guard.js';
+import type { MetadataCompositions } from './metadata-composition.js';
+import {
+  narrowedByIdRequest,
+  narrowingFor,
+  type NarrowingRules,
+  narrowLoadRequest,
+} from './narrowing.js';
 import {
   defaultFailurePolicy,
   type FailurePolicy,
@@ -79,7 +86,17 @@ export interface EntityRoutesOptions<
   readonly guard: G | { readonly read: G; readonly write: G };
   /** Defaults to `/api/<entity key>`. */
   readonly basePath?: `/${string}`;
-  /** Narrows the reads to what this caller may see. */
+  /**
+   * Narrows the reads to what this caller may see, as resolver rules over the
+   * verified context. Replaces `scope`; a route set naming both throws.
+   */
+  readonly narrowing?: NarrowingRules<T>;
+  /**
+   * The variant rules, recipes and catalog the entity's `@useCase()` verbs
+   * name, so `$metadata` can report what each resolves to for the caller.
+   */
+  readonly compositions?: MetadataCompositions;
+  /** Narrows the reads to what this caller may see. Superseded by `narrowing`. */
   readonly scope?: (
     context: EntityRouteContext,
   ) => Effect.Effect<EntityReadScope<T>, never, R>;
@@ -197,8 +214,20 @@ const deriveEntityRoutes = <
       });
     });
 
+  if (options.narrowing !== undefined && options.scope !== undefined)
+    throw new Error(
+      `the routes for '${extractMetaEntity(entityConstructor).key}' name both ` +
+        '`narrowing` and `scope`; `narrowing` replaces `scope`, so name one.',
+    );
+
   const scopeOf = (context: EntityRouteContext) =>
     options.scope ? options.scope(context) : Effect.succeed('all' as const);
+
+  /** The narrowing rules choose for this caller, or `undefined` without rules. */
+  const narrowingOf = (context: EntityRouteContext) =>
+    options.narrowing === undefined || context.verified === undefined
+      ? undefined
+      : narrowingFor(options.narrowing, context.verified);
 
   const readLoadRequest = Effect.gen(function* () {
     const request = yield* HttpServerRequest.HttpServerRequest;
@@ -220,10 +249,16 @@ const deriveEntityRoutes = <
   const list = (context: EntityRouteContext) =>
     Effect.gen(function* () {
       const parsed = yield* readLoadRequest;
-      const scope = yield* scopeOf(context);
+      const narrowing = narrowingOf(context);
+      const scope =
+        narrowing === undefined
+          ? yield* scopeOf(context)
+          : narrowing === 'nothing'
+            ? ('none' as const)
+            : ('all' as const);
       if (scope === 'none') {
         // Still parsed: whether a query is well-formed must not depend on who
-        // asked.
+        // asked. `nothing` answers here without a query.
         return yield* HttpServerResponse.json(
           makeEntityPageEnvelope(
             entityConstructor,
@@ -236,12 +271,14 @@ const deriveEntityRoutes = <
       // element, so an added element can only narrow, and no `or` in a query
       // string can escape it.
       const request: EntityLoadRequest<T> =
-        scope === 'all'
-          ? parsed
-          : {
-              ...parsed,
-              filtering: [...(parsed.filtering ?? []), scope.filter],
-            };
+        narrowing !== undefined && narrowing !== 'nothing'
+          ? narrowLoadRequest(parsed, narrowing)
+          : scope === 'all'
+            ? parsed
+            : {
+                ...parsed,
+                filtering: [...(parsed.filtering ?? []), scope.filter],
+              };
       const page = yield* loadUCFactory<T>().pipe(
         Effect.provideService(EntityRepositoryTag, yield* repository(context)),
         Effect.provideService(
@@ -257,7 +294,31 @@ const deriveEntityRoutes = <
   const get = (context: EntityRouteContext) =>
     Effect.gen(function* () {
       const params = yield* HttpRouter.params;
-      const scope = yield* scopeOf(context);
+      const narrowing = narrowingOf(context);
+      if (narrowing === 'nothing') return yield* notFound;
+      // A filter narrowing reads by id as a narrowed load, so the read and the
+      // list apply one rule: there is no second, in-memory predicate to drift.
+      if (narrowing !== undefined && narrowing !== 'unscoped') {
+        const page = yield* loadUCFactory<T>().pipe(
+          Effect.provideService(
+            EntityRepositoryTag,
+            yield* repository(context),
+          ),
+          Effect.provideService(
+            EntityLoadRequestTag,
+            narrowedByIdRequest<T>(
+              narrowing,
+              params.id,
+            ) as unknown as EntityLoadRequest,
+          ),
+        );
+        const [only] = page.items;
+        if (only === undefined) return yield* notFound;
+        return yield* HttpServerResponse.json(
+          makeEntityEnvelope(entityConstructor, only, links.record(params.id)),
+        );
+      }
+      const scope = narrowing === undefined ? yield* scopeOf(context) : 'all';
       if (scope === 'none') return yield* notFound;
       const found = yield* getUCFactory<T>().pipe(
         Effect.provideService(EntityRepositoryTag, yield* repository(context)),
@@ -379,7 +440,7 @@ const deriveEntityRoutes = <
     HttpRouter.route(
       'GET',
       `${base}/$metadata`,
-      entityMetadataRoute(entityConstructor),
+      entityMetadataRoute(entityConstructor, options.compositions ?? {}),
     ),
     ...options.verbs.map(verb =>
       HttpRouter.route(

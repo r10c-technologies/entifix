@@ -66,7 +66,13 @@ const anEvent = (id = 'tx-1:accepted'): DomainEvent => ({
   source: 'marketplace-admin',
   at: '2026-01-01T00:00:00.000Z',
   correlationId: 'tx-1',
-  data: { transactionId: 'tx-1', entity: 'product', step: 'accepted' },
+  data: {
+    transactionId: 'tx-1',
+    entity: 'product',
+    state: 'PENDING',
+    step: 'accepted',
+    at: '2026-01-01T00:00:00.000Z',
+  },
 });
 
 /** The envelope the adapter puts on the wire for `event`. */
@@ -498,12 +504,46 @@ describe('makeAmqpEventBus', () => {
 
     await fake.deliverRaw(JSON.stringify({ not: 'an envelope' }));
 
-    // A payload `readEventEnvelope` rejects never becomes readable, so
-    // retrying it only spends the budget of the messages behind it.
+    // A payload that does not decode never becomes readable, so retrying it
+    // only spends the budget of the messages behind it.
     expect(quarantined(fake)[0]?.headers).toMatchObject({
-      'x-failure-code': 'invalidEnvelope',
+      'x-failure-code': 'protocol',
+      'x-failure-category': 'protocol',
     });
     expect(fake.nacked).toHaveLength(0);
+  });
+
+  // The record's point on the bus: `data` that drifted from its registered
+  // schema is poison before any handler runs.
+  it('quarantines an event whose data its schema refuses', async () => {
+    const { fake, bus } = withFakeChannel();
+    let handled = 0;
+    await Effect.runPromise(
+      bus.subscribe(WORK, () =>
+        Effect.sync(() => {
+          handled += 1;
+        }),
+      ),
+    );
+
+    await fake.deliverRaw(
+      JSON.stringify({ ...anEnvelope(anEvent()), data: { step: 'accepted' } }),
+    );
+
+    expect(handled).toBe(0);
+    expect(quarantined(fake)[0]?.headers).toMatchObject({
+      'x-failure-category': 'protocol',
+    });
+  });
+
+  it('refuses to publish an event nothing registered', async () => {
+    const { bus } = withFakeChannel();
+
+    const exit = await Effect.runPromiseExit(
+      bus.publish({ ...anEvent(), name: 'nobody.registered' }),
+    );
+
+    expect(Exit.isFailure(exit)).toBe(true);
   });
 
   it('quarantines a payload that is not even JSON', async () => {

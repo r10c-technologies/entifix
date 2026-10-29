@@ -1,4 +1,4 @@
-import type { EntifixEnvelope } from '@entifix/core';
+import { type EntifixEnvelope, formatIdempotencyKey } from '@entifix/core';
 
 import { HttpMethod, HttpRequest } from '../../../clients/types.js';
 
@@ -10,6 +10,8 @@ export interface BuildEntityRequestOptions {
    * Omitted for reads and deletes, which carry no payload.
    */
   envelope?: EntifixEnvelope<unknown>;
+  /** A write's `Idempotency-Key`, already minted by the caller. */
+  idempotencyKey?: string;
 }
 
 /**
@@ -22,10 +24,18 @@ export const buildEntityRequest = ({
   method,
   url,
   envelope,
-}: BuildEntityRequestOptions): HttpRequest<EntifixEnvelope<unknown>> => ({
-  method,
-  url,
-  ...(envelope
-    ? { headers: { 'Content-Type': 'application/json' }, body: envelope }
-    : {}),
-});
+  idempotencyKey,
+}: BuildEntityRequestOptions): HttpRequest<EntifixEnvelope<unknown>> => {
+  const headers: Record<string, string> = {
+    ...(envelope ? { 'Content-Type': 'application/json' } : {}),
+    ...(idempotencyKey === undefined
+      ? {}
+      : { 'Idempotency-Key': formatIdempotencyKey(idempotencyKey) }),
+  };
+  return {
+    method,
+    url,
+    ...(Object.keys(headers).length > 0 ? { headers } : {}),
+    ...(envelope ? { body: envelope } : {}),
+  };
+};

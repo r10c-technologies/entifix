@@ -96,7 +96,7 @@ describe('placing an order', () => {
       // matters most: the event was written in the order's own transaction.
       expect(
         mongo
-          ?.read('transaction_outbox')
+          ?.read('outbox')
           .map(entry => (entry['event'] as { name: string }).name),
       ).toContain('order.placed');
     } else {

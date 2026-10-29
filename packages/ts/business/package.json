@@ -1,7 +1,7 @@
 {
   "name": "@entifix/business",
   "version": "0.10.2",
-  "description": "The ports every adapter implements — repository, session, token, health — and the generic get, load, save and delete use-cases.",
+  "description": "The ports every adapter implements \u2014 repository, session, token, health \u2014 and the generic get, load, save and delete use-cases.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -22,6 +22,24 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./flow": {
+      "@entifix/source": "./src/flow/index.ts",
+      "types": "./dist/flow/index.d.ts",
+      "import": "./dist/flow/index.js",
+      "default": "./dist/flow/index.js"
+    },
+    "./verified": {
+      "@entifix/source": "./src/verified/index.ts",
+      "types": "./dist/verified/index.d.ts",
+      "import": "./dist/verified/index.js",
+      "default": "./dist/verified/index.js"
+    },
+    "./compose": {
+      "@entifix/source": "./src/compose/index.ts",
+      "types": "./dist/compose/index.d.ts",
+      "import": "./dist/compose/index.js",
+      "default": "./dist/compose/index.js"
     }
   },
   "files": [
