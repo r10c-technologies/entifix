@@ -49,4 +49,5 @@ export * from './types/EntitySorting.js';
 export * from './types/Json.js';
 export * from './types/StandardSchema.js';
 export * from './types/UseCase.js';
+export * from './use-case-runner/index.js';
 export * from './wizard/index.js';

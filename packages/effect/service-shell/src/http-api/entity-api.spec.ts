@@ -23,6 +23,8 @@ import {
   type EntityId,
   Failure,
   IDEMPOTENCY_KEY_HEADER,
+  readWireSelection,
+  toWireSelection,
   useCase,
 } from '@entifix/core';
 import {
@@ -49,7 +51,7 @@ import {
   serveTestService,
 } from '../serve-test-service.js';
 import { endpointsOf, type ServedRequirements } from './build-api.js';
-import { entityApi } from './entity-api.js';
+import { entityApi, verbEndpoint } from './entity-api.js';
 
 @entity({ domain: 'catalog', key: 'gadget' })
 class Gadget implements Entity {
@@ -101,7 +103,16 @@ void PolishGadget;
   labelKey: 'y',
 })
 class InspectGadget {}
-void InspectGadget;
+
+@useCase({
+  entity: Gadget,
+  key: 'tally',
+  binding: 'collection',
+  placement: 'context-independent',
+  labelKey: 'z',
+  success: Schema.Struct({ counted: Schema.Number }),
+})
+class TallyGadgets {}
 
 @entity({ domain: 'catalog', key: 'order' })
 class Order implements Entity {
@@ -115,6 +126,20 @@ class Order implements Entity {
     this.#id = value;
   }
 }
+
+@useCase({
+  entity: Order,
+  key: 'ship',
+  binding: 'entity',
+  placement: 'determining',
+  labelKey: 'ship',
+})
+class ShipOrder {}
+
+const shipOrder = verbEndpoint(ShipOrder, {
+  idempotent: 'unit',
+  handler: ({ params }) => Effect.succeed({ shipped: params?.id }),
+});
 
 class NameTaken extends Failure.conflict<NameTaken>()(
   'SpecNameTaken',
@@ -156,7 +181,31 @@ const POLISHING = {
 
 const ROWS = [aGadget('g1', 'lamp', 'ada'), aGadget('g2', 'desk', 'bob')];
 
+/** Every verb Gadget declares, served once per group that serves Gadget. */
+const gadgetVerbs = [
+  verbEndpoint(PolishGadget, {
+    handler: ({ params }) => Effect.succeed({ polished: params?.id }),
+  }),
+  verbEndpoint(InspectGadget, {
+    guard: { kind: 'crossing', organization: false },
+    handler: () => Effect.succeed({ inspected: true }),
+  }),
+  verbEndpoint(TallyGadgets, {
+    guard: { kind: 'public' },
+    handler: ({ payload }) =>
+      Effect.succeed({
+        counted:
+          readWireSelection(
+            (payload as { selection: unknown }).selection as never,
+          )?.mode === 'ids'
+            ? 2
+            : 0,
+      }),
+  }),
+];
+
 const gadgets = entityApi(Gadget, 'gadget', {
+  useCases: gadgetVerbs,
   verbs: ['list', 'get', 'create', 'update', 'delete'],
   guard: { read: { kind: 'public' }, write: { kind: 'permission' } },
   facets: true,
@@ -173,6 +222,7 @@ const gadgets = entityApi(Gadget, 'gadget', {
 });
 
 const owned = entityApi(Gadget, 'owned-gadget' as 'gadget', {
+  useCases: gadgetVerbs,
   verbs: ['list', 'get'],
   guard: { kind: 'organization' },
   facets: true,
@@ -200,6 +250,7 @@ const owned = entityApi(Gadget, 'owned-gadget' as 'gadget', {
 
 const orders = entityApi(Order, 'order', {
   verbs: ['create', 'get'],
+  useCases: [shipOrder],
   guard: { kind: 'permission' },
   override: {
     create: {
@@ -265,6 +316,7 @@ const GRANTS = {
     'catalog:gadget:polish',
     'catalog:gadget:inspect',
     'catalog:order:read',
+    'catalog:order:ship',
   ],
   reader: ['catalog:gadget:read'],
   user: [],
@@ -310,7 +362,10 @@ beforeAll(async () => {
       Layer.succeed(ServiceCrossingTokenTag, CROSSING),
       Layer.succeed(
         ServiceCrossingPolicyTag,
-        makeStaticServiceCrossingPolicy(['catalog:order:write']),
+        makeStaticServiceCrossingPolicy([
+          'catalog:order:write',
+          'catalog:gadget:inspect',
+        ]),
       ),
     ),
   });
@@ -348,6 +403,9 @@ describe('entityApi', () => {
       'POST /api/gadget',
       'PUT /api/gadget/:id',
       'DELETE /api/gadget/:id',
+      'POST /api/gadget/:id/polish',
+      'POST /api/gadget/:id/inspect',
+      'POST /api/gadget/tally',
     ]);
   });
 
@@ -357,6 +415,9 @@ describe('entityApi', () => {
       | PolicyDecisionTag
       | EntityFacetCounterFactoryTag
       | TokenServiceTag
+      // `inspect` is a crossing verb, so the group reads the crossing tags.
+      | ServiceCrossingTokenTag
+      | ServiceCrossingPolicyTag
     >();
   });
 
@@ -370,6 +431,7 @@ describe('entityApi', () => {
     expect(answer.body?.meta.links).toEqual([
       { rel: 'self', href: '/api/gadget', method: 'GET' },
       { rel: 'create', href: '/api/gadget', method: 'POST' },
+      { rel: 'tally', href: '/api/gadget/tally', method: 'POST' },
     ]);
   });
 
@@ -438,6 +500,7 @@ describe('entityApi', () => {
         links: [
           { rel: 'self', href: '/api/gadget', method: 'GET' },
           { rel: 'create', href: '/api/gadget', method: 'POST' },
+          { rel: 'tally', href: '/api/gadget/tally', method: 'POST' },
         ],
       },
       data: { id },
@@ -490,6 +553,8 @@ describe('entityApi', () => {
     expect(admin.body?.data.useCases).toEqual([
       expect.objectContaining({ key: 'inspect' }),
     ]);
+    // The contract stays on the server: no schema reaches the document.
+    expect(JSON.stringify(admin.body)).not.toContain('success');
     expect(entitled.body?.data.useCases).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ key: 'inspect' }),
@@ -629,5 +694,95 @@ describe('a group that serves writes only', () => {
     expect(removed.body?.meta.links).toEqual([
       { rel: 'create', href: '/api/note', method: 'POST' },
     ]);
+  });
+});
+
+describe('verbs derived from @useCase()', () => {
+  it('links a verb on a record only for a principal the policy permits', async () => {
+    const admin = await call('/api/gadget/g1', { headers: bearer(['admin']) });
+    const anonymous = await call('/api/gadget/g1');
+
+    expect(admin.body?.meta.links).toContainEqual({
+      rel: 'polish',
+      href: '/api/gadget/g1/polish',
+      method: 'POST',
+    });
+    expect(anonymous.body?.meta.links).not.toContainEqual(
+      expect.objectContaining({ rel: 'polish' }),
+    );
+  });
+
+  it('never links a crossing verb, though it serves it', async () => {
+    const admin = await call('/api/gadget/g1', { headers: bearer(['admin']) });
+    const crossed = await call('/api/gadget/g1/inspect', {
+      method: 'POST',
+      headers: { [CROSSING_TOKEN_HEADER]: CROSSING },
+    });
+
+    expect(admin.body?.meta.links).not.toContainEqual(
+      expect.objectContaining({ rel: 'inspect' }),
+    );
+    expect(crossed.body).toEqual({ inspected: true });
+  });
+
+  it('runs a record verb at its derived path under its derived permission', async () => {
+    const allowed = await call('/api/gadget/g1/polish', {
+      method: 'POST',
+      headers: bearer(['admin']),
+    });
+    const refused = await call('/api/gadget/g1/polish', {
+      method: 'POST',
+      headers: bearer(['reader']),
+    });
+
+    expect(allowed.body).toEqual({ polished: 'g1' });
+    expect(refused.status).toBe(403);
+    expect(refused.body).toMatchObject({ permission: 'catalog:gadget:polish' });
+  });
+
+  it('runs a collection verb on a selection, answering its described success', async () => {
+    const answer = await call(
+      '/api/gadget/tally',
+      json('POST', {
+        selection: toWireSelection({ mode: 'ids', ids: new Set(['g1', 'g2']) }),
+      }),
+    );
+
+    expect(answer.body).toEqual({ counted: 2 });
+  });
+
+  it('carries the idempotency a verb declares onto its endpoint', () => {
+    const ship = orders.endpoints.find(
+      ({ descriptor }) => descriptor.name === 'ship',
+    );
+
+    expect(ship?.descriptor).toMatchObject({
+      path: '/api/order/:id/ship',
+      idempotent: 'unit',
+      useCase: 'ship',
+    });
+  });
+
+  it('refuses to build a group that leaves a declared verb without an endpoint', () => {
+    expect(() =>
+      entityApi(Gadget, 'gadget', {
+        verbs: ['get'],
+        guard: { kind: 'public' },
+        compositions: POLISHING,
+      }),
+    ).toThrow(
+      "the 'gadget' endpoints serve no endpoint for @useCase() 'polish', 'inspect', 'tally'",
+    );
+  });
+
+  it('refuses to build a group that serves another entity’s verb', () => {
+    expect(() =>
+      entityApi(Gadget, 'gadget', {
+        verbs: ['get'],
+        guard: { kind: 'public' },
+        compositions: POLISHING,
+        useCases: [...gadgetVerbs, shipOrder],
+      }),
+    ).toThrow("serve 'ship', declared on another entity");
   });
 });

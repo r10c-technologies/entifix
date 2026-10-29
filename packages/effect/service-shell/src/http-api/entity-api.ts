@@ -45,6 +45,7 @@ import {
   type EntityLoadRequest,
   type EntityMetadataDocument,
   Envelope,
+  extractUseCase,
   type FailureClass,
   implement,
   type Implemented,
@@ -54,14 +55,18 @@ import {
   makeEntityFacetsEnvelope,
   makeEntityMetadataEnvelope,
   makeEntityPageEnvelope,
+  type MetaUseCase,
   NotFound,
   parseFacetQueryParams,
   parseLoadRequestParams,
   readEntityEnvelope,
+  type UseCaseConstructor,
+  verbPath,
 } from '@entifix/core';
 import { Effect, Option, Schema } from 'effect';
 import { HttpServerRequest, HttpServerResponse } from 'effect/http';
 
+import { resolveRequestPrincipal } from '../auth/require-principal.js';
 import {
   assertCompositionsDeclared,
   compositionFor,
@@ -146,7 +151,44 @@ export interface EntityApiOptions<T extends Entity, R> {
   /** The business failures `prepare` may answer with, for the contract. */
   readonly errors?: readonly FailureClass[];
   readonly override?: Partial<Record<EntityApiVerb, EntityVerbOverride<R>>>;
+  /**
+   * The entity's `@useCase()` verbs, one endpoint each. Every verb the entity
+   * declares must be here and none another entity declares, or building the
+   * group throws.
+   */
+  readonly useCases?: readonly VerbEndpoint<R>[];
 }
+
+/**
+ * A `@useCase()` verb's endpoint: its path, method, permission and contract
+ * come from the declaration, and only who may call it and what it does are
+ * written here.
+ */
+export interface VerbEndpoint<R> {
+  readonly useCase: MetaUseCase;
+  /** Defaults to the group's write guard. */
+  readonly guard?: EntityApiGuard;
+  readonly idempotent?: EndpointIdempotency;
+  readonly handler: (
+    request: EntityApiRequest,
+    context: EntityApiContext,
+  ) => Effect.Effect<unknown, EntifixFailure, R>;
+}
+
+/** Serve a `@useCase()` class's verb on its entity's group. */
+export const verbEndpoint = <
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- inferred from the options
+  const O extends Omit<VerbEndpoint<any>, 'useCase'>,
+>(
+  useCaseClass: UseCaseConstructor,
+  options: O,
+): O & { readonly useCase: MetaUseCase } => ({
+  ...options,
+  useCase: extractUseCase(useCaseClass),
+});
+
+/** A collection verb's body: the selection, in its wire form. */
+const SelectionBody = Schema.Struct({ selection: Schema.Unknown });
 
 const ACTION: Record<EntityApiVerb, Action> = {
   list: 'read',
@@ -169,10 +211,9 @@ const METHOD = {
 /** Any envelope: the entity codec reads `data`, so the wire stays open. */
 const EnvelopeBody = Envelope.codec(Schema.Unknown);
 
-const endpointGuard = <T extends Entity>(
-  entityConstructor: EntityConstructor<T>,
+const endpointGuardFor = (
   guard: EntityApiGuard,
-  action: Action,
+  permission: () => Permission,
 ): EndpointGuard => {
   switch (guard.kind) {
     case 'public':
@@ -180,16 +221,20 @@ const endpointGuard = <T extends Entity>(
     case 'crossing':
       return {
         kind: 'crossing',
-        permission: permissionForEntity(entityConstructor, action),
+        permission: permission(),
         organization: guard.organization,
       };
     default:
-      return {
-        kind: guard.kind,
-        permission: permissionForEntity(entityConstructor, action),
-      };
+      return { kind: guard.kind, permission: permission() };
   }
 };
+
+const endpointGuard = <T extends Entity>(
+  entityConstructor: EntityConstructor<T>,
+  guard: EntityApiGuard,
+  action: Action,
+): EndpointGuard =>
+  endpointGuardFor(guard, () => permissionForEntity(entityConstructor, action));
 
 /** The request context a guard provided, read without requiring it. */
 const callerContext = Effect.gen(function* () {
@@ -249,16 +294,24 @@ type OverrideIdempotency<V> = V extends { readonly idempotent: infer I }
   ? I
   : never;
 
+type UseCaseValues<O> = O extends { readonly useCases: infer U }
+  ? U extends ReadonlyArray<infer V>
+    ? V
+    : never
+  : never;
+
 /** Every guard kind an entity group mounts: `$metadata` is a session. */
 export type EntityGuardKinds<O> = Extract<
   | 'session'
   | KindOf<O extends { readonly guard: infer G } ? G : never>
-  | OverrideGuardKinds<OverrideValues<O>>,
+  | OverrideGuardKinds<OverrideValues<O> | UseCaseValues<O>>,
   EndpointGuard['kind']
 >;
 
-/** Every idempotency mode an entity group's overrides declare. */
-export type EntityIdempotencies<O> = OverrideIdempotency<OverrideValues<O>>;
+/** Every idempotency mode an entity group's overrides and verbs declare. */
+export type EntityIdempotencies<O> = OverrideIdempotency<
+  OverrideValues<O> | UseCaseValues<O>
+>;
 
 type ReturnRequirements<F> = F extends (
   ...args: any[]
@@ -272,7 +325,7 @@ type OverrideRequirements<V> = V extends { readonly handler: infer H }
 /** What the host's `prepare` and overrides need. */
 export type OptionsRequirements<O> =
   | ReturnRequirements<O extends { readonly prepare: infer P } ? P : never>
-  | OverrideRequirements<OverrideValues<O>>;
+  | OverrideRequirements<OverrideValues<O> | UseCaseValues<O>>;
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
 /** An entity endpoint as its guard kinds and idempotency type it. */
@@ -323,7 +376,34 @@ export const entityApi = <
     compositions,
   );
 
-  const links: EntityApiLinks = {
+  const verbs = options.useCases ?? [];
+  const declaredVerbs = describeEntityUseCases(entityConstructor).map(
+    descriptor => descriptor.key,
+  );
+  const servedVerbs = verbs.map(verb => verb.useCase.key);
+  const unserved = declaredVerbs.filter(verb => !servedVerbs.includes(verb));
+  const strays = verbs.filter(
+    verb => verb.useCase.entity !== entityConstructor,
+  );
+  if (unserved.length > 0 || strays.length > 0)
+    throw new Error(
+      `the '${key}' endpoints ` +
+        [
+          ...(unserved.length > 0
+            ? [
+                `serve no endpoint for @useCase() ${unserved.map(v => `'${v}'`).join(', ')}`,
+              ]
+            : []),
+          ...(strays.length > 0
+            ? [
+                `serve ${strays.map(v => `'${v.useCase.key}'`).join(', ')}, declared on another entity`,
+              ]
+            : []),
+        ].join(', and ') +
+        '; a verb has exactly one endpoint, on its own entity.',
+    );
+
+  const linksFor = (allowed: ReadonlySet<string>): EntityApiLinks => ({
     record: id => {
       const href = `${base}/${String(id)}`;
       return [
@@ -339,6 +419,20 @@ export const entityApi = <
         ...(mounted.has('delete')
           ? [{ rel: 'delete', href, method: 'DELETE' } as const]
           : []),
+        ...verbs
+          .filter(
+            verb =>
+              verb.useCase.binding === 'entity' &&
+              allowed.has(verb.useCase.key),
+          )
+          .map(
+            verb =>
+              ({
+                rel: verb.useCase.key,
+                href: `${href}/${verb.useCase.key}`,
+                method: 'POST',
+              }) as const,
+          ),
       ];
     },
     collection: () => [
@@ -348,8 +442,21 @@ export const entityApi = <
       ...(mounted.has('create')
         ? [{ rel: 'create', href: base, method: 'POST' } as const]
         : []),
+      ...verbs
+        .filter(
+          verb =>
+            verb.useCase.binding !== 'entity' && allowed.has(verb.useCase.key),
+        )
+        .map(
+          verb =>
+            ({
+              rel: verb.useCase.key,
+              href: `${base}/${verb.useCase.key}`,
+              method: 'POST',
+            }) as const,
+        ),
     ],
-  };
+  });
 
   const guardFor = (verb: EntityApiVerb): EntityApiGuard => {
     const declared = options.override?.[verb]?.guard;
@@ -358,10 +465,48 @@ export const entityApi = <
     return 'kind' in guard ? guard : READS.has(verb) ? guard.read : guard.write;
   };
 
-  const context = Effect.map(
-    callerContext,
-    caller => ({ ...caller, links }) as EntityApiContext,
-  );
+  const verbGuard = (verb: VerbEndpoint<unknown>): EntityApiGuard =>
+    verb.guard ?? guardFor('create');
+
+  /**
+   * The verbs this caller would be let through: a public verb for anybody, a
+   * session verb for a principal the policy permits. A crossing verb is never
+   * linked — no browser holds the token that reaches it.
+   */
+  const allowedVerbs = (principal: RequestPrincipal | undefined) =>
+    Effect.gen(function* () {
+      const policy = yield* PolicyDecisionTag;
+      const allowed = new Set<string>();
+      for (const verb of verbs) {
+        const kind = verbGuard(verb).kind;
+        if (kind === 'public') allowed.add(verb.useCase.key);
+        else if (kind !== 'crossing' && principal !== undefined) {
+          const { resource, action } = parsePermission(
+            permissionForUseCase(entityConstructor, verb.useCase.key),
+          );
+          if (
+            policy.decide({
+              subject: { roles: principal.roles },
+              resource,
+              action,
+            })
+          )
+            allowed.add(verb.useCase.key);
+        }
+      }
+      return allowed;
+    });
+
+  const context = Effect.gen(function* () {
+    const caller = yield* callerContext;
+    // A public read verifies no session, but a signed-in caller reading it
+    // still sees the verbs they may run: the links read the session, if any,
+    // and never decide anything by it.
+    const principal =
+      caller.principal ?? Option.getOrUndefined(yield* resolveRequestPrincipal);
+    const allowed = yield* allowedVerbs(principal);
+    return { ...caller, links: linksFor(allowed) } as EntityApiContext;
+  });
 
   const repository = (caller: EntityApiContext) =>
     Effect.flatMap(EntityRepositoryFactoryTag, factory =>
@@ -395,7 +540,7 @@ export const entityApi = <
       return makeEntityPageEnvelope(
         entityConstructor,
         { items: [], total: 0, request: parsed },
-        links.collection(),
+        caller.links.collection(),
       );
     const request =
       narrowing === undefined || narrowing === 'unscoped'
@@ -408,7 +553,11 @@ export const entityApi = <
         request as unknown as EntityLoadRequest,
       ),
     );
-    return makeEntityPageEnvelope(entityConstructor, page, links.collection());
+    return makeEntityPageEnvelope(
+      entityConstructor,
+      page,
+      caller.links.collection(),
+    );
   });
 
   const get = (id: string) =>
@@ -431,13 +580,21 @@ export const entityApi = <
         );
         const [only] = page.items;
         if (only === undefined) return yield* Effect.fail(notFound);
-        return makeEntityEnvelope(entityConstructor, only, links.record(id));
+        return makeEntityEnvelope(
+          entityConstructor,
+          only,
+          caller.links.record(id),
+        );
       }
       const found = yield* getUCFactory<T>().pipe(
         Effect.provideService(EntityRepositoryTag, yield* repository(caller)),
         Effect.provideService(EntityIdTag, id),
       );
-      return makeEntityEnvelope(entityConstructor, found, links.record(id));
+      return makeEntityEnvelope(
+        entityConstructor,
+        found,
+        caller.links.record(id),
+      );
     });
 
   const save = (verb: 'create' | 'update', body: unknown, id?: string) =>
@@ -456,7 +613,7 @@ export const entityApi = <
       return makeEntityEnvelope(
         entityConstructor,
         saved,
-        links.record(saved.id),
+        caller.links.record(saved.id),
       );
     });
 
@@ -470,7 +627,7 @@ export const entityApi = <
       // An envelope rather than a bare `204`: every message between entifix
       // artifacts is one.
       return {
-        meta: { type: 'entity', entity: key, links: links.collection() },
+        meta: { type: 'entity', entity: key, links: caller.links.collection() },
         data: { id },
       };
     });
@@ -566,7 +723,7 @@ export const entityApi = <
     return makeEntityFacetsEnvelope(entityConstructor, counts);
   });
 
-  const verbEndpoint = (verb: EntityApiVerb): Implemented => {
+  const crudEndpoint = (verb: EntityApiVerb): Implemented => {
     const override = options.override?.[verb];
     const withId = verb !== 'list' && verb !== 'create';
     const takesBody = verb === 'create' || verb === 'update';
@@ -644,7 +801,35 @@ export const entityApi = <
           ),
         ]
       : []),
-    ...options.verbs.map(verbEndpoint),
+    ...options.verbs.map(crudEndpoint),
+    ...verbs.map(verb => {
+      const { useCase } = verb;
+      const payload =
+        useCase.payload ??
+        (useCase.binding === 'collection' ? SelectionBody : undefined);
+      const descriptor = defineEndpoint({
+        name: useCase.key,
+        method: 'POST',
+        path: verbPath(key, useCase.key, useCase.binding),
+        ...(useCase.binding === 'entity'
+          ? { params: { id: Schema.String } }
+          : {}),
+        ...(payload === undefined ? {} : { payload }),
+        success: useCase.success ?? JsonBody,
+        errors: [...(useCase.errors ?? [])],
+        guard: endpointGuardFor(verbGuard(verb), () =>
+          permissionForUseCase(entityConstructor, useCase.key),
+        ),
+        useCase: useCase.key,
+        ...(verb.idempotent === undefined
+          ? {}
+          : { idempotent: verb.idempotent }),
+      } as AnyEndpoint);
+      return implement(descriptor, ((request: EntityApiRequest) =>
+        Effect.flatMap(context, caller =>
+          verb.handler(request, caller),
+        )) as never) as Implemented;
+    }),
   ];
 
   return { name: key, endpoints } as never;

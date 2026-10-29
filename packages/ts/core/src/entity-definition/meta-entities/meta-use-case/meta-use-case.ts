@@ -1,3 +1,6 @@
+import type { Schema } from 'effect';
+
+import type { FailureClass } from '../../../failure/failure.js';
 import type { Entity, EntityConstructor } from '../../../types/Entity.js';
 
 /** What a use case acts on: one record, a selection, or nothing. */
@@ -85,6 +88,15 @@ export interface MetaUseCaseOptions<
   variants?: string;
   /** The recipe this verb starts a flow from, by name — the flow-backed verbs. */
   recipe?: string;
+  /**
+   * What the verb's endpoint takes, answers and refuses with — the contract
+   * the shell derives the endpoint from. Absent `payload` means the verb takes
+   * no body; absent `success` means its answer is not described. None of the
+   * three reaches a served `$metadata` document.
+   */
+  payload?: Schema.Top;
+  success?: Schema.Top;
+  errors?: readonly FailureClass[];
 }
 
 /**
@@ -111,6 +123,9 @@ export class MetaUseCase {
   readonly form?: string;
   readonly variants?: string;
   readonly recipe?: string;
+  readonly payload?: Schema.Top;
+  readonly success?: Schema.Top;
+  readonly errors?: readonly FailureClass[];
   //#endregion
 
   //#region Constructors
@@ -126,6 +141,9 @@ export class MetaUseCase {
     this.form = options.form;
     this.variants = options.variants;
     this.recipe = options.recipe;
+    this.payload = options.payload;
+    this.success = options.success;
+    this.errors = options.errors;
   }
   //#endregion
 

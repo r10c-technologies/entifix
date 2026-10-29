@@ -5,6 +5,7 @@ export * from './adapters/entity-rest/build-entity-rest-adapter-get/index.js';
 export * from './adapters/entity-rest/build-entity-rest-adapter-load/index.js';
 export * from './adapters/entity-rest/build-entity-rest-adapter-save/index.js';
 export * from './adapters/entity-rest/types.js';
+export * from './adapters/entity-use-case/index.js';
 export * from './adapters/transaction-status/build-transaction-status-reader/index.js';
 export * from './clients/fetch/index.js';
 export * from './clients/types.js';
