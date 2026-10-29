@@ -206,7 +206,11 @@ describe('decodeRequestEnvelope', () => {
   // A request that does not decode is the sender's fault: `400`, not `502`.
   it('fails with InvalidEnvelope, naming the label', () => {
     const failure = failureOf(
-      decodeRequestEnvelope({ meta: { type: 'entity' } }, 'entityPage', 'brand'),
+      decodeRequestEnvelope(
+        { meta: { type: 'entity' } },
+        'entityPage',
+        'brand',
+      ),
     );
 
     expect(failure._tag).toBe('InvalidEnvelope');
@@ -214,17 +218,17 @@ describe('decodeRequestEnvelope', () => {
   });
 
   it('defaults the label', () => {
-    expect(
-      failureOf(decodeRequestEnvelope({}, 'entity')).reason,
-    ).toContain('"message"');
+    expect(failureOf(decodeRequestEnvelope({}, 'entity')).reason).toContain(
+      '"message"',
+    );
   });
 });
 
 describe('encodeEnvelope', () => {
   it('refuses an event that needs an audience and names none', () => {
-    expect(
-      failureOf(encodeEvent(anEvent({ audience: [] }))).reason,
-    ).toContain('must name its audience');
+    expect(failureOf(encodeEvent(anEvent({ audience: [] }))).reason).toContain(
+      'must name its audience',
+    );
     expect(
       failureOf(encodeEvent(anEvent({ audience: undefined }))).reason,
     ).toContain('must name its audience');

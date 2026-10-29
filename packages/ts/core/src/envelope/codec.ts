@@ -76,8 +76,7 @@ export const Envelope = {
 
 const protocol = (reason: string) => new ProtocolFailure({ reason });
 
-const describe = (error: { readonly message: string }): string =>
-  error.message;
+const describe = (error: { readonly message: string }): string => error.message;
 
 /** The registration a frame names: its `meta.type`, or its event name. */
 const registrationFor = (meta: {
@@ -187,11 +186,7 @@ export const encodeEnvelope = <TData>(
     const registered = registrationFor(envelope.meta);
     if (typeof registered === 'string')
       return yield* Effect.fail(protocol(registered));
-    const unmet = checkRequirements(
-      registered,
-      envelope.meta.event,
-      'encode',
-    );
+    const unmet = checkRequirements(registered, envelope.meta.event, 'encode');
     if (unmet !== undefined) return yield* Effect.fail(protocol(unmet));
     const data = yield* Schema.encodeUnknownEffect(registered.schema)(
       envelope.data,
@@ -301,5 +296,3 @@ export const EntityChangeEnvelope = Schema.Struct({
   }),
   data: EntityChangeEventSchema,
 });
-
-

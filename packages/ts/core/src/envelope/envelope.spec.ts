@@ -174,9 +174,7 @@ describe('readEntityEnvelope', () => {
       _tag: 'InvalidEnvelope',
       category: 'invalid',
     });
-    expect(result.message).toContain(
-      "expected an envelope of type 'entity'",
-    );
+    expect(result.message).toContain("expected an envelope of type 'entity'");
     expect(result.message).toContain('entityCollection');
   });
 
