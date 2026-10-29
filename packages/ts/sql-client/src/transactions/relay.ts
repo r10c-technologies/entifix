@@ -1,8 +1,7 @@
-import { EventBusTag } from '@entifix/transactions';
+import { EventBusTag, OutboxMaxAttempts } from '@entifix/transactions';
 import {
   drainOutbox,
   ignoreRelayOutcome,
-  OutboxMaxAttempts,
   type OutboxStatsSink,
   type RelayOutcomeSink,
   runRelayDaemon,

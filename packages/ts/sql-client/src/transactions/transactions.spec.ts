@@ -5,11 +5,9 @@ import {
   type EventBus,
   EventBusTag,
   type OutboxEvent,
-} from '@entifix/transactions';
-import {
   OutboxMaxAttempts,
-  type RelayOutcome,
-} from '@entifix/transactions/engine';
+} from '@entifix/transactions';
+import type { RelayOutcome } from '@entifix/transactions/engine';
 import { Effect, Layer, Option } from 'effect';
 import { SqlClient } from 'effect/sql';
 import { describe, expect, it } from 'vitest';

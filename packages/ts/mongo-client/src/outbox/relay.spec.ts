@@ -11,11 +11,9 @@ import {
   type Outbox,
   type OutboxEntry,
   type OutboxEvent,
-} from '@entifix/transactions';
-import {
   OutboxMaxAttempts,
-  type RelayOutcome,
-} from '@entifix/transactions/engine';
+} from '@entifix/transactions';
+import type { RelayOutcome } from '@entifix/transactions/engine';
 import { Effect, Layer } from 'effect';
 import type { Db } from 'mongodb';
 import { describe, expect, it } from 'vitest';

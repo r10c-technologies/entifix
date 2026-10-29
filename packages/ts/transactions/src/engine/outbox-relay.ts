@@ -1,5 +1,5 @@
 import { ShutdownRegistryTag } from '@entifix/business';
-import { Context, Duration, Effect, Fiber, Result } from 'effect';
+import { Duration, Effect, Fiber, Result } from 'effect';
 
 import {
   aggregateKey,
@@ -67,25 +67,6 @@ export type RelayOutcomeSink = (outcome: RelayOutcome) => Effect.Effect<void>;
  * a host that passes no sink has a relay nobody can watch.
  */
 export const ignoreRelayOutcome: RelayOutcomeSink = () => Effect.void;
-
-/**
- * Publish attempts an outbox entry gets before it is quarantined, from
- * config-service.
- *
- * Configuration rather than a constant because it is a genuine operational
- * tunable: raising it while a flaky broker settles is a config edit, and the
- * next sweep reads the new value. That is the opposite of a subscription's
- * `maxAttempts`, which becomes an immutable queue argument and therefore stays
- * a literal beside its declaration.
- *
- * ⚠️ **Read it with `getNumber`, never a cast.** A value of `'five'` casts to
- * `NaN`, every `attempts >= maxAttempts` comparison goes false, and nothing is
- * ever quarantined — a relay that looks healthy while its head never moves.
- */
-export class OutboxMaxAttempts extends Context.Service<
-  OutboxMaxAttempts,
-  number
->()('OutboxMaxAttempts') {}
 
 /** What {@link drainOutbox} needs beyond the ports it publishes through. */
 export interface DrainOptions {

@@ -1,9 +1,12 @@
 import { type TenantDirectory, TenantDirectoryTag } from '@entifix/business';
-import { type EventBus, EventBusTag } from '@entifix/transactions';
+import {
+  type EventBus,
+  EventBusTag,
+  OutboxMaxAttempts,
+} from '@entifix/transactions';
 import {
   drainOutbox,
   ignoreRelayOutcome,
-  OutboxMaxAttempts,
   type OutboxStatsSink,
   type RelayOutcomeSink,
   runRelayDaemon,
