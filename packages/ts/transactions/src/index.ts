@@ -1,5 +1,7 @@
 export * from './contracts/command.js';
 export * from './contracts/event.js';
+export * from './contracts/flow-capability.js';
+export * from './contracts/flow-messages.js';
 export * from './contracts/inbox.js';
 export * from './contracts/messages.js';
 export * from './contracts/outbox.js';
@@ -9,6 +11,7 @@ export * from './contracts/unit-of-work.js';
 export * from './mixins/transaction-mixins.js';
 export * from './ports/event-bus.js';
 export * from './ports/event-source.js';
+export * from './ports/flow-engine.js';
 export * from './ports/lock-service.js';
 export * from './ports/retry-budget.js';
 export * from './ports/saga-dispatcher.js';
