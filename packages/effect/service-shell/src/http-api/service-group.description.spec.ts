@@ -1,11 +1,14 @@
 import { HealthRegistryTag, WiringRegistryTag } from '@entifix/business';
-import { Effect, Layer } from 'effect';
+import { defineEndpoint, implement } from '@entifix/core';
+import { Effect, Layer, Schema } from 'effect';
 import { HttpRouter, HttpServerResponse } from 'effect/http';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import type { SharedToken } from '../auth/shared-token.js';
+import { makeServerLayer } from '../make-service.js';
 import type { RunningTestService } from '../serve-test-service.js';
 import { serveTestService } from '../serve-test-service.js';
+import { endpointGroup } from './build-api.js';
 import type { ServiceDescription } from './service-group.js';
 import { OPENAPI_PATH, SERVICE_DESCRIPTION_PATH } from './service-group.js';
 
@@ -252,5 +255,58 @@ describe('the $service endpoint', () => {
       code: 'notFound',
       instance: '/nowhere/at/all',
     });
+  });
+});
+
+describe('a fleet-guarded endpoint', () => {
+  const fleetOnly = defineEndpoint({
+    name: 'lookup',
+    method: 'GET',
+    path: '/api/lookup',
+    success: Schema.String,
+    errors: [],
+    guard: { kind: 'fleet' },
+  });
+
+  it('refuses to build without a description to check its token against', () => {
+    expect(() =>
+      makeServerLayer({
+        name: SERVICE_NAME,
+        port: 0,
+        slices: SLICES,
+        endpoints: [
+          endpointGroup(
+            'lookups',
+            implement(fleetOnly, () => Effect.succeed('ok')),
+          ),
+        ],
+        appLayer: Layer.empty,
+      }),
+    ).toThrow(
+      "'wiring-test-service' serves GET /api/lookup behind the fleet token and names no `description` to check it against",
+    );
+  });
+
+  it('is served with the description as its token', async () => {
+    running = await serveTestService({
+      name: SERVICE_NAME,
+      port: 0,
+      slices: SLICES,
+      description: GUARD,
+      endpoints: [
+        endpointGroup(
+          'lookups',
+          implement(fleetOnly, () => Effect.succeed('ok')),
+        ),
+      ],
+      appLayer: Layer.empty,
+    });
+
+    const refused = await fetch(`${running.baseUrl}/api/lookup`);
+    const served = await fetch(`${running.baseUrl}/api/lookup`, {
+      headers: { [GUARD.header]: GUARD.token() },
+    });
+
+    expect([refused.status, served.status]).toEqual([401, 200]);
   });
 });

@@ -111,7 +111,9 @@ export interface ServiceDefinition<
    * read them share one apiece.
    */
   readonly appLayer: Layer.Layer<
-    RoutesRequirements<RRoutes> | ServedRequirements<Groups>,
+    | RoutesRequirements<RRoutes>
+    // The fleet token is `description`'s, provided here — never the host's.
+    | Exclude<ServedRequirements<Groups>, FleetTokenTag>,
     never,
     ServiceRegistries
   >;
@@ -142,6 +144,19 @@ export const makeServerLayer = <
   shutdown: ShutdownRegistry = makeShutdownRegistry().registry,
 ) => {
   const hosted = def.endpoints ?? [];
+  const fleetGuarded = hosted.flatMap(group =>
+    group.endpoints.filter(
+      ({ descriptor }) => descriptor.guard.kind === 'fleet',
+    ),
+  );
+  if (fleetGuarded.length > 0 && def.description === undefined)
+    throw new Error(
+      `'${def.name}' serves ${fleetGuarded
+        .map(({ descriptor }) => `${descriptor.method} ${descriptor.path}`)
+        .join(
+          ', ',
+        )} behind the fleet token and names no \`description\` to check it against`,
+    );
   const base = serviceGroup({
     service: def.name,
     slices: def.slices,
