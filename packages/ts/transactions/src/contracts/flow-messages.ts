@@ -1,11 +1,12 @@
 import {
   type AudienceEntry,
-  type DomainEvent,
   openStruct,
   registerEvent,
   registerMessage,
 } from '@entifix/core';
 import { Schema } from 'effect';
+
+import type { OutboxEvent } from './outbox.js';
 
 /** The four things a flow announces about itself. */
 export const FLOW_EVENTS = [
@@ -82,7 +83,7 @@ export interface FlowEventInput {
  */
 export const flowEvent = (
   input: FlowEventInput,
-): DomainEvent<FlowEventData> => ({
+): OutboxEvent<FlowEventData> => ({
   name: input.name,
   id: `${input.data.flowId}:${input.step}`,
   source: input.source,

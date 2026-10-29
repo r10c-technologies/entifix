@@ -27,6 +27,7 @@ const row = {
   state: 'waiting',
   step: 'await',
   waiting_for: 'await',
+  correlation: null,
 };
 
 describe('the SQL flow status store', () => {
@@ -55,6 +56,25 @@ describe('the SQL flow status store', () => {
     });
   });
 
+  it('finds a flow by what its wait is correlated with', async () => {
+    const { fake, sql } = fresh();
+    const store = makeSqlFlowStatusStore(sql);
+
+    fake.respondTo('WHERE correlation', [{ ...row, correlation: 'order-7' }]);
+    expect(await run(store.findByCorrelation('order-7'))).toEqual(
+      Option.some({
+        flowId: 'flow-1',
+        executionId: 'exec-1',
+        state: 'waiting',
+        step: 'await',
+        waitingFor: 'await',
+        correlation: 'order-7',
+      }),
+    );
+    fake.respondTo('WHERE correlation', []);
+    expect(Option.isNone(await run(store.findByCorrelation('order-8')))).toBe(true);
+  });
+
   it('finds a flow, or none', async () => {
     const { fake, sql } = fresh();
     const store = makeSqlFlowStatusStore(sql);
@@ -78,9 +98,19 @@ describe('the SQL flow status store', () => {
     );
     await run(store.update('flow-1', { state: 'completed' }));
 
+    await run(
+      store.update('flow-1', {
+        state: 'waiting',
+        step: 'await',
+        waitingFor: 'await',
+        correlation: 'order-7',
+      }),
+    );
+
     expect(fake.executions.map(({ params }) => params)).toEqual([
-      ['waiting', 'await', 'await', 'flow-1'],
-      ['completed', null, null, 'flow-1'],
+      ['waiting', 'await', 'await', null, 'flow-1'],
+      ['completed', null, null, null, 'flow-1'],
+      ['waiting', 'await', 'await', 'order-7', 'flow-1'],
     ]);
   });
 
@@ -93,6 +123,7 @@ describe('the SQL flow status store', () => {
       ensureFlowStatusTable(sql),
       store.register('k', { flowId: 'f', executionId: 'e', state: 'running' }),
       store.find('f'),
+      store.findByCorrelation('c'),
       store.update('f', { state: 'completed' }),
     ] as Effect.Effect<unknown, unknown>[])
       expect(await run(Effect.flip(operation))).toBeInstanceOf(Unavailable);
@@ -117,11 +148,11 @@ describe('the SQL flow status store', () => {
 describe('the durable engine layers', () => {
   it('compose for one runner and for one of several', () => {
     expect(
-      Layer.isLayer(SingleRunnerFlowEngineLayer(flowEngineContractCatalog)),
+      Layer.isLayer(SingleRunnerFlowEngineLayer({ catalog: flowEngineContractCatalog, source: 'spec' })),
     ).toBe(true);
     expect(
       Layer.isLayer(
-        SocketRunnerFlowEngineLayer(flowEngineContractCatalog, {
+        SocketRunnerFlowEngineLayer({ catalog: flowEngineContractCatalog, source: 'spec' }, {
           host: 'localhost',
           port: 34103,
         }),

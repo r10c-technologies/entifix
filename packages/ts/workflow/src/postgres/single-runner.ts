@@ -1,8 +1,8 @@
-import type { FragmentCatalog } from '@entifix/business/flow';
 import { Layer } from 'effect';
 import { ClusterWorkflowEngine, SingleRunner } from 'effect/cluster';
 
 import { FlowEngineLayer } from '../engine/make-flow-engine.js';
+import type { InterpreterOptions } from '../interpreter/slip-workflow.js';
 import { SqlFlowStatusStoreLayer } from './sql-flow-status-store.js';
 
 /**
@@ -10,8 +10,8 @@ import { SqlFlowStatusStoreLayer } from './sql-flow-status-store.js';
  * in the host's SQL database — for a deployment of one replica, and for specs.
  * Needs the host's `SqlClient` and `Crypto` and a participant client.
  */
-export const SingleRunnerFlowEngineLayer = (catalog: FragmentCatalog) =>
-  FlowEngineLayer(catalog).pipe(
+export const SingleRunnerFlowEngineLayer = (options: InterpreterOptions) =>
+  FlowEngineLayer(options).pipe(
     Layer.provide(SqlFlowStatusStoreLayer),
     Layer.provide(
       ClusterWorkflowEngine.layer.pipe(

@@ -1,4 +1,3 @@
-import type { FragmentCatalog } from '@entifix/business/flow';
 import {
   type FlowEngine,
   FlowEngineTag,
@@ -9,10 +8,12 @@ import { Context, Effect, Layer, Option } from 'effect';
 import { DurableDeferred, WorkflowEngine } from 'effect/workflow';
 
 import {
+  type InterpreterOptions,
   SlipWorkflow,
   SlipWorkflowLayer,
   waitFor,
 } from '../interpreter/slip-workflow.js';
+import type { FlowRecord } from '../status/flow-status-store.js';
 import { FlowStatusStoreTag } from '../status/flow-status-store.js';
 
 /**
@@ -40,6 +41,28 @@ export const makeFlowEngine = Effect.gen(function* () {
       }),
     );
 
+  /** Completes the wait `record` is parked on, if `token` names it. */
+  const complete = (token: string, outcome: unknown) => (record: FlowRecord) =>
+    Effect.gen(function* () {
+      if (record.state !== 'waiting' || record.waitingFor !== token)
+        return yield* Effect.fail(
+          new FlowSignalRejected({ flowId: record.flowId, token }),
+        );
+      const deferred = waitFor(token);
+      yield* within(
+        DurableDeferred.succeed(deferred, {
+          token: DurableDeferred.tokenFromExecutionId(deferred, {
+            workflow: SlipWorkflow,
+            executionId: record.executionId,
+          }),
+          value: outcome,
+        }),
+      );
+      // Recorded here as well as by the flow, so a second signal racing the
+      // resume is refused rather than completing the wait twice.
+      yield* store.update(record.flowId, { state: 'running', step: token });
+    });
+
   const engine: FlowEngine = {
     start: (slip, idempotencyKey) =>
       Effect.gen(function* () {
@@ -63,23 +86,14 @@ export const makeFlowEngine = Effect.gen(function* () {
       })),
 
     signal: (flowId, token, outcome) =>
+      Effect.flatMap(known(flowId), complete(token, outcome)),
+
+    signalCorrelated: (correlation, token, outcome) =>
       Effect.gen(function* () {
-        const record = yield* known(flowId);
-        if (record.state !== 'waiting' || record.waitingFor !== token)
-          return yield* Effect.fail(new FlowSignalRejected({ flowId, token }));
-        const deferred = waitFor(token);
-        yield* within(
-          DurableDeferred.succeed(deferred, {
-            token: DurableDeferred.tokenFromExecutionId(deferred, {
-              workflow: SlipWorkflow,
-              executionId: record.executionId,
-            }),
-            value: outcome,
-          }),
-        );
-        // Recorded here as well as by the flow, so a second signal racing the
-        // resume is refused rather than completing the wait twice.
-        yield* store.update(flowId, { state: 'running', step: token });
+        const found = yield* store.findByCorrelation(correlation);
+        if (Option.isNone(found))
+          return yield* Effect.fail(new FlowNotFound({ flowId: correlation }));
+        return yield* complete(token, outcome)(found.value);
       }),
 
     interrupt: flowId =>
@@ -96,11 +110,13 @@ export const makeFlowEngine = Effect.gen(function* () {
 });
 
 /**
- * The flow engine with the interpreter registered over `catalog`. Needs a
- * workflow engine — the in-memory one, or the cluster engine over Postgres
- * from `@entifix/workflow/postgres` — a status store and a participant client.
+ * The flow engine with the interpreter registered. Needs a workflow engine —
+ * the in-memory one, or the cluster engine over Postgres from
+ * `@entifix/workflow/postgres` — a status store, a participant client, the
+ * outbox its events go through, and the breaker, bulkhead and retry budget
+ * every call runs under.
  */
-export const FlowEngineLayer = (catalog: FragmentCatalog) =>
+export const FlowEngineLayer = (options: InterpreterOptions) =>
   Layer.effect(FlowEngineTag, makeFlowEngine).pipe(
-    Layer.provideMerge(SlipWorkflowLayer(catalog)),
+    Layer.provideMerge(SlipWorkflowLayer(options)),
   );

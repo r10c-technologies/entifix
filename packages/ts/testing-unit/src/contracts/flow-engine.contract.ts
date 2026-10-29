@@ -166,6 +166,32 @@ export const describeFlowEngineContract = (
       expect(late._tag).toBe('FlowSignalRejected');
     });
 
+    it('completes a wait by what it is correlated with', async () => {
+      const engine = await make(flowEngineContractCatalog, succeeding);
+      const slip = slipOf('flow-1', [take, wait, settle]);
+      const correlated: Slip = {
+        ...slip,
+        stages: slip.stages.map(stage => ({
+          ...stage,
+          steps: stage.steps.map(step =>
+            step.step === 'await'
+              ? { ...step, parameters: { correlation: 'order-7' } }
+              : step,
+          ),
+        })),
+      };
+      await run(engine.start(correlated, 'k'));
+      expect(await state(engine, 'flow-1')).toBe('waiting');
+
+      const stranger = await run(
+        Effect.flip(engine.signalCorrelated('order-8', 'await', {})),
+      );
+      expect(stranger._tag).toBe('FlowNotFound');
+
+      await run(engine.signalCorrelated('order-7', 'await', { delivered: true }));
+      expect(await state(engine, 'flow-1')).toBe('completed');
+    });
+
     it('interrupts a waiting flow', async () => {
       const engine = await make(flowEngineContractCatalog, succeeding);
       await run(engine.start(slipOf('flow-1', [take, wait]), 'k'));
@@ -182,6 +208,7 @@ export const describeFlowEngineContract = (
       for (const effect of [
         engine.status('nope'),
         engine.signal('nope', 'await', {}),
+        engine.signalCorrelated('nope', 'await', {}),
         engine.interrupt('nope'),
       ])
         expect((await run(Effect.flip(effect)))._tag).toBe('FlowNotFound');

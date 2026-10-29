@@ -141,4 +141,39 @@ describe('makeFakeFlowEngine', () => {
 
     expect(engine.compensations).toEqual([]);
   });
+
+  it('finds no flow by a correlation its wait does not carry', async () => {
+    const engine = makeFakeFlowEngine(flowEngineContractCatalog, () =>
+      Effect.succeed({}),
+    );
+    await Effect.runPromise(
+      engine.start(
+        {
+          ...slip,
+          stages: [
+            {
+              name: 'main',
+              steps: [
+                {
+                  ref: 'contract.await@1',
+                  step: 'await',
+                  cardinality: 'one' as const,
+                },
+              ],
+            },
+          ],
+        },
+        'k',
+      ),
+    );
+
+    // A finished flow beside it is no candidate either.
+    await Effect.runPromise(engine.start({ ...slip, flowId: 'flow-2' }, 'k2'));
+
+    const missing = await Effect.runPromise(
+      Effect.flip(engine.signalCorrelated('order-1', 'await', {})),
+    );
+
+    expect(missing._tag).toBe('FlowNotFound');
+  });
 });

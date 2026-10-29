@@ -1,9 +1,22 @@
 import { NodeCrypto } from '@effect/platform-node';
 import { PgClient } from '@effect/sql-pg';
 import type { FragmentCatalog } from '@entifix/business/flow';
+import {
+  ensureSqlTransactionTables,
+  makeSqlOutbox,
+} from '@entifix/sql/transactions';
 import type { FakeParticipant } from '@entifix/testing-unit';
 import { describeFlowEngineContract } from '@entifix/testing-unit/contracts';
-import { FlowEngineTag, ParticipantClientTag } from '@entifix/transactions';
+import {
+  FlowEngineTag,
+  OutboxTag,
+  ParticipantClientTag,
+} from '@entifix/transactions';
+import {
+  InMemoryBulkheadLayer,
+  InMemoryCircuitBreakerLayer,
+  InMemoryRetryBudgetLayer,
+} from '@entifix/transactions/engine';
 import { Effect, Layer, ManagedRuntime, Redacted } from 'effect';
 import { SqlClient } from 'effect/sql';
 import { afterAll } from 'vitest';
@@ -53,17 +66,32 @@ const freshDatabase = async () => {
 describeFlowEngineContract(
   'the cluster engine on one runner over Postgres',
   async (catalog: FragmentCatalog, participant: FakeParticipant) => {
+    const database = PgClient.layer({
+      url: Redacted.make(await freshDatabase()),
+    }) as Layer.Layer<SqlClient.SqlClient>;
+    // Its announcements land in the outbox beside the journal, as a host's do.
+    const outbox = Layer.effect(
+      OutboxTag,
+      Effect.gen(function* () {
+        const sql = yield* SqlClient.SqlClient;
+        yield* ensureSqlTransactionTables(sql);
+        return makeSqlOutbox(sql);
+      }),
+    );
     const runtime = ManagedRuntime.make(
-      SingleRunnerFlowEngineLayer(catalog).pipe(
+      SingleRunnerFlowEngineLayer({ catalog, source: 'integration' }).pipe(
         Layer.provide(
           Layer.mergeAll(
-            PgClient.layer({ url: Redacted.make(await freshDatabase()) }),
+            outbox,
             NodeCrypto.layer,
+            InMemoryCircuitBreakerLayer({ dials: { minimumCalls: 100 } }),
+            InMemoryBulkheadLayer(),
+            InMemoryRetryBudgetLayer(),
             Layer.succeed(ParticipantClientTag, {
               call: ({ step, kind }) =>
                 kind === 'action' ? participant(step) : Effect.void,
             }),
-          ),
+          ).pipe(Layer.provideMerge(database)),
         ),
       ) as Layer.Layer<FlowEngineTag>,
     );

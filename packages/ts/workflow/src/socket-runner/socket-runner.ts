@@ -1,9 +1,9 @@
 import { NodeClusterSocket } from '@effect/platform-node';
-import type { FragmentCatalog } from '@entifix/business/flow';
 import { Layer, Option } from 'effect';
 import { ClusterWorkflowEngine, RunnerAddress } from 'effect/cluster';
 
 import { FlowEngineLayer } from '../engine/make-flow-engine.js';
+import type { InterpreterOptions } from '../interpreter/slip-workflow.js';
 import { SqlFlowStatusStoreLayer } from '../postgres/sql-flow-status-store.js';
 
 export interface SocketRunnerOptions {
@@ -20,10 +20,10 @@ export interface SocketRunnerOptions {
  * replica runs this with its own port.
  */
 export const SocketRunnerFlowEngineLayer = (
-  catalog: FragmentCatalog,
+  options: InterpreterOptions,
   runner: SocketRunnerOptions,
 ) =>
-  FlowEngineLayer(catalog).pipe(
+  FlowEngineLayer(options).pipe(
     Layer.provide(SqlFlowStatusStoreLayer),
     Layer.provide(
       ClusterWorkflowEngine.layer.pipe(

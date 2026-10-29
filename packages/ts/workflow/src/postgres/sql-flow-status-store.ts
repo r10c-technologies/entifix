@@ -17,6 +17,7 @@ type FlowStatusRow = {
   readonly state: FlowState;
   readonly step: string | null;
   readonly waiting_for: string | null;
+  readonly correlation: string | null;
 };
 
 const recordOf = (row: FlowStatusRow): FlowRecord => ({
@@ -25,6 +26,7 @@ const recordOf = (row: FlowStatusRow): FlowRecord => ({
   state: row.state,
   ...(row.step === null ? {} : { step: row.step }),
   ...(row.waiting_for === null ? {} : { waitingFor: row.waiting_for }),
+  ...(row.correlation === null ? {} : { correlation: row.correlation }),
 });
 
 const fault = (error: unknown) => translateSqlError(error);
@@ -38,7 +40,8 @@ export const ensureFlowStatusTable = (sql: SqlClient.SqlClient) =>
       execution_id text NOT NULL,
       state text NOT NULL,
       step text,
-      waiting_for text
+      waiting_for text,
+      correlation text
     )`.pipe(Effect.asVoid, Effect.mapError(fault));
 
 /**
@@ -74,11 +77,22 @@ export const makeSqlFlowStatusStore = (
       Effect.mapError(fault),
     ),
 
+  findByCorrelation: correlation =>
+    sql<FlowStatusRow>`
+      SELECT * FROM entifix_flow_status
+      WHERE correlation = ${correlation}`.pipe(
+      Effect.map(([row]) =>
+        row === undefined ? Option.none() : Option.some(recordOf(row)),
+      ),
+      Effect.mapError(fault),
+    ),
+
   update: (flowId, patch) =>
     sql`
       UPDATE entifix_flow_status
       SET state = ${patch.state}, step = ${patch.step ?? null},
-          waiting_for = ${patch.waitingFor ?? null}
+          waiting_for = ${patch.waitingFor ?? null},
+          correlation = ${patch.correlation ?? null}
       WHERE flow_id = ${flowId}`.pipe(Effect.asVoid, Effect.mapError(fault)),
 });
 

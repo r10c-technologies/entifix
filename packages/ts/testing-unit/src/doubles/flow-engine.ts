@@ -120,6 +120,25 @@ export const makeFakeFlowEngine = (
       announce(run, 'flow.completed', 'completed');
     });
 
+  /** What a parked run's wait is correlated with, per its step's parameters. */
+  const correlationOf = (run: Run) => {
+    if (run.state !== 'waiting') return undefined;
+    // A waiting run is parked on the step at `next`.
+    const { parameters } = slipSteps(run.slip)[run.next] as SlipStep;
+    const correlation = parameters?.['correlation'];
+    return typeof correlation === 'string' ? correlation : undefined;
+  };
+
+  const signal = (token: string) => (run: Run) => {
+    if (run.state !== 'waiting' || run.step !== token)
+      return Effect.fail(
+        new FlowSignalRejected({ flowId: run.slip.flowId, token }),
+      );
+    run.state = 'running';
+    run.next += 1;
+    return walk(run);
+  };
+
   const find = (flowId: string) => {
     const run = runs.get(flowId);
     return run === undefined
@@ -147,14 +166,16 @@ export const makeFakeFlowEngine = (
         state: run.state,
         ...(run.step === undefined ? {} : { step: run.step }),
       })),
-    signal: (flowId, token) =>
-      Effect.flatMap(find(flowId), run => {
-        if (run.state !== 'waiting' || run.step !== token)
-          return Effect.fail(new FlowSignalRejected({ flowId, token }));
-        run.state = 'running';
-        run.next += 1;
-        return walk(run);
-      }),
+    signal: (flowId, token) => Effect.flatMap(find(flowId), signal(token)),
+    signalCorrelated: (correlation, token) =>
+      Effect.flatMap(
+        find(
+          [...runs.entries()].find(
+            ([, run]) => correlationOf(run) === correlation,
+          )?.[0] ?? correlation,
+        ),
+        signal(token),
+      ),
     interrupt: flowId =>
       Effect.map(find(flowId), run => {
         if (run.state === 'running' || run.state === 'waiting')

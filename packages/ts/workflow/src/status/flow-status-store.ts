@@ -18,6 +18,8 @@ export interface FlowRecord {
   readonly step?: string;
   /** The step whose signal the flow waits for, while `state` is `waiting`. */
   readonly waitingFor?: string;
+  /** What that wait is correlated with — the order a delivery flow follows. */
+  readonly correlation?: string;
 }
 
 /** A change to a flow's record: its new state, and where it now stands. */
@@ -25,6 +27,7 @@ export interface FlowRecordPatch {
   readonly state: FlowState;
   readonly step?: string;
   readonly waitingFor?: string;
+  readonly correlation?: string;
 }
 
 export interface FlowStatusStore {
@@ -39,6 +42,10 @@ export interface FlowStatusStore {
   ) => Effect.Effect<FlowRecord, StoreFailure>;
   readonly find: (
     flowId: string,
+  ) => Effect.Effect<Option.Option<FlowRecord>, StoreFailure>;
+  /** The flow parked on a wait correlated with `correlation`, if one is. */
+  readonly findByCorrelation: (
+    correlation: string,
   ) => Effect.Effect<Option.Option<FlowRecord>, StoreFailure>;
   readonly update: (
     flowId: string,
@@ -69,6 +76,14 @@ export const makeInMemoryFlowStatusStore = (): FlowStatusStore => {
       }),
     find: flowId =>
       Effect.sync(() => Option.fromNullishOr(records.get(flowId))),
+    findByCorrelation: correlation =>
+      Effect.sync(() =>
+        Option.fromNullishOr(
+          [...records.values()].find(
+            record => record.correlation === correlation,
+          ),
+        ),
+      ),
     update: (flowId, patch) =>
       Effect.sync(() => {
         const current = records.get(flowId);
@@ -81,6 +96,9 @@ export const makeInMemoryFlowStatusStore = (): FlowStatusStore => {
           ...(patch.waitingFor === undefined
             ? {}
             : { waitingFor: patch.waitingFor }),
+          ...(patch.correlation === undefined
+            ? {}
+            : { correlation: patch.correlation }),
         });
       }),
   };
