@@ -9,6 +9,8 @@ export * from './contracts/record.js';
 export * from './contracts/saga-definition.js';
 export * from './contracts/unit-of-work.js';
 export * from './mixins/transaction-mixins.js';
+export * from './ports/bulkhead.js';
+export * from './ports/circuit-breaker.js';
 export * from './ports/event-bus.js';
 export * from './ports/event-source.js';
 export * from './ports/flow-engine.js';

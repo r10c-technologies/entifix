@@ -784,6 +784,21 @@ interface FakeChannel {
 }
 
 describe('makeFakeAmqpChannel', () => {
+  it('runs its close listeners once, on close, and ignores other events', () => {
+    const fake = makeFakeAmqpChannel();
+    const channel = fake.channel as {
+      once: (event: string, listener: () => void) => unknown;
+    };
+    const heard: string[] = [];
+    channel.once('close', () => heard.push('close'));
+    channel.once('error', () => heard.push('error'));
+
+    fake.close();
+    fake.close();
+
+    expect(heard).toEqual(['close']);
+  });
+
   const channelOf = (fake: ReturnType<typeof makeFakeAmqpChannel>) =>
     fake.channel as FakeChannel;
 

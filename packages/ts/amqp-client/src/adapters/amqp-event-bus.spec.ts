@@ -9,6 +9,7 @@ import { Invalid, ProtocolFailure, Unavailable } from '@entifix/core';
 import { describeEventBusContract } from '@entifix/testing-unit/contracts';
 import { makeFakeAmqpChannel } from '@entifix/testing-unit/drivers';
 import { EventBusTag, type Subscription } from '@entifix/transactions';
+import { makeInMemoryCircuitBreaker } from '@entifix/transactions/engine';
 import type { Channel } from 'amqplib';
 import { Duration, Effect, Exit, Layer, Metric } from 'effect';
 import { describe, expect, it } from 'vitest';
@@ -38,7 +39,10 @@ import { busEventsQuarantined } from './bus-metrics.js';
 const connectorFor = (channel: Channel): AmqpConnector => ({
   withChannel: use => use(channel),
   addConsumer: async setup => {
-    await setup(channel);
+    await setup(channel, {
+      replaceTags: () => undefined,
+      cancelled: () => false,
+    });
   },
   cancelConsumers: async () => undefined,
 });
@@ -823,7 +827,10 @@ describe('AmqpEventBusLayer', () => {
     const connector: AmqpConnector = {
       withChannel: use => use(fake.channel as Channel),
       addConsumer: async setup => {
-        await setup(fake.channel as Channel);
+        await setup(fake.channel as Channel, {
+          replaceTags: () => undefined,
+          cancelled: () => false,
+        });
       },
       cancelConsumers: async () => {
         cancelled += 1;
@@ -850,5 +857,128 @@ describe('AmqpEventBusLayer', () => {
     );
 
     expect(cancelled).toBe(1);
+  });
+});
+
+describe('a subscription that pauses while a breaker is open', () => {
+  const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+  const pausable = (cancelled = () => false) => {
+    const fake = makeFakeAmqpChannel();
+    const breaker = makeInMemoryCircuitBreaker({ dials: { minimumCalls: 1 } });
+    const held: (readonly string[])[] = [];
+    const connector: AmqpConnector = {
+      withChannel: use => use(fake.channel as Channel),
+      addConsumer: async setup => {
+        await setup(fake.channel as Channel, {
+          replaceTags: tags => held.push(tags),
+          cancelled,
+        });
+      },
+      cancelConsumers: async () => undefined,
+    };
+    const { bus } = makeAmqpEventBus(connector, recordingWiring().registry, {
+      breaker,
+      pausePoll: Duration.millis(5),
+    });
+    return { fake, breaker, held, bus };
+  };
+
+  it('stops consuming while the breaker is open, and consumes again once it is not', async () => {
+    const { fake, breaker, held, bus } = pausable();
+    const handled: string[] = [];
+    await Effect.runPromise(
+      bus.subscribe({ ...WORK, pauseWhileOpen: ['stock'] }, event =>
+        Effect.sync(() => {
+          handled.push(event.id);
+        }),
+      ),
+    );
+
+    await Effect.runPromise(breaker.force('stock', 'forcedOpen'));
+    await sleep(25);
+    expect(fake.cancelled).toEqual(['fake-consumer-1']);
+    expect(held.at(-1)).toEqual([]);
+
+    await Effect.runPromise(breaker.force('stock', 'closed'));
+    await sleep(25);
+    expect(held.at(-1)).toEqual(['fake-consumer-2']);
+    await fake.deliver(anEnvelope(anEvent('tx-9:accepted')));
+    expect(handled).toEqual(['tx-9:accepted']);
+    fake.close();
+  });
+
+  it('does not resume into a shutdown that stopped intake', async () => {
+    let stopped = false;
+    const { fake, breaker, held, bus } = pausable(() => stopped);
+    await Effect.runPromise(
+      bus.subscribe({ ...WORK, pauseWhileOpen: ['stock'] }, () => Effect.void),
+    );
+
+    await Effect.runPromise(breaker.force('stock', 'forcedOpen'));
+    await sleep(25);
+    stopped = true;
+    await Effect.runPromise(breaker.force('stock', 'closed'));
+    await sleep(25);
+
+    expect(held).toEqual([[]]);
+    fake.close();
+  });
+
+  it('puts back a delivery an open breaker refused, without counting an attempt', async () => {
+    const { fake, breaker, bus } = pausable();
+    await Effect.runPromise(breaker.force('stock', 'forcedOpen'));
+    await Effect.runPromise(
+      bus.subscribe({ ...WORK, pauseWhileOpen: ['stock'] }, () =>
+        breaker.guard('stock')(Effect.void),
+      ),
+    );
+
+    await fake.deliver(anEnvelope(anEvent()), undefined, {
+      [ATTEMPTS_HEADER]: 2,
+    });
+
+    const republished = fake.published.find(
+      entry => entry.exchange === '' && entry.routingKey === WORK_QUEUE,
+    );
+    expect(republished?.headers?.[ATTEMPTS_HEADER]).toBe(2);
+    expect(fake.published.some(entry => entry.exchange === EVENTS_DLX)).toBe(
+      false,
+    );
+    expect(fake.acked).toHaveLength(1);
+    fake.close();
+  });
+
+  it('requeues through the broker when the copy cannot be put back', async () => {
+    const { fake, breaker, bus } = pausable();
+    await Effect.runPromise(breaker.force('stock', 'forcedOpen'));
+    await Effect.runPromise(
+      bus.subscribe({ ...WORK, pauseWhileOpen: ['stock'] }, () =>
+        Effect.suspend(() => {
+          fake.failWith(new Error('channel closed'));
+          return breaker.guard('stock')(Effect.void);
+        }),
+      ),
+    );
+
+    await fake.deliver(anEnvelope(anEvent()));
+
+    expect(fake.nacked).toEqual([
+      { message: expect.anything(), allUpTo: false, requeue: true },
+    ]);
+    fake.close();
+  });
+
+  it('stops watching once its channel closes', async () => {
+    const { fake, breaker, bus } = pausable();
+    await Effect.runPromise(
+      bus.subscribe({ ...WORK, pauseWhileOpen: ['stock'] }, () => Effect.void),
+    );
+
+    fake.close();
+    await Effect.runPromise(breaker.force('stock', 'forcedOpen'));
+    await sleep(25);
+
+    expect(fake.cancelled).toEqual([]);
   });
 });

@@ -1,3 +1,4 @@
+export * from './breaker.contract.js';
 export * from './entity-facet-counter.contract.js';
 export * from './entity-repository.contract.js';
 export * from './failure.contract.js';
