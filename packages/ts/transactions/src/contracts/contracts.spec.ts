@@ -175,6 +175,8 @@ describe('event builders', () => {
       id: `${TX}:accepted`,
       source: SOURCE,
       correlationId: TX,
+      aggregate: { type: 'transaction', id: TX },
+      version: 0,
       at: AT,
       data: {
         transactionId: TX,
@@ -198,6 +200,8 @@ describe('event builders', () => {
       id: `${TX}:completed`,
       source: SOURCE,
       correlationId: TX,
+      aggregate: { type: 'transaction', id: TX },
+      version: 1,
       at: AT,
       data: {
         transactionId: TX,

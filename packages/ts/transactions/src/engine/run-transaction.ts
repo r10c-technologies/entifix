@@ -1,7 +1,7 @@
 import { Effect } from 'effect';
 
 import { acceptedEvent, failedEvent } from '../contracts/event.js';
-import { TransactionOutboxTag } from '../contracts/outbox.js';
+import { OutboxTag } from '../contracts/outbox.js';
 import {
   CommandTag,
   LockHandlesTag,
@@ -28,7 +28,7 @@ import {
  *   locks never leak on a rollback path.
  *
  * **The engine never publishes.** Every event it produces goes to the
- * {@link TransactionOutbox}, and a relay carries the outbox to the broker. That
+ * {@link Outbox}, and a relay carries the outbox to the broker. That
  * is the whole fix for the dual write: an event that only ever existed in a
  * `bus.publish` call between two Mongo writes is lost when the broker is down,
  * and the transaction is then mislabelled `STALE` despite having succeeded.
@@ -47,7 +47,7 @@ import {
 export function acceptTransaction() {
   return Effect.gen(function* () {
     const command = yield* CommandTag;
-    const outbox = yield* TransactionOutboxTag;
+    const outbox = yield* OutboxTag;
     const source = yield* EventSourceTag;
 
     yield* validateUCFactory();
@@ -83,7 +83,7 @@ export type AcceptOutcome = Effect.Success<
 export function completeTransaction(handles: readonly LockHandle[]) {
   return Effect.gen(function* () {
     const command = yield* CommandTag;
-    const outbox = yield* TransactionOutboxTag;
+    const outbox = yield* OutboxTag;
     const source = yield* EventSourceTag;
 
     const free = freeUCFactory().pipe(

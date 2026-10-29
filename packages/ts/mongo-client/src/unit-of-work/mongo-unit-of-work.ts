@@ -1,11 +1,11 @@
 import {
   Contention,
-  type DomainEvent,
   isFailure,
   isStoreFault,
   type StoreFault,
 } from '@entifix/core';
 import type {
+  OutboxEvent,
   UnitClaim,
   UnitOfWork,
   UnitOutcome,
@@ -191,7 +191,7 @@ export const makeMongoUnitsOfWork = (client: MongoSessionSource) => {
     const attempt = <A, E, R>(
       body: (unit: {
         readonly handle: MongoUnit;
-        emit(event: DomainEvent): void;
+        emit(event: OutboxEvent): void;
       }) => Effect.Effect<A, E, R>,
       options: UnitRunOptions<A, R> | undefined,
     ) =>
@@ -213,7 +213,7 @@ export const makeMongoUnitsOfWork = (client: MongoSessionSource) => {
                 return { kind: 'duplicate' } as Decision<A>;
               }
 
-              const emitted: DomainEvent[] = [];
+              const emitted: OutboxEvent[] = [];
               const value = yield* body({
                 handle: { db, session },
                 emit: event => void emitted.push(event),

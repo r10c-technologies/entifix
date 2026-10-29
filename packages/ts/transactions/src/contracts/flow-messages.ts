@@ -88,6 +88,7 @@ export const flowEvent = (
   source: input.source,
   at: input.at,
   correlationId: input.data.flowId,
+  aggregate: { type: 'flow', id: input.data.flowId },
   version: input.ordinal,
   audience: input.audience,
   data: input.data,

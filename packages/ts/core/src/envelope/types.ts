@@ -72,6 +72,12 @@ export interface EntifixEventMeta {
   /** Ties every message of one flow together — a transaction id, a flow id. */
   correlationId?: string;
   /**
+   * The aggregate this message is about — the unit its `version` counts, and
+   * the unit an outbox keeps order within. A consumer discards a message older
+   * than the last version it applied **for this aggregate**.
+   */
+  aggregate?: AggregateRef;
+  /**
    * The version of the aggregate this message describes. Required on a
    * message registered `versioned`, and what a consumer orders on: one that
    * already applied version `n` discards a late `n - 1` instead of letting it
@@ -84,6 +90,12 @@ export interface EntifixEventMeta {
    * message leaks nothing.
    */
   audience?: readonly AudienceEntry[];
+}
+
+/** Names one aggregate: its type and its id, `{ type: 'product-order', id }`. */
+export interface AggregateRef {
+  type: string;
+  id: string;
 }
 
 /**

@@ -34,6 +34,7 @@ const anEvent = (
   source: 'catalog',
   at: '2026-01-01T00:00:00.000Z',
   correlationId: 'tx-1',
+  aggregate: { type: 'offering', id: 'o-1' },
   version: 3,
   audience: [{ kind: 'organization', id: 'org-1' }],
   data: { sku: 'W-1', price: 10 },

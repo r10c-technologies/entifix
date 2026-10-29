@@ -4,10 +4,11 @@ import {
   TenantDirectoryTag,
 } from '@entifix/business';
 import {
+  aggregateKey,
   type EventBus,
   EventBusTag,
+  type Outbox,
   type OutboxStats,
-  type TransactionOutbox,
 } from '@entifix/transactions';
 import { Context, Duration, Effect, Fiber, Result } from 'effect';
 import type { Db } from 'mongodb';
@@ -104,27 +105,32 @@ export interface DrainOptions {
 }
 
 /**
- * Publish one batch of pending entries, oldest first, and answer how many went.
+ * Publish one batch of pending entries, oldest first, **in order within each
+ * aggregate** ([ADR 0018](../../../../../docs/adr/0018-one-outbox-ordered-per-aggregate.md)),
+ * and answer how many went.
  *
- * Two orderings are load-bearing here and neither is obvious:
- *
- * - A **still-deliverable** failure returns immediately rather than continuing.
- *   The entries behind this one keep their order relative to it, which is what
- *   stops a terminal event overtaking the `accepted` for the same transaction.
- * - A **quarantined** failure continues. That is the deliberate
- *   skip-so-the-head-moves: an entry that can never publish must stop blocking
- *   every entry behind it forever.
+ * - A **still-deliverable** failure holds back the rest of its own aggregate
+ *   for this pass, which is what stops a terminal event overtaking the
+ *   `accepted` of the same transaction — and only its own: every other
+ *   aggregate keeps draining.
+ * - A **quarantined** failure moves on. An entry that can never publish must
+ *   not hold its aggregate forever, and a consumer discards whatever older
+ *   version arrives after a newer one anyway.
  */
 export const drainOutbox = (
-  outbox: TransactionOutbox,
+  outbox: Outbox,
   bus: EventBus,
   options: DrainOptions,
 ) =>
   Effect.gen(function* () {
     const entries = yield* outbox.pending(BATCH);
+    const held = new Set<string>();
     let sent = 0;
     const report = options.onOutcome ?? ignoreRelayOutcome;
     for (const entry of entries) {
+      const key = aggregateKey(entry.aggregate);
+      if (held.has(key)) continue;
+
       const outcome = yield* Effect.result(bus.publish(entry.event));
 
       if (Result.isFailure(outcome)) {
@@ -138,11 +144,11 @@ export const drainOutbox = (
         );
 
         if (!quarantine) {
-          yield* report({ _tag: 'drained', database: options.database, sent });
-          return sent;
+          held.add(key);
+          continue;
         }
 
-        yield* (options.onOutcome ?? ignoreRelayOutcome)({
+        yield* report({
           _tag: 'quarantined',
           database: options.database,
           eventId: entry.eventId,
@@ -189,7 +195,7 @@ export type OutboxStatsSink = (
  * relay that stopped is indistinguishable from a relay with nothing to do.
  */
 export const sweepOutbox = (
-  outbox: TransactionOutbox,
+  outbox: Outbox,
   bus: EventBus,
   options: DrainOptions & { readonly onStats?: OutboxStatsSink },
 ) =>

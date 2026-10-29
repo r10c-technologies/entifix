@@ -1,8 +1,24 @@
-import type { DomainEvent, StoreFailure } from '@entifix/core';
+import type { AggregateRef, DomainEvent, StoreFailure } from '@entifix/core';
 import { Context, type Effect } from 'effect';
 
 /**
- * A transaction event recorded durably *before* it reaches the broker.
+ * An event an outbox accepts: one that says which aggregate it is about and
+ * which version of it ([ADR 0018](../../../../../docs/adr/0018-one-outbox-ordered-per-aggregate.md)).
+ * The relay keeps order within an aggregate and nowhere else, and a consumer
+ * discards a version older than one it applied — neither is possible for an
+ * event that names neither.
+ */
+export type OutboxEvent<TData = unknown> = DomainEvent<TData> & {
+  readonly aggregate: AggregateRef;
+  readonly version: number;
+};
+
+/** The key an outbox orders and blocks by: `<type>/<id>`. */
+export const aggregateKey = (aggregate: AggregateRef): string =>
+  `${aggregate.type}/${aggregate.id}`;
+
+/**
+ * A domain event recorded durably *before* it reaches the broker.
  *
  * The point of the outbox is that a state change and the event announcing it
  * become one fact. `execute` used to write Mongo and then call `bus.publish`
@@ -22,14 +38,17 @@ export interface OutboxEntry {
    * recognised as a retry before any lock is taken or work forked.
    */
   eventId: string;
+  /** Denormalized out of `event` for the per-aggregate index. */
+  aggregate: AggregateRef;
+  version: number;
   event: DomainEvent;
   sent: boolean;
   /**
    * Publish attempts already spent on this entry.
    *
-   * The relay drains in order and stops at the first failure, which is what
-   * keeps `accepted` ahead of a terminal event — and is also why an entry that
-   * can *never* publish used to block everything behind it forever. Counting
+   * A failure holds back the later versions of this entry's aggregate, which
+   * is what keeps `accepted` ahead of a terminal event — and is also why an
+   * entry that can *never* publish would hold its aggregate forever. Counting
    * the attempts is what turns "retrying" into a state with an end.
    */
   attempts: number;
@@ -44,12 +63,16 @@ export interface OutboxEntry {
    * stuck transaction nobody is told about is the same as a lost one.
    */
   quarantined: boolean;
-  /** ISO-8601, and the drain order: entries publish oldest-first. */
+  /**
+   * ISO-8601. Entries are read oldest-first, and published in that order
+   * **within each aggregate**: a failing head holds back only its own
+   * aggregate's later versions.
+   */
   createdAt: string;
 }
 
 /**
- * Whether {@link TransactionOutbox.enqueue} actually wrote.
+ * Whether {@link Outbox.enqueue} actually wrote.
  *
  * `duplicate` is not a failure — it is how a *retry* is recognised. The
  * transaction id is the client's idempotency key, so a repeated
@@ -61,7 +84,7 @@ export interface OutboxEntry {
 export type OutboxEnqueueResult = 'enqueued' | 'duplicate';
 
 /**
- * An aggregate view of one outbox, for {@link TransactionOutbox.stats}.
+ * An aggregate view of one outbox, for {@link Outbox.stats}.
  *
  * Counts and one timestamp — **no ids and no payloads**. That is what makes it
  * safe where a listing is not: an outbox holds event payloads, and once
@@ -98,9 +121,9 @@ export interface OutboxStats {
  * handle is opaque and whose `emit` records the event inside the same
  * transaction (ADR 0009). `enqueue` is for an event with no write to join.
  */
-export interface TransactionOutbox {
+export interface Outbox {
   /** Record an event durably. Idempotent per `event.id`. */
-  enqueue(event: DomainEvent): Effect.Effect<OutboxEnqueueResult, StoreFailure>;
+  enqueue(event: OutboxEvent): Effect.Effect<OutboxEnqueueResult, StoreFailure>;
   /**
    * Unsent, un-quarantined entries, oldest first — the relay's input.
    *
@@ -138,7 +161,6 @@ export interface TransactionOutbox {
   stats(): Effect.Effect<OutboxStats, StoreFailure>;
 }
 
-export class TransactionOutboxTag extends Context.Service<
-  TransactionOutboxTag,
-  TransactionOutbox
->()('TransactionOutboxTag') {}
+export class OutboxTag extends Context.Service<OutboxTag, Outbox>()(
+  '@entifix/transactions/Outbox',
+) {}

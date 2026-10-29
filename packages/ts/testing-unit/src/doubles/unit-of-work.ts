@@ -1,5 +1,5 @@
-import { type DomainEvent, isStoreFault } from '@entifix/core';
-import type { UnitClaim, UnitOfWork } from '@entifix/transactions';
+import { isStoreFault } from '@entifix/core';
+import type { OutboxEvent, UnitClaim, UnitOfWork } from '@entifix/transactions';
 import { Effect, Option, Result } from 'effect';
 
 /**
@@ -14,7 +14,7 @@ export interface InMemoryUnitOfWork extends UnitOfWork<InMemoryUnitHandle> {
   /** The committed records. */
   readonly records: ReadonlyMap<string, unknown>;
   /** Every event a committed unit emitted, in commit order. */
-  readonly outbox: readonly DomainEvent[];
+  readonly outbox: readonly OutboxEvent[];
 }
 
 const claimKey = (claim: UnitClaim): string =>
@@ -36,7 +36,7 @@ export const makeInMemoryUnitOfWork = (
   seed: Iterable<readonly [string, unknown]> = [],
 ): InMemoryUnitOfWork => {
   let records = new Map<string, unknown>(seed);
-  const outbox: DomainEvent[] = [];
+  const outbox: OutboxEvent[] = [];
   const eventIds = new Set<string>();
   // A taken claim, and for a command what it is to be answered with.
   const claims = new Map<string, Option.Option<unknown>>();
@@ -58,7 +58,7 @@ export const makeInMemoryUnitOfWork = (
         }
 
         const handle: InMemoryUnitHandle = { records: new Map(records) };
-        const emitted: DomainEvent[] = [];
+        const emitted: OutboxEvent[] = [];
         const outcome = yield* Effect.result(
           body({ handle, emit: event => void emitted.push(event) }),
         );

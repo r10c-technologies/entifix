@@ -1,5 +1,5 @@
 import type { StoreFailure } from '@entifix/core';
-import { Context, type Effect } from 'effect';
+import { Context, Effect } from 'effect';
 
 /**
  * A consumer's claim on one delivered message.
@@ -56,7 +56,7 @@ export type InboxClaimResult = 'claimed' | 'duplicate';
  * twice.
  *
  * There is deliberately **no `claimWithin(session)` here**, for the reason
- * {@link TransactionOutbox} states about `enqueueWithin`: a driver session may
+ * {@link Outbox} states about `enqueueWithin`: a driver session may
  * not enter a framework-free contract. A claim that must commit with its side
  * effect is a {@link UnitOfWork}'s `event` claim (ADR 0009); this port is what
  * a consumer that can claim standalone uses instead.
@@ -80,3 +80,32 @@ export class TransactionInboxTag extends Context.Service<
   TransactionInboxTag,
   TransactionInbox
 >()('TransactionInboxTag') {}
+
+/**
+ * Whether a consumer should discard an event because it already applied this
+ * version of its aggregate, or a later one
+ * ([ADR 0018](../../../../../docs/adr/0018-one-outbox-ordered-per-aggregate.md)).
+ *
+ * The bus redelivers and reorders; with a version per aggregate a late
+ * `v = n - 1` never overwrites `v = n`, and a delete is ordered like any other
+ * write. `applied` is what the consumer stored the last time it applied this
+ * aggregate — absent when it never has.
+ */
+export const isStale = (
+  applied: number | undefined,
+  version: number,
+): boolean => applied !== undefined && version <= applied;
+
+/**
+ * Applies `apply` unless the event is stale, reading what the consumer last
+ * applied for its aggregate with `applied`. Answers `'stale'` for a discarded
+ * event, so the caller can count it rather than wonder.
+ */
+export const discardIfStale = <A, E, R, E2, R2>(
+  applied: Effect.Effect<number | undefined, E, R>,
+  version: number,
+  apply: Effect.Effect<A, E2, R2>,
+): Effect.Effect<A | 'stale', E | E2, R | R2> =>
+  Effect.flatMap(applied, (last): Effect.Effect<A | 'stale', E2, R2> =>
+    isStale(last, version) ? Effect.succeed('stale' as const) : apply,
+  );

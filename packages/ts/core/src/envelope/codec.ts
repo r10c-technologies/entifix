@@ -37,6 +37,9 @@ const EventMetaSchema = openStruct({
   source: Schema.NonEmptyString,
   at: Schema.NonEmptyString,
   correlationId: Schema.optional(Schema.String),
+  aggregate: Schema.optional(
+    Schema.Struct({ type: Schema.String, id: Schema.String }),
+  ),
   version: Schema.optional(Schema.Int),
   audience: Schema.optional(Schema.Array(AudienceEntrySchema)),
 });
@@ -100,8 +103,11 @@ const checkRequirements = (
   event: EntifixEventMeta | undefined,
   direction: 'decode' | 'encode',
 ): string | undefined => {
-  if (registered.versioned && event?.version === undefined)
-    return `'${registered.name}' describes an aggregate version and carried none`;
+  if (
+    registered.versioned &&
+    (event?.version === undefined || event.aggregate === undefined)
+  )
+    return `'${registered.name}' describes an aggregate version and carried no aggregate or no version`;
   if (
     direction === 'encode' &&
     registered.kind === 'event' &&

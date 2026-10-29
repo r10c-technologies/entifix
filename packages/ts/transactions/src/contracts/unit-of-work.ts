@@ -1,5 +1,7 @@
-import type { DomainEvent, StoreFault } from '@entifix/core';
+import type { StoreFault } from '@entifix/core';
 import type { Effect, Option } from 'effect';
+
+import type { OutboxEvent } from './outbox.js';
 
 /**
  * What a unit of work deduplicates on, if anything. At most one per unit.
@@ -39,7 +41,7 @@ export interface Unit<H> {
    * same transaction, so the state change and its announcement are one fact,
    * and the relay carries it to the bus afterwards.
    */
-  emit(event: DomainEvent): void;
+  emit(event: OutboxEvent): void;
 }
 
 /**

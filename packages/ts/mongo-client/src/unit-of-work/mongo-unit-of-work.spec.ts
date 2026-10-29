@@ -227,6 +227,8 @@ describe('makeMongoUnitOfWork events', () => {
                   source: 'spec',
                   at: '2026-01-01T00:00:00.000Z',
                   correlationId: 'e-5',
+                  aggregate: { type: 'widget', id: 'w-5' },
+                  version: 1,
                   data: {},
                 }),
               ),

@@ -12,10 +12,7 @@ const TEST_SOURCE = 'test-slice';
 
 import type { TransactionCommand } from '../contracts/command.js';
 import type { TransactionEvent } from '../contracts/event.js';
-import {
-  type OutboxEnqueueResult,
-  TransactionOutboxTag,
-} from '../contracts/outbox.js';
+import { type OutboxEnqueueResult, OutboxTag } from '../contracts/outbox.js';
 import {
   CommandTag,
   LockHandlesTag,
@@ -152,7 +149,7 @@ const makeWorld = (
   const layer = Layer.mergeAll(
     Layer.succeed(TransactionHandlerTag, handler),
     Layer.succeed(LockServiceTag, lockService),
-    Layer.succeed(TransactionOutboxTag, outbox),
+    Layer.succeed(OutboxTag, outbox),
     Layer.succeed(EventBusTag, bus),
     Layer.succeed(CommandTag, command),
     Layer.succeed(EventSourceTag, TEST_SOURCE),
@@ -541,7 +538,7 @@ describe('context tags', () => {
       EventBusTag,
       LockServiceTag,
       TransactionHandlerTag,
-      TransactionOutboxTag,
+      OutboxTag,
     ].map(tag => tag.key);
 
     expect(new Set(identifiers).size).toBe(identifiers.length);

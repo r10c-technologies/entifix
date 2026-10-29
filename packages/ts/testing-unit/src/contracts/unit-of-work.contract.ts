@@ -1,5 +1,5 @@
-import { type DomainEvent, type StoreFault, Unavailable } from '@entifix/core';
-import type { UnitOfWork } from '@entifix/transactions';
+import { type StoreFault, Unavailable } from '@entifix/core';
+import type { OutboxEvent, UnitOfWork } from '@entifix/transactions';
 import { Effect, Option } from 'effect';
 import { describe, expect, it } from 'vitest';
 
@@ -16,12 +16,14 @@ export interface UnitOfWorkContractHarness<H> {
   recorded(): Promise<readonly string[]>;
 }
 
-const anEvent = (id: string): DomainEvent => ({
+const anEvent = (id: string): OutboxEvent => ({
   name: 'contract.widget.changed',
   id,
   source: 'contract-slice',
   at: '2026-01-01T00:00:00.000Z',
   correlationId: id,
+  aggregate: { type: 'contract-widget', id },
+  version: 1,
   data: {},
 });
 
