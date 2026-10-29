@@ -938,9 +938,15 @@ importers:
         specifier: 0.5.23
         version: 0.5.23
     devDependencies:
+      '@effect/sql-pg':
+        specifier: 4.0.6
+        version: 4.0.6(effect@4.0.6)
       '@entifix/testing-unit':
         specifier: workspace:*
         version: link:../testing-unit
+      '@entifix/transactions':
+        specifier: workspace:*
+        version: link:../transactions
       effect:
         specifier: 4.0.6
         version: 4.0.6

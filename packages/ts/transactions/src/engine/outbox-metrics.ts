@@ -1,5 +1,6 @@
-import type { OutboxStats } from '@entifix/transactions';
 import { Effect, Metric } from 'effect';
+
+import type { OutboxStats } from '../contracts/outbox.js';
 
 /**
  * The outbox half of the framework's first metric set; the bus half is in

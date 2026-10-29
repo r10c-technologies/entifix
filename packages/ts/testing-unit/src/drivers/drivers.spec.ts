@@ -1214,6 +1214,24 @@ describe('makeFakeMongoDb value comparison', () => {
 });
 
 describe('makeFakeSqlClient', () => {
+  it('records a transaction it committed and one it rolled back', async () => {
+    const fake = makeFakeSqlClient();
+    const sql = fake.client as SqlClient.SqlClient;
+
+    await Effect.runPromise(sql.withTransaction(sql`SELECT 1`));
+    await Effect.runPromiseExit(
+      sql.withTransaction(Effect.fail(new Error('refused'))),
+    );
+
+    expect(fake.executions.map(({ sql: text }) => text)).toEqual([
+      'BEGIN',
+      'SELECT 1',
+      'COMMIT',
+      'BEGIN',
+      'ROLLBACK',
+    ]);
+  });
+
   /** The fake only implements the constructor surface the adapters use. */
   const clientOf = (fake: ReturnType<typeof makeFakeSqlClient>) =>
     fake.client as SqlClient.SqlClient;

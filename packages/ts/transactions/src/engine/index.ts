@@ -13,6 +13,8 @@ export * from './in-memory-bulkhead.js';
 export * from './in-memory-circuit-breaker.js';
 export * from './in-memory-retry-budget.js';
 export * from './local-saga-dispatcher.js';
+export * from './outbox-metrics.js';
+export * from './outbox-relay.js';
 export * from './resolve-template.js';
 export * from './resume-sweep.js';
 export * from './run-saga.js';

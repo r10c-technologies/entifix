@@ -203,13 +203,15 @@ export const SIDEWAYS_EDGES: readonly SidewaysEdge[] = [
     because:
       'a use case is written against entities, and T1 is the pair of them',
   },
-  ...['@entifix/mongo', '@entifix/redis', '@entifix/amqp'].map(from => ({
-    from,
-    to: '@entifix/transactions',
-    because:
-      'the outbox binding for this driver, behind the `/transactions` ' +
-      'subpath and an optional peer',
-  })),
+  ...['@entifix/mongo', '@entifix/sql', '@entifix/redis', '@entifix/amqp'].map(
+    from => ({
+      from,
+      to: '@entifix/transactions',
+      because:
+        'the outbox binding for this driver, behind the `/transactions` ' +
+        'subpath and an optional peer',
+    }),
+  ),
   {
     from: '@entifix/rest',
     to: '@entifix/transactions',
