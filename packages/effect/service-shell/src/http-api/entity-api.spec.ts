@@ -138,9 +138,23 @@ class Order implements Entity {
 })
 class ShipOrder {}
 
+/** The same verb over a selection: one key, one permission, two bindings. */
+@useCase({
+  entity: Order,
+  key: 'ship',
+  binding: 'collection',
+  placement: 'context-dependent',
+  labelKey: 'ship',
+})
+class ShipOrders {}
+
 const shipOrder = verbEndpoint(ShipOrder, {
   idempotent: 'unit',
   handler: ({ params }) => Effect.succeed({ shipped: params?.id }),
+});
+
+const shipOrders = verbEndpoint(ShipOrders, {
+  handler: () => Effect.succeed({ shipped: 'all' }),
 });
 
 class NameTaken extends Failure.conflict<NameTaken>()(
@@ -257,7 +271,7 @@ const owned = entityApi(
 const orders = entityApi(
   defineEntityApi(Order, 'order', {
     verbs: ['create', 'get'],
-    useCases: [shipOrder],
+    useCases: [shipOrder, shipOrders],
     guard: { kind: 'permission' },
     override: {
       create: {
@@ -776,6 +790,29 @@ describe('verbs derived from @useCase()', () => {
       idempotent: 'unit',
       useCase: 'ship',
     });
+  });
+
+  it('serves one key on a record and over a selection, under two names', () => {
+    const shipping = orders.endpoints
+      .filter(({ descriptor }) => descriptor.useCase === 'ship')
+      .map(({ descriptor }) => [descriptor.name, descriptor.path]);
+
+    expect(shipping).toEqual([
+      ['ship', '/api/order/:id/ship'],
+      ['ship-collection', '/api/order/ship'],
+    ]);
+  });
+
+  it('refuses a group that serves only one binding of a verb declared on both', () => {
+    expect(() =>
+      entityApi(
+        defineEntityApi(Order, 'order', {
+          verbs: ['get'],
+          guard: { kind: 'permission' },
+          useCases: [shipOrder],
+        }),
+      ),
+    ).toThrow("serve no endpoint for @useCase() 'ship'");
   });
 
   it('refuses to build a group that leaves a declared verb without an endpoint', () => {

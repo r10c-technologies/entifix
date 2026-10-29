@@ -43,6 +43,16 @@ class AlreadyShipped extends Failure.conflict<AlreadyShipped>()(
 })
 class ShipParcel {}
 
+/** The same verb over a selection: one key, a second binding. */
+@useCase({
+  entity: Parcel,
+  key: 'ship',
+  binding: 'collection',
+  placement: 'context-dependent',
+  labelKey: 'ship',
+})
+class ShipParcels {}
+
 describe('verbPath', () => {
   it('puts a record verb under the record and the others under the collection', () => {
     expect(verbPath('parcel', 'ship', 'entity')).toBe('/api/parcel/:id/ship');
@@ -64,6 +74,11 @@ describe('extractUseCase', () => {
     expect(declared.errors).toEqual([AlreadyShipped]);
     expect(declared.payload).toBeDefined();
     expect(declared.success).toBeDefined();
+  });
+
+  it('tells two verbs under one key apart by their binding', () => {
+    expect(extractUseCase(ShipParcel).binding).toBe('entity');
+    expect(extractUseCase(ShipParcels).binding).toBe('collection');
   });
 
   it('keeps the contract out of the described verb', () => {

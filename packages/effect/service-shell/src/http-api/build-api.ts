@@ -330,6 +330,18 @@ export const buildApi = (
     if (seen.has(target)) throw new Error(`'${name}' declares ${target} twice`);
     seen.add(target);
   }
+  // A group serves its endpoints by name, so a second one under a name would
+  // silently replace the first rather than fail.
+  for (const group of groups) {
+    const names = new Set<string>();
+    for (const { descriptor } of group.endpoints) {
+      if (names.has(descriptor.name))
+        throw new Error(
+          `'${name}' names two endpoints '${descriptor.name}' in '${group.name}'`,
+        );
+      names.add(descriptor.name);
+    }
+  }
   return groups.reduce<HttpApi.Top>(
     (api, group) =>
       api.add(

@@ -700,6 +700,27 @@ describe('the built API', () => {
     ).toThrow("'twice' declares GET /api/boom twice");
   });
 
+  it('refuses two endpoints under one name in a group', () => {
+    const again = defineEndpoint({
+      name: 'boom',
+      method: 'GET',
+      path: '/api/boom-again',
+      success: Schema.String,
+      errors: [],
+      guard: { kind: 'public' },
+    });
+
+    expect(() =>
+      buildApi('renamed', [
+        endpointGroup(
+          'a',
+          implement(boom, () => Effect.succeed('a')),
+          implement(again, () => Effect.succeed('b')),
+        ),
+      ]),
+    ).toThrow("'renamed' names two endpoints 'boom' in 'a'");
+  });
+
   it('documents each failure with its status and the problem content type', () => {
     const document = OpenApi.fromApi(api as never);
     const responses = document.paths['/api/slug/{slug}']?.post?.responses;

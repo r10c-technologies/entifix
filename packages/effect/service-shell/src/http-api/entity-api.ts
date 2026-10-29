@@ -278,11 +278,18 @@ export const entityApi = <
   );
 
   const verbs = options.useCases ?? [];
-  const declaredVerbs = describeEntityUseCases(entityConstructor).map(
-    descriptor => descriptor.key,
-  );
-  const servedVerbs = verbs.map(verb => verb.useCase.key);
-  const unserved = declaredVerbs.filter(verb => !servedVerbs.includes(verb));
+  // By key and binding: one key may be declared on a record and over a
+  // selection, and serving one of the two must not pass for serving both.
+  const unserved = describeEntityUseCases(entityConstructor)
+    .filter(
+      declared =>
+        !verbs.some(
+          verb =>
+            verb.useCase.key === declared.key &&
+            verb.useCase.binding === declared.binding,
+        ),
+    )
+    .map(declared => declared.key);
   const strays = verbs.filter(
     verb => verb.useCase.entity !== entityConstructor,
   );
@@ -709,7 +716,13 @@ export const entityApi = <
         useCase.payload ??
         (useCase.binding === 'collection' ? SelectionBody : undefined);
       const descriptor = defineEndpoint({
-        name: useCase.key,
+        // One key may be served both ways — `publish` on a record and over a
+        // selection — under one permission, so a name carries the binding
+        // whenever it is not the record's.
+        name:
+          useCase.binding === 'entity'
+            ? useCase.key
+            : `${useCase.key}-${useCase.binding}`,
         method: 'POST',
         path: verbPath(key, useCase.key, useCase.binding),
         ...(useCase.binding === 'entity'

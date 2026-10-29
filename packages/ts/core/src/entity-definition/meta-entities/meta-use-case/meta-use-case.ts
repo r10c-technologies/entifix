@@ -108,6 +108,11 @@ export interface MetaUseCaseOptions<
 export interface MetaUseCaseBinding {
   entity: EntityConstructor<Entity>;
   key: string;
+  /**
+   * Which of the entity's verbs under `key` the class is: one key may be
+   * declared on a record and over a selection, and each class is one of them.
+   */
+  binding: UseCaseBinding;
 }
 
 export class MetaUseCase {

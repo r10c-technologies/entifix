@@ -97,10 +97,11 @@ describe('useCase', () => {
     expect(describeEntityUseCases(Shelf)).toEqual([]);
   });
 
-  it('records the entity and verb on the use-case class itself', () => {
+  it('records the entity, the verb and its binding on the use-case class itself', () => {
     expect(extractMetaUseCaseBinding(PublishArticleUC)).toEqual({
       entity: Article,
       key: 'publish',
+      binding: 'entity',
     });
     expect(extractMetaUseCaseBinding(ArchiveArticlesUC).key).toBe('archive');
   });
