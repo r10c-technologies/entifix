@@ -204,12 +204,17 @@ const toSchema = (schema: EndpointSchema | undefined) =>
 const toPayload = (schema: EndpointSchema | undefined) => {
   const payload = toSchema(schema);
   if (payload === undefined) return undefined;
-  switch (bodyEncodingOf(payload)) {
+  const encoding = bodyEncodingOf(payload);
+  switch (encoding?.kind) {
     case 'text':
-      // `TextBody` is a string schema; the marker is what says so here.
-      return (payload as Schema.String).pipe(HttpApiSchema.asText());
+      // A `textBody` is a string schema; the marker is what says so here.
+      return (payload as Schema.String).pipe(
+        HttpApiSchema.asText({ contentType: encoding.contentType }),
+      );
     case 'form':
-      return payload.pipe(HttpApiSchema.asFormUrlEncoded());
+      return payload.pipe(
+        HttpApiSchema.asFormUrlEncoded({ contentType: encoding.contentType }),
+      );
     default:
       return payload;
   }

@@ -17,7 +17,7 @@ import {
   formBody,
   implement,
   JsonBody,
-  TextBody,
+  textBody,
 } from './endpoint.js';
 
 @entity({ domain: 'shop', key: 'basket' })
@@ -178,8 +178,17 @@ describe('JsonBody', () => {
 
 describe('the payload encodings', () => {
   it('marks a text body and a form body, and leaves JSON unmarked', () => {
-    expect(bodyEncodingOf(TextBody)).toBe('text');
-    expect(bodyEncodingOf(formBody({ token: Schema.String }))).toBe('form');
+    expect(bodyEncodingOf(textBody())).toEqual({
+      kind: 'text',
+      contentType: 'text/plain',
+    });
+    expect(bodyEncodingOf(textBody('application/json'))?.contentType).toBe(
+      'application/json',
+    );
+    expect(bodyEncodingOf(formBody({ token: Schema.String }))).toEqual({
+      kind: 'form',
+      contentType: 'application/x-www-form-urlencoded',
+    });
     expect(bodyEncodingOf(Schema.Struct({ token: Schema.String }))).toBe(
       undefined,
     );

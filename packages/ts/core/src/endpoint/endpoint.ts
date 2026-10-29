@@ -305,17 +305,23 @@ export const JsonBody: Schema.Codec<unknown, unknown> = Schema.Unknown.pipe(
 /** The annotation a body schema carries when it is not JSON on the wire. */
 export const BODY_ENCODING = 'entifix/bodyEncoding';
 
-/** How a payload travels, when it is not JSON. */
-export type BodyEncoding = 'text' | 'form';
+/** How a payload travels when it is not decoded as JSON, and under which media type. */
+export interface BodyEncoding {
+  readonly kind: 'text' | 'form';
+  readonly contentType: string;
+}
 
 /**
  * A payload taken as the exact text that arrived, for an endpoint whose
  * authentication is a signature over those bytes: a decoded object
  * re-serialised is a different byte sequence, and the MAC would not verify.
+ * `contentType` is the media type the caller sends — a provider that signs a
+ * JSON body still sends `application/json`, and the bytes are what matter.
  */
-export const TextBody: Schema.String = Schema.String.annotate({
-  [BODY_ENCODING]: 'text',
-});
+export const textBody = (contentType = 'text/plain'): Schema.String =>
+  Schema.String.annotate({
+    [BODY_ENCODING]: { kind: 'text', contentType } satisfies BodyEncoding,
+  });
 
 /**
  * A form-encoded payload (`application/x-www-form-urlencoded`), for a caller
@@ -324,7 +330,12 @@ export const TextBody: Schema.String = Schema.String.annotate({
 export const formBody = <const Fields extends Schema.Struct.Fields>(
   fields: Fields,
 ): Schema.Struct<Fields> =>
-  Schema.Struct(fields).annotate({ [BODY_ENCODING]: 'form' });
+  Schema.Struct(fields).annotate({
+    [BODY_ENCODING]: {
+      kind: 'form',
+      contentType: 'application/x-www-form-urlencoded',
+    } satisfies BodyEncoding,
+  });
 
 /** The wire encoding a payload schema declared, or `undefined` for JSON. */
 export const bodyEncodingOf = (schema: Schema.Top): BodyEncoding | undefined =>

@@ -21,7 +21,7 @@ import {
   IDEMPOTENCY_KEY_HEADER,
   implement,
   PROBLEM_CONTENT_TYPE,
-  TextBody,
+  textBody,
   Unavailable,
 } from '@entifix/core';
 import { makeInMemoryIdempotencyStore } from '@entifix/testing-unit';
@@ -208,7 +208,7 @@ const hook = defineEndpoint({
   name: 'hook',
   method: 'POST',
   path: '/api/hook',
-  payload: TextBody,
+  payload: textBody('application/json'),
   headers: { 'x-signature': Schema.String },
   success: Schema.Struct({ body: Schema.String, signature: Schema.String }),
   errors: [],
@@ -388,7 +388,8 @@ describe('a payload that is not JSON', () => {
     const raw = '{ "subject":"u-1",  "endsSessions":true }';
     const res = await call('/api/hook', {
       method: 'POST',
-      headers: { 'content-type': 'text/plain', 'x-signature': 'mac' },
+      // A provider signing a JSON body still sends it as JSON.
+      headers: { 'content-type': 'application/json', 'x-signature': 'mac' },
       body: raw,
     });
 
@@ -399,8 +400,8 @@ describe('a payload that is not JSON', () => {
   it('refuses a text endpoint without the header it declared', async () => {
     const res = await call('/api/hook', {
       method: 'POST',
-      headers: { 'content-type': 'text/plain' },
-      body: 'anything',
+      headers: { 'content-type': 'application/json' },
+      body: '{}',
     });
 
     expect(res.status).toBe(400);
