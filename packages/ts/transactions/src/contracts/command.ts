@@ -1,9 +1,12 @@
+// Evaluated for its registrations: this reader decodes against them.
+import './messages.js';
+
 import {
+  decodeRequestEnvelope,
   EntifixBuildError,
   type EntifixEnvelope,
   type InvalidEnvelope,
   makeEnvelope,
-  readEnvelope,
   type SerializedEntity,
 } from '@entifix/core';
 import { Effect } from 'effect';
@@ -91,17 +94,11 @@ export function readCommandEnvelope<TPayload = SerializedEntity>(
   EntifixBuildError | InvalidEnvelope
 > {
   return Effect.gen(function* () {
-    const envelope = yield* readEnvelope<TransactionCommand<TPayload>>(
-      body,
-      'command',
-      'command',
-    );
-    const command = envelope.data;
-    if (
-      command == null ||
-      !isTransactionId(command.transactionId) ||
-      typeof command.entity !== 'string'
-    ) {
+    const envelope = yield* decodeRequestEnvelope(body, 'command', 'command');
+    const command = envelope.data as TransactionCommand<TPayload>;
+    // The registered schema already proved the frame; what it cannot say is
+    // that the id is a UUID, which is what makes it safe as a primary key.
+    if (!isTransactionId(command.transactionId)) {
       return yield* Effect.fail(
         new EntifixBuildError(
           'command envelope carried no valid command',

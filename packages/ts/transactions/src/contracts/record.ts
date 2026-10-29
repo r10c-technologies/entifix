@@ -1,8 +1,11 @@
+// Evaluated for its registrations: this reader decodes against them.
+import './messages.js';
+
 import {
+  decodeEnvelope,
   type EntifixConnError,
   type EntityId,
-  type InvalidEnvelope,
-  readEnvelope,
+  type ProtocolFailure,
   type TransitionalFailure,
 } from '@entifix/core';
 import { Context, Effect } from 'effect';
@@ -104,36 +107,26 @@ export interface TransactionAccepted {
  */
 export function readTransactionAcceptedEnvelope(
   body: unknown,
-): Effect.Effect<TransactionAccepted, InvalidEnvelope> {
+): Effect.Effect<TransactionAccepted, ProtocolFailure> {
   return Effect.map(
-    readEnvelope<TransactionAccepted>(
-      body,
-      'transactionAccepted',
-      'transactionAccepted',
-    ),
-    envelope => envelope.data,
+    decodeEnvelope(body, 'transactionAccepted'),
+    envelope => envelope.data as TransactionAccepted,
   );
 }
 
 /**
  * Parses the tracker's by-id response, which frames a {@link TransactionRecord}.
  *
- * ⚠️ **`readEnvelope` validates the discriminant and then *casts* the payload**
- * — it checks no members. So a discriminant shared by two shapes hands back
- * whichever one the caller asked for, typed and wrong: a record read as an
- * event has no `step`, no `at`, and a `state` the caller is about to branch on.
- * That is the reason the four transaction-shaped discriminants are four.
+ * The body is decoded against `transactionRecord`'s registered schema, so a
+ * different message wearing the name — an event, which has a `step` and no
+ * `createdAt` — is refused rather than handed back typed and wrong.
  */
 export function readTransactionRecordEnvelope(
   body: unknown,
-): Effect.Effect<TransactionRecord, InvalidEnvelope> {
+): Effect.Effect<TransactionRecord, ProtocolFailure> {
   return Effect.map(
-    readEnvelope<TransactionRecord>(
-      body,
-      'transactionRecord',
-      'transactionRecord',
-    ),
-    envelope => envelope.data,
+    decodeEnvelope(body, 'transactionRecord'),
+    envelope => envelope.data as TransactionRecord,
   );
 }
 

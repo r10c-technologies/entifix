@@ -1,4 +1,4 @@
-import { EntifixBuildError, EntifixTransactionError } from '@entifix/core';
+import { EntifixTransactionError } from '@entifix/core';
 import { Effect } from 'effect';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -78,7 +78,7 @@ describe('command envelopes', () => {
       _tag: 'InvalidEnvelope',
       category: 'invalid',
     });
-    expect(error.message).toContain('no meta.type');
+    expect(error.message).toContain('is not an envelope');
   });
 
   it('rejects an envelope of the wrong type', () => {
@@ -91,7 +91,7 @@ describe('command envelopes', () => {
       ),
     );
 
-    expect(error.message).toContain('but got "transactionRecord"');
+    expect(error.message).toContain("but got 'transactionRecord'");
   });
 
   // A well-framed envelope carrying junk is the dangerous case: the framing
@@ -105,19 +105,26 @@ describe('command envelopes', () => {
     ['a non-string entity', { transactionId: TX, entity: 7 }],
     // The id becomes a primary key, so the key space a caller may address is
     // fixed rather than "whatever string was sent".
-    ['an opaque transactionId', { transactionId: 'tx-1', entity: 'product' }],
+    [
+      'an opaque transactionId',
+      { transactionId: 'tx-1', type: 'create', entity: 'product', payload: {} },
+    ],
     [
       'a UUID with the wrong variant',
       {
         transactionId: '3f2504e0-4f89-41d3-1a0c-0305e82c3301',
+        type: 'create',
         entity: 'product',
+        payload: {},
       },
     ],
     [
       'a UUID with a trailing segment',
       {
         transactionId: '3f2504e0-4f89-41d3-9a0c-0305e82c3301-x',
+        type: 'create',
         entity: 'product',
+        payload: {},
       },
     ],
   ])('rejects a well-framed envelope carrying %s', (_label, data) => {
@@ -130,8 +137,11 @@ describe('command envelopes', () => {
       ),
     );
 
-    expect(error).toBeInstanceOf(EntifixBuildError);
-    expect(error.message).toContain('carried no valid command');
+    // The registered schema refuses a malformed frame first; a well-shaped one
+    // carrying an id that is not a UUID is refused by the reader itself.
+    expect(error.message).toMatch(
+      /carried no valid command|"command": the data of 'command' does not decode/,
+    );
   });
 });
 
@@ -292,7 +302,7 @@ describe('the accept envelope reader', () => {
       ),
     );
 
-    expect(error.message).toContain('but got "transactionRecord"');
+    expect(error.message).toContain("but got 'transactionRecord'");
   });
 
   it('rejects an envelope of the wrong type', () => {
@@ -302,7 +312,7 @@ describe('the accept envelope reader', () => {
       ),
     );
 
-    expect(error.message).toContain('but got "command"');
+    expect(error.message).toContain("but got 'command'");
   });
 });
 
@@ -338,6 +348,6 @@ describe('the record envelope reader', () => {
       ),
     );
 
-    expect(error.message).toContain('but got "command"');
+    expect(error.message).toContain("but got 'command'");
   });
 });

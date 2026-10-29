@@ -134,6 +134,6 @@ describe('readEntityMetadataEnvelope', () => {
       _tag: 'InvalidEnvelope',
       category: 'invalid',
     });
-    expect(failure.message).toContain('carried no metadata document');
+    expect(failure.message).toContain('does not decode');
   });
 });

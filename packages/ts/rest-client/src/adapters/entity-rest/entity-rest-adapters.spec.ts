@@ -366,7 +366,7 @@ describe('buildEntityRestAdapterGet', () => {
   it('fails when the response is not an envelope', async () => {
     server.use(respondWithMalformedEnvelope(`${BASE_URL}/:id`));
 
-    await expect(runGet('w-1')).rejects.toThrow(/no meta.type/);
+    await expect(runGet('w-1')).rejects.toThrow(/is not an envelope/);
   });
 });
 

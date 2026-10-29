@@ -119,6 +119,14 @@ describe('makeEventSourceReactiveChannel', () => {
     ['a frame that is not JSON', 'not json'],
     ['an envelope of the wrong type', '{"meta":{"type":"entity"},"data":{}}'],
     [
+      'an entity change in a frame that is not an event',
+      '{"meta":{"type":"entity"},"data":{"entity":"w","change":"created","id":"1"}}',
+    ],
+    [
+      'an event whose data is not an entity change',
+      `{"meta":{"type":"event","event":{"name":"x","id":"1","source":"s","at":"t"}},"data":{"entity":"w","change":"moved","id":"1"}}`,
+    ],
+    [
       'an event envelope missing its metadata',
       '{"meta":{"type":"event","event":{"name":"x"}},"data":{}}',
     ],
@@ -130,6 +138,7 @@ describe('makeEventSourceReactiveChannel', () => {
 
     expect(() => source.instances[0]?.send(payload)).not.toThrow();
     expect(listener).not.toHaveBeenCalled();
+    expect(channel.dropped()).toBe(1);
   });
 
   // A channel built at module scope must not throw during a server pass.

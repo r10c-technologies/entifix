@@ -1,5 +1,9 @@
-import { type DomainEvent, makeEventEnvelope } from '@entifix/core';
-import { Duration, Effect, Stream } from 'effect';
+import {
+  type DomainEvent,
+  EntityChangeEnvelope,
+  type EntityChangeEvent,
+} from '@entifix/core';
+import { Duration, Effect, Exit, Schema, Stream } from 'effect';
 import { HttpServerResponse } from 'effect/http';
 
 /**
@@ -24,10 +28,23 @@ const encoder = new TextEncoder();
  * re-reading the record.
  *
  * `data:` is a full `event` envelope, which is what keeps the stream from
- * becoming a fourth framing: the same bytes a bus consumer would read.
+ * becoming a fourth framing: the same bytes a bus consumer would read. It is
+ * encoded through the entity-change schema, the one shape this stream carries;
+ * an event that does not encode is no frame at all (`undefined`), because a
+ * browser would drop it on decode anyway.
  */
-export const sseFrame = (event: DomainEvent): string =>
-  `id: ${event.id}\ndata: ${JSON.stringify(makeEventEnvelope(event))}\n\n`;
+export const sseFrame = (
+  event: DomainEvent<EntityChangeEvent>,
+): string | undefined => {
+  const { data, ...meta } = event;
+  const encoded = Schema.encodeUnknownExit(EntityChangeEnvelope)({
+    meta: { type: 'event', event: meta },
+    data,
+  });
+  return Exit.isSuccess(encoded)
+    ? `id: ${event.id}\ndata: ${JSON.stringify(encoded.value)}\n\n`
+    : undefined;
+};
 
 export interface SseResponseOptions {
   /**
@@ -53,16 +70,21 @@ export interface SseResponseOptions {
  * completion first holds the request open forever and delivers nothing.
  */
 export const sseResponse = (
-  events: Stream.Stream<DomainEvent>,
+  events: Stream.Stream<DomainEvent<EntityChangeEvent>>,
   { expiresAt, now = Date.now }: SseResponseOptions = {},
 ): HttpServerResponse.HttpServerResponse => {
   const keepalive = Stream.fromEffectRepeat(
     Effect.as(Effect.sleep(KEEPALIVE), ': keepalive\n\n'),
   );
 
-  const frames = Stream.merge(Stream.map(events, sseFrame), keepalive, {
-    haltStrategy: 'left',
-  });
+  const frames = Stream.merge(
+    Stream.filter(
+      Stream.map(events, sseFrame),
+      (frame): frame is string => frame !== undefined,
+    ),
+    keepalive,
+    { haltStrategy: 'left' },
+  );
 
   // An opening comment, emitted before anything has happened.
   //

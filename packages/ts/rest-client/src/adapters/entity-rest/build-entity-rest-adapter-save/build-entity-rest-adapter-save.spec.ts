@@ -190,7 +190,7 @@ describe('buildEntityRestAdapterSave', () => {
     server.use(respondWithMalformedEnvelope(`${BASE_URL}/:id`, 'put'));
 
     await expect(runSave(makeWidget('widget-1', 'Sprocket'))).rejects.toThrow(
-      /no meta.type/,
+      /is not an envelope/,
     );
   });
 

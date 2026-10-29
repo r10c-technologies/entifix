@@ -1,6 +1,7 @@
 export * from './contracts/command.js';
 export * from './contracts/event.js';
 export * from './contracts/inbox.js';
+export * from './contracts/messages.js';
 export * from './contracts/outbox.js';
 export * from './contracts/record.js';
 export * from './contracts/saga-definition.js';

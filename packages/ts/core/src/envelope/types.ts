@@ -5,52 +5,22 @@ import type { EntityFacetCounts } from '../types/EntityFacets.js';
 import type { EntityLoadRequest } from '../types/EntityLoadRequest.js';
 
 /**
- * Discriminates what {@link EntifixEnvelope.data} carries.
+ * Names what {@link EntifixEnvelope.data} carries — a name in the open message
+ * registry (`registerMessage`), not a member of a closed union.
  *
- * `command` extends the contract for the transactions layer: a write is issued
- * as a `command`, whose `data` shape lives in `@entifix/transactions` —
- * core only owns the discriminant so every artifact agrees on it.
+ * Core registers only what core owns: `entity`, `entityCollection`,
+ * `entityPage`, `entityMetadata`, `entityFacets`, and `event`, whose `data` is
+ * looked up by `meta.event.name` instead (`registerEvent`). Every other shape is
+ * registered by the package that owns it — `@entifix/transactions` registers
+ * `command` and its accept, record and saga shapes — so adding a kind of message
+ * never means changing core.
  *
- * `event` is what actually rides the bus, and it is deliberately not named
- * after one publisher's flow: once a message can be `catalog.published` as
- * easily as `transaction.completed`, `transactionEvent` would be the wrong
- * name for it.
- *
- * ⚠️ **The four transaction-shaped discriminants below are four because they
- * carry four shapes.** `transactionEvent` used to mean all of them, and a
- * discriminant that means several things asserts nothing when it is read —
- * which is what `readTransactionEventEnvelope` was doing on the `202`: checking
- * a name that the record route and the event type both also answered to.
- *
- * - `transactionAccepted` — the `202` accept body, `{ transactionId, state }`.
- *   Not a record: it has no `createdAt` and names no entity id yet.
- * - `transactionRecord` — the fold a client polls, a `TransactionRecord`.
- * - `sagaResult` — how a settled multi-step walk ended: which steps ran and
- *   what each returned.
- * - `sagaInstance` — the durable instance itself, which is what a resumable
- *   coordinator reads and what `GET /api/saga/:id` serves. It differs from
- *   `sagaResult` in carrying the inputs and the resume count, because those are
- *   what an operator needs to answer *why is this one still here*.
- *
- * `entityMetadata` is the same extension made once more, for the action model:
- * its `data` is an {@link EntityMetadataDocument}, which core does own because
- * both the service that computes it and the controls that render it are already
- * below the layer that would otherwise host it.
+ * A read never trusts the name: `decodeEnvelope` decodes `data` against the
+ * registered schema, and an unregistered name is a protocol failure.
  */
-export type EntifixEnvelopeType =
-  | 'entity'
-  | 'entityCollection'
-  | 'entityPage'
-  | 'command'
-  | 'event'
-  | 'transactionAccepted'
-  | 'transactionRecord'
-  | 'sagaResult'
-  | 'sagaInstance'
-  | 'entityMetadata'
-  | 'entityFacets';
+export type EntifixEnvelopeType = string;
 
-export type EntifixEnvelopeMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
+export type EntifixEnvelopeMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
 /**
  * A HATEOAS affordance: where the peer can go next from this message. Optional —
@@ -99,8 +69,32 @@ export interface EntifixEventMeta {
   source: string;
   /** ISO-8601 emission time. */
   at: string;
-  /** Ties every message of one flow together — a transaction id, a saga id. */
+  /** Ties every message of one flow together — a transaction id, a flow id. */
   correlationId?: string;
+  /**
+   * The version of the aggregate this message describes. Required on a
+   * message registered `versioned`, and what a consumer orders on: one that
+   * already applied version `n` discards a late `n - 1` instead of letting it
+   * overwrite (`discardIfStale`).
+   */
+  version?: number;
+  /**
+   * Who may receive this message. Absent or empty, it reaches **nobody** —
+   * `audienceAdmits` fails closed, so a publisher that forgot to address a
+   * message leaks nothing.
+   */
+  audience?: readonly AudienceEntry[];
+}
+
+/**
+ * One recipient of a message: every member of an organization, one party, or
+ * whoever holds a flow's capability — whose SHA-256 digest is `digest`, so the
+ * audience never carries the credential itself.
+ */
+export interface AudienceEntry {
+  kind: 'organization' | 'party' | 'flow';
+  id: string;
+  digest?: string;
 }
 
 export interface EntifixEnvelopeMeta {
@@ -186,7 +180,7 @@ export type EntityFacetsEnvelope = EntifixEnvelope<EntityFacetCounts>;
 
 /**
  * A bus message on the wire. `meta.event` is always populated, and
- * `readEventEnvelope` is what proves it before a consumer sees the payload.
+ * `decodeEvent` is what proves it before a consumer sees the payload.
  */
 export type EventEnvelope<TData = unknown> = EntifixEnvelope<TData> & {
   meta: EntifixEnvelopeMeta & { event: EntifixEventMeta };

@@ -1,17 +1,17 @@
-import type { DomainEvent } from '@entifix/core';
+import type { DomainEvent, EntityChangeEvent } from '@entifix/core';
 import { Effect, Fiber, Stream } from 'effect';
 import { TestClock } from 'effect/testing';
 import { describe, expect, it } from 'vitest';
 
 import { sseFrame, sseResponse } from './sse.js';
 
-const event = (id: string): DomainEvent<{ entity: string }> => ({
+const event = (id: string): DomainEvent<EntityChangeEvent> => ({
   name: 'transaction.completed',
   id,
   source: 'marketplace-admin',
   at: '2026-09-02T00:00:00.000Z',
   correlationId: id.split(':')[0],
-  data: { entity: 'product-specification' },
+  data: { entity: 'product-specification', change: 'created', id: 'p-1' },
 });
 
 /** The frames a response would put on the wire, as text. */
@@ -40,8 +40,19 @@ describe('sseFrame', () => {
         'data: {"meta":{"type":"event","event":{"name":"transaction.completed",' +
         '"id":"txn-1:completed","source":"marketplace-admin",' +
         '"at":"2026-09-02T00:00:00.000Z","correlationId":"txn-1"}},' +
-        '"data":{"entity":"product-specification"}}\n\n',
+        '"data":{"entity":"product-specification","change":"created","id":"p-1"}}\n\n',
     );
+  });
+
+  // The stream carries one shape; an event that is not an entity change is no
+  // frame, since a browser would drop it on decode.
+  it('is no frame for an event that does not encode as an entity change', () => {
+    const bad = {
+      ...event('txn-1:completed'),
+      data: { entity: 'x' },
+    } as unknown as DomainEvent<EntityChangeEvent>;
+
+    expect(sseFrame(bad)).toBeUndefined();
   });
 });
 

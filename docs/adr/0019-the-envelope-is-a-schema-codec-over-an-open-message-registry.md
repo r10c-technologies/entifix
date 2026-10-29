@@ -37,19 +37,31 @@ unregistered type, or a body that fails its schema, is a **`protocol`** failure
 of [ADR 0013](0013-failures-are-typed-values-decided-at-the-shell.md), never a
 cast:
 
-| Path        | A decode failure is                    |
-| ----------- | -------------------------------------- |
-| bus         | poison: quarantined, never redelivered |
-| browser     | dropped and counted                    |
-| HTTP client | a typed failure returned to the caller |
+| Path                                 | A decode failure is                                  |
+| ------------------------------------ | ---------------------------------------------------- |
+| bus                                  | poison: quarantined, never redelivered               |
+| browser                              | dropped and counted                                  |
+| HTTP client reading a peer's answer  | a typed failure returned to the caller               |
+| a service reading a caller's request | `InvalidEnvelope`, a `400` — `decodeRequestEnvelope` |
+
+The last row is the one exception to `protocol`, and it is about blame: a
+peer's malformed answer is a `502`, a caller's malformed request is that
+caller's fault.
 
 ### The registry is open
 
 Packages register their schemas **at module load**, keyed by name. Core
-registers only what core owns: `entity`, `entityPage`, `entityMetadata`,
-`entityFacets`, `command` and `event`. A name registered twice with the **same**
+registers only what core owns: `entity`, `entityCollection`, `entityPage`,
+`entityMetadata` and `entityFacets`, and resolves `event` by its
+`meta.event.name`. `command` is registered by `@entifix/transactions`, because
+its shape is a transaction command and is defined there. A name registered twice with the **same**
 schema is accepted, so a hot reload re-runs safely; a name registered twice with
 **different** schemas throws.
+
+A registration also states what the message requires of `meta`: `versioned`,
+and whether an audience is `required` (the default) or `none`. A publisher is
+refused at encode when a requirement is unmet, so the mistake surfaces at the
+write rather than at a consumer.
 
 The four transaction-shaped discriminants — `transactionAccepted`,
 `transactionRecord`, `sagaResult`, `sagaInstance` — leave core and are

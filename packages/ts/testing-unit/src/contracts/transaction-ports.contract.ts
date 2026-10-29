@@ -1,4 +1,4 @@
-import type { DomainEvent } from '@entifix/core';
+import { type DomainEvent, registerEvent } from '@entifix/core';
 import type {
   EventBus,
   LockService,
@@ -6,7 +6,7 @@ import type {
   Subscription,
   TransactionInbox,
 } from '@entifix/transactions';
-import { Duration, Effect, Exit, Fiber } from 'effect';
+import { Duration, Effect, Exit, Fiber, Schema } from 'effect';
 import { TestClock } from 'effect/testing';
 import { describe, expect, it } from 'vitest';
 
@@ -163,6 +163,15 @@ const collectInto = (sink: DomainEvent[]) => (event: DomainEvent) =>
   Effect.sync(() => {
     sink.push(event);
   });
+
+// A transport encodes and decodes through the registry, so the suite's own
+// event is registered like any other — audience-free, since nothing here
+// delivers to a person.
+registerEvent(
+  'contract.widget.created',
+  Schema.Struct({ entity: Schema.String }),
+  { audience: 'none' },
+);
 
 const anEvent = (
   id: string,

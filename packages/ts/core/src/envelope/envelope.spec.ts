@@ -159,7 +159,7 @@ describe('readEntityEnvelope', () => {
       _tag: 'InvalidEnvelope',
       category: 'invalid',
     });
-    expect(result.message).toContain('no meta.type');
+    expect(result.message).toContain('is not an envelope');
   });
 
   it('fails with InvalidEnvelope when meta.type does not match', () => {
@@ -175,7 +175,7 @@ describe('readEntityEnvelope', () => {
       category: 'invalid',
     });
     expect(result.message).toContain(
-      'Expected an EntifixEnvelope of type "entity"',
+      "expected an envelope of type 'entity'",
     );
     expect(result.message).toContain('entityCollection');
   });
@@ -191,7 +191,7 @@ describe('readEntityEnvelope', () => {
       _tag: 'InvalidEnvelope',
       category: 'invalid',
     });
-    expect(result.message).toContain('carried no data');
+    expect(result.message).toContain('does not decode');
   });
 });
 
@@ -238,7 +238,7 @@ describe('readEntityPageEnvelope', () => {
       category: 'invalid',
     });
     expect(result.message).toContain(
-      'Expected an EntifixEnvelope of type "entityPage"',
+      "expected an envelope of type 'entityPage'",
     );
   });
 });

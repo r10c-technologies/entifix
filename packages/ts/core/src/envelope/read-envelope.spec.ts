@@ -12,12 +12,7 @@ import {
   makeEnvelope,
   makeEventEnvelope,
 } from './make-envelope.js';
-import {
-  isEntifixEnvelope,
-  readEntityPageEnvelope,
-  readEnvelope,
-  readEventEnvelope,
-} from './read-envelope.js';
+import { readEntityPageEnvelope } from './read-envelope.js';
 import type { DomainEvent } from './types.js';
 
 /** No `key`, so `meta.entity` must fall back to the class name. */
@@ -89,95 +84,18 @@ describe('makeEntityPageEnvelope', () => {
   });
 });
 
-describe('isEntifixEnvelope', () => {
-  it.each([
-    ['null', null],
-    ['undefined', undefined],
-    ['a string', 'raw'],
-    ['a number', 7],
-    ['an object without meta', { data: {} }],
-    ['an object whose meta is null', { meta: null }],
-    ['an object whose meta.type is not a string', { meta: { type: 7 } }],
-  ])('rejects %s', (_label, body) => {
-    expect(isEntifixEnvelope(body)).toBe(false);
-  });
+describe('readEntityPageEnvelope', () => {
+  it('echoes the request the page answered, and defaults an absent one', () => {
+    const read = (request?: object) =>
+      Effect.runSync(
+        readEntityPageEnvelope(Unkeyed, {
+          meta: { type: 'entityPage', entity: 'Unkeyed' },
+          data: { items: [], total: 0, ...(request ? { request } : {}) },
+        }),
+      );
 
-  it('accepts a body carrying a string meta.type', () => {
-    expect(isEntifixEnvelope({ meta: { type: 'entity' }, data: {} })).toBe(
-      true,
-    );
-  });
-});
-
-describe('readEnvelope', () => {
-  it('narrows a matching envelope', () => {
-    const envelope = makeEnvelope('transactionRecord', 'product', {
-      at: 'now',
-    });
-
-    expect(Effect.runSync(readEnvelope(envelope, 'transactionRecord'))).toBe(
-      envelope,
-    );
-  });
-
-  it('fails when the body is not an envelope, naming the label', () => {
-    const error = Effect.runSync(
-      readEnvelope({ at: 'now' }, 'transactionRecord', 'saga message').pipe(
-        Effect.flip,
-      ),
-    );
-
-    expect(error).toMatchObject({
-      _tag: 'InvalidEnvelope',
-      category: 'invalid',
-    });
-    expect(error.message).toContain('no meta.type');
-    expect(error.message).toContain('saga message');
-  });
-
-  it('defaults the label when none is given', () => {
-    const error = Effect.runSync(
-      readEnvelope(null, 'command').pipe(Effect.flip),
-    );
-
-    expect(error.message).toContain('"message"');
-  });
-
-  it('fails on a type mismatch, reporting expected and actual', () => {
-    const error = Effect.runSync(
-      readEnvelope(
-        makeEnvelope('command', 'product', {}),
-        'transactionRecord',
-      ).pipe(Effect.flip),
-    );
-
-    expect(error.message).toContain('type "transactionRecord"');
-    expect(error.message).toContain('but got "command"');
-  });
-});
-
-// A page envelope with no data at all is what a misbehaving service sends; the
-// reader must degrade to an empty page rather than propagate undefined.
-describe('readEntityPageEnvelope with an empty payload', () => {
-  it('defaults total and request when data is absent', () => {
-    const page = Effect.runSync(
-      readEntityPageEnvelope(Unkeyed, {
-        meta: { type: 'entityPage', entity: 'Unkeyed' },
-      }),
-    );
-
-    expect(page).toEqual({ items: [], total: 0, request: {} });
-  });
-
-  it('defaults total and request when data is present but empty', () => {
-    const page = Effect.runSync(
-      readEntityPageEnvelope(Unkeyed, {
-        meta: { type: 'entityPage', entity: 'Unkeyed' },
-        data: {},
-      }),
-    );
-
-    expect(page).toEqual({ items: [], total: 0, request: {} });
+    expect(read({ size: 5 }).request).toEqual({ size: 5 });
+    expect(read().request).toEqual({});
   });
 });
 
@@ -218,64 +136,6 @@ describe('event envelopes', () => {
   // the old required `meta.entity` forced.
   it('sets no entity label', () => {
     expect(makeEventEnvelope(anEvent()).meta).not.toHaveProperty('entity');
-  });
-
-  it('round-trips through make/read', () => {
-    const event = anEvent();
-
-    expect(Effect.runSync(readEventEnvelope(makeEventEnvelope(event)))).toEqual(
-      event,
-    );
-  });
-
-  it('keeps an event with no correlation id readable', () => {
-    const event = anEvent({ correlationId: undefined });
-
-    const read = Effect.runSync(readEventEnvelope(makeEventEnvelope(event)));
-
-    expect(read.correlationId).toBeUndefined();
-  });
-
-  it('rejects an envelope of the wrong type', () => {
-    const error = Effect.runSync(
-      Effect.flip(readEventEnvelope(makeEnvelope('command', 'product', {}))),
-    );
-
-    expect(error.message).toContain('but got "command"');
-  });
-
-  it('rejects a body that is not an envelope at all', () => {
-    const error = Effect.runSync(
-      Effect.flip(readEventEnvelope({ not: 'an envelope' })),
-    );
-
-    expect(error.message).toContain('carried no meta.type');
-  });
-
-  // Each of these is a message the transport cannot do its job with: no `name`
-  // is unroutable, no `id` is undeduplicatable. Failing loudly beats arriving
-  // with a silently defaulted key.
-  it.each([
-    ['name', { name: '' }],
-    ['id', { id: '' }],
-    ['source', { source: '' }],
-    ['at', { at: '' }],
-  ])('rejects an event missing %s', (member, overrides) => {
-    const envelope = makeEventEnvelope(
-      anEvent(overrides as Partial<DomainEvent<{ sku: string }>>),
-    );
-
-    const error = Effect.runSync(Effect.flip(readEventEnvelope(envelope)));
-
-    expect(error.message).toContain(member);
-  });
-
-  it('rejects an envelope carrying no meta.event at all', () => {
-    const error = Effect.runSync(
-      Effect.flip(readEventEnvelope({ meta: { type: 'event' }, data: {} })),
-    );
-
-    expect(error.message).toContain('name, id, source, at');
   });
 });
 
