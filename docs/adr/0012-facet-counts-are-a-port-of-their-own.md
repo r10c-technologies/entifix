@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-26
+- Revised: 2026-10-29 by [ADR 0020](0020-endpoints-are-descriptors-and-the-shell-builds-an-httpapi.md) — `$facets` is an endpoint of `entityApi`, registered before `/:id`; `makeEntityFacetRoutes` stays until every consumer has moved
 - Area: adapters
 - Read when: a listing has to show how many records each filter choice would keep ("Aurora (12)"), adding a count or an aggregation to a store, or about to put counts on `EntityPage` or a method on `EntityRepository`
 
