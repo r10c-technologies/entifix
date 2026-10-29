@@ -79,7 +79,7 @@ calls. It carries `id@version`, the owning `module`, its `kind`
 `call` (plus a `compensation` on a compensatable step, unless it is
 `readOnly`), a `contract { input, output, failure }` of Schemas, the context
 facts it `requires`, the keys it `consumes` and `provides`, whether it is
-`irreversible`, the `isolation` countermeasure it relies on (`commutative`,
+`irreversible`, the segments it is `excludedFrom`, the `isolation` countermeasure it relies on (`commutative`,
 `semanticLock`, `reRead`, …), and its `cardinality`: `one`, `perVendor` or
 `perLine`.
 
@@ -111,7 +111,7 @@ tag per rule:
 | compensatable steps sit before the commit point                                                                                                 | `CompensatableAfterCommit`                    |
 | `irreversible` steps sit at or after it                                                                                                         | `IrreversibleBeforeCommit`                    |
 | `wait` steps sit at or after it                                                                                                                 | `WaitBeforeCommit`                            |
-| no `payment.capture` inside a cash-on-delivery segment                                                                                          | `CaptureInCashOnDeliverySegment`              |
+| a step does not run in a segment its fragment excludes — a card capture declares `excludedFrom: { paymentMethod: ['cashOnDelivery'] }`          | `ExcludedFromSegment`                         |
 | every consumed key is provided earlier, with the same Schema                                                                                    | `UnsatisfiedInput`                            |
 | every `requires` is satisfied by the context                                                                                                    | `UnmetRequirement`                            |
 | every pinned `id@n` exists in the catalog                                                                                                       | `UnknownFragment`                             |

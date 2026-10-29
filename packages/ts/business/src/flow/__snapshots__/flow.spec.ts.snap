@@ -1,0 +1,504 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`the catalog > documents itself as stable JSON 1`] = `
+{
+  "fragments": [
+    {
+      "call": {
+        "method": "GET",
+        "path": "/api/published-offering",
+      },
+      "cardinality": "perLine",
+      "consumes": {},
+      "contract": {
+        "failure": {
+          "definitions": {},
+          "dialect": "draft-2020-12",
+          "schema": {
+            "additionalProperties": true,
+            "properties": {
+              "code": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "code",
+            ],
+            "type": "object",
+          },
+        },
+        "input": {
+          "definitions": {},
+          "dialect": "draft-2020-12",
+          "schema": {
+            "additionalProperties": true,
+            "properties": {
+              "sku": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "sku",
+            ],
+            "type": "object",
+          },
+        },
+        "output": {
+          "definitions": {},
+          "dialect": "draft-2020-12",
+          "schema": {
+            "additionalProperties": true,
+            "properties": {
+              "reservationId": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "reservationId",
+            ],
+            "type": "object",
+          },
+        },
+      },
+      "excludedFrom": {},
+      "fingerprint": "0c7bd0b1ee06ea",
+      "id": "catalog.price-lines",
+      "irreversible": false,
+      "isolation": "none",
+      "kind": "compensatable",
+      "module": "catalog",
+      "participant": "marketplace",
+      "provides": {},
+      "readOnly": true,
+      "ref": "catalog.price-lines@1",
+      "requires": {},
+      "version": 1,
+    },
+    {
+      "cardinality": "one",
+      "consumes": {},
+      "contract": {
+        "failure": {
+          "definitions": {},
+          "dialect": "draft-2020-12",
+          "schema": {
+            "not": {},
+          },
+        },
+        "input": {
+          "definitions": {},
+          "dialect": "draft-2020-12",
+          "schema": {},
+        },
+        "output": {
+          "definitions": {},
+          "dialect": "draft-2020-12",
+          "schema": {},
+        },
+      },
+      "excludedFrom": {},
+      "fingerprint": "0f76b9eb1662e5",
+      "id": "flow.commit",
+      "irreversible": false,
+      "isolation": "none",
+      "kind": "pivot",
+      "module": "flow",
+      "provides": {},
+      "readOnly": false,
+      "ref": "flow.commit@1",
+      "requires": {},
+      "version": 1,
+    },
+    {
+      "call": {
+        "method": "GET",
+        "path": "/api/shipping-order/:id",
+      },
+      "cardinality": "perVendor",
+      "consumes": {},
+      "contract": {
+        "failure": {
+          "definitions": {},
+          "dialect": "draft-2020-12",
+          "schema": {
+            "additionalProperties": true,
+            "properties": {
+              "code": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "code",
+            ],
+            "type": "object",
+          },
+        },
+        "input": {
+          "definitions": {},
+          "dialect": "draft-2020-12",
+          "schema": {
+            "additionalProperties": true,
+            "properties": {
+              "sku": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "sku",
+            ],
+            "type": "object",
+          },
+        },
+        "output": {
+          "definitions": {},
+          "dialect": "draft-2020-12",
+          "schema": {
+            "additionalProperties": true,
+            "properties": {
+              "reservationId": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "reservationId",
+            ],
+            "type": "object",
+          },
+        },
+      },
+      "excludedFrom": {},
+      "fingerprint": "0c7bd0b1ee06ea",
+      "id": "fulfilment.await-delivery",
+      "irreversible": false,
+      "isolation": "none",
+      "kind": "wait",
+      "module": "fulfilment",
+      "participant": "fulfilment",
+      "provides": {},
+      "readOnly": false,
+      "ref": "fulfilment.await-delivery@1",
+      "requires": {},
+      "version": 1,
+    },
+    {
+      "call": {
+        "method": "POST",
+        "path": "/api/shipping-order",
+      },
+      "cardinality": "perVendor",
+      "consumes": {},
+      "contract": {
+        "failure": {
+          "definitions": {},
+          "dialect": "draft-2020-12",
+          "schema": {
+            "additionalProperties": true,
+            "properties": {
+              "code": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "code",
+            ],
+            "type": "object",
+          },
+        },
+        "input": {
+          "definitions": {},
+          "dialect": "draft-2020-12",
+          "schema": {
+            "additionalProperties": true,
+            "properties": {
+              "sku": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "sku",
+            ],
+            "type": "object",
+          },
+        },
+        "output": {
+          "definitions": {},
+          "dialect": "draft-2020-12",
+          "schema": {
+            "additionalProperties": true,
+            "properties": {
+              "reservationId": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "reservationId",
+            ],
+            "type": "object",
+          },
+        },
+      },
+      "excludedFrom": {},
+      "fingerprint": "0c7bd0b1ee06ea",
+      "id": "fulfilment.ship",
+      "irreversible": true,
+      "isolation": "none",
+      "kind": "retriable",
+      "module": "fulfilment",
+      "participant": "fulfilment",
+      "provides": {},
+      "readOnly": false,
+      "ref": "fulfilment.ship@1",
+      "requires": {},
+      "version": 1,
+    },
+    {
+      "call": {
+        "method": "POST",
+        "path": "/api/payment",
+      },
+      "cardinality": "one",
+      "consumes": {},
+      "contract": {
+        "failure": {
+          "definitions": {},
+          "dialect": "draft-2020-12",
+          "schema": {
+            "additionalProperties": true,
+            "properties": {
+              "code": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "code",
+            ],
+            "type": "object",
+          },
+        },
+        "input": {
+          "definitions": {},
+          "dialect": "draft-2020-12",
+          "schema": {
+            "additionalProperties": true,
+            "properties": {
+              "sku": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "sku",
+            ],
+            "type": "object",
+          },
+        },
+        "output": {
+          "definitions": {},
+          "dialect": "draft-2020-12",
+          "schema": {
+            "additionalProperties": true,
+            "properties": {
+              "reservationId": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "reservationId",
+            ],
+            "type": "object",
+          },
+        },
+      },
+      "excludedFrom": {
+        "paymentMethod": [
+          "cashOnDelivery",
+        ],
+      },
+      "fingerprint": "0c7bd0b1ee06ea",
+      "id": "payment.capture",
+      "irreversible": true,
+      "isolation": "none",
+      "kind": "pivot",
+      "module": "payment-management",
+      "participant": "payment",
+      "provides": {},
+      "readOnly": false,
+      "ref": "payment.capture@1",
+      "requires": {},
+      "version": 1,
+    },
+    {
+      "call": {
+        "method": "POST",
+        "path": "/api/reservation/:id/conversion",
+      },
+      "cardinality": "perLine",
+      "consumes": {
+        "reservationId": {
+          "definitions": {},
+          "dialect": "draft-2020-12",
+          "schema": {
+            "type": "string",
+          },
+        },
+      },
+      "contract": {
+        "failure": {
+          "definitions": {},
+          "dialect": "draft-2020-12",
+          "schema": {
+            "additionalProperties": true,
+            "properties": {
+              "code": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "code",
+            ],
+            "type": "object",
+          },
+        },
+        "input": {
+          "definitions": {},
+          "dialect": "draft-2020-12",
+          "schema": {
+            "additionalProperties": true,
+            "properties": {
+              "sku": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "sku",
+            ],
+            "type": "object",
+          },
+        },
+        "output": {
+          "definitions": {},
+          "dialect": "draft-2020-12",
+          "schema": {
+            "additionalProperties": true,
+            "properties": {
+              "reservationId": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "reservationId",
+            ],
+            "type": "object",
+          },
+        },
+      },
+      "excludedFrom": {},
+      "fingerprint": "10aca6b2f53723",
+      "id": "stock.convert",
+      "irreversible": false,
+      "isolation": "none",
+      "kind": "retriable",
+      "module": "stock-management",
+      "participant": "stock",
+      "provides": {},
+      "readOnly": false,
+      "ref": "stock.convert@1",
+      "requires": {},
+      "version": 1,
+    },
+    {
+      "call": {
+        "method": "POST",
+        "path": "/api/reservation",
+      },
+      "cardinality": "perLine",
+      "compensation": {
+        "method": "DELETE",
+        "path": "/api/reservation/:id",
+      },
+      "consumes": {},
+      "contract": {
+        "failure": {
+          "definitions": {},
+          "dialect": "draft-2020-12",
+          "schema": {
+            "additionalProperties": true,
+            "properties": {
+              "code": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "code",
+            ],
+            "type": "object",
+          },
+        },
+        "input": {
+          "definitions": {},
+          "dialect": "draft-2020-12",
+          "schema": {
+            "additionalProperties": true,
+            "properties": {
+              "sku": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "sku",
+            ],
+            "type": "object",
+          },
+        },
+        "output": {
+          "definitions": {},
+          "dialect": "draft-2020-12",
+          "schema": {
+            "additionalProperties": true,
+            "properties": {
+              "reservationId": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "reservationId",
+            ],
+            "type": "object",
+          },
+        },
+      },
+      "excludedFrom": {},
+      "fingerprint": "17279c5eb53207",
+      "id": "stock.reserve",
+      "irreversible": false,
+      "isolation": "commutative",
+      "kind": "compensatable",
+      "module": "stock-management",
+      "participant": "stock",
+      "provides": {
+        "reservationId": {
+          "definitions": {},
+          "dialect": "draft-2020-12",
+          "schema": {
+            "type": "string",
+          },
+        },
+        "sku": {
+          "definitions": {},
+          "dialect": "draft-2020-12",
+          "schema": {
+            "type": "string",
+          },
+        },
+      },
+      "readOnly": false,
+      "ref": "stock.reserve@1",
+      "requires": {
+        "entitlements": [
+          "stock-management",
+        ],
+      },
+      "version": 1,
+    },
+  ],
+}
+`;
