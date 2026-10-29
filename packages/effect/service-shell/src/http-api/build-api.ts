@@ -35,6 +35,7 @@ import {
   SchemaIssue,
 } from 'effect';
 import type { Etag, HttpPlatform, HttpRouter } from 'effect/http';
+import { HttpServerResponse } from 'effect/http';
 import {
   HttpApi,
   HttpApiBuilder,
@@ -258,7 +259,21 @@ const respondLayer = (policy: FailurePolicy) =>
         ),
       ) as never,
       policy,
-    )) as never);
+    ).pipe(Effect.map(uncachedByDefault))) as never);
+
+/**
+ * Every answer `no-store` unless its endpoint chose a cache policy of its own.
+ * An API answer carries a principal, a token or a tenant's records far more
+ * often than anything a cache could share, and a token response must not be
+ * stored at all (RFC 6749 §5.1) — so the safe default is the shell's, and an
+ * endpoint that wants caching (an `ETag`ed metadata document) says so.
+ */
+const uncachedByDefault = (
+  response: HttpServerResponse.HttpServerResponse,
+): HttpServerResponse.HttpServerResponse =>
+  response.headers['cache-control'] === undefined
+    ? HttpServerResponse.setHeader(response, 'cache-control', 'no-store')
+    : response;
 
 const toEndpoint = (descriptor: AnyEndpoint, policy: FailurePolicy) => {
   const params = toSchema(descriptor.params);

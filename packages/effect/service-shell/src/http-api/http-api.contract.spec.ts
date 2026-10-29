@@ -417,6 +417,18 @@ describe('a payload that is not JSON', () => {
     expect(res.status).toBe(200);
     expect(res.body).toBe('the-token');
   });
+
+  it('answers no-store unless the endpoint chose a cache policy', async () => {
+    const res = await call('/api/form-logout', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: 'logout_token=the-token',
+    });
+    const refused = await call('/api/pot', { method: 'POST' });
+
+    expect(res.headers.get('cache-control')).toBe('no-store');
+    expect(refused.headers.get('cache-control')).toBe('no-store');
+  });
 });
 
 describe('a request that fails its schema', () => {

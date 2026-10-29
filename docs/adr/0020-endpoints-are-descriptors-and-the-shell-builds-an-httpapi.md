@@ -61,6 +61,11 @@ A cell declares each endpoint with `defineEndpoint` from `@entifix/core`:
   caller a specification makes post a form. Each is a schema carrying a
   marker the shell reads; `headers` names the request headers a handler
   reads, and a header it does not name is not its input.
+- Every answer is `cache-control: no-store` unless its endpoint set a cache
+  policy of its own. An API answer carries a principal, a token or a tenant's
+  records far more often than anything a cache could share, and a token
+  response must not be stored at all (RFC 6749 §5.1); an endpoint that wants
+  caching, such as an `ETag`ed `$metadata`, says so.
 
 The service shell's `serveEndpoints({ name, groups, policy })` returns two
 things built from the same descriptors, so they cannot disagree:

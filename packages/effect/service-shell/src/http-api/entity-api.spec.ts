@@ -396,6 +396,7 @@ const call = async (path: string, init?: RequestInit) => {
     status: response.status,
     headers: response.headers,
     body: (text === '' ? undefined : JSON.parse(text)) as
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- a decoded answer, read as deep as each case needs
       Record<string, any> | undefined,
   };
 };
