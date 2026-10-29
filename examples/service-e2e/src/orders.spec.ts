@@ -29,10 +29,13 @@ const stock = async (code: string, available: number) => {
 const availableOf = async (code: string) =>
   (await service.client.get(`/api/stock-item/${code}`)).data.data.available;
 
-const order = (body: object, idempotencyKey?: string) =>
+// The key is the saga id, so every order carries one.
+const order = (
+  body: object,
+  idempotencyKey: string = globalThis.crypto.randomUUID(),
+) =>
   service.client.post('/api/order', body, {
-    headers:
-      idempotencyKey === undefined ? {} : { 'Idempotency-Key': idempotencyKey },
+    headers: { 'Idempotency-Key': `"${idempotencyKey}"` },
   });
 
 const eventually = async <T>(
@@ -81,7 +84,7 @@ describe('placing an order', () => {
 
     const placed = await order({ sku: code, quantity: 2, amount: 40 });
 
-    expect(placed.status).toBe(201);
+    expect(placed.status).toBe(200);
     expect(placed.data.state).toBe('COMPLETED');
     expect(await availableOf(code)).toBe(3);
 
@@ -116,7 +119,7 @@ describe('placing an order', () => {
     const refused = await order({ sku: code, quantity: 2, amount: 5000 });
 
     expect(refused.status).toBe(409);
-    expect(refused.data.state).toBe('COMPENSATED');
+    expect(refused.data.code).toBe('orderRefused');
     expect(await availableOf(code)).toBe(5);
   });
 
@@ -126,7 +129,7 @@ describe('placing an order', () => {
 
     const refused = await order({ sku: code, quantity: 2, amount: 40 });
 
-    expect(refused.data.state).toBe('COMPENSATED');
+    expect(refused.data.code).toBe('orderRefused');
     expect(await availableOf(code)).toBe(1);
   });
 

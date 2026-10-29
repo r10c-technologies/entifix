@@ -14,6 +14,7 @@ import {
   defineEndpoints,
   entityKey,
   implement,
+  JsonBody,
 } from './endpoint.js';
 
 @entity({ domain: 'shop', key: 'basket' })
@@ -156,5 +157,18 @@ describe('entityKey', () => {
     expect(() => entityKey(Keyless, 'keyless')).toThrow(
       'does not match @entity({ key: undefined })',
     );
+  });
+});
+
+describe('JsonBody', () => {
+  it('sends what it is given as its JSON', () => {
+    const at = new Date('2026-10-29T00:00:00.000Z');
+
+    expect(Schema.encodeSync(JsonBody)({ at, gone: undefined, n: 1 })).toEqual({
+      at: '2026-10-29T00:00:00.000Z',
+      n: 1,
+    });
+    expect(Schema.encodeSync(JsonBody)(undefined)).toBeNull();
+    expect(Schema.decodeSync(JsonBody)({ a: 1 })).toEqual({ a: 1 });
   });
 });

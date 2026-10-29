@@ -1,4 +1,4 @@
-import type { Effect, Schema } from 'effect';
+import { type Effect, Schema, SchemaTransformation } from 'effect';
 
 import { extractMetaEntity } from '../entity-definition/helpers/entity-definition-helpers.js';
 import type {
@@ -77,8 +77,7 @@ export interface EndpointDescriptor<
   Errors extends ReadonlyArray<FailureClass> = ReadonlyArray<FailureClass>,
   Guard extends EndpointGuard = EndpointGuard,
   Idempotency extends EndpointIdempotency | undefined =
-    | EndpointIdempotency
-    | undefined,
+    EndpointIdempotency | undefined,
 > {
   readonly name: Name;
   readonly method: Method;
@@ -268,3 +267,23 @@ export const entityKey = <T extends Entity, const K extends string>(
     );
   return key;
 };
+
+/**
+ * A body an endpoint sends without describing it: whatever the handler
+ * answers, as its JSON — `Date`s as ISO strings, `undefined` members dropped,
+ * the way `JSON.stringify` writes it. For a record whose shape the entity
+ * describes rather than a schema, and for an opaque document such as an
+ * OpenAPI one. A body the endpoint can describe should be a schema instead.
+ */
+export const JsonBody: Schema.Codec<unknown, unknown> = Schema.Unknown.pipe(
+  Schema.decodeTo(
+    Schema.Unknown,
+    SchemaTransformation.transform({
+      decode: value => value,
+      encode: value =>
+        value === undefined
+          ? null
+          : (JSON.parse(JSON.stringify(value)) as unknown),
+    }),
+  ),
+);

@@ -1,9 +1,9 @@
 import {
-  EntifixConnError,
   type Entity,
   type EntityConstructor,
   type EntityId,
   type EntityLinkResolver,
+  NotFound,
 } from '@entifix/core';
 import { Effect } from 'effect';
 
@@ -38,12 +38,7 @@ export const makeInMemoryEntityLinkResolver = (
           .get(entityConstructor)
           ?.find(item => item.id === id);
         return found === undefined
-          ? Effect.fail(
-              new EntifixConnError('Link target not found', undefined, {
-                entity: entityConstructor.name,
-                id,
-              }),
-            )
+          ? Effect.fail(new NotFound({ entity: entityConstructor.name }))
           : Effect.succeed(found as TEntity);
       }),
     get requested() {

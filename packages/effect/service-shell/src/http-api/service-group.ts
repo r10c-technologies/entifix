@@ -11,6 +11,7 @@ import {
   defineEndpoint,
   Failure,
   implement,
+  JsonBody,
 } from '@entifix/core';
 import { Effect, Ref, Schema } from 'effect';
 import type { HttpApi } from 'effect/http-api';
@@ -110,7 +111,7 @@ const openapi = defineEndpoint({
   name: 'openapi',
   method: 'GET',
   path: OPENAPI_PATH,
-  success: Schema.Unknown,
+  success: JsonBody,
   errors: [],
   guard: { kind: 'fleet' },
 });
