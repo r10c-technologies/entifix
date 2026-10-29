@@ -24,6 +24,10 @@ pnpm nx lint <project>
 pnpm nx test <project> --coverage              # every packages/* project is gated at 100%
 pnpm nx test @entifix/tiers                    # the tier contract, against the tree
 pnpm nx test @entifix/docs-check               # links, ADR headers, supersession
+# Real Postgres at ENTIFIX_PG_URL (CI's service container, or examples/compose.yaml):
+pnpm nx run-many -t test-integration --parallel=1  # the SQL stores' contract suites
+pnpm nx run @entifix/workflow:test-engine      # chaos: two runner processes, killed and restarted
+pnpm nx run @entifix/workflow:record-journals  # re-record replay journals — only for a new slipVersion
 pnpm exec prettier --check .
 pnpm nx sync                                   # tsconfig project references after adding deps
 

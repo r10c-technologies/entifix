@@ -231,7 +231,15 @@ export default [
     },
   },
   {
-    files: ['**/*.spec.ts', '**/*.spec.tsx', '**/*.test.ts', '**/*.test.tsx'],
+    // A project's `test/` directory holds what its suites share — journals, a
+    // chaos harness — and is test material like a spec, never shipped.
+    files: [
+      '**/*.spec.ts',
+      '**/*.spec.tsx',
+      '**/*.test.ts',
+      '**/*.test.tsx',
+      '**/test/**/*.ts',
+    ],
     rules: {
       '@nx/enforce-module-boundaries': [
         'error',

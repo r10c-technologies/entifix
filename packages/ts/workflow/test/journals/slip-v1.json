@@ -1,0 +1,383 @@
+{
+  "slipVersion": 1,
+  "cases": [
+    {
+      "name": "every step succeeds",
+      "slip": {
+        "slipVersion": 1,
+        "flowId": "j-complete",
+        "recipe": "journal",
+        "stages": [
+          {
+            "name": "main",
+            "steps": [
+              {
+                "ref": "contract.hold@1",
+                "step": "hold",
+                "cardinality": "one"
+              },
+              {
+                "ref": "contract.take@1",
+                "step": "take",
+                "cardinality": "one"
+              },
+              {
+                "ref": "contract.settle@1",
+                "step": "settle",
+                "cardinality": "one"
+              }
+            ]
+          }
+        ],
+        "resolution": [],
+        "composedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "commands": [
+        "activity announce:flow.started:started",
+        "activity status:hold:running",
+        "activity hold:action",
+        "activity status:take:running",
+        "activity take:action",
+        "activity status:settle:running",
+        "activity settle:action",
+        "activity status:completed",
+        "activity announce:flow.completed:completed"
+      ]
+    },
+    {
+      "name": "a refusal at the commit point undoes what ran",
+      "slip": {
+        "slipVersion": 1,
+        "flowId": "j-compensate",
+        "recipe": "journal",
+        "stages": [
+          {
+            "name": "main",
+            "steps": [
+              {
+                "ref": "contract.hold@1",
+                "step": "hold",
+                "cardinality": "one"
+              },
+              {
+                "ref": "contract.take@1",
+                "step": "take",
+                "cardinality": "one"
+              }
+            ]
+          }
+        ],
+        "resolution": [],
+        "composedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "refusals": {
+        "take:action": "declined"
+      },
+      "commands": [
+        "activity announce:flow.started:started",
+        "activity status:hold:running",
+        "activity hold:action",
+        "activity status:take:running",
+        "activity take:action",
+        "activity hold:compensation",
+        "activity status:take:compensated",
+        "activity announce:flow.failed:take"
+      ]
+    },
+    {
+      "name": "an undoing that fails stops the flow",
+      "slip": {
+        "slipVersion": 1,
+        "flowId": "j-failed",
+        "recipe": "journal",
+        "stages": [
+          {
+            "name": "main",
+            "steps": [
+              {
+                "ref": "contract.hold@1",
+                "step": "hold",
+                "cardinality": "one"
+              },
+              {
+                "ref": "contract.take@1",
+                "step": "take",
+                "cardinality": "one"
+              }
+            ]
+          }
+        ],
+        "resolution": [],
+        "composedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "refusals": {
+        "take:action": "declined",
+        "hold:compensation": "declined"
+      },
+      "commands": [
+        "activity announce:flow.started:started",
+        "activity status:hold:running",
+        "activity hold:action",
+        "activity status:take:running",
+        "activity take:action",
+        "activity hold:compensation",
+        "activity status:hold:failed",
+        "activity announce:flow.failed:hold"
+      ]
+    },
+    {
+      "name": "a failure after the commit point suspends",
+      "slip": {
+        "slipVersion": 1,
+        "flowId": "j-suspend",
+        "recipe": "journal",
+        "stages": [
+          {
+            "name": "main",
+            "steps": [
+              {
+                "ref": "contract.take@1",
+                "step": "take",
+                "cardinality": "one"
+              },
+              {
+                "ref": "contract.settle@1",
+                "step": "settle",
+                "cardinality": "one"
+              }
+            ]
+          }
+        ],
+        "resolution": [],
+        "composedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "refusals": {
+        "settle:action": "unavailable"
+      },
+      "commands": [
+        "activity announce:flow.started:started",
+        "activity status:take:running",
+        "activity take:action",
+        "activity status:settle:running",
+        "activity settle:action",
+        "activity status:settle:suspended",
+        "activity announce:flow.suspended:settle"
+      ]
+    },
+    {
+      "name": "a signalled wait continues",
+      "slip": {
+        "slipVersion": 1,
+        "flowId": "j-wait",
+        "recipe": "journal",
+        "stages": [
+          {
+            "name": "main",
+            "steps": [
+              {
+                "ref": "contract.take@1",
+                "step": "take",
+                "cardinality": "one"
+              },
+              {
+                "ref": "contract.await@1",
+                "step": "await",
+                "cardinality": "one",
+                "parameters": {
+                  "correlation": "order-1"
+                }
+              },
+              {
+                "ref": "contract.settle@1",
+                "step": "settle",
+                "cardinality": "one"
+              }
+            ]
+          }
+        ],
+        "resolution": [],
+        "composedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "signals": {
+        "await": {
+          "delivered": true
+        }
+      },
+      "commands": [
+        "activity announce:flow.started:started",
+        "activity status:take:running",
+        "activity take:action",
+        "activity status:await:waiting",
+        "deferred wait:await",
+        "activity announce:flow.started:started",
+        "activity status:take:running",
+        "activity take:action",
+        "activity status:await:waiting",
+        "deferred wait:await",
+        "activity status:await:resumed",
+        "activity status:settle:running",
+        "activity settle:action",
+        "activity status:completed",
+        "activity announce:flow.completed:completed"
+      ]
+    },
+    {
+      "name": "a timed wait whose clock wins",
+      "slip": {
+        "slipVersion": 1,
+        "flowId": "j-timeout",
+        "recipe": "journal",
+        "stages": [
+          {
+            "name": "main",
+            "steps": [
+              {
+                "ref": "contract.take@1",
+                "step": "take",
+                "cardinality": "one"
+              },
+              {
+                "ref": "contract.await@1",
+                "step": "await",
+                "cardinality": "one",
+                "parameters": {
+                  "timeoutMs": 20
+                }
+              }
+            ]
+          }
+        ],
+        "resolution": [],
+        "composedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "commands": [
+        "activity announce:flow.started:started",
+        "activity status:take:running",
+        "activity take:action",
+        "activity status:await:waiting",
+        "deferred raceAll/race:await",
+        "deferred wait:await",
+        "activity DurableClock/timeout:await",
+        "activity status:await:suspended",
+        "activity announce:flow.suspended:await"
+      ]
+    },
+    {
+      "name": "a timed wait signalled before its clock",
+      "slip": {
+        "slipVersion": 1,
+        "flowId": "j-race",
+        "recipe": "journal",
+        "stages": [
+          {
+            "name": "main",
+            "steps": [
+              {
+                "ref": "contract.take@1",
+                "step": "take",
+                "cardinality": "one"
+              },
+              {
+                "ref": "contract.await@1",
+                "step": "await",
+                "cardinality": "one",
+                "parameters": {
+                  "timeoutMs": 120000
+                }
+              },
+              {
+                "ref": "contract.settle@1",
+                "step": "settle",
+                "cardinality": "one"
+              }
+            ]
+          }
+        ],
+        "resolution": [],
+        "composedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "signals": {
+        "await": {
+          "delivered": true
+        }
+      },
+      "commands": [
+        "activity announce:flow.started:started",
+        "activity status:take:running",
+        "activity take:action",
+        "activity status:await:waiting",
+        "deferred raceAll/race:await",
+        "deferred wait:await",
+        "clock timeout:await",
+        "deferred DurableClock/timeout:await",
+        "activity announce:flow.started:started",
+        "activity status:take:running",
+        "activity take:action",
+        "activity status:await:waiting",
+        "deferred raceAll/race:await",
+        "deferred wait:await",
+        "activity status:await:resumed",
+        "activity status:settle:running",
+        "activity settle:action",
+        "activity status:completed",
+        "activity announce:flow.completed:completed"
+      ]
+    },
+    {
+      "name": "segments join, and a refused one undoes the others",
+      "slip": {
+        "slipVersion": 1,
+        "flowId": "j-segments",
+        "recipe": "journal",
+        "stages": [
+          {
+            "name": "reserve",
+            "steps": [
+              {
+                "ref": "contract.hold@1",
+                "step": "v1:hold",
+                "cardinality": "perVendor",
+                "segment": {
+                  "vendor": "v1"
+                }
+              },
+              {
+                "ref": "contract.hold@1",
+                "step": "v2:hold",
+                "cardinality": "perVendor",
+                "segment": {
+                  "vendor": "v2"
+                }
+              }
+            ]
+          },
+          {
+            "name": "pay",
+            "steps": [
+              {
+                "ref": "contract.take@1",
+                "step": "take",
+                "cardinality": "one"
+              }
+            ]
+          }
+        ],
+        "resolution": [],
+        "composedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "refusals": {
+        "v2:hold:action": "declined"
+      },
+      "commands": [
+        "activity announce:flow.started:started",
+        "activity status:v1:hold:running",
+        "activity v1:hold:action",
+        "activity status:v2:hold:running",
+        "activity v2:hold:action",
+        "activity v1:hold:compensation",
+        "activity status:v2:hold:compensated",
+        "activity announce:flow.failed:v2:hold"
+      ]
+    }
+  ]
+}

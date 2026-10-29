@@ -1,6 +1,10 @@
 import { NodeClusterSocket } from '@effect/platform-node';
 import { Layer, Option } from 'effect';
-import { ClusterWorkflowEngine, RunnerAddress } from 'effect/cluster';
+import {
+  ClusterWorkflowEngine,
+  RunnerAddress,
+  type ShardingConfig,
+} from 'effect/cluster';
 
 import { FlowEngineLayer } from '../engine/make-flow-engine.js';
 import type { InterpreterOptions } from '../interpreter/slip-workflow.js';
@@ -10,6 +14,15 @@ export interface SocketRunnerOptions {
   /** Where the other runners reach this one, and where it listens. */
   readonly host: string;
   readonly port: number;
+  /**
+   * How quickly the runner notices a dead peer and takes its shards over —
+   * the lock expiry, the assignment refresh, the storage polls. The cluster
+   * defaults are tuned for a fleet that rarely loses a runner; a host may
+   * shorten them, and the chaos suite does.
+   */
+  readonly sharding?: Partial<
+    Omit<ShardingConfig.ShardingConfig['Service'], 'runnerAddress'>
+  >;
 }
 
 /**
@@ -31,6 +44,7 @@ export const SocketRunnerFlowEngineLayer = (
           NodeClusterSocket.layer({
             storage: 'sql',
             shardingConfig: {
+              ...runner.sharding,
               runnerAddress: Option.some(
                 RunnerAddress.make(runner.host, runner.port),
               ),

@@ -166,7 +166,7 @@ const groupsOf = (steps: readonly SlipStep[]): readonly SlipStep[][] => {
 };
 
 /**
- * Interprets a pinned slip
+ * Interprets a pinned slip of grammar version 1
  * ([ADR 0016](../../../../../docs/adr/0016-a-flow-engine-port-and-a-durable-workflow-adapter.md)):
  * each step is an Activity named after it and keyed `<flowId>:<step>`, so a
  * resumed flow replays what already ran and calls a participant at most once
@@ -191,7 +191,7 @@ const groupsOf = (steps: readonly SlipStep[]): readonly SlipStep[][] => {
  * after the last undoing has run — and an undoing that fails stops the flow
  * `failed` at that step instead of pretending.
  */
-export const interpretSlip = (slip: Slip) =>
+const interpretV1 = (slip: Slip) =>
   Effect.gen(function* () {
     const options = yield* InterpreterOptionsTag;
     const dials = { ...DEFAULT_FLOW_DIALS, ...options.dials };
@@ -424,6 +424,26 @@ export const interpretSlip = (slip: Slip) =>
     yield* announce('flow.completed', 'completed', steps.length + 1);
     return 'completed' as const;
   });
+
+/**
+ * One interpreter per grammar version a slip can be written in. A flow runs
+ * to its end under the grammar it started with, so a change to how steps are
+ * walked — their order, their Activity names — is a new entry here, never an
+ * edit to an existing one; the journal replay holds every entry to its
+ * recorded command sequence.
+ */
+const INTERPRETERS = { 1: interpretV1 } as const satisfies Record<
+  Slip['slipVersion'],
+  (slip: Slip) => unknown
+>;
+
+/** Every `slipVersion` the interpreter walks — each must have a journal. */
+export const interpretedSlipVersions: readonly number[] = Object.keys(
+  INTERPRETERS,
+).map(Number);
+
+export const interpretSlip = (slip: Slip) =>
+  INTERPRETERS[slip.slipVersion](slip);
 
 /** The interpreter registered with the workflow engine, with its options. */
 export const SlipWorkflowLayer = (options: InterpreterOptions) =>

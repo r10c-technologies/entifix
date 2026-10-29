@@ -39,6 +39,7 @@ jobs:
       e2e-projects: ${{ steps.chunks.outputs.e2e-projects }}
       storybook-projects: ${{ steps.chunks.outputs.storybook-projects }}
       integration-projects: ${{ steps.chunks.outputs.integration-projects }}
+      engine: ${{ steps.chunks.outputs.engine }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -134,6 +135,21 @@ jobs:
           echo "e2e-projects=$(jq -r 'join(",")' <<<"$e2e")" >> "$GITHUB_OUTPUT"
           echo "storybook-projects=$(jq -r 'join(",")' <<<"$storybook")" >> "$GITHUB_OUTPUT"
           echo "integration-projects=$(jq -r 'join(",")' <<<"$integration")" >> "$GITHUB_OUTPUT"
+
+          # The workflow engine's chaos suite runs when the package changes —
+          # which `--affected` sees — and whenever the `effect` pin moves, which
+          # it may not: a pin bump, Dependabot's grouped one included, edits the
+          # manifests and the lockfile, and the engine is what an `effect`
+          # release has broken before (ADR 0016).
+          engine=false
+          if [[ "$(projects test-engine)" != "[]" ]]; then engine=true; fi
+          if [[ "${{ github.event_name }}" == "pull_request" ]] && \
+            git diff ${{ steps.shas.outputs.base }} ${{ steps.shas.outputs.head }} \
+              -- 'package.json' '**/package.json' 'pnpm-lock.yaml' \
+              | grep -qE '^[+-].*("effect"|@effect/)'; then
+            engine=true
+          fi
+          echo "engine=$engine" >> "$GITHUB_OUTPUT"
 
   # One job, not a matrix: lint takes about as long as a runner takes to start.
   lint:
@@ -292,6 +308,49 @@ jobs:
             examples/*/node_modules
       # One at a time: the suites share the one database.
       - run: pnpm nx run-many -t test-integration --projects="${{ needs.initialize.outputs.integration-projects }}" --parallel=1
+
+  # Two runner processes over a real Postgres, killed and restarted: the chaos
+  # suite and its journal-replay sibling gate every interpreter change and
+  # every move of the `effect` pin (ADR 0016).
+  engine:
+    name: Workflow engine chaos
+    needs: initialize
+    if: needs.initialize.outputs.engine == 'true'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: entifix
+          POSTGRES_PASSWORD: entifix
+          POSTGRES_DB: entifix
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U entifix -d entifix"
+          --health-interval 2s --health-timeout 5s --health-retries 30
+    env:
+      ENTIFIX_PG_URL: postgres://entifix:entifix@localhost:5432/entifix
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '11.9'
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+      - uses: actions/cache/restore@v4
+        with:
+          key: deps-${{ runner.os }}-node26.4-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml', 'package.json') }}
+          fail-on-cache-miss: true
+          path: |
+            node_modules
+            packages/*/*/node_modules
+            packages/style/node_modules
+            tools/*/node_modules
+            examples/*/node_modules
+      - run: pnpm nx run @entifix/workflow:test-engine
 
   # The examples' journeys. Only the hermetic ones run here — they need no
   # infrastructure, so a pull request that breaks the UI tier fails on its own
@@ -478,6 +537,7 @@ jobs:
         build,
         test,
         integration,
+        engine,
         e2e,
         storybook,
         assertions,

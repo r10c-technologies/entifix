@@ -66,6 +66,27 @@
           "command": "vitest run --config vitest.integration.mts",
           "cwd": "packages/ts/workflow"
         }
+      },
+      "test-engine": {
+        "executor": "nx:run-commands",
+        "dependsOn": [
+          "build",
+          "^build"
+        ],
+        "options": {
+          "command": "vitest run --config vitest.engine.mts",
+          "cwd": "packages/ts/workflow"
+        }
+      },
+      "record-journals": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "vitest run src/interpreter/journal.spec.ts",
+          "cwd": "packages/ts/workflow",
+          "env": {
+            "ENTIFIX_RECORD_JOURNALS": "1"
+          }
+        }
       }
     }
   },
