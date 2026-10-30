@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-28
 - Revised: 2026-10-29 by the #119 interpreter — `signalCorrelated`, an explicit compensation walk, and `DurableDeferred.raceAll` for timed waits
+- Revised: 2026-10-29 — step bounds are overridable per participant (`dialsFor`)
 - Area: adapters
 - Read when: running a multi-step flow, deciding where a flow survives its process dying, adding a wait, a child flow or a join to a flow, bumping the `effect` pin, or about to import `effect/workflow` or `effect/cluster`
 
@@ -71,7 +72,10 @@ the slip, branching on `slipVersion` — not one workflow per flow:
   `failed` at that step, and a finalizer cannot say which step it was.
 - **At and after the commit point**, a step runs under `SuspendOnFailure` with a
   `suspendedRetrySchedule`. A step is bounded per attempt and as a whole; past
-  the whole-step bound the flow strands with `flow.suspended` and alerts.
+  the whole-step bound the flow strands with `flow.suspended` and alerts. Both
+  bounds are dials with a host default, and `dialsFor(participant)` overrides
+  them per participant — a payment provider and a stock ledger do not answer on
+  the same clock, and one bound for both is wrong for at least one of them.
 - **Waits** are a `DurableDeferred`, addressable through `signal` or, by the
   step's `correlation` parameter, through `signalCorrelated`. A wait that names
   a timeout races the deferred with `DurableClock.sleep` through

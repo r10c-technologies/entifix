@@ -22,8 +22,8 @@ import { WorkflowEngine } from 'effect/workflow';
 import { afterAll, describe, expect, it } from 'vitest';
 
 import {
-  type FlowDials,
   FlowWaitTimedOut,
+  type InterpreterOptions,
 } from '../interpreter/slip-workflow.js';
 import {
   FlowStatusStoreTag,
@@ -44,7 +44,7 @@ type Call = (
 /** An engine over the in-memory workflow engine, a fresh one per case. */
 const engineOver = async (
   call: Call,
-  options: { readonly dials?: Partial<FlowDials> } = {},
+  options: Pick<InterpreterOptions, 'dials' | 'dialsFor'> = {},
 ) => {
   const store = makeInMemoryFlowStatusStore();
   const outbox = makeInMemoryOutbox();
@@ -53,6 +53,7 @@ const engineOver = async (
       catalog: flowEngineContractCatalog,
       source: 'spec',
       ...(options.dials === undefined ? {} : { dials: options.dials }),
+      ...(options.dialsFor === undefined ? {} : { dialsFor: options.dialsFor }),
     }).pipe(
       Layer.provideMerge(
         Layer.mergeAll(
@@ -221,6 +222,18 @@ describe('the slip interpreter', () => {
   it('bounds each attempt and the step, and treats the bound as a failure', async () => {
     const { engine } = await engineOver(() => Effect.never, {
       dials: { attemptTimeoutMs: 10, stepTimeoutMs: 40 },
+    });
+    await start(engine, slipOf(['hold', 'take']));
+
+    expect((await settled(engine)).state).toBe('compensated');
+  });
+
+  it('bounds a participant by its own dials over the defaults', async () => {
+    const { engine } = await engineOver(() => Effect.never, {
+      dialsFor: participant =>
+        participant === 'participant'
+          ? { attemptTimeoutMs: 10, stepTimeoutMs: 40 }
+          : undefined,
     });
     await start(engine, slipOf(['hold', 'take']));
 

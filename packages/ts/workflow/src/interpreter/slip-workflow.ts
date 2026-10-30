@@ -99,6 +99,14 @@ export interface InterpreterOptions {
   /** The slice the `flow.*` events are announced from. */
   readonly source: string;
   readonly dials?: Partial<FlowDials>;
+  /**
+   * One participant's own attempt and step bounds, over `dials` — the same
+   * shape the breaker's `dialsFor` and the bulkhead's `permitsFor` take, so a
+   * participant's dials are one row set however many guards read them.
+   */
+  readonly dialsFor?: (
+    participant: string,
+  ) => Partial<Omit<FlowDials, 'concurrency'>> | undefined;
 }
 
 /**
@@ -258,6 +266,7 @@ const interpretV1 = (slip: Slip) =>
     ) =>
       Effect.gen(function* () {
         const key = step.participant ?? 'participant';
+        const bounds = { ...dials, ...options.dialsFor?.(key) };
         const breaker = yield* CircuitBreakerTag;
         const bulkhead = yield* BulkheadTag;
         const timedOut = () => Effect.fail(new Timeout({ dependency: key }));
@@ -266,7 +275,7 @@ const interpretV1 = (slip: Slip) =>
             bulkhead.withPermit(key)(
               attempt.pipe(
                 Effect.timeoutOrElse({
-                  duration: dials.attemptTimeoutMs,
+                  duration: bounds.attemptTimeoutMs,
                   orElse: timedOut,
                 }),
               ),
@@ -278,7 +287,7 @@ const interpretV1 = (slip: Slip) =>
               idempotent: true,
             }),
             Effect.timeoutOrElse({
-              duration: dials.stepTimeoutMs,
+              duration: bounds.stepTimeoutMs,
               orElse: timedOut,
             }),
           );
