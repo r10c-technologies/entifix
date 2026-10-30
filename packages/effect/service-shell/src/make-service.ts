@@ -120,6 +120,41 @@ export interface ServiceDefinition<
 }
 
 /**
+ * `appLayer` under the registries every process shares and the drain that
+ * shuts it down — one assembly, so a service and a worker cannot drift apart
+ * on either.
+ *
+ * `provideMerge` (not `provide`) so the registries the client layers
+ * registered into are the same instances the readiness and description routes
+ * read.
+ *
+ * The graceful shutdown, and its **position** is the mechanism. Build order is
+ * `appLayer` → the drain → whatever is built on top, so release order is the
+ * reverse: the drain runs after the server has stopped taking requests and
+ * *before* the connections it needs are closed. A signal handler could not
+ * give that ordering — `runMain` interrupts the fiber on SIGTERM, and a
+ * handler racing that interrupt would drain against a closing client.
+ */
+const underRegistries = <A>(
+  appLayer: Layer.Layer<A, never, ServiceRegistries>,
+  shutdown: ShutdownRegistry,
+) =>
+  Layer.provideMerge(
+    Layer.effectDiscard(
+      Effect.acquireRelease(Effect.void, () => shutdown.drain),
+    ),
+    appLayer.pipe(
+      Layer.provideMerge(
+        Layer.mergeAll(
+          HealthRegistryLayer,
+          WiringRegistryLayer,
+          Layer.succeed(ShutdownRegistryTag, shutdown),
+        ),
+      ),
+    ),
+  );
+
+/**
  * The service as a `Layer`: `/api/health` mounted, `router` served over an
  * `@effect/platform-node` HTTP server with request logging, `appLayer`
  * provided.
@@ -186,31 +221,7 @@ export const makeServerLayer = <
     problemNet,
   );
 
-  // `provideMerge` (not `provide`) so the registries the client layers
-  // registered into are the same instances the readiness and description routes
-  // read.
-  const appLayer = def.appLayer.pipe(
-    Layer.provideMerge(
-      Layer.mergeAll(
-        HealthRegistryLayer,
-        WiringRegistryLayer,
-        Layer.succeed(ShutdownRegistryTag, shutdown),
-      ),
-    ),
-  );
-
-  // The graceful shutdown, and its **position** is the mechanism.
-  // Build order is `appLayer` → this → `serve`, so release order is the
-  // reverse: the drain runs after the server has stopped taking requests and
-  // *before* the connections it needs are closed. A signal handler could not
-  // give that ordering — `runMain` interrupts the fiber on SIGTERM, and a
-  // handler racing that interrupt would drain against a closing client.
-  const drained = Layer.provideMerge(
-    Layer.effectDiscard(
-      Effect.acquireRelease(Effect.void, () => shutdown.drain),
-    ),
-    appLayer,
-  );
+  const drained = underRegistries(def.appLayer, shutdown);
 
   // `HttpRouter.serve` logs every request unless told not to, which is the
   // request logging `HttpMiddleware.logger` used to add here.
@@ -255,5 +266,34 @@ export const makeService = <
 
   NodeRuntime.runMain(
     Layer.launch(makeServerLayer(def, def.port, shutdown.registry)),
+  );
+};
+
+/**
+ * A process that serves nothing over HTTP: its work reaches it through a
+ * datastore it shares with a service — a second runner of a flow engine,
+ * whose shards are assigned in the database the first one registered in.
+ */
+export interface WorkerDefinition<A> {
+  /**
+   * Composition root. It may require the same three registries a service's
+   * `appLayer` may, provided here once each, so a client's probe, the bus's
+   * wiring and the drain behave as they would in a service.
+   */
+  readonly appLayer: Layer.Layer<A, never, ServiceRegistries>;
+}
+
+/**
+ * Boot a worker: `appLayer` under the registries and the shutdown drain a
+ * service has, launched under `runMain` with the same signal handling as
+ * {@link makeService}, and no HTTP server.
+ */
+export const makeWorker = <A>(def: WorkerDefinition<A>): void => {
+  const shutdown = makeShutdownRegistry(logMechanismOutcome);
+  process.once('SIGTERM', shutdown.begin);
+  process.once('SIGINT', shutdown.begin);
+
+  NodeRuntime.runMain(
+    Layer.launch(underRegistries(def.appLayer, shutdown.registry)),
   );
 };

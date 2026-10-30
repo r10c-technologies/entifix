@@ -119,7 +119,10 @@ can alert on without reading the outbox.
 ### A host runs at least two runners
 
 Every host runs **≥ 2 runners**, so a runner dying is the normal case the
-engine is exercised under rather than a disaster path tested once.
+engine is exercised under rather than a disaster path tested once. A runner
+that serves no HTTP boots through `makeWorker` from
+`@entifix/service-shell/runtime`, under the same registries and shutdown drain
+as a service.
 
 ## Consequences
 
