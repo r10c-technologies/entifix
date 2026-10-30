@@ -3,68 +3,16 @@ import {
   type Permission,
   PolicyDecisionTag,
 } from '@entifix/authz';
-import { type TokenClaims, TokenServiceTag } from '@entifix/business';
+import {
+  type RequestPrincipal,
+  type TokenClaims,
+  TokenServiceTag,
+} from '@entifix/business';
 import { ACCESS_COOKIE, Forbidden, Unauthenticated } from '@entifix/core';
 import { Effect, Option } from 'effect';
 import { HttpServerRequest } from 'effect/http';
 
 import { refuse } from './failures.js';
-
-/**
- * The authenticated subject as a service sees it. Structurally identical to
- * `business-ts-authn`'s `Principal`, re-declared here so the shared shell does
- * not depend on a single domain package.
- */
-export interface RequestPrincipal {
-  readonly userId: TokenClaims['userId'];
-  readonly subject: string;
-  readonly sessionId: string;
-  readonly roles: readonly string[];
-  /**
-   * The organization this request acts for — the storage routing key, absent
-   * for a caller with no tenant scope (a buyer, or an operator). Kept out of
-   * `attributes` deliberately: attributes are policy inputs, this decides which
-   * database a handler reads.
-   */
-  readonly organizationId?: string;
-  /**
-   * Which population the caller belongs to — buyer, vendor staff, or platform
-   * staff. Carried so a handler never has to infer it from an absent
-   * `organizationId`, which a buyer and an operator share.
-   *
-   * Context, not a grant: what the caller may *do* still comes from `roles`
-   * through {@link PolicyDecisionTag}.
-   */
-  readonly partyRole?: string;
-  /**
-   * The party behind the account — the `Individual` id, absent for an account
-   * with no party record.
-   *
-   * Same rule as the two fields above: it comes from the verified token and
-   * never from anything the caller sets on the request. It says *whose* records
-   * these are, which is what a route scoping a read to its caller needs; it
-   * says nothing about what may be done with them.
-   */
-  readonly partyId?: string;
-  /**
-   * When the verified token stops being valid, as a Unix timestamp in seconds.
-   *
-   * Every REST route is already bounded by it implicitly — verification is
-   * stateless, so the next call after expiry simply fails. A **held-open**
-   * response has no next call, so `GET /api/transaction/events` reads it and
-   * closes the connection there. Absent when the token carries no
-   * `exp`, which a signed one always does; the guard is for the type, not for a
-   * case the fleet produces.
-   */
-  readonly expiresAt?: number;
-  /**
-   * What the caller's active organization was provisioned for, off the
-   * verified token. Context for a resolver, never a
-   * grant: a variant requires an entitlement before its predicate is read.
-   */
-  readonly entitlements?: readonly string[];
-  readonly attributes: Readonly<Record<string, unknown>>;
-}
 
 /** Extract a bearer token from an `Authorization` header, if present. */
 const bearerToken = (authorization: string | undefined): string | undefined => {
@@ -113,7 +61,7 @@ const forbidden = (permission: Permission) =>
  * `Authorization: Bearer` header and verifies it statelessly via
  * {@link TokenServiceTag} — no store round trip on the hot path.
  */
-const resolvePrincipal = Effect.gen(function* () {
+export const resolveRequestPrincipal = Effect.gen(function* () {
   const req = yield* HttpServerRequest.HttpServerRequest;
   const token =
     req.cookies[ACCESS_COOKIE] ?? bearerToken(req.headers['authorization']);
@@ -126,6 +74,18 @@ const resolvePrincipal = Effect.gen(function* () {
   return Option.map(claims, claimsToPrincipal);
 });
 
+/** Whether the policy lets `principal` do what `permission` names. */
+export const permits = (principal: RequestPrincipal, permission: Permission) =>
+  Effect.gen(function* () {
+    const { resource, action } = parsePermission(permission);
+    const policy = yield* PolicyDecisionTag;
+    return policy.decide({
+      subject: { roles: principal.roles },
+      resource,
+      action,
+    });
+  });
+
 /**
  * Guard a handler behind a valid access token — authentication only. Any
  * missing or invalid token is a `401`; the wrapped handler's own errors are
@@ -135,7 +95,7 @@ export const requirePrincipal = <A, E, R>(
   use: (principal: RequestPrincipal) => Effect.Effect<A, E, R>,
 ) =>
   Effect.gen(function* () {
-    const principal = yield* resolvePrincipal;
+    const principal = yield* resolveRequestPrincipal;
     if (Option.isNone(principal)) {
       return yield* unauthenticated;
     }
@@ -155,19 +115,12 @@ export const requirePermission =
   (permission: Permission) =>
   <A, E, R>(use: (principal: RequestPrincipal) => Effect.Effect<A, E, R>) =>
     Effect.gen(function* () {
-      const principal = yield* resolvePrincipal;
+      const principal = yield* resolveRequestPrincipal;
       if (Option.isNone(principal)) {
         return yield* unauthenticated;
       }
 
-      const { resource, action } = parsePermission(permission);
-      const policy = yield* PolicyDecisionTag;
-      const allowed = policy.decide({
-        subject: { roles: principal.value.roles },
-        resource,
-        action,
-      });
-      if (!allowed) {
+      if (!(yield* permits(principal.value, permission))) {
         return yield* forbidden(permission);
       }
 

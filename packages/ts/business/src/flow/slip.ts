@@ -42,6 +42,13 @@ export const SlipStage = Schema.Struct({
 });
 export type SlipStage = typeof SlipStage.Type;
 
+/** Who may receive what the flow announces — the envelope's audience. */
+export const SlipAudienceEntry = Schema.Struct({
+  kind: Schema.Literals(['organization', 'party', 'flow']),
+  id: Schema.String,
+  digest: Schema.optionalKey(Schema.String),
+});
+
 /** Which variant each use case resolved to, and by which rule. */
 export const SlipResolution = Schema.Struct({
   useCase: Schema.String,
@@ -64,6 +71,11 @@ export const Slip = Schema.Struct({
   stages: Schema.Array(SlipStage),
   resolution: Schema.Array(SlipResolution),
   composedAt: Schema.String,
+  /**
+   * Who the flow's `flow.*` events reach beside the flow itself — the
+   * organizations and parties it acts for, pinned when it was composed.
+   */
+  audience: Schema.optionalKey(Schema.Array(SlipAudienceEntry)),
 });
 export type Slip = typeof Slip.Type;
 

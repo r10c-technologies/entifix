@@ -6,6 +6,7 @@ import {
 } from '@entifix/authz';
 import type {
   RepositoryScope,
+  RequestPrincipal,
   TokenServiceTag,
   VerifiedContext,
 } from '@entifix/business';
@@ -13,7 +14,6 @@ import type { Entity, EntityConstructor, FilterGroup } from '@entifix/core';
 import type { Effect } from 'effect';
 
 import {
-  type RequestPrincipal,
   requireCrossing,
   requireOrganization,
   requirePermission,

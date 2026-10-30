@@ -128,7 +128,7 @@ export const recordConsumed = (tags: SubscriptionTags) =>
  */
 export const recordFailed = (
   tags: SubscriptionTags,
-  failure: 'transient' | 'poison',
+  failure: 'transient' | 'poison' | 'paused',
 ) =>
   Metric.update(
     Metric.withAttributes(withSubscription(busEventsFailed, tags), { failure }),
@@ -148,4 +148,22 @@ export const recordQuarantined = (tags: SubscriptionTags, category: string) =>
       category,
     }),
     1,
+  );
+
+/**
+ * Whether a subscription is paused because a breaker it waits on is open:
+ * 1 while paused, 0 while consuming, by queue.
+ */
+export const busConsumerPaused = Metric.gauge('bus_consumer_paused', {
+  description: 'Whether a consumer is paused on an open breaker, by queue.',
+});
+
+/** Sets {@link busConsumerPaused} for a subscription. */
+export const recordPaused = (tags: SubscriptionTags, paused: boolean) =>
+  Metric.update(
+    Metric.withAttributes(busConsumerPaused, {
+      queue: tags.queue,
+      slice: tags.slice,
+    }),
+    paused ? 1 : 0,
   );

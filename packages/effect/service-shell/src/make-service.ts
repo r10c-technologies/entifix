@@ -14,9 +14,20 @@ import { Effect, Layer } from 'effect';
 import { HttpRouter } from 'effect/http';
 
 import type { SharedToken } from './auth/shared-token.js';
-import { healthRoutes } from './health-routes.js';
-import { logMechanismOutcome, problemNet } from './respond.js';
-import { serviceDescriptionRoute } from './service-description-route.js';
+import {
+  type AnyEndpointGroup,
+  buildApi,
+  endpointsOf,
+  serveApi,
+  type ServedRequirements,
+} from './http-api/build-api.js';
+import { FleetTokenTag } from './http-api/guards.js';
+import { serviceGroup } from './http-api/service-group.js';
+import {
+  type FailurePolicy,
+  logMechanismOutcome,
+  problemNet,
+} from './respond.js';
 
 /**
  * A service's routes: `HttpRouter.add` / `HttpRouter.addAll` layers, merged
@@ -50,7 +61,10 @@ export type ServiceRegistries =
  * skeleton every `*-service` composes; the HTTP server, logging,
  * `/api/health`, and graceful shutdown live here so services stay thin.
  */
-export interface ServiceDefinition<RRoutes> {
+export interface ServiceDefinition<
+  RRoutes,
+  Groups extends ReadonlyArray<AnyEndpointGroup> = readonly [],
+> {
   /** Service name, surfaced on `/api/health`. */
   readonly name: string;
   /** Port to bind. Convention: 310N for domain services, 319x for platform. */
@@ -73,8 +87,19 @@ export interface ServiceDefinition<RRoutes> {
    * has, and an unguarded reconnaissance map is worse than none.
    */
   readonly description?: SharedToken;
-  /** The service's routes; their requirements are satisfied by `appLayer`. */
-  readonly router: ServiceRoutes<RRoutes>;
+  /**
+   * The service's endpoints, served as one `HttpApi` beside the health and
+   * description endpoints every service has
+   * ([ADR 0020](../../../../docs/adr/0020-endpoints-are-descriptors-and-the-shell-builds-an-httpapi.md)).
+   */
+  readonly endpoints?: Groups;
+  /** The status and log table the endpoints answer by. */
+  readonly policy?: FailurePolicy;
+  /**
+   * Routes that are not endpoints — a held-open stream, which an `HttpApi`
+   * does not describe. Their requirements are satisfied by `appLayer`.
+   */
+  readonly router?: ServiceRoutes<RRoutes>;
   /**
    * Composition root providing everything `router` requires.
    *
@@ -86,11 +111,48 @@ export interface ServiceDefinition<RRoutes> {
    * read them share one apiece.
    */
   readonly appLayer: Layer.Layer<
-    RoutesRequirements<RRoutes>,
+    | RoutesRequirements<RRoutes>
+    // The fleet token is `description`'s, provided here — never the host's.
+    | Exclude<ServedRequirements<Groups>, FleetTokenTag>,
     never,
     ServiceRegistries
   >;
 }
+
+/**
+ * `appLayer` under the registries every process shares and the drain that
+ * shuts it down — one assembly, so a service and a worker cannot drift apart
+ * on either.
+ *
+ * `provideMerge` (not `provide`) so the registries the client layers
+ * registered into are the same instances the readiness and description routes
+ * read.
+ *
+ * The graceful shutdown, and its **position** is the mechanism. Build order is
+ * `appLayer` → the drain → whatever is built on top, so release order is the
+ * reverse: the drain runs after the server has stopped taking requests and
+ * *before* the connections it needs are closed. A signal handler could not
+ * give that ordering — `runMain` interrupts the fiber on SIGTERM, and a
+ * handler racing that interrupt would drain against a closing client.
+ */
+const underRegistries = <A>(
+  appLayer: Layer.Layer<A, never, ServiceRegistries>,
+  shutdown: ShutdownRegistry,
+) =>
+  Layer.provideMerge(
+    Layer.effectDiscard(
+      Effect.acquireRelease(Effect.void, () => shutdown.drain),
+    ),
+    appLayer.pipe(
+      Layer.provideMerge(
+        Layer.mergeAll(
+          HealthRegistryLayer,
+          WiringRegistryLayer,
+          Layer.succeed(ShutdownRegistryTag, shutdown),
+        ),
+      ),
+    ),
+  );
 
 /**
  * The service as a `Layer`: `/api/health` mounted, `router` served over an
@@ -108,17 +170,50 @@ export interface ServiceDefinition<RRoutes> {
  * only a real process boot has a SIGTERM to latch, and an in-process e2e boot
  * that installed one would leave a process listener per service it started.
  */
-export const makeServerLayer = <RRoutes>(
-  def: ServiceDefinition<RRoutes>,
+export const makeServerLayer = <
+  RRoutes,
+  const Groups extends ReadonlyArray<AnyEndpointGroup> = readonly [],
+>(
+  def: ServiceDefinition<RRoutes, Groups>,
   port: number = def.port,
   shutdown: ShutdownRegistry = makeShutdownRegistry().registry,
 ) => {
+  const hosted = def.endpoints ?? [];
+  const fleetGuarded = hosted.flatMap(group =>
+    group.endpoints.filter(
+      ({ descriptor }) => descriptor.guard.kind === 'fleet',
+    ),
+  );
+  if (fleetGuarded.length > 0 && def.description === undefined)
+    throw new Error(
+      `'${def.name}' serves ${fleetGuarded
+        .map(({ descriptor }) => `${descriptor.method} ${descriptor.path}`)
+        .join(
+          ', ',
+        )} behind the fleet token and names no \`description\` to check it against`,
+    );
+  const base = serviceGroup({
+    service: def.name,
+    slices: def.slices,
+    described: def.description !== undefined,
+    endpoints: () => endpointsOf(groups),
+    api: () => api,
+  });
+  const groups: ReadonlyArray<AnyEndpointGroup> = [base, ...hosted];
+  const options = def.policy === undefined ? {} : { policy: def.policy };
+  // One API per service: one encoder, one guard implementation, one OpenAPI.
+  const api = buildApi(def.name, groups, options);
+  const served = serveApi(api, groups, options).pipe(
+    Layer.provide(
+      def.description === undefined
+        ? Layer.empty
+        : Layer.succeed(FleetTokenTag, def.description),
+    ),
+  );
+
   const routes = Layer.mergeAll(
-    def.router,
-    healthRoutes(def.name),
-    def.description === undefined
-      ? Layer.empty
-      : serviceDescriptionRoute(def.name, def.slices, def.description),
+    served,
+    def.router ?? Layer.empty,
     // Permissive CORS (frontends call these services cross-origin from their
     // dev ports). Tighten per-environment later.
     HttpRouter.cors(),
@@ -126,44 +221,20 @@ export const makeServerLayer = <RRoutes>(
     problemNet,
   );
 
-  // `provideMerge` (not `provide`) so the registries the client layers
-  // registered into are the same instances the readiness and description routes
-  // read.
-  const appLayer = def.appLayer.pipe(
-    Layer.provideMerge(
-      Layer.mergeAll(
-        HealthRegistryLayer,
-        WiringRegistryLayer,
-        Layer.succeed(ShutdownRegistryTag, shutdown),
-      ),
-    ),
-  );
-
-  // The graceful shutdown, and its **position** is the mechanism.
-  // Build order is `appLayer` → this → `serve`, so release order is the
-  // reverse: the drain runs after the server has stopped taking requests and
-  // *before* the connections it needs are closed. A signal handler could not
-  // give that ordering — `runMain` interrupts the fiber on SIGTERM, and a
-  // handler racing that interrupt would drain against a closing client.
-  const drained = Layer.provideMerge(
-    Layer.effectDiscard(
-      Effect.acquireRelease(Effect.void, () => shutdown.drain),
-    ),
-    appLayer,
-  );
+  const drained = underRegistries(def.appLayer, shutdown);
 
   // `HttpRouter.serve` logs every request unless told not to, which is the
   // request logging `HttpMiddleware.logger` used to add here.
-  const served = HttpRouter.serve(routes).pipe(
+  const server = HttpRouter.serve(routes as ServiceRoutes).pipe(
     Layer.provide(drained),
     Layer.provide(NodeHttpServer.layer(() => createServer(), { port })),
   );
   // `ServiceDefinition` already proved `appLayer` covers what the routes need;
   // TypeScript cannot carry that proof through `Exclude` on a type parameter,
   // so the closed requirement set is stated here rather than re-derived.
-  return served as Layer.Layer<
-    Layer.Success<typeof served>,
-    Layer.Error<typeof served>
+  return server as Layer.Layer<
+    Layer.Success<typeof server>,
+    Layer.Error<typeof server>
   >;
 };
 
@@ -183,12 +254,46 @@ export const makeServerLayer = <RRoutes>(
  * be: Kubernetes runs it before it sends SIGTERM, and this repo declares no
  * Deployment for a service. It lands with the first one.
  */
-export const makeService = <RRoutes>(def: ServiceDefinition<RRoutes>): void => {
+export const makeService = <
+  RRoutes,
+  const Groups extends ReadonlyArray<AnyEndpointGroup> = readonly [],
+>(
+  def: ServiceDefinition<RRoutes, Groups>,
+): void => {
   const shutdown = makeShutdownRegistry(logMechanismOutcome);
   process.once('SIGTERM', shutdown.begin);
   process.once('SIGINT', shutdown.begin);
 
   NodeRuntime.runMain(
     Layer.launch(makeServerLayer(def, def.port, shutdown.registry)),
+  );
+};
+
+/**
+ * A process that serves nothing over HTTP: its work reaches it through a
+ * datastore it shares with a service — a second runner of a flow engine,
+ * whose shards are assigned in the database the first one registered in.
+ */
+export interface WorkerDefinition<A> {
+  /**
+   * Composition root. It may require the same three registries a service's
+   * `appLayer` may, provided here once each, so a client's probe, the bus's
+   * wiring and the drain behave as they would in a service.
+   */
+  readonly appLayer: Layer.Layer<A, never, ServiceRegistries>;
+}
+
+/**
+ * Boot a worker: `appLayer` under the registries and the shutdown drain a
+ * service has, launched under `runMain` with the same signal handling as
+ * {@link makeService}, and no HTTP server.
+ */
+export const makeWorker = <A>(def: WorkerDefinition<A>): void => {
+  const shutdown = makeShutdownRegistry(logMechanismOutcome);
+  process.once('SIGTERM', shutdown.begin);
+  process.once('SIGINT', shutdown.begin);
+
+  NodeRuntime.runMain(
+    Layer.launch(underRegistries(def.appLayer, shutdown.registry)),
   );
 };

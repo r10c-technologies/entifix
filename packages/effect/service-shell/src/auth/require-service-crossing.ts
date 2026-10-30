@@ -1,11 +1,10 @@
-import { timingSafeEqual } from 'node:crypto';
-
 import { type Permission, ServiceCrossingPolicyTag } from '@entifix/authz';
 import { Forbidden, Invalid, Unauthenticated } from '@entifix/core';
 import { Context, Effect } from 'effect';
 import { HttpServerRequest } from 'effect/http';
 
 import { refuse } from './failures.js';
+import { tokenMatches } from './shared-token.js';
 
 /**
  * The header carrying the crossing secret.
@@ -53,19 +52,6 @@ export class ServiceCrossingTokenTag extends Context.Service<
   ServiceCrossingTokenTag,
   string
 >()('ServiceCrossingTokenTag') {}
-
-/** Constant-time comparison, so the secret cannot be recovered byte by byte. */
-const matches = (provided: string | undefined, expected: string): boolean => {
-  // An empty credential is refused outright, on either side: two empty
-  // buffers compare equal, so an unset secret would admit an empty header.
-  if (provided === undefined || provided === '' || expected === '')
-    return false;
-  const left = Buffer.from(provided);
-  const right = Buffer.from(expected);
-  // `timingSafeEqual` throws on a length mismatch, so lengths are compared
-  // first — the length of a shared secret is not what protects it.
-  return left.length === right.length && timingSafeEqual(left, right);
-};
 
 const unauthenticated = refuse(new Unauthenticated());
 
@@ -135,7 +121,7 @@ export const requireServiceCrossing =
       const request = yield* HttpServerRequest.HttpServerRequest;
       const expected = yield* ServiceCrossingTokenTag;
 
-      if (!matches(request.headers[CROSSING_TOKEN_HEADER], expected)) {
+      if (!tokenMatches(request.headers[CROSSING_TOKEN_HEADER], expected)) {
         return yield* unauthenticated;
       }
 
@@ -180,7 +166,7 @@ export const requireCrossing =
       const request = yield* HttpServerRequest.HttpServerRequest;
       const expected = yield* ServiceCrossingTokenTag;
 
-      if (!matches(request.headers[CROSSING_TOKEN_HEADER], expected)) {
+      if (!tokenMatches(request.headers[CROSSING_TOKEN_HEADER], expected)) {
         return yield* unauthenticated;
       }
 

@@ -1,12 +1,10 @@
 import type { EntityRepositoryTag } from '@entifix/business';
 import type {
-  BulkOutcome,
   Entity,
   EntityConstructor,
   EntityFieldDescriptor,
-  EntityId,
   EntityMetadataSource,
-  EntitySelection,
+  EntityUseCaseRunner,
   FilterGroup,
 } from '@entifix/core';
 import type {
@@ -216,35 +214,18 @@ export interface EntityCrudOptions<TAdapters, TEntity extends Entity> {
    */
   readonly metadata?: AdapterKey<TAdapters, EntityMetadataSource>;
   /**
-   * Runs a `collection`-bound verb over a selection, and reports **per row**.
+   * Which adapter runs this entity's `@useCase()` verbs — over REST against
+   * the service that serves them, or in-process for records that live in the
+   * browser. Resolved from the host's composition, as {@link repository} is.
    *
-   * Supplying it opts the list into the selection column and the bulk bar.
-   * It is separate from `metadataSource` because the two are independent: an
-   * entity can declare no collection verb and still want permission-filtered
-   * Save, and the endpoint a verb posts to is the shell's knowledge, not
-   * metadata's.
+   * Supplying it lets the generated screens run what the served `$metadata`
+   * lists for the caller: a row's menu and a form's buttons run a verb on a
+   * record, and the bulk bar runs a `collection` verb over a selection,
+   * reporting per row. A verb that resolves reloads what it changed; one that
+   * refuses shows its coded message in the screen's error slot rather than as
+   * a promise nobody catches.
    */
-  readonly runBulkUseCase?: (
-    key: string,
-    selection: EntitySelection<TEntity>,
-  ) => Promise<readonly BulkOutcome[]>;
-  /**
-   * Runs an `entity`-bound verb on the record the single view is showing.
-   *
-   * The sibling of {@link runBulkUseCase}, and it had to exist for the same
-   * reason: `EntityForm` has rendered these buttons for a long time, and
-   * `EntityCrudForm` has accepted an `onUseCase` for as long — but nothing ever
-   * passed one, so a generated screen showed a declared, granted, served verb
-   * that did nothing when clicked. Measured on `ProductOffering`'s `publish`,
-   * which passed every check its host's register ran and appeared nowhere.
-   *
-   * Resolving means the record changed, and the page reloads it: a verb that
-   * moves a lifecycle leaves the form showing the old state otherwise, which
-   * reads as "the button did nothing". Rejecting surfaces through the form's
-   * own error slot, so a `409` from an illegal transition renders as the coded
-   * message the catalog holds rather than a thrown promise nobody catches.
-   */
-  readonly runUseCase?: (key: string, id: EntityId) => Promise<void>;
+  readonly useCases?: AdapterKey<TAdapters, EntityUseCaseRunner>;
 }
 
 /**

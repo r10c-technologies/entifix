@@ -1,5 +1,6 @@
 import baseConfig, {
   compositionStaysAtTheShell,
+  importsContained,
 } from '../../../eslint.config.mjs';
 
 export default [
@@ -22,4 +23,5 @@ export default [
     ignores: ['**/out-tsc'],
   },
   compositionStaysAtTheShell(['**/src/**/*.ts', '**/src/**/*.tsx']),
+  importsContained(['**/src/endpoint/**/*.ts'], ['http']),
 ];

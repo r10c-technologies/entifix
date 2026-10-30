@@ -1,8 +1,10 @@
-import { type VerifiedContext, VerifiedContextTag } from '@entifix/business';
+import {
+  type RequestPrincipal,
+  type VerifiedContext,
+  VerifiedContextTag,
+} from '@entifix/business';
 import { verifiedContext } from '@entifix/business/verified';
 import { Context, Effect, Option } from 'effect';
-
-import type { RequestPrincipal } from './require-principal.js';
 
 /**
  * The configuration dials a resolver's predicates may read, provided by the

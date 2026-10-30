@@ -26,7 +26,10 @@ export interface SharedToken {
 }
 
 /** Constant-time comparison, so the token cannot be recovered byte by byte. */
-const matches = (provided: string | undefined, expected: string): boolean => {
+export const tokenMatches = (
+  provided: string | undefined,
+  expected: string,
+): boolean => {
   // An empty credential is refused outright, on either side: two empty
   // buffers compare equal, so an unset secret would admit an empty header.
   if (provided === undefined || provided === '' || expected === '')
@@ -59,7 +62,7 @@ export const requireSharedToken =
     Effect.gen(function* () {
       const request = yield* HttpServerRequest.HttpServerRequest;
 
-      if (!matches(request.headers[shared.header], shared.token())) {
+      if (!tokenMatches(request.headers[shared.header], shared.token())) {
         return yield* refuse(new Unauthenticated());
       }
 

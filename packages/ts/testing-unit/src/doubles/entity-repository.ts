@@ -1,9 +1,8 @@
-import type { EntityRepository } from '@entifix/business';
+import type { EntityRepository, RepositoryFailure } from '@entifix/business';
 import {
   applyFiltering,
   applySorting,
   deserializeSingleEntity,
-  EntifixConnError,
   type EntifixError,
   type Entity,
   type EntityConstructor,
@@ -11,6 +10,7 @@ import {
   type EntityLoadRequest,
   type EntityPage,
   extractMetaAccessors,
+  NotFound,
   serializeEntity,
 } from '@entifix/core';
 import { Effect } from 'effect';
@@ -54,7 +54,7 @@ export interface InMemoryEntityRepository extends EntityRepository {
    * Makes the next call to any method fail with `error`, so error branches are
    * reachable without reaching for a mocking library.
    */
-  failNext(error: EntifixError): void;
+  failNext(error: RepositoryFailure): void;
 }
 
 /**
@@ -71,12 +71,12 @@ export const makeInMemoryEntityRepository = (
   seed: Entity[] = [],
 ): InMemoryEntityRepository => {
   let items = [...seed];
-  let pendingFailure: EntifixError | undefined;
+  let pendingFailure: RepositoryFailure | undefined;
 
   /** Consumes a queued failure, if one was armed. */
   const guard = <TValue>(
-    run: () => Effect.Effect<TValue, EntifixError>,
-  ): Effect.Effect<TValue, EntifixError> => {
+    run: () => Effect.Effect<TValue, RepositoryFailure>,
+  ): Effect.Effect<TValue, RepositoryFailure> => {
     if (pendingFailure !== undefined) {
       const failure = pendingFailure;
       pendingFailure = undefined;
@@ -114,9 +114,7 @@ export const makeInMemoryEntityRepository = (
     guard(() => {
       const found = items.find(item => item.id === id);
       return found === undefined
-        ? Effect.fail(
-            new EntifixConnError('Entity not found', undefined, { id }),
-          )
+        ? Effect.fail(new NotFound({}))
         : copyOf(found as TEntity);
     });
 
@@ -166,7 +164,7 @@ export const makeInMemoryEntityRepository = (
     seed: (next: Entity[]) => {
       items = [...next];
     },
-    failNext: (error: EntifixError) => {
+    failNext: (error: RepositoryFailure) => {
       pendingFailure = error;
     },
     // Each method closes over its own state, so nothing is required from the

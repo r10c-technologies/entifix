@@ -1,4 +1,5 @@
 import type { Action } from '@entifix/authz';
+import type { NarrowingRules } from '@entifix/business';
 import {
   deleteUCFactory,
   EntityIdTag,
@@ -40,7 +41,6 @@ import type { MetadataCompositions } from './metadata-composition.js';
 import {
   narrowedByIdRequest,
   narrowingFor,
-  type NarrowingRules,
   narrowLoadRequest,
 } from './narrowing.js';
 import {

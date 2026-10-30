@@ -3,6 +3,7 @@ import type { AddressInfo } from 'node:net';
 
 import { Effect, Fiber, Layer } from 'effect';
 
+import type { AnyEndpointGroup } from './http-api/build-api.js';
 import { makeServerLayer, type ServiceDefinition } from './make-service.js';
 import { waitForHttp, type WaitForHttpOptions } from './wait-for-http.js';
 
@@ -52,8 +53,11 @@ export const freePort = (): Promise<number> =>
  * timeout: the launch fiber is raced against the health check, so a missing
  * dependency reports its own cause.
  */
-export const serveTestService = async <RRoutes>(
-  def: ServiceDefinition<RRoutes>,
+export const serveTestService = async <
+  RRoutes,
+  const Groups extends ReadonlyArray<AnyEndpointGroup> = readonly [],
+>(
+  def: ServiceDefinition<RRoutes, Groups>,
   { port, ...waitOptions }: ServeTestServiceOptions = {},
 ): Promise<RunningTestService> => {
   const boundPort = port ?? (await freePort());

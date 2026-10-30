@@ -1,13 +1,16 @@
 import { EntityRepositoryTag } from '@entifix/business';
 import {
   accessor,
+  type BulkOutcome,
   EntifixConnError,
   type Entity,
   entity,
   type EntityDraft,
   type EntityId,
   type EntityMetadataSource,
+  type EntityUseCaseRunner,
   Failure,
+  type TransitionalFailure,
 } from '@entifix/core';
 import { EntityColumn } from '@entifix/react-controls';
 import {
@@ -188,6 +191,7 @@ interface TestAdapters {
   brandRest: Context.Context<EntityRepositoryTag>;
   productRest: Context.Context<EntityRepositoryTag>;
   brandMetadata: EntityMetadataSource;
+  brandVerbs: EntityUseCaseRunner;
 }
 
 /**
@@ -203,10 +207,27 @@ let repositories: {
   product: ReturnType<typeof makeInMemoryEntityRepository>;
 };
 
+// The runner adapter forwards to two mocks, so the specs assert the key and
+// the target each verb was run with.
+const brandVerbs: EntityUseCaseRunner = {
+  run: (useCase, id) =>
+    Effect.tryPromise({
+      try: () => runVerb(useCase.key, id) as Promise<void>,
+      catch: failure => failure as TransitionalFailure,
+    }),
+  bulk: (useCase, selection) =>
+    Effect.tryPromise({
+      try: () =>
+        runBulk(useCase.key, selection) as Promise<readonly BulkOutcome[]>,
+      catch: failure => failure as TransitionalFailure,
+    }),
+};
+
 const useAdapters = (): TestAdapters => ({
   brandRest: Context.make(EntityRepositoryTag, repositories.brand),
   productRest: Context.make(EntityRepositoryTag, repositories.product),
   brandMetadata: { fetchMetadata: () => fetchMetadata() },
+  brandVerbs,
 });
 
 const brandCrud = makeEntityCrud<Brand, TestAdapters>(Brand, {
@@ -309,12 +330,12 @@ const bulkBrandCrud = makeEntityCrud<Brand, TestAdapters>(Brand, {
   repository: 'brandRest',
   hiddenFields: ['id', 'code'],
   metadataSource: { fetchMetadata: () => fetchMetadata() },
-  runBulkUseCase: (key, selection) => runBulk(key, selection),
+  useCases: 'brandVerbs',
 });
 
 /**
  * The entity-bound half of the same opt-in. Separate again, because a crud
- * carrying `runUseCase` must be shown to render *and run* the verb while
+ * carrying a use-case runner must be shown to render *and run* the verb while
  * `brandCrud`, which carries neither option, goes on rendering none.
  */
 const runVerb = vi.fn();
@@ -326,7 +347,7 @@ const verbBrandCrud = makeEntityCrud<Brand, TestAdapters>(Brand, {
   repository: 'brandRest',
   hiddenFields: ['id', 'code'],
   metadataSource: { fetchMetadata: () => fetchMetadata() },
-  runUseCase: (key, id) => runVerb(key, id),
+  useCases: 'brandVerbs',
 });
 
 /**
@@ -517,7 +538,7 @@ describe('the generated list page, opted into affordances', () => {
   /**
    * The row half: the same verb the form header runs, reached from a
    * row's overflow menu. `EntityTable` hands back the whole record and
-   * `runUseCase` takes an id, so the list adapts between them.
+   * the runner takes an id, so the list adapts between them.
    */
   describe('a row verb on the list', () => {
     const ARCHIVE = {

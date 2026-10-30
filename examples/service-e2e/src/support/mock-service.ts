@@ -1,8 +1,9 @@
 import {
   makeDomainLayer,
+  orders,
   readSettings,
-  router,
   SERVICE_NAME,
+  stockItems,
 } from '@entifix/example-service';
 import { serveTestService } from '@entifix/service-shell/testing';
 import { fakeAmqpLayer, fakeMongoLayer } from '@entifix/testing-e2e/fixtures';
@@ -28,7 +29,7 @@ export const startMockService = async () => {
     name: SERVICE_NAME,
     port: 0,
     slices: ['orders'],
-    router,
+    endpoints: [stockItems, orders],
     appLayer: Layer.provideMerge(
       makeDomainLayer({ ...readSettings({}), chargeLimit: 1000 }),
       Layer.mergeAll(database.layer, fakeAmqpLayer().layer),

@@ -131,6 +131,67 @@ export const compositionStaysAtTheShell = files => ({
   },
 });
 
+/**
+ * Two mechanisms each live in exactly one package, and nothing else imports
+ * them:
+ *
+ * - HTTP is the service shell's
+ *   ([ADR 0020](docs/adr/0020-endpoints-are-descriptors-and-the-shell-builds-an-httpapi.md)):
+ *   a cell declares endpoints as Schema descriptors and the shell builds the
+ *   `HttpApi`, so only the shell and `@entifix/rest`'s endpoint client import
+ *   `effect/http` or `effect/http-api`.
+ * - Durable workflows are `@entifix/workflow`'s
+ *   ([ADR 0016](docs/adr/0016-a-flow-engine-port-and-a-durable-workflow-adapter.md)):
+ *   a flow is a pinned slip behind `FlowEngineTag`, so only that package
+ *   imports `effect/workflow` or `effect/cluster`, whose APIs are unstable.
+ *
+ * One rule carries both, because two config objects naming one rule replace
+ * each other's options rather than adding up — and
+ * `@typescript-eslint/no-restricted-imports` rather than the core rule, which
+ * `compositionStaysAtTheShell` configures. A place allowed one mechanism opts
+ * into it with `importsContained`, which re-declares the rule without it.
+ */
+export const CONTAINED_IMPORT_RULE = '@typescript-eslint/no-restricted-imports';
+
+const CONTAINED = {
+  http: {
+    group: [
+      'effect/http',
+      'effect/http/*',
+      'effect/http-api',
+      'effect/http-api/*',
+    ],
+    message:
+      'Only the service shell speaks HTTP: declare an endpoint with defineEndpoint and let the shell build the API (ADR 0020).',
+  },
+  workflow: {
+    group: [
+      'effect/workflow',
+      'effect/workflow/*',
+      'effect/cluster',
+      'effect/cluster/*',
+    ],
+    message:
+      'Only @entifix/workflow runs durable flows: start a pinned slip through FlowEngineTag (ADR 0016).',
+  },
+};
+
+/** The containment rule for `files`, with the mechanisms `allowed` there let through. */
+export const importsContained = (files, allowed = []) => ({
+  files,
+  ignores: ['**/*.spec.ts', '**/*.spec.tsx', '**/*.test.ts', '**/*.test.tsx'],
+  rules: {
+    [CONTAINED_IMPORT_RULE]: [
+      'error',
+      {
+        patterns: Object.entries(CONTAINED)
+          .filter(([name]) => !allowed.includes(name))
+          .map(([, pattern]) => pattern),
+      },
+    ],
+  },
+});
+
 /** Tier-2 and tier-5 packages that lint with the root config alone. */
 const ROOT_LINTED_BELOW_THE_SHELL = [
   'packages/ts/redis-client/src/**/*.ts',
@@ -170,7 +231,15 @@ export default [
     },
   },
   {
-    files: ['**/*.spec.ts', '**/*.spec.tsx', '**/*.test.ts', '**/*.test.tsx'],
+    // A project's `test/` directory holds what its suites share — journals, a
+    // chaos harness — and is test material like a spec, never shipped.
+    files: [
+      '**/*.spec.ts',
+      '**/*.spec.tsx',
+      '**/*.test.ts',
+      '**/*.test.tsx',
+      '**/test/**/*.ts',
+    ],
     rules: {
       '@nx/enforce-module-boundaries': [
         'error',
@@ -275,5 +344,6 @@ export default [
     },
   },
   mechanismsDoNotLog,
+  importsContained(['**/src/**/*.ts', '**/src/**/*.tsx']),
   compositionStaysAtTheShell(ROOT_LINTED_BELOW_THE_SHELL),
 ];
