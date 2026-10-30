@@ -4,6 +4,7 @@ import {
   type EntityConstructor,
   type EntityUseCaseRunner,
   extractMetaEntity,
+  ProtocolFailure,
   toWireSelection,
 } from '@entifix/core';
 import { Effect } from 'effect';
@@ -46,15 +47,24 @@ export const makeEntityRestUseCaseRunner = <TEntity extends Entity>(
         const url = yield* baseUrl();
         // The wire form, never the selection itself: a `Set` serializes to
         // `{}`, so a selection sent raw would lose its ids.
-        const response = yield* performHttpRequestThroughFetch<
-          readonly BulkOutcome[]
-        >({
+        const response = yield* performHttpRequestThroughFetch<{
+          readonly data?: unknown;
+        }>({
           method: 'POST',
           url: `${url}/${useCase.key}`,
           headers: { 'Content-Type': 'application/json' },
           body: { selection: toWireSelection(selection) },
         });
-        return response.body;
+        // A bulk answer is a `bulkOutcome` envelope, one outcome per record in
+        // its `data`; anything else is a peer speaking something else.
+        const outcomes = response.body?.data;
+        if (!Array.isArray(outcomes)) {
+          return yield* new ProtocolFailure({
+            reason:
+              'a bulk answer carries its outcomes in a bulkOutcome envelope',
+          });
+        }
+        return outcomes as readonly BulkOutcome[];
       }),
   };
 };

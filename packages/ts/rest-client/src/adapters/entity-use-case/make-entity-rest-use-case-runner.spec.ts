@@ -105,7 +105,10 @@ describe('makeEntityRestUseCaseRunner', () => {
     server.use(
       http.post(`${BASE_URL}/publish-all`, async ({ request }) => {
         body = await request.json();
-        return HttpResponse.json([{ id: 'o-1', ok: true }]);
+        return HttpResponse.json({
+          meta: { type: 'bulkOutcome', entity: 'offering' },
+          data: [{ id: 'o-1', ok: true }],
+        });
       }),
     );
 
@@ -118,6 +121,25 @@ describe('makeEntityRestUseCaseRunner', () => {
 
     expect(body).toEqual({ selection: { mode: 'ids', ids: ['o-1'] } });
     expect(outcomes).toEqual([{ id: 'o-1', ok: true }]);
+  });
+
+  it('refuses a bulk answer that is not a bulkOutcome envelope', async () => {
+    server.use(
+      http.post(`${BASE_URL}/publish-all`, () =>
+        HttpResponse.json([{ id: 'o-1', ok: true }]),
+      ),
+    );
+
+    const failure = await Effect.runPromise(
+      Effect.flip(
+        runner.bulk(verb('publish-all', 'collection'), {
+          mode: 'ids',
+          ids: new Set(['o-1']),
+        }),
+      ),
+    );
+
+    expect(failure).toMatchObject({ _tag: 'ProtocolFailure' });
   });
 
   it('fails with the refusal the service sent', async () => {
