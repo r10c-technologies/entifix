@@ -17,7 +17,14 @@ import {
   InMemoryCircuitBreakerLayer,
   InMemoryRetryBudgetLayer,
 } from '@entifix/transactions/engine';
-import { Effect, Layer, ManagedRuntime, Option, Schedule } from 'effect';
+import {
+  Effect,
+  Layer,
+  ManagedRuntime,
+  Metric,
+  Option,
+  Schedule,
+} from 'effect';
 import { WorkflowEngine } from 'effect/workflow';
 import { afterAll, describe, expect, it } from 'vitest';
 
@@ -26,6 +33,7 @@ import {
   type InterpreterOptions,
 } from '../interpreter/slip-workflow.js';
 import {
+  flowStates,
   FlowStatusStoreTag,
   makeInMemoryFlowStatusStore,
 } from '../status/flow-status-store.js';
@@ -35,6 +43,14 @@ const runtimes: ManagedRuntime.ManagedRuntime<unknown, unknown>[] = [];
 afterAll(async () => {
   for (const runtime of runtimes) await runtime.dispose();
 });
+
+/** The suspensions counted so far; the registry is global, so a case reads a delta. */
+const suspensions = () =>
+  Effect.runPromise(
+    Metric.value(
+      Metric.withAttributes(flowStates, { state: 'suspended', source: 'spec' }),
+    ).pipe(Effect.map(state => state.count)),
+  );
 
 type Call = (
   step: SlipStep,
@@ -160,6 +176,7 @@ describe('the slip interpreter', () => {
   });
 
   it('announces a suspended flow, with the failure it stopped at', async () => {
+    const before = await suspensions();
     const { engine, outbox } = await engineOver((step, kind) =>
       step.step === 'settle' && kind === 'action'
         ? Effect.fail(new Declined({}))
@@ -172,6 +189,7 @@ describe('the slip interpreter', () => {
     });
 
     expect(outbox.entries.at(-1)?.event.name).toBe('flow.suspended');
+    expect(await suspensions()).toBe(before + 1);
   });
 
   it('stops failed, at the step, when an undoing itself fails', async () => {

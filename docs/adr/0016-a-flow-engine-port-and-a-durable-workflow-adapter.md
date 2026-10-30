@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-28
 - Revised: 2026-10-29 by the #119 interpreter — `signalCorrelated`, an explicit compensation walk, and `DurableDeferred.raceAll` for timed waits
-- Revised: 2026-10-29 — step bounds are overridable per participant (`dialsFor`)
+- Revised: 2026-10-29 — step bounds are overridable per participant (`dialsFor`), and journaled states are counted
 - Area: adapters
 - Read when: running a multi-step flow, deciding where a flow survives its process dying, adding a wait, a child flow or a join to a flow, bumping the `effect` pin, or about to import `effect/workflow` or `effect/cluster`
 
@@ -98,6 +98,11 @@ store, with event id `<flowId>:<step>`, `correlationId = flowId`, the flow as
 aggregate and the step ordinal as version. They reach the bus through the relay
 of [ADR 0018](0018-one-outbox-ordered-per-aggregate.md), like any other domain
 event.
+
+Every state the interpreter journals is also counted, as
+`entifix_flow_states_total` by state and source, inside the Activity that
+records it — so a replay never counts twice, and `suspended` is a series a host
+can alert on without reading the outbox.
 
 ### Gates every interpreter change and every `effect` bump
 

@@ -26,6 +26,7 @@ import {
   Context,
   Effect,
   Exit,
+  Metric,
   Schedule,
   Schema,
   SchemaTransformation,
@@ -39,6 +40,7 @@ import {
 
 import {
   type FlowRecordPatch,
+  flowStates,
   FlowStatusStoreTag,
 } from '../status/flow-status-store.js';
 
@@ -217,7 +219,18 @@ const interpretV1 = (slip: Slip) =>
         name,
         execute: Effect.flatMap(FlowStatusStoreTag, store =>
           store.update(slip.flowId, patch),
-        ).pipe(Effect.orDie),
+        ).pipe(
+          Effect.andThen(
+            Metric.update(
+              Metric.withAttributes(flowStates, {
+                state: patch.state,
+                source: options.source,
+              }),
+              1,
+            ),
+          ),
+          Effect.orDie,
+        ),
       });
 
     const announce = (

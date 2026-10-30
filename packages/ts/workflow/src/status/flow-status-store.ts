@@ -1,6 +1,6 @@
 import type { StoreFailure } from '@entifix/core';
 import type { FlowState } from '@entifix/transactions';
-import { Context, Effect, Option } from 'effect';
+import { Context, Effect, Metric, Option } from 'effect';
 
 /**
  * What the engine knows about one flow beyond its journal: the state a reader
@@ -52,6 +52,17 @@ export interface FlowStatusStore {
     patch: FlowRecordPatch,
   ) => Effect.Effect<void, StoreFailure>;
 }
+
+/**
+ * Every state the interpreter journals a flow into, by state and the slice it
+ * runs for. Counted inside the Activity that records it, so a replay — which
+ * reads the journal rather than executing again — never counts a state twice.
+ * `suspended` is the series to alert on: a flow past its commit point that
+ * cannot go on, which a person has to look at.
+ */
+export const flowStates = Metric.counter('entifix_flow_states_total', {
+  description: 'Flow states the interpreter journaled, by state and source.',
+});
 
 export class FlowStatusStoreTag extends Context.Service<
   FlowStatusStoreTag,
