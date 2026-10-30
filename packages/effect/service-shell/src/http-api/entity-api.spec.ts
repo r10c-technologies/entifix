@@ -849,6 +849,33 @@ describe('verbs derived from @useCase()', () => {
     });
   });
 
+  it('carries the verb’s idempotency onto its collection cell', () => {
+    const idempotent = entityApi(
+      defineEntityApi(Order, 'order', {
+        verbs: ['get'],
+        guard: { kind: 'permission' },
+        useCases: [
+          shipOrder,
+          shipOrders,
+          verbEndpoint(ArchiveOrder, {
+            idempotent: 'edge',
+            handler: () => Effect.succeed('one'),
+            bulk: () => Effect.succeed('all'),
+          }),
+        ],
+      }),
+    );
+
+    expect(
+      idempotent.endpoints
+        .filter(({ descriptor }) => descriptor.useCase === 'archive')
+        .map(({ descriptor }) => [descriptor.name, descriptor.idempotent]),
+    ).toEqual([
+      ['archive', 'edge'],
+      ['archive-collection', 'edge'],
+    ]);
+  });
+
   it('refuses a collection cell with no bulk handler, and a bulk handler with no cell', () => {
     const serve = (verbs: readonly VerbEndpoint<never>[]) => () =>
       entityApi(
