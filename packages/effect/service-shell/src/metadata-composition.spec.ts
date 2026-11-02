@@ -130,7 +130,9 @@ describe('compositionFor', () => {
   });
 
   it('defaults the variant of a recipe that resolves nothing', () => {
-    const { resolve: _resolve, ...bare } = recipe;
+    const bare = Object.fromEntries(
+      Object.entries(recipe).filter(([member]) => member !== 'resolve'),
+    ) as Omit<typeof recipe, 'resolve'>;
     expect(
       compositionFor(descriptor({ recipe: 'checkout' }), anonymous, {
         recipes: { checkout: bare },

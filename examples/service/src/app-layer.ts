@@ -9,7 +9,6 @@ import {
 import {
   ensureOutboxIndexes,
   MongoSagaStoreLayer,
-  OutboxMaxAttempts,
   startOutboxRelay,
 } from '@entifix/mongo/transactions';
 import { makeObservabilityLayer } from '@entifix/service-shell/observability';
@@ -17,7 +16,7 @@ import {
   AllowAllPolicyLayer,
   FixedTokenServiceLayer,
 } from '@entifix/testing-auth';
-import { EventSourceTag } from '@entifix/transactions';
+import { EventSourceTag, OutboxMaxAttempts } from '@entifix/transactions';
 import { startSagaResume } from '@entifix/transactions/engine';
 import { Effect, Layer } from 'effect';
 

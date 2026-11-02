@@ -1,9 +1,9 @@
 import { describeOutboxContract } from '@entifix/testing-unit/contracts';
 import { makeFakeMongoDb } from '@entifix/testing-unit/drivers';
+import { drainOutbox } from '@entifix/transactions/engine';
 import { Effect } from 'effect';
 import type { Db } from 'mongodb';
 
-import { drainOutbox } from './relay.js';
 import { ensureOutboxIndexes, makeMongoOutbox } from './store.js';
 
 // The Mongo outbox and its relay, held to the contract every outbox meets,

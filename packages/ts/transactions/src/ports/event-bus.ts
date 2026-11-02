@@ -63,6 +63,16 @@ export interface Subscription {
    * carried but unenforced there.
    */
   readonly maxAttempts: number;
+  /**
+   * The breaker keys whose dependency this consumer cannot work without
+   * ([ADR 0017](../../../../../docs/adr/0017-circuit-breaker-and-bulkhead-ports.md)).
+   * While any of them is open — or forced open — the adapter stops consuming,
+   * and it resumes once all are closed or half-open, so an outage leaves the
+   * messages waiting on the queue rather than spending their attempts into
+   * quarantine. A delivery refused mid-flight by an open breaker goes back
+   * without counting as an attempt.
+   */
+  readonly pauseWhileOpen?: readonly string[];
 }
 
 /**

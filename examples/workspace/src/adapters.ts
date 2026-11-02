@@ -1,7 +1,8 @@
 import { EntityRepositoryTag } from '@entifix/business';
-import type { Entity } from '@entifix/core';
+import { type Entity, type EntityUseCaseRunner, Internal } from '@entifix/core';
+import type { Invoice } from '@entifix/example-workspace-domain';
 import { makeInMemoryEntityRepository } from '@entifix/testing-unit';
-import { Context } from 'effect';
+import { Context, Effect } from 'effect';
 
 import { customerInstances, invoiceInstances } from './seed';
 
@@ -32,9 +33,32 @@ export const resetRepositories = (): void => {
   repositories.invoices.seed(invoiceInstances() as Entity[]);
 };
 
+/**
+ * The invoice's verbs, run in the page against the same repository its screens
+ * read — the in-process counterpart of the REST runner a service-backed host
+ * passes under this key. `issue` moves a draft to issued; the generated form
+ * renders the button because the metadata document lists the verb, and when it
+ * resolves the page reloads the record, so the new status shows.
+ */
+const invoiceVerbs: EntityUseCaseRunner = {
+  run: (useCase, id) =>
+    useCase.key === 'issue' && id != null
+      ? repositories.invoices.get<Invoice>(id).pipe(
+          Effect.flatMap(invoice => {
+            invoice.status = 'issued';
+            return repositories.invoices.save(invoice);
+          }),
+          Effect.asVoid,
+        )
+      : Effect.fail(new Internal()),
+  // The invoice declares no collection verb.
+  bulk: () => Effect.fail(new Internal()),
+};
+
 export const exampleAdapters = {
   customers: Context.make(EntityRepositoryTag, repositories.customers),
   invoices: Context.make(EntityRepositoryTag, repositories.invoices),
+  invoiceVerbs,
 };
 
 export type ExampleAdapters = typeof exampleAdapters;

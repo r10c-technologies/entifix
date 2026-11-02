@@ -35,18 +35,23 @@ const canonical = (value: unknown): unknown =>
       : value;
 
 /**
- * The fingerprint of a request body: SHA-256 over its canonical JSON, or over
- * the raw text when it is not JSON. It is what tells a retry from a different
- * request that reused a key.
+ * The fingerprint of a request: SHA-256 over its concrete target and its body
+ * as canonical JSON, or as raw text when it is not JSON. It is what tells a
+ * retry from a different request that reused a key.
+ *
+ * The target is the **concrete** method and path, not the route's template:
+ * one key reused on `/api/order/o1` and `/api/order/o2` is two requests, and
+ * hashing only the template would replay the first order's answer for the
+ * second.
  */
-export const requestFingerprint = (body: string): string => {
+export const requestFingerprint = (target: string, body: string): string => {
   let text = body;
   try {
     text = JSON.stringify(canonical(JSON.parse(body)));
   } catch {
     // Not JSON: the bytes are the request.
   }
-  return createHash('sha256').update(text).digest('hex');
+  return createHash('sha256').update(`${target}\n${text}`).digest('hex');
 };
 
 /** A response as it can be stored; `undefined` for a body that cannot be replayed. */
@@ -102,7 +107,10 @@ export const requireIdempotencyKey =
       // A body that cannot be read cannot be fingerprinted: that failure is the
       // transport's, and it travels as one.
       const body = yield* request.text;
-      const fingerprint = requestFingerprint(body);
+      const fingerprint = requestFingerprint(
+        `${request.method} ${request.url.split('?')[0]}`,
+        body,
+      );
       const dedupKey = `${options.caller}|${options.route}|${key}`;
       const store = yield* IdempotencyStoreTag;
 

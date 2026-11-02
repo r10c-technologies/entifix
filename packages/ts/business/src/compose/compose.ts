@@ -14,6 +14,8 @@ import {
 import {
   assertValidSlip,
   type CompositionRefused,
+  type FlowRequirementsUnmet,
+  onlyUnmetRequirements,
   type SlipViolation,
   validateSlip,
 } from '../flow/validate.js';
@@ -190,7 +192,7 @@ const decodeInput = <I>(recipe: Recipe<I>, input: unknown) =>
  * the span with `entifix.slip.version` and `entifix.slip.fragments`.
  *
  * An unknown `id@n` is a `CompositionRefused` carrying `UnknownFragment`, never
- * a throw. The same context, input and options always give the same slip.
+ * a throw; a caller who lacks only what steps require is `FlowRequirementsUnmet`. The same context, input and options always give the same slip.
  */
 export const compose = <I>(
   recipe: Recipe<I>,
@@ -198,7 +200,10 @@ export const compose = <I>(
   context: VerifiedContext,
   input: unknown,
   options: ComposeOptions,
-): Effect.Effect<Slip, CompositionRefused | Unresolvable | Invalid> =>
+): Effect.Effect<
+  Slip,
+  CompositionRefused | FlowRequirementsUnmet | Unresolvable | Invalid
+> =>
   Effect.gen(function* () {
     const decoded = yield* decodeInput(recipe, input);
     const resolution = yield* resolutionOf(recipe.resolve ?? [], context);
@@ -235,8 +240,12 @@ export interface CompositionAxes<I> {
 export interface CompositionOutcome {
   readonly context: string;
   readonly input: string;
-  /** `composed`, `unresolvable` (the caller is offered no variant), or `refused`. */
-  readonly outcome: 'composed' | 'unresolvable' | 'refused';
+  /**
+   * `composed`; `unresolvable`, the caller is offered no variant; `unmet`, the
+   * caller lacks what a step requires; or `refused`, the slip broke a rule
+   * that no caller could repair — a defect.
+   */
+  readonly outcome: 'composed' | 'unresolvable' | 'unmet' | 'refused';
   readonly violations: readonly SlipViolation[];
 }
 
@@ -249,7 +258,10 @@ const ENUMERATED: ComposeOptions = {
  * Composes the recipe for every context × input and reports each outcome —
  * what a CI job runs to prove that every combination a recipe can produce is a
  * valid slip before it ships. An unresolvable combination is a caller who is
- * offered nothing, which is not a defect; a refused one is.
+ * offered nothing, and an unmet one a caller who lacks an entitlement, a role
+ * or a channel a step requires — neither is a defect, but a host asserts which
+ * combinations are which, since a caller wrongly left without an entitlement
+ * looks exactly like one rightly refused. A refused combination is a defect.
  */
 export const enumerateCompositions = <I>(
   recipe: Recipe<I>,
@@ -289,15 +301,17 @@ export const enumerateCompositions = <I>(
         outcome:
           violations.length === 0
             ? ('composed' as const)
-            : ('refused' as const),
+            : onlyUnmetRequirements(violations)
+              ? ('unmet' as const)
+              : ('refused' as const),
         violations,
       };
     }),
   );
 
 /**
- * Throws, listing every refused combination, unless all of them composed or
- * were unresolvable. Framework-neutral on purpose: any test runner reports a
+ * Throws, listing every refused combination, unless all of them composed,
+ * were unresolvable or were unmet. Framework-neutral on purpose: any test runner reports a
  * thrown error.
  */
 export const expectAllCompositionsValid = (

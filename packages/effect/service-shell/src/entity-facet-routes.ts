@@ -1,3 +1,4 @@
+import type { Narrowing, NarrowingRules } from '@entifix/business';
 import {
   EntityFacetCounterFactoryTag,
   EntityFacetCounterTag,
@@ -24,11 +25,7 @@ import {
   guardRoute,
   type GuardServices,
 } from './entity-route-guard.js';
-import {
-  type Narrowing,
-  narrowingFor,
-  type NarrowingRules,
-} from './narrowing.js';
+import { narrowingFor } from './narrowing.js';
 import {
   defaultFailurePolicy,
   type FailurePolicy,

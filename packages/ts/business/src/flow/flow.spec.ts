@@ -10,6 +10,7 @@ import {
   defineFragment,
   encodeSlip,
   flowCommit,
+  FlowRequirementsUnmet,
   type FragmentDescriptor,
   fragmentFingerprint,
   fragmentRef,
@@ -380,6 +381,32 @@ describe('assertValidSlip', () => {
     expect(failure.code).toBe('flowNotComposable');
     expect(failure.category).toBe('declined');
     expect(failure.message).toContain('MissingCommitPoint');
+  });
+
+  it('forbids a caller who lacks only a requirement, as flowRequirementsUnmet', () => {
+    const failure = Effect.runSync(
+      Effect.flip(assertValidSlip(cardSlip, catalog, { context: {} })),
+    );
+
+    expect(failure).toBeInstanceOf(FlowRequirementsUnmet);
+    expect(failure.category).toBe('forbidden');
+  });
+
+  it('refuses a slip that also breaks a rule no caller could repair', () => {
+    const failure = Effect.runSync(
+      Effect.flip(
+        assertValidSlip(slipOf([step(reserve)]), catalog, { context: {} }),
+      ),
+    );
+
+    expect(failure).toBeInstanceOf(CompositionRefused);
+    expect(
+      (failure as CompositionRefused).violations.map(
+        violation => violation.tag,
+      ),
+    ).toEqual(
+      expect.arrayContaining(['MissingCommitPoint', 'UnmetRequirement']),
+    );
   });
 });
 

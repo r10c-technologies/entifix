@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-28
+- Revised: 2026-10-29 — a caller lacking only a step's requirement is `FlowRequirementsUnmet`, and the enumerator reports it `unmet`
 - Area: entities
 - Read when: adding a step to a multi-step flow, letting a module contribute to a flow it does not own, choosing an implementation from who is calling, narrowing a read to its caller, or about to write a `SagaDefinition` or a `scope` callback
 
@@ -116,8 +117,15 @@ tag per rule:
 | every `requires` is satisfied by the context                                                                                                    | `UnmetRequirement`                            |
 | every pinned `id@n` exists in the catalog                                                                                                       | `UnknownFragment`                             |
 
-`assertValidSlip` lifts a non-empty result into `CompositionRefused`, a
-registered failure with the code `flowNotComposable`.
+`assertValidSlip` lifts a non-empty result into a registered failure. When
+every violation is an `UnmetRequirement` the recipe is sound and the caller
+may not run it, so it is `FlowRequirementsUnmet` (`flowRequirementsUnmet`,
+`forbidden`); anything else is `CompositionRefused` (`flowNotComposable`,
+`declined`), carrying every violation. `enumerateCompositions` draws the same
+line: a combination is `composed`, `unresolvable`, `unmet` or `refused`, and
+only `refused` is a defect — but a host asserts which combinations are
+`unmet`, because a caller wrongly left without an entitlement looks exactly
+like one rightly refused.
 
 ### Constraints
 

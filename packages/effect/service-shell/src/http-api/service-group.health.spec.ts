@@ -1,10 +1,11 @@
 import type { ShutdownRegistry } from '@entifix/business';
 import { HealthRegistryTag, ShutdownRegistryTag } from '@entifix/business';
+import { PROBLEM_CONTENT_TYPE } from '@entifix/core';
 import { Effect, Layer } from 'effect';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import type { RunningTestService } from './serve-test-service.js';
-import { serveTestService } from './serve-test-service.js';
+import type { RunningTestService } from '../serve-test-service.js';
+import { serveTestService } from '../serve-test-service.js';
 
 const SERVICE_NAME = 'probe-test-service';
 
@@ -46,7 +47,7 @@ afterEach(async () => {
   running = undefined;
 });
 
-describe('healthRoutes', () => {
+describe('the health endpoints', () => {
   it('keeps /api/health answering as it always did', async () => {
     const baseUrl = await serveWithProbes([]);
 
@@ -88,7 +89,7 @@ describe('healthRoutes', () => {
     });
   });
 
-  it('answers 503 naming the failing probes', async () => {
+  it('answers a 503 problem naming the failing probes', async () => {
     const baseUrl = await serveWithProbes([
       ['mongo', true],
       ['redis', false],
@@ -98,9 +99,12 @@ describe('healthRoutes', () => {
     const response = await fetch(`${baseUrl}/api/health/ready`);
 
     expect(response.status).toBe(503);
-    expect(await response.json()).toEqual({
-      status: 'degraded',
+    expect(response.headers.get('content-type')).toBe(PROBLEM_CONTENT_TYPE);
+    expect(await response.json()).toMatchObject({
+      code: 'notReady',
+      category: 'unavailable',
       service: SERVICE_NAME,
+      terminating: false,
       failing: ['redis', 'amqp'],
     });
   });
@@ -143,7 +147,7 @@ describe('healthRoutes', () => {
   // cosmetic: `failing: […]` is a list of probes an operator would go and look
   // at. Here nothing is failing — and the probes must not even be asked, or a
   // rolling restart spends a round trip per pod on an answer nobody acts on.
-  it('answers 503 terminating once the drain has begun, without running a probe', async () => {
+  it('answers a terminating 503 once the drain has begun, without running a probe', async () => {
     let runs = 0;
     let shutdown: ShutdownRegistry | undefined;
     const appLayer = Layer.effectDiscard(
@@ -175,9 +179,11 @@ describe('healthRoutes', () => {
     const response = await fetch(`${running.baseUrl}/api/health/ready`);
 
     expect(response.status).toBe(503);
-    expect(await response.json()).toEqual({
-      status: 'terminating',
+    expect(await response.json()).toMatchObject({
+      code: 'notReady',
       service: SERVICE_NAME,
+      terminating: true,
+      failing: [],
     });
     expect(runs).toBe(0);
   });

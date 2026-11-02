@@ -164,3 +164,23 @@ export interface Outbox {
 export class OutboxTag extends Context.Service<OutboxTag, Outbox>()(
   '@entifix/transactions/Outbox',
 ) {}
+
+/**
+ * Publish attempts an outbox entry gets before it is quarantined, from
+ * config-service — the dial every store's drain reads, so it sits with the
+ * outbox port rather than with one engine.
+ *
+ * Configuration rather than a constant because it is a genuine operational
+ * tunable: raising it while a flaky broker settles is a config edit, and the
+ * next sweep reads the new value. That is the opposite of a subscription's
+ * `maxAttempts`, which becomes an immutable queue argument and therefore stays
+ * a literal beside its declaration.
+ *
+ * ⚠️ **Read it with `getNumber`, never a cast.** A value of `'five'` casts to
+ * `NaN`, every `attempts >= maxAttempts` comparison goes false, and nothing is
+ * ever quarantined — a relay that looks healthy while its head never moves.
+ */
+export class OutboxMaxAttempts extends Context.Service<
+  OutboxMaxAttempts,
+  number
+>()('OutboxMaxAttempts') {}

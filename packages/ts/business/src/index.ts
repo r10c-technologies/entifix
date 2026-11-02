@@ -1,3 +1,4 @@
+export * from './entity-api/index.js';
 export * from './health/health-registry.js';
 export * from './idempotency/index.js';
 export * from './repository/config.repository.js';
@@ -6,6 +7,7 @@ export * from './repository/entity-facet-counter.js';
 export * from './repository/entity-link-resolver.repository.js';
 export * from './repository/entity-mixins.repository.js';
 export * from './repository/entity-repository-factory.js';
+export * from './request/index.js';
 export * from './resolve/index.js';
 export * from './sessions/one-time-token-store.js';
 export * from './sessions/session-store.js';

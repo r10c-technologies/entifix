@@ -1,13 +1,13 @@
-import type { OutboxStats } from '@entifix/transactions';
 import { Effect, Metric } from 'effect';
 import { describe, expect, it } from 'vitest';
 
+import type { OutboxStats } from '../contracts/outbox.js';
 import {
   outboxOldestPendingAge,
   outboxPending,
   outboxQuarantined,
   recordOutboxStats,
-} from './metrics.js';
+} from './outbox-metrics.js';
 
 /**
  * Reads a gauge out of Effect's registry.

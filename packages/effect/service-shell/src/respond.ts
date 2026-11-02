@@ -6,12 +6,18 @@ import {
   type FailureCategory,
   Internal,
   isFailure,
+  NotFound,
   PROBLEM_CONTENT_TYPE,
   problemOf,
 } from '@entifix/core';
 import { Cause, Clock, Effect, Option } from 'effect';
 import type { HttpBody } from 'effect/http';
-import { HttpRouter, HttpServerRequest, HttpServerResponse } from 'effect/http';
+import {
+  HttpRouter,
+  HttpServerError,
+  HttpServerRequest,
+  HttpServerResponse,
+} from 'effect/http';
 import type { Severity } from 'effect/LogLevel';
 
 /**
@@ -276,13 +282,29 @@ export const mountRoutes = <
   );
 
 /**
- * The router's last net: a defect that escaped every route — one not mounted
- * through {@link mountRoutes}, or one thrown while a response was being
- * written — answers the same opaque `500` problem. It catches defects only,
- * never the whole cause, so an interruption still interrupts.
+ * The router's last net. A path no route matches answers a `404` problem
+ * rather than an empty body, and a defect that escaped every route — one not
+ * mounted through {@link mountRoutes}, or one thrown while a response was
+ * being written — answers the same opaque `500` problem. It catches those two
+ * and nothing else, never the whole cause, so an interruption still
+ * interrupts.
  */
 export const problemNet = HttpRouter.middleware(
-  effect => effect.pipe(Effect.catchDefect(answerDefect)),
+  effect =>
+    effect.pipe(
+      Effect.catchIf(
+        (error: unknown) =>
+          HttpServerError.isHttpServerError(error) &&
+          error.reason._tag === 'RouteNotFound',
+        () =>
+          Effect.map(currentInstance, instance =>
+            problemResponse(new NotFound({}), defaultFailurePolicy, {
+              instance,
+            }),
+          ),
+      ),
+      Effect.catchDefect(answerDefect),
+    ),
   { global: true },
 );
 

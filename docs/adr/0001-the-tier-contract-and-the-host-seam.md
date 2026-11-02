@@ -8,6 +8,7 @@
 - Revised: 2026-10-23 by [ADR 0006](0006-the-public-contract-is-entities-use-cases-and-ports.md) — what a package's public API may ask of its caller
 - Revised: 2026-10-23 — the source citations of r10c's records are rewritten and a check keeps them out; the appendix that mapped them is removed
 - Revised: 2026-10-28 by [ADR 0016](0016-a-flow-engine-port-and-a-durable-workflow-adapter.md) — `workflow` joins tier 2, its Postgres storage and socket runner behind optional peers
+- Revised: 2026-10-29 — `@entifix/workflow` is a 25th package, in tier 2 with its socket runner behind an optional peer
 - Area: platform
 - Read when: adding a package, adding a dependency between two, deciding whether something is public API, or about to bake a host's value into framework code — a downward edge can still be illegal, and the seam takes values rather than paths
 
@@ -253,7 +254,7 @@ decision.
 
 ### Fixed versioning, first release `0.1.0`
 
-All 24 packages carry one version and move together. No compatibility matrix to
+All 25 packages carry one version and move together. No compatibility matrix to
 maintain, and every entifix-to-entifix peer — `workspace:*` here, an exact version
 once published — is trivially correct because there is only ever one version in
 play. Peers on the outside world (`effect`, `react`, `i18next`) stay ranges; those

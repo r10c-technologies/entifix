@@ -30,6 +30,7 @@ export function useCase<const TKey extends string, TEntity extends Entity>(
     setMetaUseCaseBinding(context.metadata, {
       entity: options.entity,
       key: options.key,
+      binding: options.binding,
     });
   };
 }

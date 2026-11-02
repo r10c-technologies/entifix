@@ -1,6 +1,6 @@
 import type { FragmentCatalog, Slip, SlipStep } from '@entifix/business/flow';
 import { slipSteps } from '@entifix/business/flow';
-import { type DomainEvent, isFailure } from '@entifix/core';
+import { type DomainEvent, type EntifixFailure } from '@entifix/core';
 import {
   type FlowEngine,
   flowEvent,
@@ -14,7 +14,7 @@ import { Effect } from 'effect';
 /** What a fake participant does for one step: succeed with an outcome, or fail. */
 export type FakeParticipant = (
   step: SlipStep,
-) => Effect.Effect<unknown, unknown>;
+) => Effect.Effect<unknown, EntifixFailure>;
 
 export interface FakeFlowEngine extends FlowEngine {
   /** Every `flow.*` event the engine announced, in order. */
@@ -32,10 +32,10 @@ interface Run {
   readonly done: SlipStep[];
 }
 
-const failureOf = (error: unknown) =>
-  isFailure(error)
-    ? { code: error.code, category: error.category }
-    : { code: 'internal', category: 'internal' };
+const failureOf = (error: EntifixFailure) => ({
+  code: error.code,
+  category: error.category,
+});
 
 /**
  * An in-memory {@link FlowEngine} with the semantics a durable one must have
@@ -120,6 +120,25 @@ export const makeFakeFlowEngine = (
       announce(run, 'flow.completed', 'completed');
     });
 
+  /** What a parked run's wait is correlated with, per its step's parameters. */
+  const correlationOf = (run: Run) => {
+    if (run.state !== 'waiting') return undefined;
+    // A waiting run is parked on the step at `next`.
+    const { parameters } = slipSteps(run.slip)[run.next] as SlipStep;
+    const correlation = parameters?.['correlation'];
+    return typeof correlation === 'string' ? correlation : undefined;
+  };
+
+  const signal = (token: string) => (run: Run) => {
+    if (run.state !== 'waiting' || run.step !== token)
+      return Effect.fail(
+        new FlowSignalRejected({ flowId: run.slip.flowId, token }),
+      );
+    run.state = 'running';
+    run.next += 1;
+    return walk(run);
+  };
+
   const find = (flowId: string) => {
     const run = runs.get(flowId);
     return run === undefined
@@ -147,14 +166,16 @@ export const makeFakeFlowEngine = (
         state: run.state,
         ...(run.step === undefined ? {} : { step: run.step }),
       })),
-    signal: (flowId, token) =>
-      Effect.flatMap(find(flowId), run => {
-        if (run.state !== 'waiting' || run.step !== token)
-          return Effect.fail(new FlowSignalRejected({ flowId, token }));
-        run.state = 'running';
-        run.next += 1;
-        return walk(run);
-      }),
+    signal: (flowId, token) => Effect.flatMap(find(flowId), signal(token)),
+    signalCorrelated: (correlation, token) =>
+      Effect.flatMap(
+        find(
+          [...runs.entries()].find(
+            ([, run]) => correlationOf(run) === correlation,
+          )?.[0] ?? correlation,
+        ),
+        signal(token),
+      ),
     interrupt: flowId =>
       Effect.map(find(flowId), run => {
         if (run.state === 'running' || run.state === 'waiting')

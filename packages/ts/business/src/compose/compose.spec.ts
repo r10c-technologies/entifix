@@ -7,6 +7,7 @@ import {
   defineFragment,
   encodeSlip,
   flowCommit,
+  FlowRequirementsUnmet,
 } from '../flow/index.js';
 import { Otherwise, Unresolvable, When } from '../resolve/index.js';
 import { verifiedContext } from '../verified/index.js';
@@ -204,12 +205,19 @@ describe('compose', () => {
     ).toContain('UnknownFragment');
   });
 
-  it('refuses a caller who does not meet a step’s requirements', () => {
+  it('forbids a caller who lacks only what a step requires', () => {
     const failure = run(
       Effect.flip(compose(checkout, catalog, context([]), card, options)),
     );
 
-    expect(failure).toBeInstanceOf(CompositionRefused);
+    expect(failure).toBeInstanceOf(FlowRequirementsUnmet);
+    expect(failure).toMatchObject({
+      code: 'flowRequirementsUnmet',
+      category: 'forbidden',
+    });
+    expect((failure as FlowRequirementsUnmet).message).toContain(
+      "entitlement 'stock-management'",
+    );
   });
 
   it('fails Unresolvable when a use case resolves to nothing', () => {
@@ -353,6 +361,38 @@ describe('enumerateCompositions', () => {
     );
   });
 
+  it('tells a caller who lacks an entitlement apart from a defect', () => {
+    const outcomes = enumerateCompositions(checkout, catalog, {
+      ...axes,
+      contexts: [
+        ...axes.contexts,
+        {
+          label: 'storefront buyer',
+          value: verifiedContext({
+            entitlements: [],
+            roles: [],
+            flags: [],
+            config: {},
+          }),
+        },
+      ],
+    });
+
+    expect(outcomes.filter(outcome => outcome.outcome !== 'composed')).toEqual([
+      expect.objectContaining({
+        context: 'storefront buyer',
+        input: 'card × 1',
+        outcome: 'unmet',
+      }),
+      expect.objectContaining({
+        context: 'storefront buyer',
+        input: 'cod × 2',
+        outcome: 'unmet',
+      }),
+    ]);
+    expect(() => expectAllCompositionsValid(outcomes)).not.toThrow();
+  });
+
   it('counts a caller offered nothing as unresolvable, not as a defect', () => {
     const outcomes = enumerateCompositions(
       {
@@ -375,7 +415,9 @@ describe('enumerateCompositions', () => {
   });
 
   it('enumerates a recipe that resolves nothing and provides start keys', () => {
-    const { resolve: _resolve, ...rest } = checkout;
+    const rest = Object.fromEntries(
+      Object.entries(checkout).filter(([member]) => member !== 'resolve'),
+    ) as Omit<typeof checkout, 'resolve'>;
     const started: Recipe<Basket> = {
       ...rest,
       provides: { reservationId: Schema.String },

@@ -22,6 +22,12 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./transactions": {
+      "@entifix/source": "./src/transactions/index.ts",
+      "types": "./dist/transactions/index.d.ts",
+      "import": "./dist/transactions/index.js",
+      "default": "./dist/transactions/index.js"
     }
   },
   "files": [
@@ -47,6 +53,13 @@
           "skipTypeCheck": true,
           "stripLeadingPaths": true
         }
+      },
+      "test-integration": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "vitest run --config vitest.integration.mts",
+          "cwd": "packages/ts/sql-client"
+        }
       }
     }
   },
@@ -56,10 +69,18 @@
     "@swc/helpers": "0.5.23"
   },
   "devDependencies": {
+    "@effect/sql-pg": "4.0.6",
     "@entifix/testing-unit": "workspace:*",
+    "@entifix/transactions": "workspace:*",
     "effect": "4.0.6"
   },
   "peerDependencies": {
-    "effect": "^4.0.6"
+    "effect": "^4.0.6",
+    "@entifix/transactions": "workspace:*"
+  },
+  "peerDependenciesMeta": {
+    "@entifix/transactions": {
+      "optional": true
+    }
   }
 }

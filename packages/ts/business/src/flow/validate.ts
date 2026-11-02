@@ -224,14 +224,44 @@ export class CompositionRefused extends Failure.declined<CompositionRefused>()(
   },
 ) {}
 
-/** Validates a slip, failing with {@link CompositionRefused} on any violation. */
+/**
+ * A flow this caller is not offered: every rule the slip broke is a step's
+ * requirement — an entitlement, a role, a party role or a channel — that the
+ * verified context lacks. The recipe is sound; the caller may not run it, so
+ * it is `forbidden` rather than a slip that could not be built.
+ */
+export class FlowRequirementsUnmet extends Failure.forbidden<FlowRequirementsUnmet>()(
+  'FlowRequirementsUnmet',
+  'flowRequirementsUnmet',
+  { violations: Schema.Array(SlipViolationSchema) },
+  {
+    message: ({ violations }) =>
+      `the flow is not offered to this caller: ${violations.map(v => v.detail).join('; ')}`,
+  },
+) {}
+
+/** Every violation is a requirement the caller lacks, and there is one. */
+export const onlyUnmetRequirements = (
+  violations: readonly SlipViolation[],
+): boolean =>
+  violations.length > 0 &&
+  violations.every(violation => violation.tag === 'UnmetRequirement');
+
+/**
+ * Validates a slip, failing on any violation: with {@link FlowRequirementsUnmet}
+ * when the caller lacks only what steps require, and otherwise with
+ * {@link CompositionRefused}, which carries every violation.
+ */
 export const assertValidSlip = (
   slip: Slip,
   catalog: FragmentCatalog,
   options: ValidateSlipOptions = {},
-): Effect.Effect<Slip, CompositionRefused> => {
+): Effect.Effect<Slip, CompositionRefused | FlowRequirementsUnmet> => {
   const violations = validateSlip(slip, catalog, options);
-  return violations.length === 0
-    ? Effect.succeed(slip)
-    : Effect.fail(new CompositionRefused({ violations }));
+  if (violations.length === 0) return Effect.succeed(slip);
+  return Effect.fail(
+    onlyUnmetRequirements(violations)
+      ? new FlowRequirementsUnmet({ violations })
+      : new CompositionRefused({ violations }),
+  );
 };

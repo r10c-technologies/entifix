@@ -148,11 +148,32 @@ export const makeFakeSqlClient = (
     get lastExecution() {
       return executions[executions.length - 1];
     },
-    client: Statement.make(
-      Effect.succeed(connection) as never,
-      pgCompiler,
-      [],
-      undefined,
+    client: Object.assign(
+      Statement.make(
+        Effect.succeed(connection) as never,
+        pgCompiler,
+        [],
+        undefined,
+      ),
+      {
+        /**
+         * Runs `self` between a recorded `BEGIN` and `COMMIT`, or `ROLLBACK`
+         * when it fails — enough for a spec to assert what a unit of work
+         * committed and what it rolled back, though nothing is isolated.
+         */
+        withTransaction: <A, E, R>(self: Effect.Effect<A, E, R>) =>
+          Effect.sync(() => executions.push({ sql: 'BEGIN', params: [] })).pipe(
+            Effect.andThen(self),
+            Effect.tapError(() =>
+              Effect.sync(() =>
+                executions.push({ sql: 'ROLLBACK', params: [] }),
+              ),
+            ),
+            Effect.tap(() =>
+              Effect.sync(() => executions.push({ sql: 'COMMIT', params: [] })),
+            ),
+          ),
+      },
     ),
   };
 };

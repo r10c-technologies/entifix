@@ -32,6 +32,7 @@ export interface RetryOptions {
 const STOPS_RETRIES: ReadonlySet<string> = new Set([
   'Overloaded',
   'BreakerOpen',
+  'BulkheadFull',
 ]);
 
 type AdmitsBusiness<S> = S extends { readonly family: 'business' }

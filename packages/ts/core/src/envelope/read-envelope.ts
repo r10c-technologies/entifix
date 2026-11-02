@@ -51,6 +51,18 @@ const decodeFor = <TEntity extends Entity, TData>(
     envelopeEntityName(entityConstructor),
   ) as Effect.Effect<EntifixEnvelope<TData>, InvalidEnvelope>;
 
+/**
+ * A record the entity cannot be built from — a member of the wrong type — is
+ * the sender's fault exactly as a malformed envelope is, so it answers the
+ * same `400` rather than leaving the deserializer's own error to the caller.
+ */
+const refusedRecord =
+  <TEntity extends Entity>(entityConstructor: EntityConstructor<TEntity>) =>
+  (error: { readonly message: string }) =>
+    new InvalidEnvelope({
+      reason: `"${envelopeEntityName(entityConstructor)}": ${error.message}`,
+    });
+
 export const readEntityEnvelope = <TEntity extends Entity>(
   entityConstructor: EntityConstructor<TEntity>,
   body: unknown,
@@ -66,7 +78,7 @@ export const readEntityEnvelope = <TEntity extends Entity>(
     return (yield* deserializeSingleEntity(
       entityConstructor,
       envelope.data,
-    )) as TEntity;
+    ).pipe(Effect.mapError(refusedRecord(entityConstructor)))) as TEntity;
   });
 
 export const readEntityCollectionEnvelope = <TEntity extends Entity>(
@@ -82,7 +94,7 @@ export const readEntityCollectionEnvelope = <TEntity extends Entity>(
     const items = yield* deserializeEntityCollection(
       entityConstructor,
       envelope.data,
-    );
+    ).pipe(Effect.mapError(refusedRecord(entityConstructor)));
     return items as TEntity[];
   });
 
@@ -99,7 +111,7 @@ export const readEntityPageEnvelope = <TEntity extends Entity>(
     const items = yield* deserializeEntityCollection(
       entityConstructor,
       envelope.data.items,
-    );
+    ).pipe(Effect.mapError(refusedRecord(entityConstructor)));
     return {
       items: items as TEntity[],
       total: envelope.data.total,

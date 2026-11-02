@@ -94,6 +94,11 @@ export interface EntifixTestOptions {
    */
   exclude?: string[];
   /**
+   * Spec files to collect instead of every `*.spec.ts` — an integration suite
+   * that runs against real infrastructure under its own target.
+   */
+  include?: string[];
+  /**
    * Overrides Vitest's 10s `beforeAll`/`afterAll` budget.
    *
    * Needed by a suite whose start-up does real work — an example service boots
@@ -112,6 +117,9 @@ export const defineEntifixTest = ({
   thresholds = true,
   coverageExclude = [],
   exclude = [],
+  include = [
+    '{src,specs,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
+  ],
   hookTimeout,
 }: EntifixTestOptions) =>
   defineConfig(() => ({
@@ -147,9 +155,7 @@ export const defineEntifixTest = ({
           : setupFiles,
       globalSetup,
       ...(hookTimeout === undefined ? {} : { hookTimeout }),
-      include: [
-        '{src,specs,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
-      ],
+      include,
       exclude: [...configDefaults.exclude, ...exclude],
       // Packages still awaiting their suite must not fail the run; the coverage
       // thresholds are what actually enforce the goal.

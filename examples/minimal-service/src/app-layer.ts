@@ -1,6 +1,6 @@
 import { PgClient } from '@effect/sql-pg';
 import { makeObservabilityLayer } from '@entifix/service-shell/observability';
-import { SqlHealthProbeLayer } from '@entifix/sql';
+import { SqlHealthProbeLayer, SqlRepositoryFactoryLayer } from '@entifix/sql';
 import {
   AllowAllPolicyLayer,
   FixedTokenServiceLayer,
@@ -49,6 +49,7 @@ export const makeAppLayer = (settings: MinimalServiceSettings) => {
     Layer.provideMerge(
       Layer.mergeAll(
         SqlHealthProbeLayer(['book']),
+        SqlRepositoryFactoryLayer,
         Layer.effectDiscard(migrate),
       ),
       database,

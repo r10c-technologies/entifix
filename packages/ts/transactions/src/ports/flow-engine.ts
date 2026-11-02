@@ -63,6 +63,16 @@ export interface FlowEngine {
     token: string,
     outcome: unknown,
   ) => Effect.Effect<void, FlowNotFound | FlowSignalRejected | StoreFailure>;
+  /**
+   * Completes a durable wait by what the waiting flow is correlated with —
+   * the order a delivery flow follows, say — for a sender that knows that and
+   * not the flow's id.
+   */
+  readonly signalCorrelated: (
+    correlation: string,
+    token: string,
+    outcome: unknown,
+  ) => Effect.Effect<void, FlowNotFound | FlowSignalRejected | StoreFailure>;
   readonly interrupt: (
     flowId: string,
   ) => Effect.Effect<void, FlowNotFound | StoreFailure>;

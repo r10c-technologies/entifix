@@ -1,4 +1,4 @@
-import { AmqpChannelTag } from '@entifix/amqp';
+import { AmqpChannelTag, type AmqpConsumerControl } from '@entifix/amqp';
 import {
   ConfigurationRepositoryTag,
   TenantDatabaseResolverTag,
@@ -202,6 +202,29 @@ describe('the fake infrastructure layers', () => {
     // One channel and no broker, so there is nothing to tell — the drain
     // completing is the whole assertion.
     expect(driver.cancelled).toEqual([]);
+  });
+
+  it('tells a consumer once intake has stopped, and accepts the tags it reports', async () => {
+    const { layer } = fakeAmqpLayer();
+    const seen: boolean[] = [];
+
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const connector = yield* AmqpChannelTag;
+        let control: AmqpConsumerControl | undefined;
+        yield* Effect.promise(() =>
+          connector.addConsumer(async (_channel, given) => {
+            control = given;
+          }),
+        );
+        control?.replaceTags(['resumed']);
+        seen.push(control?.cancelled() ?? true);
+        yield* Effect.promise(() => connector.cancelConsumers());
+        seen.push(control?.cancelled() ?? false);
+      }).pipe(Effect.provide(layer)),
+    );
+
+    expect(seen).toEqual([false, true]);
   });
 
   it('provides the configuration a service would fetch at boot', async () => {

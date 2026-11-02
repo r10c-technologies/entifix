@@ -7,6 +7,8 @@ import {
   Unavailable,
 } from '@entifix/core';
 import {
+  type CircuitBreaker,
+  CircuitBreakerTag,
   type EventBus,
   EventBusTag,
   type Subscription,
@@ -17,12 +19,14 @@ import { Context, Duration, Effect, Layer, Option } from 'effect';
 import {
   AmqpChannelTag,
   type AmqpConnector,
+  type AmqpConsumerControl,
   EVENTS_DLX,
   EVENTS_EXCHANGE,
 } from '../amqp-connection/amqp-connection.js';
 import {
   recordConsumed,
   recordFailed,
+  recordPaused,
   recordPublished,
   recordPublishFailure,
   recordQuarantined,
@@ -56,7 +60,12 @@ const DELIVERY_POLL = Duration.millis(25);
  * handled successfully and produced its own `failed` event.
  */
 interface DeliveryFailure {
-  readonly kind: 'transient' | 'poison';
+  /**
+   * `paused`: an open breaker refused the handler's call, so the message goes
+   * back without counting an attempt — the dependency, not the message, is
+   * what failed, and the consumer is about to stop taking deliveries.
+   */
+  readonly kind: 'transient' | 'poison' | 'paused';
   /** The failure's code and category, carried onto a quarantined message. */
   readonly code: string;
   readonly category: string;
@@ -76,9 +85,11 @@ const classify = (error: unknown): DeliveryFailure =>
   isFailure(error)
     ? {
         kind:
-          error.family === 'business' || error.category === 'protocol'
-            ? 'poison'
-            : 'transient',
+          error._tag === 'BreakerOpen'
+            ? 'paused'
+            : error.family === 'business' || error.category === 'protocol'
+              ? 'poison'
+              : 'transient',
         code: error.code,
         category: error.category,
       }
@@ -251,6 +262,8 @@ const settleFailure = (
   if (subscription.mode === 'broadcast') {
     return Effect.sync(() => channel.nack(message, false, false));
   }
+  if (failure.kind === 'paused')
+    return requeueUncounted(channel, message, queue);
   const attempts =
     failure.kind === 'transient' ? attemptsSoFar(message) + 1 : 0;
   if (failure.kind === 'poison' || attempts >= subscription.maxAttempts) {
@@ -279,6 +292,28 @@ const settleFailure = (
     ),
   );
 };
+
+/**
+ * The message back on its queue with the attempts it already had: the broker's
+ * own requeue would count against `x-delivery-limit`, so it is republished and
+ * acked instead, the way a counted retry is.
+ */
+const requeueUncounted = (
+  channel: Channel,
+  message: ConsumeMessage,
+  queue: string,
+): Effect.Effect<void> =>
+  Effect.sync(() => {
+    try {
+      channel.publish('', queue, message.content, {
+        ...message.properties,
+        persistent: true,
+      });
+      channel.ack(message);
+    } catch {
+      channel.nack(message, false, true);
+    }
+  });
 
 const quarantine = (
   channel: Channel,
@@ -335,9 +370,16 @@ const quarantine = (
 export const makeAmqpEventBus = (
   connector: AmqpConnector,
   wiring: WiringRegistry,
-  options: { readonly redeliveryBackoff?: RedeliveryBackoff } = {},
+  options: {
+    readonly redeliveryBackoff?: RedeliveryBackoff;
+    /** What `pauseWhileOpen` reads; without one no subscription pauses. */
+    readonly breaker?: CircuitBreaker;
+    /** How often a pausable consumer reads its breakers. */
+    readonly pausePoll?: Duration.Duration;
+  } = {},
 ): { bus: EventBus; drainDeliveries: Effect.Effect<void> } => {
   const backoff = options.redeliveryBackoff ?? DEFAULT_REDELIVERY_BACKOFF;
+  const pausePoll = Duration.toMillis(options.pausePoll ?? DEFAULT_PAUSE_POLL);
   /**
    * Handlers started and not yet settled.
    *
@@ -386,7 +428,7 @@ export const makeAmqpEventBus = (
     subscribe: (subscription, handler) =>
       Effect.tryPromise({
         try: () =>
-          connector.addConsumer(async channel => {
+          connector.addConsumer(async (channel, control) => {
             // One unacked message at a time: events for a transaction are then
             // folded serially (never concurrently), so an `accepted`/`completed`
             // pair can't race into two upserts.
@@ -416,78 +458,87 @@ export const makeAmqpEventBus = (
               slice: subscription.slice,
               mode: subscription.mode,
             };
-            const { consumerTag } = await channel.consume(
-              queue,
-              (message: ConsumeMessage | null) => {
-                if (message === null) {
-                  return;
-                }
+            const onMessage = (message: ConsumeMessage | null) => {
+              if (message === null) {
+                return;
+              }
 
-                // Reading the payload and running the handler are separated on
-                // purpose: they fail for different reasons and earn different
-                // treatment. `JSON.parse` is inside the Effect because it throws
-                // *synchronously* — outside, it escaped into amqplib's callback and
-                // the message was never even nacked.
-                const settle = Effect.try({
-                  try: () => JSON.parse(message.content.toString()) as unknown,
-                  catch: (): DeliveryFailure => UNREADABLE,
-                }).pipe(
-                  Effect.flatMap(parsed =>
-                    decodeEvent(parsed).pipe(Effect.mapError(classify)),
-                  ),
-                  // The handler carries no requirements (the subscriber closes over
-                  // its store), so it runs standalone.
-                  //
-                  // ⚠️ `data` is decoded against the schema its event name
-                  // registered, so a malformed payload is a `protocol` failure
-                  // here — poison, quarantined at once — before any handler
-                  // runs. A handler's own failure is classified by its category
-                  // the same way: a business or `protocol` failure quarantines
-                  // instead of spending `maxAttempts` on every message behind it.
-                  Effect.flatMap(event =>
-                    handler(event).pipe(Effect.mapError(classify)),
-                  ),
-                );
+              // Reading the payload and running the handler are separated on
+              // purpose: they fail for different reasons and earn different
+              // treatment. `JSON.parse` is inside the Effect because it throws
+              // *synchronously* — outside, it escaped into amqplib's callback and
+              // the message was never even nacked.
+              const settle = Effect.try({
+                try: () => JSON.parse(message.content.toString()) as unknown,
+                catch: (): DeliveryFailure => UNREADABLE,
+              }).pipe(
+                Effect.flatMap(parsed =>
+                  decodeEvent(parsed).pipe(Effect.mapError(classify)),
+                ),
+                // The handler carries no requirements (the subscriber closes over
+                // its store), so it runs standalone.
+                //
+                // ⚠️ `data` is decoded against the schema its event name
+                // registered, so a malformed payload is a `protocol` failure
+                // here — poison, quarantined at once — before any handler
+                // runs. A handler's own failure is classified by its category
+                // the same way: a business or `protocol` failure quarantines
+                // instead of spending `maxAttempts` on every message behind it.
+                Effect.flatMap(event =>
+                  handler(event).pipe(Effect.mapError(classify)),
+                ),
+              );
 
-                // Counted around the whole settle, so a shutdown waits for the ack
-                // as well as the handler: cancelling a consumer stops *new*
-                // deliveries and says nothing about this one.
-                inFlight += 1;
-                void Effect.runPromise(
-                  settle.pipe(
-                    // Effect's metric registry is a process-wide singleton, so an
-                    // increment inside this detached `runPromise` reaches the same
-                    // producer `NodeSdk` exports from. That is the only reason a
-                    // metric works here at all — nothing about this fiber is
-                    // inside the observability layer.
-                    Effect.matchEffect({
-                      onSuccess: () =>
-                        recordConsumed(tags).pipe(
-                          Effect.andThen(
-                            Effect.sync(() => channel.ack(message)),
+              // Counted around the whole settle, so a shutdown waits for the ack
+              // as well as the handler: cancelling a consumer stops *new*
+              // deliveries and says nothing about this one.
+              inFlight += 1;
+              void Effect.runPromise(
+                settle.pipe(
+                  // Effect's metric registry is a process-wide singleton, so an
+                  // increment inside this detached `runPromise` reaches the same
+                  // producer `NodeSdk` exports from. That is the only reason a
+                  // metric works here at all — nothing about this fiber is
+                  // inside the observability layer.
+                  Effect.matchEffect({
+                    onSuccess: () =>
+                      recordConsumed(tags).pipe(
+                        Effect.andThen(Effect.sync(() => channel.ack(message))),
+                      ),
+                    onFailure: failure =>
+                      recordFailed(tags, failure.kind).pipe(
+                        Effect.andThen(
+                          settleFailure(
+                            channel,
+                            message,
+                            queue,
+                            subscription,
+                            failure,
+                            backoff,
+                            tags,
                           ),
                         ),
-                      onFailure: failure =>
-                        recordFailed(tags, failure.kind).pipe(
-                          Effect.andThen(
-                            settleFailure(
-                              channel,
-                              message,
-                              queue,
-                              subscription,
-                              failure,
-                              backoff,
-                              tags,
-                            ),
-                          ),
-                        ),
-                    }),
-                  ),
-                ).finally(() => {
-                  inFlight -= 1;
-                });
-              },
-            );
+                      ),
+                  }),
+                ),
+              ).finally(() => {
+                inFlight -= 1;
+              });
+            };
+            const { consumerTag } = await channel.consume(queue, onMessage);
+            const keys = subscription.pauseWhileOpen ?? [];
+            if (keys.length > 0 && options.breaker !== undefined)
+              watchBreakers({
+                channel,
+                control,
+                queue,
+                onMessage,
+                consumerTag,
+                keys,
+                breaker: options.breaker,
+                tags,
+                pollMs: pausePoll,
+              });
             return [consumerTag];
           }),
         catch: error => new Unavailable({ dependency: 'amqp' }),
@@ -504,6 +555,61 @@ export const makeAmqpEventBus = (
   };
 };
 
+/** A pausable consumer reads its breakers once a second. */
+export const DEFAULT_PAUSE_POLL = Duration.seconds(1);
+
+interface Watched {
+  readonly channel: Channel;
+  readonly control: AmqpConsumerControl;
+  readonly queue: string;
+  readonly onMessage: (message: ConsumeMessage | null) => void;
+  readonly consumerTag: string;
+  readonly keys: readonly string[];
+  readonly breaker: CircuitBreaker;
+  readonly tags: SubscriptionTags;
+  readonly pollMs: number;
+}
+
+/**
+ * Stops consuming while any breaker the subscription waits on is open, and
+ * consumes again once none is. Polled rather than pushed, because an open
+ * breaker becomes half-open by its wait elapsing, and only reading its state
+ * notices that. The watch ends with the channel, and does not resume into a
+ * shutdown that stopped intake.
+ */
+const watchBreakers = (watched: Watched): void => {
+  let tag: string | undefined = watched.consumerTag;
+  const tick = Effect.gen(function* () {
+    if (watched.control.cancelled()) return;
+    const states = yield* Effect.forEach(watched.keys, key =>
+      watched.breaker.state(key),
+    );
+    const open = states.some(
+      state => state === 'open' || state === 'forcedOpen',
+    );
+    if (open && tag !== undefined) {
+      const paused = tag;
+      tag = undefined;
+      watched.control.replaceTags([]);
+      yield* Effect.promise(() => watched.channel.cancel(paused));
+      yield* recordPaused(watched.tags, true);
+    } else if (!open && tag === undefined) {
+      const { consumerTag } = yield* Effect.promise(() =>
+        watched.channel.consume(watched.queue, watched.onMessage),
+      );
+      tag = consumerTag;
+      watched.control.replaceTags([consumerTag]);
+      yield* recordPaused(watched.tags, false);
+    }
+  });
+  // A channel that dies mid-tick is the connector's to replace; the watch on
+  // the next channel starts with its setup.
+  const timer = setInterval(() => {
+    void Effect.runPromise(Effect.ignore(tick));
+  }, watched.pollMs);
+  watched.channel.once('close', () => clearInterval(timer));
+};
+
 /**
  * Provides {@link EventBusTag} from an {@link AmqpChannelTag}.
  *
@@ -518,8 +624,10 @@ export const AmqpEventBusLayer = Layer.effect(
     const wiring = yield* WiringRegistryTag;
     const shutdown = yield* ShutdownRegistryTag;
     const redeliveryBackoff = yield* Effect.serviceOption(RedeliveryBackoffTag);
+    const breaker = yield* Effect.serviceOption(CircuitBreakerTag);
     const { bus, drainDeliveries } = makeAmqpEventBus(connector, wiring, {
       redeliveryBackoff: Option.getOrUndefined(redeliveryBackoff),
+      breaker: Option.getOrUndefined(breaker),
     });
 
     // `stop-intake`, and both halves are it: cancelling stops the broker

@@ -5,6 +5,7 @@
 - Revised: 2026-09-16 by [#2](https://github.com/r10c-technologies/entifix/issues/2) — a release pull request superseded by a new version is closed
 - Revised: 2026-10-20 by [ADR 0005](0005-content-an-entity-describes.md) — `@entifix/static` is a 24th package, bootstrapped by hand like the first 23
 - Revised: 2026-10-24 — a commit's scope no longer narrows its bump: `useCommitScope` is off, because in a fixed group it silently demoted a breaking change to a patch
+- Revised: 2026-10-29 — `@entifix/workflow` is a 25th package, bootstrapped by hand like the others before its first release
 - Area: platform
 - Read when: cutting a release, wondering why the release workflow cannot be renamed, or why a merge did not publish anything — the version is derived from commit messages and nothing in this repository can publish to npm
 
@@ -25,7 +26,9 @@ to configure a trusted publisher for a package that does not exist yet —
 reads as though it covers the case and does not; the endpoint answers `404`. So
 23 packages were bootstrapped by hand before the trust configuration could be
 written. That is a one-time cost per package: paid for the first 23, and paid
-again for `@entifix/static` ([ADR 0005](0005-content-an-entity-describes.md)).
+again for `@entifix/static` ([ADR 0005](0005-content-an-entity-describes.md))
+and for `@entifix/workflow`
+([ADR 0016](0016-a-flow-engine-port-and-a-durable-workflow-adapter.md)).
 
 ## Decision
 
@@ -37,7 +40,7 @@ package-scoped registry token, and signs the provenance attestation that
 belongs to one workflow file on one repository, and to nothing else.
 
 ⚠️ **`.github/workflows/release.yml` cannot be renamed.** The trusted publisher
-claim on all 24 packages names that file. Renaming it revokes this workflow's
+claim on all 25 packages names that file. Renaming it revokes this workflow's
 ability to publish — silently, with no error until a release fails — and every
 package has to be re-trusted one at a time, each behind a 2FA prompt.
 

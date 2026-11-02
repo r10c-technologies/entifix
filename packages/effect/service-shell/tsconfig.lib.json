@@ -33,6 +33,9 @@
     },
     {
       "path": "../../ts/testing-unit/tsconfig.lib.json"
+    },
+    {
+      "path": "../../ts/rest-client/tsconfig.lib.json"
     }
   ]
 }

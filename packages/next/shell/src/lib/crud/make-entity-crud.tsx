@@ -11,12 +11,16 @@ import {
   describeEntityColumns,
   type Entity,
   type EntityConstructor,
+  type EntityId,
   type EntityMetadataSource,
+  type EntitySelection,
+  type EntityUseCaseRunner,
   envelopeEntityName,
   extractMetaEntity,
   type FilterGroup,
   Internal,
   type TransitionalFailure,
+  type UseCaseDescriptor,
 } from '@entifix/core';
 import { EntityTable, useCasesForSurface } from '@entifix/react-controls';
 import {
@@ -28,7 +32,7 @@ import {
 import type { TransactionSink } from '@entifix/transactions';
 import { TransactionSinkTag } from '@entifix/transactions';
 import { useQueryClient } from '@tanstack/react-query';
-import { Context } from 'effect';
+import { Cause, Context, Effect, Exit } from 'effect';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 
@@ -125,6 +129,32 @@ function asFailure(failure: unknown): TransitionalFailure {
 }
 
 /**
+ * A runner's verbs as the promises the screens await, looked up by the key the
+ * served `$metadata` named. A rejection carries the failure itself, so the
+ * screen shows its coded message.
+ */
+function verbsOf(
+  runner: EntityUseCaseRunner | undefined,
+  served: readonly UseCaseDescriptor[] | undefined,
+) {
+  if (runner === undefined) return undefined;
+  const settle = <A,>(effect: Effect.Effect<A, unknown>): Promise<A> =>
+    Effect.runPromiseExit(effect).then(exit =>
+      Exit.isSuccess(exit)
+        ? exit.value
+        : Promise.reject(Cause.squash(exit.cause)),
+    );
+  // The key always comes from the served document, so it names a verb in it.
+  const descriptor = (key: string) =>
+    served?.find(candidate => candidate.key === key) as UseCaseDescriptor;
+  return {
+    run: (key: string, id: EntityId) => settle(runner.run(descriptor(key), id)),
+    bulk: (key: string, selection: EntitySelection<Entity>) =>
+      settle(runner.bulk(descriptor(key), selection)),
+  };
+}
+
+/**
  * Runs each link's `useBaseFiltering` against the record being edited, in link
  * order, with `undefined` for a link that declares none.
  *
@@ -160,8 +190,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     links = [],
     metadataSource: givenMetadataSource,
     metadata,
-    runBulkUseCase,
-    runUseCase,
+    useCases,
   } = options;
 
   if (givenMetadataSource !== undefined && metadata !== undefined) {
@@ -269,8 +298,19 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     const canRunBulk =
       useCasesForSurface('bulk-bar', affordances.metadata?.useCases).length > 0;
 
+    const verbs = verbsOf(
+      useCases === undefined
+        ? undefined
+        : (adapters[useCases] as EntityUseCaseRunner),
+      affordances.metadata?.useCases,
+    );
+
     const bulk = useEntityBulk<TEntity>({
-      run: canRunBulk ? runBulkUseCase : undefined,
+      run:
+        canRunBulk && verbs !== undefined
+          ? (key, selection) =>
+              verbs.bulk(key, selection as EntitySelection<Entity>)
+          : undefined,
       // A bulk write changed the rows underneath the listing, so the page is
       // re-read; the selection deliberately survives it ("the selection
       // is still there afterwards"), because the operator's next act is usually
@@ -285,7 +325,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     //
     // ⚠️ **A row verb and the form's are the same runner with different
     // arguments.** `EntityTable` hands back the whole record, because that is
-    // what it has; `runUseCase` takes an id, because that is what a route needs
+    // what it has; the runner takes an id, because that is what a route needs
     // The list has no error slot of its own, so a failure lands in the
     // table's own error region — the same one a failed page read uses.
     const [useCaseError, setUseCaseError] = useState<
@@ -298,13 +338,13 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
       'row-menu',
       affordances.metadata?.useCases,
     );
-    const canRunRowUseCase = runUseCase !== undefined && rowUseCases.length > 0;
+    const canRunRowUseCase = verbs !== undefined && rowUseCases.length > 0;
 
     const handleRowUseCase = canRunRowUseCase
       ? (key: string, item: TEntity) => {
           if (item.id == null) return;
           setUseCaseError(undefined);
-          void runUseCase(key, item.id).then(
+          void verbs?.run(key, item.id).then(
             () => queryClient.invalidateQueries({ queryKey: scope }),
             (failure: unknown) => setUseCaseError(asFailure(failure)),
           );
@@ -353,6 +393,9 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
   }: EntityCrudSingleViewProps = {}) {
     const adapters = useAdapters();
     const metadataSource = metadataSourceOf(adapters);
+    // The same served document the form reads its buttons from, so a key the
+    // form hands back always names a verb in it.
+    const affordances = useEntityAffordances(entityConstructor, metadataSource);
     const pending = usePendingTransactions();
     const router = useRouter();
     const withLocale = useLocaleHref();
@@ -478,12 +521,18 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
      * the record correctly did not move, and the operator saw a button that
      * appeared to do nothing at all.
      */
+    const verbs = verbsOf(
+      useCases === undefined
+        ? undefined
+        : (adapters[useCases] as EntityUseCaseRunner),
+      affordances.metadata?.useCases,
+    );
     const handleUseCase =
-      runUseCase === undefined || id == null
+      verbs === undefined || id == null
         ? undefined
         : (key: string) => {
             setUseCaseError(undefined);
-            void runUseCase(key, id).then(
+            void verbs.run(key, id).then(
               () => reload(),
               (failure: unknown) => setUseCaseError(asFailure(failure)),
             );

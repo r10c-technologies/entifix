@@ -168,3 +168,17 @@ export function extractMetaUseCaseBinding(
   }
   return binding;
 }
+
+/**
+ * The `@useCase()` a class declares, as the entity it is declared against
+ * holds it — with its binding and its endpoint contract.
+ */
+export function extractUseCase(target: UseCaseConstructor): MetaUseCase {
+  const { entity, key, binding } = extractMetaUseCaseBinding(target);
+  // `@useCase()` appends to the entity before it records the binding, so a
+  // bound class always has its entry — found by binding as well as key, since
+  // one key may be declared on a record and over a selection.
+  return extractMetaUseCases(entity).find(
+    metaUseCase => metaUseCase.key === key && metaUseCase.binding === binding,
+  ) as MetaUseCase;
+}

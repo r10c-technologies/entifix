@@ -2,6 +2,8 @@
 
 - Status: Accepted
 - Date: 2026-10-28
+- Revised: 2026-10-29 by the #119 interpreter — `signalCorrelated`, an explicit compensation walk, and `DurableDeferred.raceAll` for timed waits
+- Revised: 2026-10-29 — step bounds are overridable per participant (`dialsFor`), and journaled states are counted
 - Area: adapters
 - Read when: running a multi-step flow, deciding where a flow survives its process dying, adding a wait, a child flow or a join to a flow, bumping the `effect` pin, or about to import `effect/workflow` or `effect/cluster`
 
@@ -33,6 +35,8 @@ concurrency defects between September and October 2026, all closed before
 
 - `start(slip, idempotencyKey) → { flowId }`, idempotent on the key;
 - `status(flowId)`, `signal(flowId, token, outcome)`, `interrupt(flowId)`;
+- `signalCorrelated(correlation, token, outcome)`, for a sender that knows what
+  a wait is correlated with — the order a delivery follows — and not the flow;
 - typed failures.
 
 There is deliberately **no `await`**. A caller settles by push, from the
@@ -60,15 +64,27 @@ the slip, branching on `slipVersion` — not one workflow per flow:
 
 - **Each step is an `Activity`** named `segment:step`. Its idempotency key,
   `<flowId>:<step>`, travels to the participant as `Idempotency-Key`.
-- **Before the commit point**, a step runs under `withCompensation`, and a
-  fan-out compensates only the calls that succeeded.
+- **Before and at the commit point**, a refusal undoes the steps that
+  succeeded, in reverse, each undoing an Activity of its own keyed
+  `<flowId>:<step>:compensation`, and the flow ends `compensated`; a fan-out
+  undoes only the calls that succeeded. The walk is explicit rather than
+  `Workflow.withCompensation`, because a failing undoing has to stop the flow
+  `failed` at that step, and a finalizer cannot say which step it was.
 - **At and after the commit point**, a step runs under `SuspendOnFailure` with a
   `suspendedRetrySchedule`. A step is bounded per attempt and as a whole; past
-  the whole-step bound the flow strands with `flow.suspended` and alerts.
-- **Waits** are a `DurableDeferred`, addressable through `signal`, raced with
-  `DurableClock.sleep` for the timeout branch.
-- **Child flows** are correlated by the order id; **per-vendor joins** are a
-  bounded `Effect.all` before a shared pivot.
+  the whole-step bound the flow strands with `flow.suspended` and alerts. Both
+  bounds are dials with a host default, and `dialsFor(participant)` overrides
+  them per participant — a payment provider and a stock ledger do not answer on
+  the same clock, and one bound for both is wrong for at least one of them.
+- **Waits** are a `DurableDeferred`, addressable through `signal` or, by the
+  step's `correlation` parameter, through `signalCorrelated`. A wait that names
+  a timeout races the deferred with `DurableClock.sleep` through
+  `DurableDeferred.raceAll`, whose winner is journaled — a plain
+  `Effect.raceFirst` inside a workflow re-runs the race on resume and can pick
+  the other branch.
+- **Child flows** are correlated by the order id; **per-vendor joins** run a
+  stage's segments at once, bounded by a `concurrency` dial, before a shared
+  pivot, and the earliest failing step decides.
 - **No retry outside the Activity.** Each call is wrapped by the breaker, the
   bulkhead and the retry budget of
   [ADR 0017](0017-circuit-breaker-and-bulkhead-ports.md) and
@@ -82,6 +98,11 @@ store, with event id `<flowId>:<step>`, `correlationId = flowId`, the flow as
 aggregate and the step ordinal as version. They reach the bus through the relay
 of [ADR 0018](0018-one-outbox-ordered-per-aggregate.md), like any other domain
 event.
+
+Every state the interpreter journals is also counted, as
+`entifix_flow_states_total` by state and source, inside the Activity that
+records it — so a replay never counts twice, and `suspended` is a series a host
+can alert on without reading the outbox.
 
 ### Gates every interpreter change and every `effect` bump
 
@@ -98,7 +119,10 @@ event.
 ### A host runs at least two runners
 
 Every host runs **≥ 2 runners**, so a runner dying is the normal case the
-engine is exercised under rather than a disaster path tested once.
+engine is exercised under rather than a disaster path tested once. A runner
+that serves no HTTP boots through `makeWorker` from
+`@entifix/service-shell/runtime`, under the same registries and shutdown drain
+as a service.
 
 ## Consequences
 

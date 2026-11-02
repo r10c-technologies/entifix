@@ -1,10 +1,4 @@
-import {
-  accessor,
-  EntifixConnError,
-  type Entity,
-  entity,
-  type EntityId,
-} from '@entifix/core';
+import { accessor, type Entity, entity, type EntityId } from '@entifix/core';
 import { Cause, Effect, Exit, Option } from 'effect';
 import { describe, expect, it } from 'vitest';
 
@@ -82,11 +76,7 @@ describe('makeInMemoryEntityLinkResolver', () => {
     const error = Exit.isFailure(exit)
       ? Option.getOrUndefined(Cause.findErrorOption(exit.cause))
       : undefined;
-    expect(error).toBeInstanceOf(EntifixConnError);
-    expect((error as EntifixConnError).details).toEqual({
-      entity: 'Brand',
-      id: 'missing',
-    });
+    expect(error).toMatchObject({ _tag: 'NotFound', entity: 'Brand' });
   });
 
   it('fails for a constructor that was never registered', async () => {

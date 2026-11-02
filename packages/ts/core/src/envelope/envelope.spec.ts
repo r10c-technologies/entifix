@@ -37,6 +37,21 @@ class Brand implements Entity {
   }
 }
 
+/** An entity whose setter refuses a value, so a record can fail to build. */
+@entity({ key: 'strict' })
+class Strict implements Entity {
+  #id?: EntityId;
+
+  @accessor()
+  get id(): EntityId {
+    return this.#id;
+  }
+  set id(value: EntityId) {
+    if (value === 'refused') throw new TypeError('not this one');
+    this.#id = value;
+  }
+}
+
 @entity({ key: 'product' })
 class Product implements Entity {
   #id?: EntityId;
@@ -205,6 +220,23 @@ describe('readEntityCollectionEnvelope', () => {
 
     expect(result).toHaveLength(2);
     expect(result.map(brand => brand.name)).toEqual(['Acme', 'Globex']);
+  });
+
+  it('refuses a record the entity cannot be built from as an invalid envelope', () => {
+    const failure = Effect.runSync(
+      Effect.flip(
+        readEntityCollectionEnvelope(Strict, {
+          meta: { type: 'entityCollection', entity: 'strict' },
+          data: [{ id: 'refused' }],
+        }),
+      ),
+    );
+
+    expect(failure).toMatchObject({
+      _tag: 'InvalidEnvelope',
+      category: 'invalid',
+    });
+    expect(failure.message).toContain('"strict": ');
   });
 });
 

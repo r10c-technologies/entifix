@@ -45,7 +45,19 @@ export const EVENTS_DLX = 'entifix.events.dlx';
  */
 export type AmqpConsumerSetup = (
   channel: amqp.Channel,
+  control: AmqpConsumerControl,
 ) => Promise<void | readonly string[]>;
+
+/**
+ * What a consumer may tell the connector after its setup ran: that it now
+ * holds other tags — it paused, or resumed under a new one — so a shutdown
+ * cancels what it actually holds; and whether intake has been stopped, so a
+ * consumer does not resume into a shutdown.
+ */
+export interface AmqpConsumerControl {
+  readonly replaceTags: (tags: readonly string[]) => void;
+  readonly cancelled: () => boolean;
+}
 
 /**
  * A RabbitMQ connection that survives the broker going away.
@@ -137,7 +149,13 @@ export const makeAmqpConnector = (uri: string) => {
     }
     for (const consumer of consumers) {
       if (consumer.boundTo !== channel) {
-        consumer.tags = (await consumer.setup(channel)) ?? [];
+        consumer.tags =
+          (await consumer.setup(channel, {
+            replaceTags: tags => {
+              consumer.tags = tags;
+            },
+            cancelled: () => cancelled,
+          })) ?? [];
         consumer.boundTo = channel;
       }
     }

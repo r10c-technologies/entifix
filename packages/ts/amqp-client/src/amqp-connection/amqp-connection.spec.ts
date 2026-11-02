@@ -3,6 +3,7 @@ import { Cause, Effect, Exit, Option } from 'effect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  type AmqpConsumerControl,
   AmqpLayer,
   EVENTS_DLX,
   EVENTS_EXCHANGE,
@@ -183,6 +184,28 @@ describe('makeAmqpConnector', () => {
     expect(fake.channel.cancel.mock.calls.map(([tag]) => tag)).toEqual([
       'work-tag',
       'broadcast-tag',
+    ]);
+  });
+
+  // A consumer that paused and resumed under a new tag must have that tag
+  // cancelled at shutdown, not the one it held when it was first bound.
+  it('cancels the tags a consumer last reported, and tells it intake stopped', async () => {
+    const fake = makeFakeConnection();
+    connect.mockResolvedValue(fake.connection);
+
+    const { connector } = makeAmqpConnector('amqp://localhost');
+    let control: AmqpConsumerControl | undefined;
+    await connector.addConsumer(async (_channel, given) => {
+      control = given;
+      return ['first-tag'];
+    });
+    control?.replaceTags(['resumed-tag']);
+
+    expect(control?.cancelled()).toBe(false);
+    await connector.cancelConsumers();
+    expect(control?.cancelled()).toBe(true);
+    expect(fake.channel.cancel.mock.calls.map(([tag]) => tag)).toEqual([
+      'resumed-tag',
     ]);
   });
 

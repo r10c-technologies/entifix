@@ -94,6 +94,8 @@ export interface FakeAmqpChannel {
   deliverRaw(payload: string): Promise<void>;
   /** Simulates the broker cancelling the consumer (amqplib delivers `null`). */
   deliverCancellation(): Promise<void>;
+  /** Simulates the channel closing, as amqplib emits `close` on it. */
+  close(): void;
   /** Makes every subsequent channel call throw/reject with `error`. */
   failWith(error: unknown): void;
   /** The object to pass where an amqplib `Channel` is expected. */
@@ -146,6 +148,7 @@ export const makeFakeAmqpChannel = (): FakeAmqpChannel => {
   }> = [];
   let consumer: ((message: FakeAmqpMessage | null) => void) | undefined;
   const cancelled: string[] = [];
+  const closeListeners: Array<() => void> = [];
   let consumerTags = 0;
   let boundQueue: string | undefined;
   let prefetchCount: number | undefined;
@@ -156,6 +159,10 @@ export const makeFakeAmqpChannel = (): FakeAmqpChannel => {
   };
 
   const channel = {
+    once: (event: string, listener: () => void) => {
+      if (event === 'close') closeListeners.push(listener);
+      return channel;
+    },
     publish: (
       exchange: string,
       routingKey: string,
@@ -294,6 +301,9 @@ export const makeFakeAmqpChannel = (): FakeAmqpChannel => {
     deliver: (body, routingKey, headers) =>
       push(JSON.stringify(body), routingKey ?? routingKeyOf(body), headers),
     deliverRaw: payload => push(payload, undefined),
+    close: () => {
+      for (const listener of closeListeners.splice(0)) listener();
+    },
     deliverCancellation: async () => {
       if (consumer === undefined) {
         throw new Error('fake amqp: nothing subscribed yet');

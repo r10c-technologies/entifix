@@ -1,22 +1,12 @@
 'use client';
 
 import { type EntityRepositoryTag, loadUCFactory } from '@entifix/business';
-import {
-  descendantsOf,
-  type EntityId,
-  type FilterGroup,
-  hierarchyOf,
-} from '@entifix/core';
+import { descendantsOf, type FilterGroup, hierarchyOf } from '@entifix/core';
 import { Customer, Invoice } from '@entifix/example-workspace-domain';
 import { makeEntityCrud } from '@entifix/next-shell';
 import { entityQueryScope, useDataLoading } from '@entifix/react-integration';
-import { Effect } from 'effect';
 
-import {
-  type ExampleAdapters,
-  repositories,
-  useExampleAdapters,
-} from './adapters';
+import { type ExampleAdapters, useExampleAdapters } from './adapters';
 import { metadataSource } from './metadata';
 
 /**
@@ -90,21 +80,6 @@ export const customerCrud = makeEntityCrud<Customer, ExampleAdapters>(
   },
 );
 
-/**
- * `issue` moves a draft to issued. The generated form renders the button
- * because the metadata document lists the verb and this crud can run it; when
- * the promise resolves the page reloads the record, so the new status shows.
- */
-const issueInvoice = async (id: EntityId): Promise<void> => {
-  const program = repositories.invoices.get<Invoice>(id).pipe(
-    Effect.flatMap(invoice => {
-      invoice.status = 'issued';
-      return repositories.invoices.save(invoice);
-    }),
-  );
-  await Effect.runPromise(program);
-};
-
 export const invoiceCrud = makeEntityCrud<Invoice, ExampleAdapters>(Invoice, {
   useAdapters: useExampleAdapters,
   basePath: '/invoices',
@@ -122,9 +97,7 @@ export const invoiceCrud = makeEntityCrud<Invoice, ExampleAdapters>(Invoice, {
     },
   ],
   metadataSource,
-  runUseCase: async (key, id) => {
-    if (key === 'issue') await issueInvoice(id);
-  },
+  useCases: 'invoiceVerbs',
 });
 
 export const CRUDS = [customerCrud, invoiceCrud] as const;
