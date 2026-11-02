@@ -41,13 +41,13 @@ jobs:
       integration-projects: ${{ steps.chunks.outputs.integration-projects }}
       engine: ${{ steps.chunks.outputs.engine }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: '11.9'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: package.json
           cache: pnpm
@@ -61,7 +61,7 @@ jobs:
       # into it. A restore without the member directories resolves nothing.
       - name: Restore dependencies
         id: deps
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           key: deps-${{ runner.os }}-node26.4-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml', 'package.json') }}
           path: |
@@ -75,7 +75,7 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Save dependencies
         if: steps.deps.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           key: ${{ steps.deps.outputs.cache-primary-key }}
           path: |
@@ -87,7 +87,7 @@ jobs:
 
       - name: Resolve affected base/head
         id: shas
-        uses: nrwl/nx-set-shas@v4
+        uses: nrwl/nx-set-shas@v5
 
       # A pull request runs what it affects. `main` runs everything: it is what
       # a release is cut from. And `release.yml` re-runs the whole gate serially
@@ -158,19 +158,19 @@ jobs:
     if: needs.initialize.outputs.lint-projects != ''
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: '11.9'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: package.json
       # A miss fails the job rather than falling back to an install. Initialize
       # saved this exact key moments ago, so a miss means the key expression
       # drifted between jobs, and a silent reinstall would hide that.
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@v6
         with:
           key: deps-${{ runner.os }}-node26.4-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml', 'package.json') }}
           fail-on-cache-miss: true
@@ -192,16 +192,16 @@ jobs:
       matrix:
         chunk: ${{ fromJson(needs.initialize.outputs.build-chunks) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: '11.9'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: package.json
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@v6
         with:
           key: deps-${{ runner.os }}-node26.4-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml', 'package.json') }}
           fail-on-cache-miss: true
@@ -240,16 +240,16 @@ jobs:
       matrix:
         chunk: ${{ fromJson(needs.initialize.outputs.test-chunks) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: '11.9'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: package.json
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@v6
         with:
           key: deps-${{ runner.os }}-node26.4-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml', 'package.json') }}
           fail-on-cache-miss: true
@@ -287,16 +287,16 @@ jobs:
     env:
       ENTIFIX_PG_URL: postgres://entifix:entifix@localhost:5432/entifix
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: '11.9'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: package.json
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@v6
         with:
           key: deps-${{ runner.os }}-node26.4-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml', 'package.json') }}
           fail-on-cache-miss: true
@@ -331,16 +331,16 @@ jobs:
     env:
       ENTIFIX_PG_URL: postgres://entifix:entifix@localhost:5432/entifix
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: '11.9'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: package.json
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@v6
         with:
           key: deps-${{ runner.os }}-node26.4-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml', 'package.json') }}
           fail-on-cache-miss: true
@@ -364,16 +364,16 @@ jobs:
     if: needs.initialize.outputs.e2e-projects != ''
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: '11.9'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: package.json
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@v6
         with:
           key: deps-${{ runner.os }}-node26.4-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml', 'package.json') }}
           fail-on-cache-miss: true
@@ -388,7 +388,7 @@ jobs:
       - run: pnpm nx run-many -t e2e --projects="${{ needs.initialize.outputs.e2e-projects }}"
       - name: Keep the report of a failed run
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report
           path: |
@@ -405,16 +405,16 @@ jobs:
     if: needs.initialize.outputs.storybook-projects != ''
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: '11.9'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: package.json
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@v6
         with:
           key: deps-${{ runner.os }}-node26.4-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml', 'package.json') }}
           fail-on-cache-miss: true
@@ -435,16 +435,16 @@ jobs:
     needs: initialize
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: '11.9'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: package.json
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@v6
         with:
           key: deps-${{ runner.os }}-node26.4-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml', 'package.json') }}
           fail-on-cache-miss: true
@@ -479,16 +479,16 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: '11.9'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: package.json
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@v6
         with:
           key: deps-${{ runner.os }}-node26.4-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml', 'package.json') }}
           fail-on-cache-miss: true
