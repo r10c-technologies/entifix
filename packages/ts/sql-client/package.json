@@ -69,7 +69,7 @@
     "@swc/helpers": "0.5.23"
   },
   "devDependencies": {
-    "@effect/sql-pg": "4.0.6",
+    "@effect/sql-pg": "4.0.7",
     "@entifix/testing-unit": "workspace:*",
     "@entifix/transactions": "workspace:*",
     "effect": "4.0.6"
