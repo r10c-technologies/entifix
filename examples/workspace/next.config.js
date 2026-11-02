@@ -1,19 +1,12 @@
 //@ts-check
 
-const { composePlugins, withNx } = require('@nx/next');
-
 /**
- * @type {import('@nx/next/plugins/with-nx').WithNxOptions}
+ * Nx 24 removed `withNx`; with an empty `nx` block it added nothing here.
+ * The example consumes entifix through each package's built `exports`, so
+ * Next needs no workspace path mapping or transpile list.
+ *
+ * @type {import('next').NextConfig}
  **/
-const nextConfig = {
-  // Use this to set Nx-specific options
-  // See: https://nx.dev/recipes/next/next-config-setup
-  nx: {},
-};
+const nextConfig = {};
 
-const plugins = [
-  // Add more Next.js plugins to this list if needed.
-  withNx,
-];
-
-module.exports = composePlugins(...plugins)(nextConfig);
+module.exports = nextConfig;
