@@ -16,8 +16,8 @@
   },
   "devDependencies": {
     "@entifix/testing-e2e": "workspace:*",
-    "@nx/devkit": "23.3.0",
-    "@nx/playwright": "23.3.0",
+    "@nx/devkit": "24.0.3",
+    "@nx/playwright": "24.0.3",
     "@playwright/test": "1.64.1"
   }
 }

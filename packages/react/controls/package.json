@@ -50,14 +50,14 @@
   "devDependencies": {
     "@entifix/i18n": "workspace:*",
     "@entifix/style": "workspace:*",
-    "@storybook/addon-docs": "^10.6.2",
-    "@storybook/addon-themes": "^10.6.2",
-    "@storybook/react-vite": "^10.6.2",
-    "effect": "4.0.6",
-    "i18next": "26.5.3",
+    "@storybook/addon-docs": "^10.6.5",
+    "@storybook/addon-themes": "^10.6.5",
+    "@storybook/react-vite": "^10.6.5",
+    "effect": "4.1.2",
+    "i18next": "26.6.0",
     "react": "19.3.1",
-    "react-i18next": "17.1.0",
-    "storybook": "^10.6.2"
+    "react-i18next": "17.1.10",
+    "storybook": "^10.6.5"
   },
   "nx": {
     "tags": [
@@ -97,7 +97,7 @@
   },
   "peerDependencies": {
     "@entifix/i18n": "workspace:*",
-    "effect": "^4.0.6",
+    "effect": "^4.1.2",
     "i18next": ">=26 <27",
     "react": ">=19 <20",
     "react-i18next": ">=17 <18"

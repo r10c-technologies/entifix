@@ -1,0 +1,81 @@
+version: 2
+updates:
+  - package-ecosystem: 'npm' # pnpm workspace; the root manifest covers packages/* and examples/*
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+    open-pull-requests-limit: 10
+    ignore:
+      # `pnpm nx migrate latest` owns these pins and moves them as a set Nx has
+      # tested together, with codemods. Dependabot moving one alone breaks the
+      # set — TypeScript 7 is the Go-native rewrite whose JS API drops what
+      # @nx/js/typescript calls while it builds the project graph.
+      - dependency-name: 'typescript'
+      - dependency-name: 'typescript-eslint'
+      - dependency-name: '@typescript-eslint/*'
+      - dependency-name: '@swc/*'
+      - dependency-name: '@swc-node/*'
+      - dependency-name: 'vite'
+      - dependency-name: 'vitest'
+      - dependency-name: '@vitest/*'
+      - dependency-name: 'next'
+      - dependency-name: 'eslint-config-next'
+      - dependency-name: '@next/*'
+      - dependency-name: 'webpack*'
+      - dependency-name: 'nx'
+      - dependency-name: '@nx/*'
+      - dependency-name: 'verdaccio'
+      # An effect minor is not a drop-in here: 4.1 changed `sql.insert`'s
+      # signature, moved `NodeSdk` out of @effect/opentelemetry's barrel and
+      # replaced `effect/Crypto`. Every package peers on the line it was built
+      # against, and the chaos suite and journal replay must pass on the new
+      # one, so a move off the line is a commit with its own migration. Patches
+      # still come through.
+      - dependency-name: 'effect'
+        update-types:
+          ['version-update:semver-major', 'version-update:semver-minor']
+      - dependency-name: '@effect/*'
+        update-types:
+          ['version-update:semver-major', 'version-update:semver-minor']
+      # OpenTelemetry moves as one set or not at all. The 2.x SDK packages peer
+      # on `@opentelemetry/api` `<1.10.0`, @effect/opentelemetry peers on the
+      # 2.x SDK and the 0.223 exporters, and pnpm does not fail an install on a
+      # peer mismatch — so a bump into any of these would pass CI and break a
+      # consumer. Lift all three rules in the commit that adopts OTel 3.
+      - dependency-name: '@opentelemetry/*'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@opentelemetry/api'
+        versions: ['>=1.10.0']
+      - dependency-name: '@opentelemetry/exporter-*'
+        versions: ['>=0.224.0']
+    groups:
+      # Every @effect/* package is released alongside, and peers on, the
+      # matching effect, so the family moves as one pull request or not at all.
+      effect:
+        patterns: ['effect', '@effect/*']
+      react:
+        patterns: ['react', 'react-dom', '@types/react', '@types/react-dom']
+      # Majors are excluded on purpose: a grouped major cannot be bisected, so
+      # one broken member hides every healthy one. Ungrouped, a red check names
+      # the package.
+      dev-dependencies:
+        dependency-type: 'development'
+        update-types: ['minor', 'patch']
+      production-dependencies:
+        dependency-type: 'production'
+        update-types: ['minor', 'patch']
+    commit-message:
+      prefix: 'chore(deps)'
+      prefix-development: 'chore(deps-dev)'
+
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+    groups:
+      actions:
+        patterns: ['*']
+    commit-message:
+      prefix: 'chore(ci)'

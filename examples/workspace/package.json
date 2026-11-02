@@ -15,14 +15,14 @@
     "@entifix/react-integration": "workspace:*",
     "@entifix/style": "workspace:*",
     "@entifix/testing-unit": "workspace:*",
-    "@tanstack/react-query": "5.104.5",
-    "effect": "4.0.6",
-    "i18next": "26.5.3",
-    "next": "16.4.2",
+    "@tanstack/react-query": "5.105.1",
+    "effect": "4.1.2",
+    "i18next": "26.6.0",
+    "next": "16.4.3",
     "react": "19.3.1",
     "react-dom": "19.3.1",
-    "react-i18next": "17.1.0",
-    "zustand": "^5.0.15"
+    "react-i18next": "17.1.10",
+    "zustand": "^5.0.16"
   },
   "nx": {
     "targets": {

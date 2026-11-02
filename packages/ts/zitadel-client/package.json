@@ -54,13 +54,13 @@
     "@entifix/business": "workspace:*",
     "@entifix/core": "workspace:*",
     "@swc/helpers": "0.5.23",
-    "jose": "6.2.12"
+    "jose": "6.2.14"
   },
   "devDependencies": {
     "@entifix/testing-unit": "workspace:*",
-    "effect": "4.0.6"
+    "effect": "4.1.2"
   },
   "peerDependencies": {
-    "effect": "^4.0.6"
+    "effect": "^4.1.2"
   }
 }

@@ -76,16 +76,16 @@
     "@swc/helpers": "0.5.23"
   },
   "peerDependencies": {
-    "@nx/devkit": ">=23 <24",
-    "@nx/playwright": ">=23 <24",
-    "@playwright/test": "*",
     "@entifix/amqp": "workspace:*",
     "@entifix/mongo": "workspace:*",
     "@entifix/redis": "workspace:*",
-    "axios": "*",
-    "effect": "^4.0.6",
-    "msw": ">=3",
     "@msw/playwright": ">=0.7",
+    "@nx/devkit": ">=24 <25",
+    "@nx/playwright": ">=24 <25",
+    "@playwright/test": "*",
+    "axios": "*",
+    "effect": "^4.1.2",
+    "msw": ">=3",
     "vitest": "*"
   },
   "peerDependenciesMeta": {
@@ -124,8 +124,8 @@
     "@entifix/amqp": "workspace:*",
     "@entifix/mongo": "workspace:*",
     "@entifix/redis": "workspace:*",
-    "@nx/devkit": "23.3.0",
-    "@nx/playwright": "23.3.0",
-    "effect": "4.0.6"
+    "@nx/devkit": "24.0.3",
+    "@nx/playwright": "24.0.3",
+    "effect": "4.1.2"
   }
 }
