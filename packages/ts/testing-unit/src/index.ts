@@ -6,6 +6,7 @@ export * from './doubles/flow-engine.js';
 export * from './doubles/idempotency-store.js';
 export * from './doubles/link-resolver.js';
 export * from './doubles/outbox.js';
+export * from './doubles/server-push.js';
 export * from './doubles/transaction-ports.js';
 export * from './doubles/unit-of-work.js';
 export * from './effect/run.js';

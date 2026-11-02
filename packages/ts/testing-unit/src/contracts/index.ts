@@ -6,6 +6,7 @@ export * from './flow-engine.contract.js';
 export * from './idempotency-store.contract.js';
 export * from './outbox.contract.js';
 export * from './saga-store.contract.js';
+export * from './server-push.contract.js';
 export * from './transaction-ports.contract.js';
 export * from './unit-of-work.contract.js';
 export * from './variants.contract.js';
