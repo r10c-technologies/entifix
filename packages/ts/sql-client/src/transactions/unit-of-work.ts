@@ -6,7 +6,7 @@ import type {
   UnitOutcome,
   UnitRunOptions,
 } from '@entifix/transactions';
-import { Data, Effect, Option, Schedule } from 'effect';
+import { Array as Arr, Data, Effect, Option, Schedule } from 'effect';
 import { type SqlClient, SqlError } from 'effect/sql';
 
 import { translateSqlError } from '../errors/translate-sql-error.js';
@@ -101,9 +101,12 @@ export const makeSqlUnitOfWork = (
             }),
           );
 
-          if (emitted.length > 0) {
+          // `sql.insert` takes a non-empty array since effect 4.1, which is
+          // the guard this always needed: an empty batch is not an INSERT.
+          const rows = emitted.map(outboxRow);
+          if (Arr.isArrayNonEmpty(rows)) {
             const written = yield* sql<{ readonly event_id: string }>`
-              INSERT INTO entifix_outbox ${sql.insert(emitted.map(outboxRow))}
+              INSERT INTO entifix_outbox ${sql.insert(rows)}
               ON CONFLICT (event_id) DO NOTHING RETURNING event_id`;
             // An event id already recorded is the outbox's own idempotency
             // claim: what it announces committed before.

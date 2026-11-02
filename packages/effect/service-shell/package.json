@@ -76,8 +76,8 @@
     "@swc/helpers": "0.5.23"
   },
   "devDependencies": {
-    "@effect/opentelemetry": "4.0.6",
-    "@effect/platform-node": "4.0.6",
+    "@effect/opentelemetry": "4.1.2",
+    "@effect/platform-node": "4.1.2",
     "@entifix/rest": "workspace:*",
     "@entifix/testing-unit": "workspace:*",
     "@opentelemetry/api": "1.9.1",
@@ -86,18 +86,18 @@
     "@opentelemetry/exporter-trace-otlp-http": "0.223.0",
     "@opentelemetry/sdk-metrics": "2.12.0",
     "@opentelemetry/sdk-trace-base": "2.12.0",
-    "effect": "4.0.6"
+    "effect": "4.1.2"
   },
   "peerDependencies": {
-    "@effect/opentelemetry": "^4.0.6",
-    "@effect/platform-node": "^4.0.6",
+    "@effect/opentelemetry": "^4.1.2",
+    "@effect/platform-node": "^4.1.2",
     "@opentelemetry/api": ">=1.9 <2",
     "@opentelemetry/context-async-hooks": ">=2.12 <3",
     "@opentelemetry/exporter-metrics-otlp-http": ">=0.223 <0.224",
     "@opentelemetry/exporter-trace-otlp-http": ">=0.223 <0.224",
     "@opentelemetry/sdk-metrics": ">=2.12 <3",
     "@opentelemetry/sdk-trace-base": ">=2.12 <3",
-    "effect": "^4.0.6"
+    "effect": "^4.1.2"
   },
   "peerDependenciesMeta": {
     "@effect/opentelemetry": {
