@@ -32,21 +32,26 @@ export const makeInMemoryServerPush = ({
 > =>
   Effect.sync(() => {
     const published: DomainEvent[] = [];
-    const open = new Map<Queue.Queue<DomainEvent>, PushConnectionUnderTest>();
+    const open = new Map<
+      Queue.Queue<PushMessageUnderTest>,
+      PushConnectionUnderTest
+    >();
 
     return {
       published: () => [...published],
       publish: event =>
         Effect.suspend(() => {
           published.push(event);
-          const topics = topicsOf(event);
           return Effect.forEach(
-            Array.from(open).filter(
-              ([, connection]) =>
-                topics.some(topic => connection.topics.includes(topic)) &&
-                admits(event, connection),
-            ),
-            ([queue]) => Queue.offer(queue, event),
+            Array.from(open),
+            ([queue, connection]) => {
+              const topics = topicsOf(event).filter(topic =>
+                connection.topics.includes(topic),
+              );
+              return topics.length > 0 && admits(event, connection)
+                ? Queue.offer(queue, { _tag: 'event', event, topics })
+                : Effect.void;
+            },
             { discard: true },
           );
         }),
@@ -54,16 +59,13 @@ export const makeInMemoryServerPush = ({
         Stream.unwrap(
           Effect.map(
             Effect.acquireRelease(
-              Effect.tap(Queue.unbounded<DomainEvent>(), queue =>
+              Effect.tap(Queue.unbounded<PushMessageUnderTest>(), queue =>
                 Effect.sync(() => open.set(queue, connection)),
               ),
               queue => Effect.sync(() => open.delete(queue)),
             ),
             queue => {
-              const live = Stream.map(
-                Stream.fromQueue(queue),
-                (event): PushMessageUnderTest => ({ _tag: 'event', event }),
-              );
+              const live = Stream.fromQueue(queue);
               return connection.cursor === undefined
                 ? live
                 : Stream.concat(

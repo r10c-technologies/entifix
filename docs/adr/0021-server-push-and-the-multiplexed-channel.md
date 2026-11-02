@@ -63,6 +63,14 @@ redeploy and a missed frame, and never sends one audience's event to another.
   debounced, so a screen that mounts five subscriptions reopens once.
 - Topics come only from the request URL. The adapter never reads them from a
   frame or a header.
+- The client writes the URL as repeated `topic` and `capability` parameters,
+  plus `lastEventId` on a reopen. A new `EventSource` cannot set a header, so
+  the browser's own `Last-Event-ID` header arrives only on its automatic
+  reconnects, and the host reads whichever is present.
+- An event frame's `data` is `{ topics, envelope }`: the topics of this
+  connection the event matched, and the event as its registered codec encodes
+  it. The browser routes on those topics, so it never needs the host's
+  `topicsOf`.
 - Because the query can carry a capability, **the host's edge must redact the
   stream route's query from its access logs.**
 

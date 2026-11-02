@@ -86,12 +86,17 @@ export const pushUnencodable = Metric.counter(
 
 const encoder = new TextEncoder();
 
-const eventFrame = (event: DomainEvent): Effect.Effect<string | undefined> =>
+// `data` is `{ topics, envelope }`: the topics of this connection the event
+// matched, and the event as its registered codec encodes it.
+const eventFrame = (
+  event: DomainEvent,
+  topics: readonly string[],
+): Effect.Effect<string | undefined> =>
   Effect.exit(encodeEvent(event)).pipe(
     Effect.flatMap(encoded =>
       Exit.isSuccess(encoded)
         ? Effect.succeed(
-            `id: ${event.id}\ndata: ${JSON.stringify(encoded.value)}\n\n`,
+            `id: ${event.id}\ndata: ${JSON.stringify({ topics, envelope: encoded.value })}\n\n`,
           )
         : Effect.as(Metric.update(pushUnencodable, 1), undefined),
     ),
@@ -99,7 +104,7 @@ const eventFrame = (event: DomainEvent): Effect.Effect<string | undefined> =>
 
 const frameOf = (message: PushMessage): Effect.Effect<string | undefined> =>
   message._tag === 'event'
-    ? eventFrame(message.event)
+    ? eventFrame(message.event, message.topics)
     : Effect.succeed(
         `event: resync\ndata: ${JSON.stringify({ topics: message.topics })}\n\n`,
       );

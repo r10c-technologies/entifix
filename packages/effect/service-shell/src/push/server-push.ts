@@ -24,11 +24,19 @@ export interface PushConnection {
 }
 
 /**
- * What a connection receives: an event, or a request to re-read some of its
- * topics because what it missed cannot be replayed.
+ * What a connection receives: an event, with the topics of this connection it
+ * matched, or a request to re-read some of its topics because what it missed
+ * cannot be replayed.
+ *
+ * The matched topics travel with the event so the browser routes it to the
+ * listeners that asked, without knowing the host's topic vocabulary.
  */
 export type PushMessage =
-  | { readonly _tag: 'event'; readonly event: DomainEvent }
+  | {
+      readonly _tag: 'event';
+      readonly event: DomainEvent;
+      readonly topics: readonly string[];
+    }
   | { readonly _tag: 'resync'; readonly topics: readonly string[] };
 
 /** The server half of push: what a publisher feeds and what a connection reads. */
@@ -104,13 +112,16 @@ export const makeServerPush = ({
       PubSub.shutdown,
     );
 
+    // The event as this connection receives it, or `undefined` when it asked
+    // for none of the event's topics or its audience does not admit it.
     const delivered = (connection: PushConnection) => {
       const wanted = new Set(connection.topics);
-      return (event: DomainEvent): Effect.Effect<boolean> => {
-        if (!topicsOf(event).some(topic => wanted.has(topic)))
-          return Effect.succeed(false);
-        if (admits(event, connection)) return Effect.succeed(true);
-        return Effect.as(Metric.update(pushFiltered, 1), false);
+      return (event: DomainEvent): Effect.Effect<PushMessage | undefined> => {
+        const topics = topicsOf(event).filter(topic => wanted.has(topic));
+        if (topics.length === 0) return Effect.succeed(undefined);
+        if (admits(event, connection))
+          return Effect.succeed({ _tag: 'event', event, topics });
+        return Effect.as(Metric.update(pushFiltered, 1), undefined);
       };
     };
 
@@ -122,12 +133,12 @@ export const makeServerPush = ({
       open: connection =>
         Stream.unwrap(
           Effect.map(PubSub.subscribe(hub), subscription => {
-            const live = Stream.map(
-              Stream.filterEffect(
+            const live = Stream.filter(
+              Stream.mapEffect(
                 Stream.fromSubscription(subscription),
                 delivered(connection),
               ),
-              (event): PushMessage => ({ _tag: 'event', event }),
+              (message): message is PushMessage => message !== undefined,
             );
             return connection.cursor === undefined
               ? live

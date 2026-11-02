@@ -176,8 +176,10 @@ describe('makeSsePush', () => {
         ),
       ),
     );
-    expect(frames[1]).toMatch(/^id: e1\ndata: \{"meta":\{"type":"event"/);
-    expect(frames[1]).toContain('"data":{"topic":"entity:x"}');
+    expect(frames[1]).toMatch(
+      /^id: e1\ndata: \{"topics":\["entity:x"\],"envelope":\{"meta":\{"type":"event"/,
+    );
+    expect(frames[1]).toContain('"data":{"topic":"entity:x"}}}\n\n');
   });
 
   it('asks a reconnect to resync when the host has no catch-up', async () => {

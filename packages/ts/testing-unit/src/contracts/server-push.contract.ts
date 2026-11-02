@@ -16,7 +16,11 @@ export interface PushConnectionUnderTest {
 }
 
 export type PushMessageUnderTest =
-  | { readonly _tag: 'event'; readonly event: DomainEvent }
+  | {
+      readonly _tag: 'event';
+      readonly event: DomainEvent;
+      readonly topics: readonly string[];
+    }
   | { readonly _tag: 'resync'; readonly topics: readonly string[] };
 
 export interface ServerPushUnderTest {
@@ -60,7 +64,7 @@ const topicsOf = (e: DomainEvent) => [(e.data as { topic: string }).topic];
  * What every server-push adapter must guarantee
  * ([ADR 0021](../../../../../docs/adr/0021-server-push-and-the-multiplexed-channel.md)):
  * a connection receives only the topics it asked for and only what its
- * audience admits; an event naming no audience reaches nobody; a flow event
+ * audience admits, each event naming which of its topics it matched; an event naming no audience reaches nobody; a flow event
  * reaches only the holder of its capability; a host filter replaces the
  * default; and a reconnect is answered by the resume hook before anything
  * live, or by a resync when the host has none.
@@ -110,6 +114,22 @@ export const describeServerPushContract = (
         1,
       );
       expect(ids(got)).toEqual(['e1']);
+    });
+
+    it('names the topics of the connection an event matched, and only those', async () => {
+      const got = await receive(
+        { topicsOf: () => ['entity:x', 'record:x:1', 'entity:y'] },
+        {
+          recipient: { organizationId: 'a' },
+          topics: ['record:x:1', 'entity:x'],
+        },
+        [event('e1', 'entity:x', org('a'))],
+        1,
+      );
+      expect(got[0]).toMatchObject({
+        _tag: 'event',
+        topics: ['entity:x', 'record:x:1'],
+      });
     });
 
     it('withholds an event in a topic the connection did not ask for', async () => {
