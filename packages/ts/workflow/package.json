@@ -1,6 +1,6 @@
 {
   "name": "@entifix/workflow",
-  "version": "0.12.1",
+  "version": "0.13.0",
   "description": "Durable flows: the slip interpreter on Effect Workflow, behind the flow engine port, with Postgres storage and socket runners.",
   "license": "MIT",
   "repository": {
