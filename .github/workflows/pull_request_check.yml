@@ -47,7 +47,7 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           version: '11.9'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: package.json
           cache: pnpm
@@ -164,7 +164,7 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           version: '11.9'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: package.json
       # A miss fails the job rather than falling back to an install. Initialize
@@ -198,7 +198,7 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           version: '11.9'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: package.json
       - uses: actions/cache/restore@v4
@@ -246,7 +246,7 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           version: '11.9'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: package.json
       - uses: actions/cache/restore@v4
@@ -293,7 +293,7 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           version: '11.9'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: package.json
       - uses: actions/cache/restore@v4
@@ -337,7 +337,7 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           version: '11.9'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: package.json
       - uses: actions/cache/restore@v4
@@ -370,7 +370,7 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           version: '11.9'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: package.json
       - uses: actions/cache/restore@v4
@@ -411,7 +411,7 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           version: '11.9'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: package.json
       - uses: actions/cache/restore@v4
@@ -441,7 +441,7 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           version: '11.9'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: package.json
       - uses: actions/cache/restore@v4
@@ -485,7 +485,7 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           version: '11.9'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: package.json
       - uses: actions/cache/restore@v4
