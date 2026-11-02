@@ -1,3 +1,13 @@
+## 0.12.1 (2026-11-02)
+
+### 🩹 Fixes
+
+- **amqp:** a pause watch whose channel died drops the tick instead of crashing the process ([#139](https://github.com/r10c-technologies/entifix/pull/139))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.12.0 (2026-11-02)
 
 ### 🚀 Features
