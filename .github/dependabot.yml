@@ -30,8 +30,8 @@ updates:
       # signature, moved `NodeSdk` out of @effect/opentelemetry's barrel and
       # replaced `effect/Crypto` — and its cluster engine resumes a signalled
       # wait about two seconds late, now and then: 6 of 225 signal cases over
-      # Postgres against 0 of 225 on 4.0.6, measured 2026-11-02. It was held
-      # on 4.0.6 for that. A move off the line is a commit with its own
+      # Postgres against 0 of 225 on 4.0.6, measured 2026-11-02. It is held on
+      # the 4.0 line for that. A move off the line is a commit with its own
       # migration and a stall count behind it. Patches still come through.
       - dependency-name: 'effect'
         update-types:
