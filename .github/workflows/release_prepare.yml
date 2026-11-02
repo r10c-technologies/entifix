@@ -34,7 +34,7 @@ jobs:
           app-id: ${{ vars.RELEASE_APP_ID }}
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # Conventional-commit inference reads the history back to the last
           # release tag. A shallow clone silently resolves the wrong version.

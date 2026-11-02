@@ -36,7 +36,7 @@ jobs:
     steps:
       # `github.sha` on a pull_request event is the ephemeral merge ref, which
       # is not what was merged. `main` is.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: main
           fetch-depth: 0
@@ -86,7 +86,7 @@ jobs:
       # attestation `.npmrc` requires. No npm token exists in this repository.
       id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: main
           fetch-depth: 0
