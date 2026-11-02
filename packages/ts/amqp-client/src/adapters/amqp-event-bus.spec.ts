@@ -969,6 +969,32 @@ describe('a subscription that pauses while a breaker is open', () => {
     fake.close();
   });
 
+  it('drops a tick whose channel died, rather than rejecting with nothing to catch it', async () => {
+    const unhandled: unknown[] = [];
+    const record = (reason: unknown) => unhandled.push(reason);
+    process.on('unhandledRejection', record);
+    try {
+      const { fake, breaker, bus } = pausable();
+      await Effect.runPromise(
+        bus.subscribe(
+          { ...WORK, pauseWhileOpen: ['stock'] },
+          () => Effect.void,
+        ),
+      );
+
+      fake.failWith(new Error('channel closed'));
+      await Effect.runPromise(breaker.force('stock', 'forcedOpen'));
+      await sleep(25);
+      await Effect.runPromise(breaker.force('stock', 'closed'));
+      await sleep(25);
+
+      expect(unhandled).toEqual([]);
+      fake.close();
+    } finally {
+      process.off('unhandledRejection', record);
+    }
+  });
+
   it('stops watching once its channel closes', async () => {
     const { fake, breaker, bus } = pausable();
     await Effect.runPromise(

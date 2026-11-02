@@ -591,10 +591,10 @@ const watchBreakers = (watched: Watched): void => {
       const paused = tag;
       tag = undefined;
       watched.control.replaceTags([]);
-      yield* Effect.promise(() => watched.channel.cancel(paused));
+      yield* Effect.tryPromise(() => watched.channel.cancel(paused));
       yield* recordPaused(watched.tags, true);
     } else if (!open && tag === undefined) {
-      const { consumerTag } = yield* Effect.promise(() =>
+      const { consumerTag } = yield* Effect.tryPromise(() =>
         watched.channel.consume(watched.queue, watched.onMessage),
       );
       tag = consumerTag;
@@ -603,7 +603,11 @@ const watchBreakers = (watched: Watched): void => {
     }
   });
   // A channel that dies mid-tick is the connector's to replace; the watch on
-  // the next channel starts with its setup.
+  // the next channel starts with its setup. Its calls are `tryPromise`, so the
+  // rejection is a failure `ignore` drops — as `Effect.promise` it would be a
+  // defect, `ignore` would pass it on, and the detached `runPromise` below
+  // would reject with nothing to catch it: an unhandled rejection, which ends
+  // a Node process.
   const timer = setInterval(() => {
     void Effect.runPromise(Effect.ignore(tick));
   }, watched.pollMs);
