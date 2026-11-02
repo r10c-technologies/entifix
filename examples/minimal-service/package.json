@@ -29,6 +29,6 @@
     "@entifix/service-shell": "workspace:*",
     "@entifix/sql": "workspace:*",
     "@entifix/testing-auth": "workspace:*",
-    "effect": "4.0.6"
+    "effect": "4.0.7"
   }
 }
