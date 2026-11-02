@@ -1,3 +1,17 @@
+## 0.12.0 (2026-11-02)
+
+### 🚀 Features
+
+- ⚠️ **source:** m15 wave 3, endpoints as descriptors on httpapi and flows on a durable engine ([#137](https://github.com/r10c-technologies/entifix/pull/137))
+
+### ⚠️ Breaking Changes
+
+- **source:** m15 wave 3, endpoints as descriptors on httpapi and flows on a durable engine ([#137](https://github.com/r10c-technologies/entifix/pull/137))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.11.0 (2026-10-29)
 
 ### 🚀 Features
