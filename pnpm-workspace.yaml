@@ -31,12 +31,6 @@ allowBuilds:
   unrs-resolver: false
 autoInstallPeers: true
 ignoreWorkspaceRootCheck: true
-minimumReleaseAgeExclude:
-  - '@effect/opentelemetry@4.1.2'
-  - '@effect/platform-node-shared@4.1.2'
-  - '@effect/platform-node@4.1.2'
-  - '@effect/sql-pg@4.1.2'
-  - effect@4.1.2
 # Nx 23.0.1's eslint plugin floats `@typescript-eslint/utils` on a caret range,
 # and 8.70.0 is a partial publish — `typescript-estree@8.70.0` does not exist on
 # the registry, so a fresh resolve fails outright. Pinned to the set Nx was
@@ -50,3 +44,8 @@ overrides:
   '@typescript-eslint/visitor-keys': 8.62.1
   '@typescript-eslint/project-service': 8.62.1
   '@typescript-eslint/tsconfig-utils': 8.62.1
+  # The one @effect package nothing here names: @effect/platform-node asks for
+  # it on a caret range, which floats it onto the next minor while effect
+  # itself is held on 4.0.6 — and 4.1's build imports modules 4.0 does not
+  # have. Moves with the rest of the family.
+  '@effect/platform-node-shared': 4.0.6

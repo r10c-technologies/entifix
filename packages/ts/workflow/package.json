@@ -98,14 +98,14 @@
     "@swc/helpers": "0.5.23"
   },
   "devDependencies": {
-    "@effect/platform-node": "4.1.2",
-    "@effect/sql-pg": "4.1.2",
+    "@effect/platform-node": "4.0.6",
+    "@effect/sql-pg": "4.0.6",
     "@entifix/testing-unit": "workspace:*",
-    "effect": "4.1.2"
+    "effect": "4.0.6"
   },
   "peerDependencies": {
-    "@effect/platform-node": "^4.1.2",
-    "effect": "^4.1.2"
+    "@effect/platform-node": "^4.0.6",
+    "effect": "^4.0.6"
   },
   "peerDependenciesMeta": {
     "@effect/platform-node": {
