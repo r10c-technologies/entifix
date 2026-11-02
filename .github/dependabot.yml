@@ -65,17 +65,25 @@ updates:
       production-dependencies:
         dependency-type: 'production'
         update-types: ['minor', 'patch']
+    # commitlint's Nx-scope preset, which CI runs over every commit in a pull
+    # request, accepts only a project name as the scope, so Dependabot's
+    # usual `deps` would fail every one of its pull requests.
     commit-message:
-      prefix: 'chore(deps)'
-      prefix-development: 'chore(deps-dev)'
+      prefix: 'chore(source)'
+      prefix-development: 'chore(source)'
 
   - package-ecosystem: 'github-actions'
     directory: '/'
     schedule:
       interval: 'weekly'
       day: 'monday'
+    # Majors are left ungrouped for the same reason as above, and because a
+    # pull request touching only workflows makes no project affected: its own
+    # run skips build and test, so a grouped major would merge on the strength
+    # of the jobs it did not run.
     groups:
       actions:
         patterns: ['*']
+        update-types: ['minor', 'patch']
     commit-message:
-      prefix: 'chore(ci)'
+      prefix: 'chore(source)'
