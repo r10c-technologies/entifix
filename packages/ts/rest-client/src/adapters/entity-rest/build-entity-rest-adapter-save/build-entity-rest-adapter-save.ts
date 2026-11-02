@@ -2,8 +2,7 @@ import {
   Entity,
   EntityConstructor,
   extractMetaEntity,
-  makeEntityEnvelope,
-  readEntityEnvelope,
+  ProtocolFailure,
   serializeEntity,
 } from '@entifix/core';
 import {
@@ -16,20 +15,9 @@ import { Effect, Option } from 'effect';
 
 import { performHttpRequestThroughFetch } from '../../../clients/fetch/index.js';
 import { buildEntityRestAdapterMixins as adapterMixins } from '../build-entity-rest-adapter-mixins/index.js';
+import { buildEntityRestAdapterWrite } from '../build-entity-rest-adapter-write/index.js';
+import { pendingSaveKeys } from '../pending-save-keys.js';
 import { BuildEntityRestOptions } from '../types.js';
-
-/**
- * The `Idempotency-Key` each entity's pending save was sent under, kept until
- * that save succeeds.
- *
- * Keyed by the entity instance, so a save called again on the same object
- * after a network error — the case the key exists for — sends the same key and
- * the service replays its first answer instead of writing twice. A save that
- * succeeded forgets its key, so the next edit of that object is a new request.
- * The browser itself never retries (ADR 0014); this is what makes a person's
- * retry safe.
- */
-const pendingKeys = new WeakMap<object, string>();
 
 /** A transactional create whose `202` never arrived: same command, same id. */
 const pendingCreates = new WeakSet<object>();
@@ -56,32 +44,33 @@ const pendingCreates = new WeakSet<object>();
 export const buildEntityRestAdapterSave =
   <TEntity extends Entity>(
     entityConstructor: EntityConstructor<TEntity>,
-    { uriConfig, create = 'entity', configuration }: BuildEntityRestOptions,
+    options: BuildEntityRestOptions,
   ) =>
   // Deliberately not shadowing `TEntity` here (as the read builders do): the
   // envelope has to be built against the *constructor's* entity type, which a
   // shadowed parameter would make unreachable.
   <TInput extends Entity>(entity: TInput) =>
     Effect.gen(function* () {
+      const { uriConfig, create = 'entity', configuration } = options;
       const metaEntity = extractMetaEntity(entityConstructor);
       const key = metaEntity.key ?? metaEntity.name;
       const isCreate = entity.id == null || pendingCreates.has(entity);
 
-      const url = yield* adapterMixins.buildEntityBaseUrl(
-        configuration,
-        { uriConfig },
-        key,
-        isCreate ? undefined : String(entity.id),
-      );
-
       if (isCreate && create === 'command') {
+        const url = yield* adapterMixins.buildEntityBaseUrl(
+          configuration,
+          { uriConfig },
+          key,
+        );
+
         // `crypto.randomUUID` is available in every browser this ships to and in
         // Node — and the id must be a UUID, because the service constrains the
         // key space a caller may address.
         // A retried create reuses the id it was first sent with: that id *is*
         // the idempotency key, so a new one would write a second record.
-        const transactionId = pendingKeys.get(entity) ?? crypto.randomUUID();
-        pendingKeys.set(entity, transactionId);
+        const transactionId =
+          pendingSaveKeys.get(entity) ?? crypto.randomUUID();
+        pendingSaveKeys.set(entity, transactionId);
         pendingCreates.add(entity);
         entity.id = transactionId;
 
@@ -107,7 +96,7 @@ export const buildEntityRestAdapterSave =
         // accepted a transaction rather than answering something else with a
         // 2xx, which is the failure the old code path could not distinguish.
         yield* readTransactionAcceptedEnvelope(accepted.body);
-        pendingKeys.delete(entity);
+        pendingSaveKeys.delete(entity);
         pendingCreates.delete(entity);
 
         // Tell whoever is watching that a write is in flight. This is the only
@@ -136,21 +125,16 @@ export const buildEntityRestAdapterSave =
         return entity;
       }
 
-      const idempotencyKey = pendingKeys.get(entity) ?? crypto.randomUUID();
-      pendingKeys.set(entity, idempotencyKey);
-      const httpRequest = adapterMixins.buildEntityRequest({
-        method: isCreate ? 'POST' : 'PUT',
-        url,
-        envelope: makeEntityEnvelope(
-          entityConstructor,
-          entity as unknown as TEntity,
-        ),
-        idempotencyKey,
-      });
-
-      const response = yield* performHttpRequestThroughFetch(httpRequest);
-      const saved = yield* readEntityEnvelope(entityConstructor, response.body);
-      pendingKeys.delete(entity);
-
-      return saved as unknown as TInput;
+      const result = yield* buildEntityRestAdapterWrite(
+        entityConstructor,
+        options,
+      ).save(entity);
+      // A repository save answers the stored entity, so it has nothing to
+      // return for a write the service handed to a flow; a screen writes such
+      // an entity through `buildEntityRestAdapterWrite` instead.
+      if (result._tag === 'pending')
+        return yield* new ProtocolFailure({
+          reason: `'${key}' answered a save with 202 flowAccepted; write it through buildEntityRestAdapterWrite`,
+        });
+      return result.value;
     });

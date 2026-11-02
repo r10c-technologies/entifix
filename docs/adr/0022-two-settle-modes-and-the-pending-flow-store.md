@@ -38,6 +38,19 @@ uses ([ADR 0013](0013-failures-are-typed-values-decided-at-the-shell.md)).
 `useOptimisticMutation({ apply, rollback })` is the one hook for both modes. A
 screen never branches on a status code.
 
+Where the two modes are answered:
+
+- `WriteResult<T>`, `Settled<T>` and `Pending` live in core, so a port can name
+  them. `EntityUseCaseRunner.run` answers a `WriteResult`.
+- `buildEntityRestAdapterWrite` is a screen's save and delete over REST, and
+  sends an update as `PUT` or `PATCH` by the `update` option.
+- The repository's `save` keeps answering the stored entity, because the Mongo
+  and SQL adapters share that port and a pending write has no entity to return.
+  The REST one refuses a `202 flowAccepted` and names the write adapter.
+- A flow's `status` link answers a `flowStatus` envelope: its state, and the
+  failure it ended with. `buildFlowStatusReader` reads it, and a `404` reads as
+  _not projected yet_.
+
 ### Pending flows have their own store
 
 - `PendingFlowStore` is a port. It holds `{ v, flows }` and nothing that is not
@@ -60,7 +73,9 @@ screen never branches on a status code.
   _not projected yet_, never _failed_: the entry stays pending, up to a
   bounded-age dial, and is dropped after that.
 - Failures render through the host's error translator, in a toast region the
-  host mounts once.
+  host mounts once. The hook hands each failure to the host's `onFailure`, and
+  a flow that aged out settles as failed with no failure, so nothing is
+  toasted for it.
 
 ### The money rule
 
@@ -82,8 +97,9 @@ to a record that may never exist would show a `404` for a write that failed.
   showing a write as forever pending.
 - The legacy tracker path (`TransactionSinkTag`, the transaction-status reader
   and `useTransactionSettlement`) stays beside this until the release that
-  deletes the saga runner. The save adapter tells the two `202` bodies apart by
-  their message type.
+  deletes the saga runner. It is reached only through the `command` create
+  protocol of the repository's REST `save`, so the two `202` bodies never meet
+  on one call.
 - **Checks:**
   - a `200` followed by a typed failure rolls back and leaves no store entry;
   - a `202` persists, survives a reload (fake storage), and settles on push and

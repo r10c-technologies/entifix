@@ -147,6 +147,58 @@ describe('buildEntityRestAdapterSave', () => {
     });
   });
 
+  it('PATCHes the entity URL when updates merge', async () => {
+    const requests = recordRequests();
+    server.use(
+      http.patch(`${BASE_URL}/:id`, () =>
+        HttpResponse.json({
+          meta: { type: 'entity', entity: 'widget' },
+          data: { id: 'widget-1', name: 'Merged' },
+        }),
+      ),
+    );
+
+    const saved = await Effect.runPromise(
+      buildEntityRestAdapterSave(Widget, { ...restOptions, update: 'PATCH' })(
+        makeWidget('widget-1', 'Sprocket'),
+      ),
+    );
+
+    expect(requests).toContainEqual({
+      method: 'PATCH',
+      url: `${BASE_URL}/widget-1`,
+    });
+    expect(saved.name).toBe('Merged');
+  });
+
+  it('refuses a flow it has no way to return, and names the adapter that does', async () => {
+    server.use(
+      http.put(`${BASE_URL}/:id`, () =>
+        HttpResponse.json(
+          {
+            meta: { type: 'flowAccepted' },
+            data: { flowId: 'f-1', links: [] },
+          },
+          { status: 202 },
+        ),
+      ),
+    );
+
+    const failure = await Effect.runPromise(
+      Effect.flip(
+        buildEntityRestAdapterSave(
+          Widget,
+          restOptions,
+        )(makeWidget('widget-1', 'Sprocket')),
+      ),
+    );
+
+    expect(failure).toMatchObject({
+      _tag: 'ProtocolFailure',
+      reason: expect.stringContaining('buildEntityRestAdapterWrite'),
+    });
+  });
+
   it('sends the entity as an envelope body', async () => {
     let received: unknown;
     server.use(

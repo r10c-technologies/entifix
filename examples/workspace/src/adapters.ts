@@ -1,5 +1,10 @@
 import { EntityRepositoryTag } from '@entifix/business';
-import { type Entity, type EntityUseCaseRunner, Internal } from '@entifix/core';
+import {
+  type Entity,
+  type EntityUseCaseRunner,
+  Internal,
+  settled,
+} from '@entifix/core';
 import type { Invoice } from '@entifix/example-workspace-domain';
 import { makeInMemoryEntityRepository } from '@entifix/testing-unit';
 import { Context, Effect } from 'effect';
@@ -48,7 +53,7 @@ const invoiceVerbs: EntityUseCaseRunner = {
             invoice.status = 'issued';
             return repositories.invoices.save(invoice);
           }),
-          Effect.asVoid,
+          Effect.map(settled),
         )
       : Effect.fail(new Internal()),
   // The invoice declares no collection verb.

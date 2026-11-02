@@ -1,4 +1,4 @@
-import { isTag, type TransitionalFailure } from '@entifix/core';
+import type { TransitionalFailure } from '@entifix/core';
 import {
   readTransactionRecordEnvelope,
   type TransactionRecord,
@@ -9,6 +9,7 @@ import { Effect } from 'effect';
 import { performHttpRequestThroughFetch } from '../../../clients/fetch/index.js';
 import { buildEntityRestAdapterMixins as adapterMixins } from '../../entity-rest/build-entity-rest-adapter-mixins/index.js';
 import type { BuildEntityRestOptions } from '../../entity-rest/types.js';
+import { isNotFound } from '../../is-not-found.js';
 
 /**
  * The tracker's own path segment. It is not an entity — nothing decorates a
@@ -35,15 +36,6 @@ const TRANSACTION_PATH = 'transaction';
  * Every other status stays an error, so an unreachable service is not quietly
  * read as "no such transaction".
  */
-/**
- * A `404`, however it arrived: a tracker that answers a problem body says
- * `NotFound`; one that answers no body at all is a protocol failure that
- * still carries the status.
- */
-const isNotFound = (error: unknown): boolean =>
-  isTag('NotFound')(error) ||
-  (isTag('ProtocolFailure')(error) &&
-    (error as { readonly upstreamStatus?: unknown }).upstreamStatus === 404);
 
 export const buildTransactionStatusReader = (
   options: Pick<BuildEntityRestOptions, 'uriConfig' | 'configuration'>,

@@ -26,6 +26,11 @@ export interface BuildEntityRestOptions {
   /** Defaults to `'entity'` — the plain REST write. */
   create?: EntityCreateProtocol;
   /**
+   * The method an update is sent with: `PUT` replaces the stored entity,
+   * `PATCH` merges into it. Defaults to `'PUT'`.
+   */
+  update?: 'PUT' | 'PATCH';
+  /**
    * Where `uriConfig` is looked up, bound when the adapter is built.
    *
    * A value rather than a requirement on each call: the URL lookup is this

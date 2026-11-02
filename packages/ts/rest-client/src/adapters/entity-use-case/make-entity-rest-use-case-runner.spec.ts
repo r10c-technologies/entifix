@@ -77,13 +77,49 @@ describe('makeEntityRestUseCaseRunner', () => {
     server.use(
       http.post(`${BASE_URL}/:id/publish`, ({ request }) => {
         seen.push(new URL(request.url).pathname);
-        return HttpResponse.json({ meta: { type: 'entity' }, data: {} });
+        return HttpResponse.json({
+          meta: { type: 'entity' },
+          data: { id: 'o-1' },
+        });
       }),
     );
 
-    await Effect.runPromise(runner.run(verb('publish', 'entity'), 'o-1'));
-
+    expect(
+      await Effect.runPromise(runner.run(verb('publish', 'entity'), 'o-1')),
+    ).toEqual({ _tag: 'settled', value: { id: 'o-1' } });
     expect(seen).toEqual(['/api/admin/offering/o-1/publish']);
+  });
+
+  it('runs a verb that starts a flow as pending, with the links it was answered', async () => {
+    const links = [{ rel: 'status', href: '/api/flow/f-1' }];
+    server.use(
+      http.post(`${BASE_URL}/:id/publish`, () =>
+        HttpResponse.json(
+          { meta: { type: 'flowAccepted' }, data: { flowId: 'f-1', links } },
+          { status: 202 },
+        ),
+      ),
+    );
+
+    expect(
+      await Effect.runPromise(runner.run(verb('publish', 'entity'), 'o-1')),
+    ).toEqual({ _tag: 'pending', flowId: 'f-1', links });
+  });
+
+  it('refuses a 202 that is not flowAccepted', async () => {
+    server.use(
+      http.post(`${BASE_URL}/:id/publish`, () =>
+        HttpResponse.json(
+          { meta: { type: 'entity' }, data: {} },
+          { status: 202 },
+        ),
+      ),
+    );
+
+    const failure = await Effect.runPromise(
+      Effect.flip(runner.run(verb('publish', 'entity'), 'o-1')),
+    );
+    expect(failure).toMatchObject({ _tag: 'ProtocolFailure' });
   });
 
   it('runs an unbound verb on the collection path', async () => {
@@ -95,8 +131,9 @@ describe('makeEntityRestUseCaseRunner', () => {
       }),
     );
 
-    await Effect.runPromise(runner.run(verb('reindex', 'unbound')));
-
+    expect(
+      await Effect.runPromise(runner.run(verb('reindex', 'unbound'))),
+    ).toEqual({ _tag: 'settled', value: undefined });
     expect(seen).toEqual(['/api/admin/offering/reindex']);
   });
 
