@@ -28,7 +28,7 @@ jobs:
       # never be merged. The app can write to this repository and nothing else —
       # it cannot publish to npm, which is reachable only through the trusted
       # publisher claim on the release workflow.
-      - uses: actions/create-github-app-token@v1
+      - uses: actions/create-github-app-token@v3
         id: app-token
         with:
           app-id: ${{ vars.RELEASE_APP_ID }}
