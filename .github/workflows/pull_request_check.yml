@@ -61,7 +61,7 @@ jobs:
       # into it. A restore without the member directories resolves nothing.
       - name: Restore dependencies
         id: deps
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           key: deps-${{ runner.os }}-node26.4-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml', 'package.json') }}
           path: |
@@ -75,7 +75,7 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Save dependencies
         if: steps.deps.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           key: ${{ steps.deps.outputs.cache-primary-key }}
           path: |
@@ -170,7 +170,7 @@ jobs:
       # A miss fails the job rather than falling back to an install. Initialize
       # saved this exact key moments ago, so a miss means the key expression
       # drifted between jobs, and a silent reinstall would hide that.
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@v6
         with:
           key: deps-${{ runner.os }}-node26.4-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml', 'package.json') }}
           fail-on-cache-miss: true
@@ -201,7 +201,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version-file: package.json
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@v6
         with:
           key: deps-${{ runner.os }}-node26.4-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml', 'package.json') }}
           fail-on-cache-miss: true
@@ -249,7 +249,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version-file: package.json
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@v6
         with:
           key: deps-${{ runner.os }}-node26.4-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml', 'package.json') }}
           fail-on-cache-miss: true
@@ -296,7 +296,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version-file: package.json
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@v6
         with:
           key: deps-${{ runner.os }}-node26.4-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml', 'package.json') }}
           fail-on-cache-miss: true
@@ -340,7 +340,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version-file: package.json
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@v6
         with:
           key: deps-${{ runner.os }}-node26.4-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml', 'package.json') }}
           fail-on-cache-miss: true
@@ -373,7 +373,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version-file: package.json
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@v6
         with:
           key: deps-${{ runner.os }}-node26.4-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml', 'package.json') }}
           fail-on-cache-miss: true
@@ -414,7 +414,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version-file: package.json
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@v6
         with:
           key: deps-${{ runner.os }}-node26.4-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml', 'package.json') }}
           fail-on-cache-miss: true
@@ -444,7 +444,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version-file: package.json
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@v6
         with:
           key: deps-${{ runner.os }}-node26.4-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml', 'package.json') }}
           fail-on-cache-miss: true
@@ -488,7 +488,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version-file: package.json
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@v6
         with:
           key: deps-${{ runner.os }}-node26.4-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml', 'package.json') }}
           fail-on-cache-miss: true
