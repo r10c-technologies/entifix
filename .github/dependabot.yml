@@ -60,12 +60,35 @@ updates:
       # Majors are excluded on purpose: a grouped major cannot be bisected, so
       # one broken member hides every healthy one. Ungrouped, a red check names
       # the package.
+      #
+      # The named groups above are excluded by pattern too. Without it the
+      # first run split effect 4.0.7 across three pull requests (#151, #152,
+      # #153): a type group took the @effect/* packages before the effect group
+      # could, and merging any one of the three alone mismatches the family.
       dev-dependencies:
         dependency-type: 'development'
         update-types: ['minor', 'patch']
+        exclude-patterns:
+          [
+            'effect',
+            '@effect/*',
+            'react',
+            'react-dom',
+            '@types/react',
+            '@types/react-dom',
+          ]
       production-dependencies:
         dependency-type: 'production'
         update-types: ['minor', 'patch']
+        exclude-patterns:
+          [
+            'effect',
+            '@effect/*',
+            'react',
+            'react-dom',
+            '@types/react',
+            '@types/react-dom',
+          ]
     # commitlint's Nx-scope preset, which CI runs over every commit in a pull
     # request, accepts only a project name as the scope, so Dependabot's
     # usual `deps` would fail every one of its pull requests.
