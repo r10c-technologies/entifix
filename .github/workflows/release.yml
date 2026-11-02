@@ -41,7 +41,7 @@ jobs:
           ref: main
           fetch-depth: 0
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: '11.9'
       - uses: actions/setup-node@v4
@@ -91,7 +91,7 @@ jobs:
           ref: main
           fetch-depth: 0
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: '11.9'
       - uses: actions/setup-node@v4
