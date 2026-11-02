@@ -76,8 +76,8 @@
     "@swc/helpers": "0.5.23"
   },
   "devDependencies": {
-    "@effect/opentelemetry": "4.0.6",
-    "@effect/platform-node": "4.0.6",
+    "@effect/opentelemetry": "4.0.7",
+    "@effect/platform-node": "4.0.7",
     "@entifix/rest": "workspace:*",
     "@entifix/testing-unit": "workspace:*",
     "@opentelemetry/api": "1.9.1",
