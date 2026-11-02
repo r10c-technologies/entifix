@@ -194,6 +194,32 @@ export const describeFlowEngineContract = (
       expect(await state(engine, 'flow-1')).toBe('completed');
     });
 
+    it('leaves every flow a signal resumed finished, however many resume at once', async () => {
+      // A wait resumed as its last step finishes almost at once, so nothing
+      // the signal records may land after the resume: a `running` written
+      // behind the flow's own `completed` would pin it there. A burst rather
+      // than one flow, because an ordering fault shows up only under load.
+      const engine = await make(flowEngineContractCatalog, succeeding);
+      const flowIds = Array.from({ length: 20 }, (_, n) => `burst-${n}`);
+      for (const flowId of flowIds)
+        await run(engine.start(slipOf(flowId, [take, wait]), flowId));
+      for (const flowId of flowIds)
+        expect(await state(engine, flowId)).toBe('waiting');
+
+      await run(
+        Effect.forEach(
+          flowIds,
+          flowId => engine.signal(flowId, 'await', { delivered: true }),
+          { concurrency: 'unbounded' },
+        ),
+      );
+
+      const states = await Promise.all(
+        flowIds.map(flowId => state(engine, flowId)),
+      );
+      expect(states.filter(next => next !== 'completed')).toEqual([]);
+    });
+
     it('interrupts a waiting flow', async () => {
       const engine = await make(flowEngineContractCatalog, succeeding);
       await run(engine.start(slipOf('flow-1', [take, wait]), 'k'));

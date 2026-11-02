@@ -51,6 +51,17 @@ export interface FlowStatusStore {
     flowId: string,
     patch: FlowRecordPatch,
   ) => Effect.Effect<void, StoreFailure>;
+  /**
+   * Moves a flow parked on `token` to `running`, and answers whether it was
+   * parked on it. The one conditional write a signal makes, and it is made
+   * **before** the wait is resumed: written after, it could land behind the
+   * resumed flow's own writes and put a finished flow back to `running` for
+   * good. Two signals racing one wait claim it once.
+   */
+  readonly claimWait: (
+    flowId: string,
+    token: string,
+  ) => Effect.Effect<boolean, StoreFailure>;
 }
 
 /**
@@ -111,6 +122,22 @@ export const makeInMemoryFlowStatusStore = (): FlowStatusStore => {
             ? {}
             : { correlation: patch.correlation }),
         });
+      }),
+    claimWait: (flowId, token) =>
+      Effect.sync(() => {
+        const current = records.get(flowId);
+        if (current?.state !== 'waiting' || current.waitingFor !== token)
+          return false;
+        records.set(flowId, {
+          flowId: current.flowId,
+          executionId: current.executionId,
+          state: 'running',
+          step: token,
+          ...(current.correlation === undefined
+            ? {}
+            : { correlation: current.correlation }),
+        });
+        return true;
       }),
   };
 };
