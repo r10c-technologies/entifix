@@ -1,3 +1,23 @@
+## 0.13.0 (2026-11-02)
+
+### 🚀 Features
+
+- ⚠️ **source:** nx 24, effect 4.1.2, dependency catch-up and Dependabot ([#141](https://github.com/r10c-technologies/entifix/pull/141))
+
+### 🩹 Fixes
+
+- **source:** give Dependabot a commit scope commitlint accepts ([#144](https://github.com/r10c-technologies/entifix/pull/144))
+- ⚠️ **source:** hold effect on 4.0.6, and a signal claims its wait before resuming ([#145](https://github.com/r10c-technologies/entifix/pull/145))
+
+### ⚠️ Breaking Changes
+
+- **source:** hold effect on 4.0.6, and a signal claims its wait before resuming ([#145](https://github.com/r10c-technologies/entifix/pull/145))
+- **source:** nx 24, effect 4.1.2, dependency catch-up and Dependabot ([#141](https://github.com/r10c-technologies/entifix/pull/141))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.12.1 (2026-11-02)
 
 ### 🩹 Fixes
