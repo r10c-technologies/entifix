@@ -60,7 +60,9 @@ type Call = (
 /** An engine over the in-memory workflow engine, a fresh one per case. */
 const engineOver = async (
   call: Call,
-  options: Pick<InterpreterOptions, 'dials' | 'dialsFor'> = {},
+  options: Pick<InterpreterOptions, 'dials' | 'dialsFor'> & {
+    readonly workflowEngine?: Layer.Layer<WorkflowEngine.WorkflowEngine>;
+  } = {},
 ) => {
   const store = makeInMemoryFlowStatusStore();
   const outbox = makeInMemoryOutbox();
@@ -73,7 +75,7 @@ const engineOver = async (
     }).pipe(
       Layer.provideMerge(
         Layer.mergeAll(
-          WorkflowEngine.layerMemory,
+          options.workflowEngine ?? WorkflowEngine.layerMemory,
           InMemoryCircuitBreakerLayer({ dials: { minimumCalls: 100 } }),
           InMemoryBulkheadLayer(),
           InMemoryRetryBudgetLayer(),
@@ -381,6 +383,58 @@ describe('the slip interpreter', () => {
   });
 });
 
+describe('a signal whose resume fails', () => {
+  it.each([
+    ['correlated', { correlation: 'order-7' }],
+    ['uncorrelated', {}],
+  ] as const)(
+    'parks a %s flow on its wait again, so a retried signal can claim it',
+    async (_, parameters) => {
+      // The in-memory engine whose every deferred completion dies: the claim is
+      // taken, the resume never lands.
+      const unresumable = Layer.effect(
+        WorkflowEngine.WorkflowEngine,
+        Effect.map(
+          Effect.service(WorkflowEngine.WorkflowEngine),
+          (engine): WorkflowEngine.WorkflowEngine['Service'] => ({
+            ...engine,
+            deferredDone: () => Effect.die('the journal is unreachable'),
+          }),
+        ),
+      ).pipe(Layer.provide(WorkflowEngine.layerMemory));
+      const { engine, store } = await engineOver(() => Effect.succeed({}), {
+        workflowEngine: unresumable,
+      });
+      const slip = slipOf([
+        'take',
+        {
+          step: 'await',
+          fragment: 'await',
+          parameters,
+        },
+      ]);
+      await start(engine, slip);
+      expect((await settled(engine)).state).toBe('waiting');
+
+      const exit = await Effect.runPromiseExit(
+        engine.signal('flow-x', 'await', {}),
+      );
+
+      expect(exit._tag).toBe('Failure');
+      expect(
+        Option.getOrThrow(await Effect.runPromise(store.find('flow-x'))),
+      ).toEqual({
+        flowId: 'flow-x',
+        executionId: expect.any(String),
+        state: 'waiting',
+        step: 'await',
+        waitingFor: 'await',
+        ...parameters,
+      });
+    },
+  );
+});
+
 describe('the in-memory status store', () => {
   it('ignores an update for a flow it never registered, and finds no correlation', async () => {
     const store = makeInMemoryFlowStatusStore();
@@ -395,5 +449,58 @@ describe('the in-memory status store', () => {
         await Effect.runPromise(store.findByCorrelation('order-1')),
       ),
     ).toBe(true);
+  });
+
+  it('claims a wait once, only on the token it is parked on', async () => {
+    const store = makeInMemoryFlowStatusStore();
+    const run = <A, E>(effect: Effect.Effect<A, E>) =>
+      Effect.runPromise(effect);
+    await run(
+      store.register('k', { flowId: 'f', executionId: 'e', state: 'running' }),
+    );
+    await run(
+      store.update('f', {
+        state: 'waiting',
+        step: 'await',
+        waitingFor: 'await',
+        correlation: 'order-7',
+      }),
+    );
+
+    expect(await run(store.claimWait('f', 'elsewhere'))).toBe(false);
+    expect(await run(store.claimWait('nobody', 'await'))).toBe(false);
+    expect(await run(store.claimWait('f', 'await'))).toBe(true);
+    expect(await run(store.claimWait('f', 'await'))).toBe(false);
+    expect(Option.getOrThrow(await run(store.find('f')))).toEqual({
+      flowId: 'f',
+      executionId: 'e',
+      state: 'running',
+      step: 'await',
+      correlation: 'order-7',
+    });
+  });
+
+  it('claims a wait with no correlation and keeps none', async () => {
+    const store = makeInMemoryFlowStatusStore();
+    const run = <A, E>(effect: Effect.Effect<A, E>) =>
+      Effect.runPromise(effect);
+    await run(
+      store.register('k', { flowId: 'f', executionId: 'e', state: 'running' }),
+    );
+    await run(
+      store.update('f', {
+        state: 'waiting',
+        step: 'await',
+        waitingFor: 'await',
+      }),
+    );
+
+    expect(await run(store.claimWait('f', 'await'))).toBe(true);
+    expect(Option.getOrThrow(await run(store.find('f')))).toEqual({
+      flowId: 'f',
+      executionId: 'e',
+      state: 'running',
+      step: 'await',
+    });
   });
 });

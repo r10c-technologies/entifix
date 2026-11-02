@@ -44,7 +44,12 @@ export const makeFlowEngine = Effect.gen(function* () {
   /** Completes the wait `record` is parked on, if `token` names it. */
   const complete = (token: string, outcome: unknown) => (record: FlowRecord) =>
     Effect.gen(function* () {
-      if (record.state !== 'waiting' || record.waitingFor !== token)
+      // Claimed before the wait is resumed, never after: the resumed flow
+      // records its own states, and a `running` written behind them would put
+      // a finished flow back to running with nothing left to correct it. The
+      // claim is conditional, so a second signal racing this one is refused.
+      const claimed = yield* store.claimWait(record.flowId, token);
+      if (!claimed)
         return yield* Effect.fail(
           new FlowSignalRejected({ flowId: record.flowId, token }),
         );
@@ -57,10 +62,22 @@ export const makeFlowEngine = Effect.gen(function* () {
           }),
           value: outcome,
         }),
+      ).pipe(
+        // The wait was not resumed, so it is parked again and a retried signal
+        // can claim it.
+        Effect.onError(() =>
+          store
+            .update(record.flowId, {
+              state: 'waiting',
+              step: token,
+              waitingFor: token,
+              ...(record.correlation === undefined
+                ? {}
+                : { correlation: record.correlation }),
+            })
+            .pipe(Effect.ignore),
+        ),
       );
-      // Recorded here as well as by the flow, so a second signal racing the
-      // resume is refused rather than completing the wait twice.
-      yield* store.update(record.flowId, { state: 'running', step: token });
     });
 
   const engine: FlowEngine = {

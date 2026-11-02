@@ -94,6 +94,16 @@ export const makeSqlFlowStatusStore = (
           waiting_for = ${patch.waitingFor ?? null},
           correlation = ${patch.correlation ?? null}
       WHERE flow_id = ${flowId}`.pipe(Effect.asVoid, Effect.mapError(fault)),
+
+  claimWait: (flowId, token) =>
+    sql<{ readonly flow_id: string }>`
+      UPDATE entifix_flow_status
+      SET state = 'running', step = ${token}, waiting_for = NULL
+      WHERE flow_id = ${flowId} AND state = 'waiting' AND waiting_for = ${token}
+      RETURNING flow_id`.pipe(
+      Effect.map(rows => rows.length > 0),
+      Effect.mapError(fault),
+    ),
 });
 
 /** The SQL status store, its table ensured as the layer builds. */

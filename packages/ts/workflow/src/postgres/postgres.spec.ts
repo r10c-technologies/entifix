@@ -116,6 +116,20 @@ describe('the SQL flow status store', () => {
     ]);
   });
 
+  it('claims a wait with one conditional update, and answers whether it held', async () => {
+    const { fake, sql } = fresh();
+    const store = makeSqlFlowStatusStore(sql);
+    fake.respondTo('UPDATE entifix_flow_status', [{ flow_id: 'flow-1' }]);
+
+    expect(await run(store.claimWait('flow-1', 'await'))).toBe(true);
+    fake.respondTo('UPDATE entifix_flow_status', []);
+    expect(await run(store.claimWait('flow-1', 'await'))).toBe(false);
+
+    const [claim] = fake.executions;
+    expect(claim?.sql).toContain("state = 'waiting' AND waiting_for =");
+    expect(claim?.params).toEqual(['await', 'flow-1', 'await']);
+  });
+
   it('translates a store failure', async () => {
     const { fake, sql } = fresh();
     const store = makeSqlFlowStatusStore(sql);
@@ -127,6 +141,7 @@ describe('the SQL flow status store', () => {
       store.find('f'),
       store.findByCorrelation('c'),
       store.update('f', { state: 'completed' }),
+      store.claimWait('f', 'await'),
     ] as Effect.Effect<unknown, unknown>[])
       expect(await run(Effect.flip(operation))).toBeInstanceOf(Unavailable);
   });
