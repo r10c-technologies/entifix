@@ -790,6 +790,14 @@ describe('EntityForm', () => {
     expect(screen.getByRole('button', { name: 'Guardando…' })).toBeDisabled();
   });
 
+  it('waits on a write handed to a flow, keeping what was typed', () => {
+    render(<Harness mode="edit" isPending onSubmit={vi.fn()} />);
+
+    expect(
+      screen.getByRole('button', { name: 'Esperando al servidor…' }),
+    ).toBeDisabled();
+  });
+
   it('shows a busy label while deleting', () => {
     render(<Harness mode="edit" isDeleting onDelete={vi.fn()} />);
 

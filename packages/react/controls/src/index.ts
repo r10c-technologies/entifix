@@ -43,6 +43,7 @@ export * from './ui/molecules/stack/index.js';
 export * from './ui/molecules/tab-strip/index.js';
 export * from './ui/molecules/table-toolbar/index.js';
 export * from './ui/molecules/theme-switcher/index.js';
+export * from './ui/molecules/toast-region/index.js';
 export * from './ui/organisms/command-palette/index.js';
 export * from './ui/organisms/entity-detail-grid/index.js';
 export * from './ui/organisms/entity-form/index.js';

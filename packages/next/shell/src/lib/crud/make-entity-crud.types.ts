@@ -5,6 +5,7 @@ import type {
   EntityFieldDescriptor,
   EntityMetadataSource,
   EntityUseCaseRunner,
+  EntityWriter,
   FilterGroup,
 } from '@entifix/core';
 import type {
@@ -226,6 +227,18 @@ export interface EntityCrudOptions<TAdapters, TEntity extends Entity> {
    * a promise nobody catches.
    */
   readonly useCases?: AdapterKey<TAdapters, EntityUseCaseRunner>;
+  /**
+   * Which adapter makes this entity's saves and deletes, answering both
+   * settle modes — `buildEntityRestAdapterWrite` over REST. Resolved from the
+   * host's composition, as {@link repository} is.
+   *
+   * Omitted, the form writes through {@link repository}, and every write
+   * settles. Supplied, a write the server hands to a flow keeps the form open
+   * and waiting, with what was typed, until the flow settles: a completed one
+   * returns to the list, and a failed one is toasted once by the
+   * `PendingFlowsProvider` above while the form keeps its input.
+   */
+  readonly write?: AdapterKey<TAdapters, EntityWriter>;
 }
 
 /**

@@ -124,6 +124,7 @@ export function EntityForm<TEntity extends Entity>({
   isLoading = false,
   skeleton = true,
   isSaving = false,
+  isPending = false,
   isDeleting = false,
   error,
   backHref,
@@ -187,7 +188,7 @@ export function EntityForm<TEntity extends Entity>({
   const t = useT();
   const translateKey = useTranslateKey();
   const errorMessage = useErrorMessage();
-  const busy = isSaving || isDeleting;
+  const busy = isSaving || isPending || isDeleting;
 
   // A draft restored from storage holds relation ids and no instances, so every
   // picker is resolving its target for a moment after mount. Saving inside that
@@ -432,7 +433,11 @@ export function EntityForm<TEntity extends Entity>({
                 onClick={() => onSubmit?.(draft)}
                 disabled={busy || resolvingLinks}
               >
-                {isSaving ? t('form.saving') : t('form.save')}
+                {isPending
+                  ? t('form.pending')
+                  : isSaving
+                    ? t('form.saving')
+                    : t('form.save')}
               </Button>
             )}
             {onDelete && may('delete') && (

@@ -63,6 +63,7 @@ export const controls = {
     moreActions: 'Más acciones',
     back: 'Volver',
     loading: 'Cargando…',
+    pending: 'Esperando al servidor…',
   },
   pagination: {
     label: 'Páginas',
@@ -232,6 +233,10 @@ export const controls = {
     confirm: 'Confirmar',
     cancel: 'Cancelar',
     title: 'Confirmar',
+  },
+  toast: {
+    region: 'Notificaciones',
+    dismiss: 'Descartar',
   },
   breadcrumbs: {
     label: 'Ruta de navegación',

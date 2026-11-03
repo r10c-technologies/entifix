@@ -2,7 +2,9 @@
 
 import {
   deleteUCFactory,
+  EntityIdTag,
   type EntityRepositoryTag,
+  EntityTag,
   getUCFactory,
   loadUCFactory,
   saveUCFactory,
@@ -15,26 +17,29 @@ import {
   type EntityMetadataSource,
   type EntitySelection,
   type EntityUseCaseRunner,
+  type EntityWriter,
   envelopeEntityName,
   extractMetaEntity,
   type FilterGroup,
   Internal,
+  settled,
   type TransitionalFailure,
   type UseCaseDescriptor,
 } from '@entifix/core';
 import { EntityTable, useCasesForSurface } from '@entifix/react-controls';
 import {
   entityQueryScope,
+  type OptimisticMutation,
   useDataLoading,
-  useEntityMutation,
   useEntityRecord,
+  useOptimisticMutation,
 } from '@entifix/react-integration';
 import type { TransactionSink } from '@entifix/transactions';
 import { TransactionSinkTag } from '@entifix/transactions';
 import { useQueryClient } from '@tanstack/react-query';
 import { Cause, Context, Effect, Exit } from 'effect';
 import { useParams, useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useRef } from 'react';
 
 import { useLocaleHref } from '../i18n/index.js';
 import { useEntityNavHost } from '../workspace/entity-nav.js';
@@ -112,11 +117,10 @@ export function mergeCrudContext<TAdapters>(
  * a vendor-authored `EntitySpecification` renders through a separate path.
  */
 /**
- * A rejected verb, as something the form's error slot can render.
+ * A rejected write, as something the form's error slot can render.
  *
  * A typed failure is kept as it is: `useErrorMessage` translates its own code,
- * a business refusal and an outage alike, and the failure toast that tells
- * them apart arrives with the optimistic API. Anything else that carries a
+ * a business refusal and an outage alike. Anything else that carries a
  * message keeps it rather than being relabelled with a code it never had; a
  * thrown value with no message at all is `Internal`.
  */
@@ -129,29 +133,83 @@ function asFailure(failure: unknown): TransitionalFailure {
 }
 
 /**
- * A runner's verbs as the promises the screens await, looked up by the key the
- * served `$metadata` named. A rejection carries the failure itself, so the
- * screen shows its coded message.
+ * What a write failed with *synchronously* — before any flow took it — or
+ * `undefined`. A flow's own failure is toasted by the `PendingFlowsProvider`
+ * that settles it, so showing it in the error slot too would tell the operator
+ * twice.
+ */
+function syncFailure(
+  mutation: OptimisticMutation<never, unknown>,
+): TransitionalFailure | undefined {
+  return mutation.status === 'failed' && mutation.flowId === undefined
+    ? asFailure(mutation.failure)
+    : undefined;
+}
+
+/**
+ * A runner's verbs, looked up by the key the served `$metadata` named. A
+ * single verb answers either settle mode, so it is run through the optimistic
+ * API; a bulk run reports per row and is awaited as a promise whose rejection
+ * carries the failure itself.
  */
 function verbsOf(
   runner: EntityUseCaseRunner | undefined,
   served: readonly UseCaseDescriptor[] | undefined,
 ) {
   if (runner === undefined) return undefined;
-  const settle = <A,>(effect: Effect.Effect<A, unknown>): Promise<A> =>
-    Effect.runPromiseExit(effect).then(exit =>
-      Exit.isSuccess(exit)
-        ? exit.value
-        : Promise.reject(Cause.squash(exit.cause)),
-    );
   // The key always comes from the served document, so it names a verb in it.
   const descriptor = (key: string) =>
     served?.find(candidate => candidate.key === key) as UseCaseDescriptor;
   return {
-    run: (key: string, id: EntityId) => settle(runner.run(descriptor(key), id)),
+    run: (key: string, id: EntityId) => runner.run(descriptor(key), id),
     bulk: (key: string, selection: EntitySelection<Entity>) =>
-      settle(runner.bulk(descriptor(key), selection)),
+      Effect.runPromiseExit(runner.bulk(descriptor(key), selection)).then(
+        exit =>
+          Exit.isSuccess(exit)
+            ? exit.value
+            : Promise.reject(Cause.squash(exit.cause)),
+      ),
   };
+}
+
+type Verbs = NonNullable<ReturnType<typeof verbsOf>>;
+
+/**
+ * One verb on one record, through the optimistic API: `done` runs once the
+ * verb took effect — at once when it settled, or when the flow it was handed
+ * to completed.
+ */
+function useVerb(verbs: Verbs | undefined, done: () => void) {
+  const verb = useOptimisticMutation<
+    { readonly key: string; readonly id: EntityId },
+    unknown
+  >({
+    // Only ever sent from a handler that exists because `verbs` does.
+    write: ({ key, id }) => (verbs as Verbs).run(key, id),
+    confirm: done,
+  });
+  const run = (key: string, id: EntityId) => {
+    void verb.mutate({ key, id }).then(
+      result => {
+        if (result._tag === 'settled') done();
+      },
+      // Shown through `syncFailure`, from the mutation's own state.
+      () => undefined,
+    );
+  };
+  return { verb, run };
+}
+
+/** Whether the component is still mounted: a flow can settle after it left. */
+function useMounted() {
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  return mounted;
 }
 
 /**
@@ -191,6 +249,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     metadataSource: givenMetadataSource,
     metadata,
     useCases,
+    write,
   } = options;
 
   if (givenMetadataSource !== undefined && metadata !== undefined) {
@@ -325,12 +384,12 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     //
     // ⚠️ **A row verb and the form's are the same runner with different
     // arguments.** `EntityTable` hands back the whole record, because that is
-    // what it has; the runner takes an id, because that is what a route needs
+    // what it has; the runner takes an id, because that is what a route needs.
     // The list has no error slot of its own, so a failure lands in the
     // table's own error region — the same one a failed page read uses.
-    const [useCaseError, setUseCaseError] = useState<
-      TransitionalFailure | undefined
-    >(undefined);
+    const rowVerb = useVerb(verbs, () => {
+      void queryClient.invalidateQueries({ queryKey: scope });
+    });
     // Called unconditionally and the *result* gated, the way the surfaces are
     // read in `EntityForm`: the name begins with `use`, so short-circuiting it
     // reads to `react-hooks/rules-of-hooks` as a conditional hook.
@@ -343,11 +402,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     const handleRowUseCase = canRunRowUseCase
       ? (key: string, item: TEntity) => {
           if (item.id == null) return;
-          setUseCaseError(undefined);
-          void verbs?.run(key, item.id).then(
-            () => queryClient.invalidateQueries({ queryKey: scope }),
-            (failure: unknown) => setUseCaseError(asFailure(failure)),
-          );
+          rowVerb.run(key, item.id);
         }
       : undefined;
 
@@ -371,7 +426,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
           {...affordances}
           {...bulk.tableProps}
           onUseCase={handleRowUseCase}
-          error={useCaseError ?? pager.error}
+          error={syncFailure(rowVerb.verb) ?? pager.error}
         >
           {columns}
           {toolbar}
@@ -400,11 +455,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     const router = useRouter();
     const withLocale = useLocaleHref();
     const params = useParams<{ slug: string }>();
-    // A verb's failure is this page's, not the record fetch's or the mutation's,
-    // so it needs a slot of its own to reach the form's error area.
-    const [useCaseError, setUseCaseError] = useState<
-      TransitionalFailure | undefined
-    >(undefined);
+    const mounted = useMounted();
     const id = slugToEntityId(slug ?? params.slug);
 
     const ctx = mergeCrudContext(adapters, repository, pending);
@@ -418,18 +469,6 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
       uc: getUCFactory<TEntity>(),
       ctx,
       id,
-    });
-
-    const {
-      save,
-      remove,
-      isSaving,
-      isDeleting,
-      error: writeError,
-    } = useEntityMutation<TEntity, CrudContext>({
-      saveUc: saveUCFactory<TEntity>(),
-      deleteUc: deleteUCFactory<TEntity>(),
-      ctx,
     });
 
     // Against the record as loaded, not the draft: the rule is about which
@@ -479,13 +518,61 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     const afterSave = onSaved ?? toList;
     const afterDelete = onDeleted ?? toList;
 
+    // Through the host's writer when it named one, which answers both settle
+    // modes; otherwise through the repository, where every write settles.
+    const writer =
+      write === undefined ? undefined : (adapters[write] as EntityWriter);
+
     // The draft is spent once the write *commits*, and only here is that known:
     // `useEntityForm` neither fetches nor saves, so it cannot clear its own.
-    // A failed mutation deliberately keeps the draft — the edit is still the
-    // user's only copy of what they typed.
+    // A failed write — or a failed flow — deliberately keeps the draft and the
+    // form: the edit is still the user's only copy of what they typed.
+    //
+    // ⚠️ A flow can complete after the operator left this page, so leaving it
+    // is guarded on still being here: a navigation from a form nobody is
+    // looking at would pull them away from wherever they went.
+    const saveMutation = useOptimisticMutation<TEntity, TEntity>({
+      write: next =>
+        writer === undefined
+          ? Effect.map(
+              Effect.provide(
+                saveUCFactory<TEntity>(),
+                ctx.pipe(Context.add(EntityTag, next)),
+              ),
+              settled,
+            )
+          : writer.save(next),
+      intent: () => ({ entity: entityName, write: 'save' }),
+      confirm: () => {
+        draft?.clear();
+        void refreshList();
+        if (mounted.current) afterSave();
+      },
+    });
+    const deleteMutation = useOptimisticMutation<EntityId, void>({
+      write: target =>
+        writer === undefined
+          ? Effect.as(
+              Effect.provide(
+                deleteUCFactory<TEntity>(),
+                ctx.pipe(Context.add(EntityIdTag, target)),
+              ),
+              settled(undefined),
+            )
+          : writer.delete(target),
+      intent: () => ({ entity: entityName, write: 'delete' }),
+      confirm: () => {
+        draft?.clear();
+        void refreshList();
+        if (mounted.current) afterDelete();
+      },
+    });
+
     const handleSave = async (next: TEntity) => {
-      const saved = await save(next);
-      if (saved === undefined) return;
+      const result = await saveMutation.mutate(next).catch(() => undefined);
+      // Failed, or pending: the form stays, and the mutation says which.
+      if (result?._tag !== 'settled') return;
+      const saved = result.value;
 
       // ⚠️ Deliberately *not* a `setQueriesData` patch. The list refetches on
       // mount — precisely when the operator arrives, having just been navigated
@@ -498,17 +585,18 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     };
 
     const handleDelete = async () => {
-      if (await remove(id)) {
-        draft?.clear();
-        void refreshList();
-        afterDelete();
-      }
+      const result = await deleteMutation.mutate(id).catch(() => undefined);
+      if (result?._tag !== 'settled') return;
+      draft?.clear();
+      void refreshList();
+      afterDelete();
     };
 
     /**
      * An `entity`-bound verb, on the record being shown.
      *
-     * It **reloads** rather than patching what it has: the service decides the
+     * It **reloads** — once the verb took effect, which for one the server
+     * handed to a flow is when the flow completed — rather than patching what it has: the service decides the
      * resulting state — a `publish` may land on `published` from four different
      * places — and a client that assumed the new value would show the wrong one
      * the first time the rule changed. `id == null` means the create form,
@@ -527,16 +615,11 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
         : (adapters[useCases] as EntityUseCaseRunner),
       affordances.metadata?.useCases,
     );
+    const recordVerb = useVerb(verbs, () => void reload());
     const handleUseCase =
       verbs === undefined || id == null
         ? undefined
-        : (key: string) => {
-            setUseCaseError(undefined);
-            void verbs.run(key, id).then(
-              () => reload(),
-              (failure: unknown) => setUseCaseError(asFailure(failure)),
-            );
-          };
+        : (key: string) => recordVerb.run(key, id);
 
     return (
       <EntityCrudForm<TEntity>
@@ -549,9 +632,17 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
         links={linkSources}
         entity={entity}
         isLoading={isLoading}
-        isSaving={isSaving}
-        isDeleting={isDeleting}
-        error={loadError ?? writeError ?? useCaseError}
+        isSaving={saveMutation.status === 'running'}
+        isPending={[saveMutation, deleteMutation, recordVerb.verb].some(
+          mutation => mutation.status === 'pending',
+        )}
+        isDeleting={deleteMutation.status === 'running'}
+        error={
+          loadError ??
+          syncFailure(saveMutation) ??
+          syncFailure(deleteMutation) ??
+          syncFailure(recordVerb.verb)
+        }
         onSave={handleSave}
         onDelete={id == null ? undefined : handleDelete}
         onUseCase={handleUseCase}

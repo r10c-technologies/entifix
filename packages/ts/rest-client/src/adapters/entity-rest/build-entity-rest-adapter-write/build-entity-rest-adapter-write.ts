@@ -2,12 +2,11 @@ import {
   type Entity,
   type EntityConstructor,
   type EntityId,
+  type EntityWriter,
   extractMetaEntity,
   Internal,
   makeEntityEnvelope,
   readEntityEnvelope,
-  type TransitionalFailure,
-  type WriteResult,
 } from '@entifix/core';
 import { Effect } from 'effect';
 
@@ -16,26 +15,6 @@ import { buildEntityRestAdapterMixins as adapterMixins } from '../build-entity-r
 import { pendingSaveKeys } from '../pending-save-keys.js';
 import { readWriteResponse } from '../read-write-response.js';
 import type { BuildEntityRestOptions } from '../types.js';
-
-/**
- * An entity's writes as a screen makes them: each answers {@link WriteResult},
- * settled on `200`/`201` or pending on `202 flowAccepted`, so the server can
- * move a write onto a flow without the screen changing
- * ([ADR 0022](../../../../../../docs/adr/0022-two-settle-modes-and-the-pending-flow-store.md)).
- */
-export interface EntityRestWrite {
-  /**
-   * Creates an entity without an id with `POST`; updates one with an id with
-   * the configured `update` method. A settled save answers the stored entity.
-   */
-  save<TInput extends Entity>(
-    entity: TInput,
-  ): Effect.Effect<WriteResult<TInput>, TransitionalFailure>;
-  /** Deletes by id or by entity. A settled delete answers nothing. */
-  delete(
-    entityOrId: EntityId | Entity,
-  ): Effect.Effect<WriteResult<void>, TransitionalFailure>;
-}
 
 const idOf = (entityOrId: EntityId | Entity): EntityId =>
   entityOrId != null && typeof entityOrId === 'object'
@@ -51,7 +30,7 @@ const idOf = (entityOrId: EntityId | Entity): EntityId =>
 export const buildEntityRestAdapterWrite = <TEntity extends Entity>(
   entityConstructor: EntityConstructor<TEntity>,
   { uriConfig, update = 'PUT', configuration }: BuildEntityRestOptions,
-): EntityRestWrite => {
+): EntityWriter => {
   const metaEntity = extractMetaEntity(entityConstructor);
   const key = metaEntity.key ?? metaEntity.name;
   const urlOf = (id?: EntityId) =>
