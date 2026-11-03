@@ -17,7 +17,7 @@ export const runUC = <TValue, TError, TContext>(
  *
  * Asserting on the error value beats asserting that a promise rejected: it is
  * the difference between "something went wrong" and "it failed with the
- * `EntifixLockError` that the facade turns into a 409".
+ * `Contention` the shell turns into a 409".
  */
 export const expectFailure = async <TValue, TError, TContext>(
   effect: Effect.Effect<TValue, TError, TContext>,

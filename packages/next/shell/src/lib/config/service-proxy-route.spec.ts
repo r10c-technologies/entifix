@@ -140,7 +140,7 @@ describe('createServiceProxyRoute', () => {
   });
 
   // The proxy carries, it does not decide: the service still applies its own
-  // `requirePermission` and this handler passes the refusal straight back.
+  // the endpoint's `guard` and this handler passes the refusal straight back.
   it('passes a refusal through untouched', async () => {
     vi.stubGlobal('fetch', answering('{"error":"forbidden"}', 403));
 

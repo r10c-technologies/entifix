@@ -10,8 +10,15 @@ import { Schema } from 'effect';
 import { describe, expect, it } from 'vitest';
 
 import { verifiedContextOf } from './auth/verified-context.js';
-import { compositionFor } from './metadata-composition.js';
-import { narrowingFor } from './narrowing.js';
+import {
+  assertCompositionsDeclared,
+  compositionFor,
+} from './metadata-composition.js';
+import {
+  narrowedByIdRequest,
+  narrowingFor,
+  narrowLoadRequest,
+} from './narrowing.js';
 
 const descriptor = (
   overrides: Partial<UseCaseDescriptor>,
@@ -141,6 +148,43 @@ describe('compositionFor', () => {
   });
 });
 
+describe('compositionFor, when a step cannot run for the caller', () => {
+  it('is unreachable when an ungated step needs what the caller lacks', () => {
+    const blocking: Recipe<unknown> = {
+      ...recipe,
+      stages: [{ name: 'main', steps: [{ ref: 'stock.reserve@1' }] }],
+    };
+    expect(
+      compositionFor(descriptor({ recipe: 'checkout' }), anonymous, {
+        recipes: { checkout: blocking },
+        catalog: defineCatalog([guarded, flowCommit]),
+      }),
+    ).toBe('unreachable');
+  });
+});
+
+describe('assertCompositionsDeclared', () => {
+  it('passes when every named variant set and recipe was provided', () => {
+    expect(() =>
+      assertCompositionsDeclared(
+        [descriptor({ variants: 'v', recipe: 'checkout' }), descriptor({})],
+        { variants: { v: [] }, recipes: { checkout: recipe } },
+      ),
+    ).not.toThrow();
+  });
+
+  it('names every variant set and recipe the route was not given', () => {
+    expect(() =>
+      assertCompositionsDeclared(
+        [descriptor({ variants: 'v', recipe: 'checkout' })],
+        {},
+      ),
+    ).toThrow(
+      "$metadata cannot resolve variants 'v' (sell), recipe 'checkout' (sell): provide them to the route",
+    );
+  });
+});
+
 describe('verifiedContextOf', () => {
   it('builds an anonymous context with nothing held', () => {
     expect(anonymous).toEqual({
@@ -183,5 +227,29 @@ describe('narrowingFor', () => {
   // A caller no rule matches sees nothing: the direction a gap must fail in.
   it('narrows to nothing when no rule matches', () => {
     expect(narrowingFor([], anonymous)).toBe('nothing');
+  });
+});
+
+describe('narrowLoadRequest and narrowedByIdRequest', () => {
+  const mine = { property: 'owner', operator: 'eq', value: 'u' } as const;
+
+  it('leaves an unscoped request as it is', () => {
+    const request = { pageSize: 5 };
+    expect(narrowLoadRequest(request, 'unscoped')).toBe(request);
+  });
+
+  it('conjoins the narrowing onto what the request already filtered', () => {
+    expect(narrowLoadRequest({}, mine as never)).toEqual({
+      filtering: [mine],
+    });
+    expect(
+      narrowLoadRequest({ filtering: [mine as never] }, mine as never),
+    ).toEqual({ filtering: [mine, mine] });
+  });
+
+  it('reads one record under the narrowing', () => {
+    expect(narrowedByIdRequest(mine as never, 'r-1')).toEqual({
+      filtering: [mine, { property: 'id', operator: 'eq', value: 'r-1' }],
+    });
   });
 });

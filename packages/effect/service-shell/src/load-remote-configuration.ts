@@ -1,7 +1,7 @@
 import {
   ConfigurationClientInMemory,
   ConfigurationPlain,
-  EntifixConnError,
+  Unavailable,
 } from '@entifix/core';
 import { Context, Effect, Schedule } from 'effect';
 
@@ -84,7 +84,7 @@ export interface RemoteConfigurationSource {
  * their own parameters (e.g. `mongo.uri`) instead of hardcoding them.
  *
  * Uses Node's global `fetch` (same transport approach as the REST client); any
- * network/parse/non-2xx failure becomes an {@link EntifixConnError}. Each
+ * network/parse/non-2xx failure becomes an {@link Unavailable}. Each
  * attempt is deadlined ({@link defaultConfigAttemptTimeoutMs}) and the fetch is
  * retried on a bounded schedule ({@link defaultConfigRetrySchedule}), so a
  * dependent that boots before config-service is HTTP-ready waits it out — and
@@ -93,7 +93,7 @@ export interface RemoteConfigurationSource {
 export const loadRemoteConfiguration = (
   source: RemoteConfigurationSource,
   options: LoadRemoteConfigurationOptions = {},
-): Effect.Effect<ConfigurationPlain, EntifixConnError> => {
+): Effect.Effect<ConfigurationPlain, Unavailable> => {
   const { url } = source;
   const attemptTimeoutMs =
     options.attemptTimeoutMs ?? defaultConfigAttemptTimeoutMs;
@@ -104,27 +104,13 @@ export const loadRemoteConfiguration = (
         cache: 'no-store',
         headers: source.headers,
         signal: AbortSignal.timeout(attemptTimeoutMs),
-      }).catch((error: unknown) => {
-        // Rewritten because the raw abort says `This operation was aborted`,
-        // which reads like a bug in the caller rather than a silent peer.
-        if (error instanceof Error && error.name === 'TimeoutError') {
-          throw new Error(
-            `the configuration source did not answer within ${attemptTimeoutMs}ms at ${url}`,
-          );
-        }
-        throw error;
       });
-      if (!response.ok) {
-        throw new Error(
-          `the configuration source responded ${response.status} for ${url}`,
-        );
-      }
+      // Any answer but a success is the source failing to serve, the same as
+      // a timeout or a dropped connection: one `Unavailable`, retried.
+      if (!response.ok) throw new Error(`status ${response.status}`);
       return (await response.json()) as ConfigurationPlain;
     },
-    catch: error =>
-      new EntifixConnError(`Failed to load configuration from ${url}`, error, {
-        url,
-      }),
+    catch: () => new Unavailable({ dependency: url }),
   });
 
   return Effect.retry(
@@ -141,7 +127,7 @@ export const loadRemoteConfiguration = (
 export const loadRemoteConfigurationClient = (
   source: RemoteConfigurationSource,
   options: LoadRemoteConfigurationOptions = {},
-): Effect.Effect<ConfigurationClientInMemory, EntifixConnError> =>
+): Effect.Effect<ConfigurationClientInMemory, Unavailable> =>
   loadRemoteConfiguration(source, options).pipe(
     Effect.map(plain => new ConfigurationClientInMemory(plain)),
   );

@@ -1,6 +1,6 @@
+import { Unavailable } from '@entifix/core';
 import {
   accessor,
-  EntifixConnError,
   type Entity,
   entity,
   EntityCollectionLink,
@@ -683,7 +683,12 @@ describe('EntityForm', () => {
   });
 
   it('surfaces loading and error states', () => {
-    render(<Harness isLoading error={new EntifixConnError('Service down')} />);
+    render(
+      <Harness
+        isLoading
+        error={new Unavailable({ dependency: 'Service down' })}
+      />,
+    );
 
     // A skeleton, not the word "Loading": it holds the region's geometry so the
     // swap to real fields shifts nothing, and it needs no translation. The copy
@@ -692,7 +697,7 @@ describe('EntityForm', () => {
     expect(screen.getAllByTestId('skeleton').length).toBeGreaterThan(0);
     expect(screen.getByRole('status')).toHaveTextContent('Cargando…');
     expect(screen.getByTestId('entity-form-error')).toHaveTextContent(
-      'Service down',
+      'Servicio no disponible',
     );
   });
 

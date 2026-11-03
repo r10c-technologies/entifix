@@ -306,7 +306,7 @@ export interface FakeMongoDb {
   read(collection: string): Document[];
   /**
    * Makes every subsequent driver call reject with `error`, so the adapter's
-   * `EntifixConnError` mapping is reachable. Pass `undefined` to restore.
+   * `Unavailable` mapping is reachable. Pass `undefined` to restore.
    */
   failWith(error: unknown): void;
   /**

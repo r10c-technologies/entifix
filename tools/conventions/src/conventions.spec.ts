@@ -74,6 +74,34 @@ describe('a mechanism does not log', () => {
   });
 });
 
+const CLASS_CHECKS = [
+  'export const x = (e: unknown) => e instanceof Error;\n',
+  'class Refused extends Error {}\nexport const x = (e: unknown) => e instanceof Refused;\n',
+  'class NotFoundFailure extends Error {}\nexport const x = (e: unknown) => e instanceof NotFoundFailure;\n',
+];
+
+describe('a failure is told apart by its tag, never by its class', () => {
+  it.each([
+    ['the core', 'packages/ts/core/src/planted.ts'],
+    ['a control', 'packages/react/controls/src/planted.tsx'],
+    ['the Next shell', 'packages/next/shell/src/planted.ts'],
+    ['the service shell', 'packages/effect/service-shell/src/planted.ts'],
+  ])('refuses instanceof on a failure class in %s', async (_label, path) => {
+    for (const code of CLASS_CHECKS) {
+      expect(await violations(path, code), code).not.toEqual([]);
+    }
+  });
+
+  it('leaves instanceof on anything else alone', async () => {
+    expect(
+      await violations(
+        'packages/ts/core/src/planted.ts',
+        'export const x = (d: unknown) => d instanceof Date;\n',
+      ),
+    ).toEqual([]);
+  });
+});
+
 const COMPOSES = [
   "import { compose } from '@entifix/business/compose';\nexport const x = compose;\n",
   "import { verifiedContext } from '@entifix/business/verified';\nexport const x = verifiedContext;\n",

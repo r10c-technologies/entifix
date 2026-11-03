@@ -1,9 +1,9 @@
 import {
+  type EntifixFailure,
   type Entity,
   type EntityConstructor,
   type EntityLinkResolver,
   Internal,
-  type TransitionalFailure,
 } from '@entifix/core';
 import { Context, Effect } from 'effect';
 
@@ -59,7 +59,7 @@ export function createEntityLinkResolver(
       if (!repository) {
         return Effect.fail(new Internal());
       }
-      return repository.get(id) as Effect.Effect<never, TransitionalFailure>;
+      return repository.get(id) as Effect.Effect<never, EntifixFailure>;
     },
   };
 

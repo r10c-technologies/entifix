@@ -160,7 +160,7 @@ export const respondWithProblem = (
 
 /**
  * The failure handlers. Adapters map transport and shape failures onto
- * `EntifixError`s, and those branches are only reachable from here.
+ * typed failures, and those branches are only reachable from here.
  */
 export const respondWith500 = (
   url: string,

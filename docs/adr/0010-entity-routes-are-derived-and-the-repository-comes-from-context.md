@@ -6,6 +6,7 @@
 - Revised: 2026-10-26 — facet counts get a route set of their own beside these, `makeEntityFacetRoutes`, bound through `EntityFacetCounterFactoryTag` the way these are bound through the repository factory ([ADR 0012](0012-facet-counts-are-a-port-of-their-own.md))
 - Revised: 2026-10-28 by [ADR 0013](0013-failures-are-typed-values-decided-at-the-shell.md) — the derived routes fail with core failures through `respond` and answer `application/problem+json`; `prepare` refuses with an `EntifixFailure` rather than an `EntityRouteRefusal`
 - Revised: 2026-10-29 by [ADR 0020](0020-endpoints-are-descriptors-and-the-shell-builds-an-httpapi.md) — the derived routes are `entityApi`, an `HttpApi` group built from descriptors; `makeEntityRoutes` stays until every consumer has moved
+- Revised: 2026-11-02 by [#126](https://github.com/r10c-technologies/entifix/issues/126) — the `HttpRouter` route makers (`makeEntityRoutes`, `makeEntityFacetRoutes`, `entityMetadataRoute`), their guard type and the `scope` option are deleted; `entityApi` is the only way the derived routes are served, and the text below describes the decision as it was made.
 - Area: platform
 - Read when: writing a list, read, create, update or delete route for an entity, a route's links name a verb that answers `404`, or a route builds its own repository from a database handle
 

@@ -1,6 +1,6 @@
 'use client';
 
-import type { TransitionalFailure, WriteResult } from '@entifix/core';
+import type { EntifixFailure, WriteResult } from '@entifix/core';
 import { flowLink } from '@entifix/core';
 import { useMutation } from '@tanstack/react-query';
 import { Cause, Effect, Exit } from 'effect';
@@ -50,7 +50,7 @@ export interface UseOptimisticMutationOptions<TVariables, TValue, TContext> {
   /** The write: a save, a delete or a verb, answering either mode. */
   readonly write: (
     variables: TVariables,
-  ) => Effect.Effect<WriteResult<TValue>, TransitionalFailure>;
+  ) => Effect.Effect<WriteResult<TValue>, EntifixFailure>;
   /** Applies the write to what the screen shows, before it is sent. */
   readonly apply?: (variables: TVariables) => TContext;
   /**

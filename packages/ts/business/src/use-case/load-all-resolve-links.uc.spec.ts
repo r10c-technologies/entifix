@@ -5,8 +5,8 @@ import type {
   EntityLinkResolver,
   EntityLoadRequest,
 } from '@entifix/core';
+import { Unavailable } from '@entifix/core';
 import {
-  EntifixConnError,
   EntityCollectionLink,
   EntityLink,
   targetOf,
@@ -122,10 +122,10 @@ describe('resolveLinksUCFactory', () => {
     ) {
       const found = known.find(tag => tag.id === id);
       return found === undefined
-        ? Effect.fail(new EntifixConnError(`No tag ${String(id)}`))
+        ? Effect.fail(new Unavailable({ dependency: `No tag ${String(id)}` }))
         : (Effect.succeed(found) as unknown as Effect.Effect<
             TEntity,
-            EntifixConnError
+            Unavailable
           >);
     },
   };

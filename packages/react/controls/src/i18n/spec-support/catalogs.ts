@@ -1,6 +1,7 @@
 import { defineCatalogs } from '@entifix/i18n';
 
 import { controlsCatalogs } from '../catalog/index.js';
+import { registerFallbackCatalog } from '../fallback-catalogs.js';
 
 /**
  * Catalogs for this package's own specs.
@@ -91,6 +92,7 @@ const errors = {
     notFound: 'No encontrado',
     invalidQuery: 'La consulta no es válida.',
     unexpected: 'Error inesperado',
+    unavailable: 'Servicio no disponible',
   },
   en: {
     unauthenticated: 'Not authenticated',
@@ -98,6 +100,7 @@ const errors = {
     notFound: 'Not found',
     invalidQuery: 'The query is not valid.',
     unexpected: 'Unexpected error',
+    unavailable: 'Service unavailable',
   },
 } as const;
 
@@ -114,4 +117,7 @@ export function installSpecCatalogs(): void {
     locales: ['es', 'en'],
     defaultLocale: 'es',
   });
+  // A control rendered with no provider reads the fallback, and a host's
+  // `errors` namespace is what its failure copy resolves against there too.
+  registerFallbackCatalog('errors', errors);
 }

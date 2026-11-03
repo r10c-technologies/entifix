@@ -1,8 +1,5 @@
-import {
-  EntifixConnError,
-  EntityCollectionLink,
-  EntityLink,
-} from '@entifix/core';
+import { Unavailable } from '@entifix/core';
+import { EntityCollectionLink, EntityLink } from '@entifix/core';
 import { Exit } from 'effect';
 import { describe, expect, it } from 'vitest';
 
@@ -55,7 +52,7 @@ describe('makeInMemoryEntityRepository', () => {
 
   it('arms a single failure so error branches are reachable', async () => {
     const repository = makeInMemoryEntityRepository(seeded());
-    const failure = new EntifixConnError('backend down');
+    const failure = new Unavailable({ dependency: 'backend down' });
     repository.failNext(failure);
 
     const exit = await runExit(repository.load<ContractWidget>({}));
@@ -65,7 +62,7 @@ describe('makeInMemoryEntityRepository', () => {
 
   it('recovers after the armed failure is consumed', async () => {
     const repository = makeInMemoryEntityRepository(seeded());
-    repository.failNext(new EntifixConnError('transient'));
+    repository.failNext(new Unavailable({ dependency: 'transient' }));
 
     await runExit(repository.load<ContractWidget>({}));
     const page = await run(repository.load<ContractWidget>({}));

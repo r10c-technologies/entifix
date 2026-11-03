@@ -1,6 +1,6 @@
 import type { Effect } from 'effect';
 
-import type { TransitionalFailure } from '../failure/failure.js';
+import type { EntifixFailure } from '../failure/failure.js';
 import type { Entity, EntityId } from '../types/Entity.js';
 import type { WriteResult } from './write-result.js';
 
@@ -21,9 +21,9 @@ export interface EntityWriter {
    */
   save<TInput extends Entity>(
     entity: TInput,
-  ): Effect.Effect<WriteResult<TInput>, TransitionalFailure>;
+  ): Effect.Effect<WriteResult<TInput>, EntifixFailure>;
   /** Deletes by id or by entity. A settled delete answers nothing. */
   delete(
     entityOrId: EntityId | Entity,
-  ): Effect.Effect<WriteResult<void>, TransitionalFailure>;
+  ): Effect.Effect<WriteResult<void>, EntifixFailure>;
 }

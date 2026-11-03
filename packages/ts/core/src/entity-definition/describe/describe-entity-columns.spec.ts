@@ -2,7 +2,6 @@ import {
   accessor,
   COLLECTION_TYPES,
   describeEntityColumns,
-  EntifixBuildError,
   Entity,
   entity,
   EntityCollectionLink,
@@ -446,7 +445,7 @@ describe('the accessor-type partition', () => {
       }
     }
 
-    expect(() => describeEntityColumns(BadBag)).toThrow(EntifixBuildError);
+    expect(() => describeEntityColumns(BadBag)).toThrow(Error);
   });
 
   /**

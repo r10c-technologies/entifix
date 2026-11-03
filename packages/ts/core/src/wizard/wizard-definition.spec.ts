@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 
-import { EntifixBuildError } from '../base-entities/entifix-error/index.js';
 import {
   assertWizardDefinition,
   entryStep,
@@ -54,7 +53,7 @@ describe('entryStep', () => {
   });
 
   it('throws on a definition with no steps at all', () => {
-    expect(() => entryStep(withSteps([]))).toThrow(EntifixBuildError);
+    expect(() => entryStep(withSteps([]))).toThrow(Error);
   });
 });
 

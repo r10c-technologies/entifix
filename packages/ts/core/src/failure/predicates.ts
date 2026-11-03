@@ -99,3 +99,16 @@ export const when = <Shape, R = never>(
   guard: FailureGuard<Shape>,
   condition: (failure: Shape) => Effect.Effect<boolean, never, R>,
 ): EffectfulFailurePredicate<Shape, R> => ({ guard, condition });
+
+/**
+ * What a thrown value says about itself: its `message` when it carries one,
+ * otherwise the value as text. Read off the shape rather than the class, so a
+ * value thrown from another realm or rebuilt from a wire reads the same.
+ */
+export const messageOf = (thrown: unknown): string =>
+  typeof thrown === 'object' &&
+  thrown !== null &&
+  'message' in thrown &&
+  typeof thrown.message === 'string'
+    ? thrown.message
+    : String(thrown);

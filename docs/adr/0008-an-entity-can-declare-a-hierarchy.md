@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-23
 - Revised: 2026-10-24 — picking a parent did need something new: `makeEntityCrud` builds its pickers itself, so it gained a per-record `useBaseFiltering` on a link and a `pageSize` for the list
+- Revised: 2026-11-02 by [#126](https://github.com/r10c-technologies/entifix/issues/126) — the `EntifixError` tree is deleted; describing the entity refuses with a thrown `Error`.
 - Area: entities
 - Read when: an entity's records nest under one another (categories, folders, accounts and their branches), building breadcrumbs or a tree from records, or about to write a recursive query — one member marks the parent, the tree is built in memory from the records already loaded, and a parent member must travel over the wire
 
@@ -32,7 +33,7 @@ records, never by resolving one parent at a time, so a link's lazy resolution
 would be a fetch per node that nothing needs. It also keeps the wire shape a
 plain key, which any client can read without a resolver.
 
-Describing the entity refuses, with an `EntifixBuildError`:
+Describing the entity refuses, with a thrown `Error`:
 
 - **two parent members.** Two would be two trees over the same records, and
   which one a table indents by would depend on declaration order.

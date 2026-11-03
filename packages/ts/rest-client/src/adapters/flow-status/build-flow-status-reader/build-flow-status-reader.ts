@@ -1,7 +1,7 @@
 // Loaded for its registration of `flowStatus`, which the decode below reads.
 import '@entifix/transactions';
 
-import { decodeEnvelope, type TransitionalFailure } from '@entifix/core';
+import { decodeEnvelope, type EntifixFailure } from '@entifix/core';
 import type { FlowStatusBody } from '@entifix/transactions';
 import { Effect } from 'effect';
 
@@ -11,7 +11,7 @@ import { isNotFound } from '../../is-not-found.js';
 /** Reads where a flow stands from the `status` link its `202` named. */
 export type FlowStatusReader = (
   href: string,
-) => Effect.Effect<FlowStatusBody | undefined, TransitionalFailure>;
+) => Effect.Effect<FlowStatusBody | undefined, EntifixFailure>;
 
 /**
  * Reads a flow's `status` link over HTTP, for a browser settling a write whose

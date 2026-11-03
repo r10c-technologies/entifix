@@ -1,4 +1,4 @@
-import type { TransitionalFailure } from '../../../failure/failure.js';
+import type { EntifixFailure } from '../../../failure/failure.js';
 import { Entity, EntityConstructor } from '../../../types/Entity.js';
 import { FilterGroup } from '../../../types/EntityFiltering.js';
 import { EntitySorting } from '../../../types/EntitySorting.js';
@@ -19,7 +19,7 @@ export interface EntityLinkListView<TEntity extends Entity> {
   currentPage: number;
   pageSize: number;
   isLoading: boolean;
-  error?: TransitionalFailure;
+  error?: EntifixFailure;
   filtering?: FilterGroup<TEntity>;
   sorting?: EntitySorting<TEntity>;
   onPageChange: (page: number) => void;
@@ -34,7 +34,7 @@ export interface EntityLinkQuickSearch<TEntity extends Entity> {
   setTerm: (term: string) => void;
   options: ReadonlyArray<TEntity>;
   isLoading: boolean;
-  error?: TransitionalFailure;
+  error?: EntifixFailure;
 }
 
 /** The browse half: the full list view, plus the dialog holding it. */

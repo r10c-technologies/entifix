@@ -1,4 +1,4 @@
-import type { EntifixConnError, StoreFailure } from '@entifix/core';
+import type { StoreFailure, Unavailable } from '@entifix/core';
 import { Effect } from 'effect';
 
 import {
@@ -161,7 +161,7 @@ const runStep = (
   elements: readonly DerivedElement[],
 ): Effect.Effect<
   { readonly calls: readonly SagaCallOutcome[]; readonly error?: string },
-  EntifixConnError,
+  Unavailable,
   SagaDispatcherTag
 > =>
   Effect.gen(function* () {
@@ -302,7 +302,7 @@ const runStepWithRetries = (
   retries: number,
 ): Effect.Effect<
   { readonly calls: readonly SagaCallOutcome[]; readonly error?: string },
-  EntifixConnError,
+  Unavailable,
   SagaDispatcherTag
 > =>
   Effect.gen(function* () {
@@ -394,11 +394,7 @@ const unwind = (
   definition: SagaDefinition,
   taken: Taken,
   error: string,
-): Effect.Effect<
-  SagaResult,
-  StoreFailure | EntifixConnError,
-  SagaDispatcherTag
-> =>
+): Effect.Effect<SagaResult, StoreFailure, SagaDispatcherTag> =>
   Effect.gen(function* () {
     const outcomes = taken.map(entry => entry.outcome);
     const failures: string[] = [];
@@ -459,11 +455,7 @@ const walk = (
   store: SagaStore,
   options: RunSagaOptions,
   from: { readonly taken: Taken; readonly startIndex: number },
-): Effect.Effect<
-  SagaResult,
-  StoreFailure | EntifixConnError,
-  SagaDispatcherTag
-> =>
+): Effect.Effect<SagaResult, StoreFailure, SagaDispatcherTag> =>
   Effect.gen(function* () {
     const { sagaId, definition, inputs } = options;
     // Step and outcome are kept **together**: looking the step back up by id
@@ -547,11 +539,7 @@ const walk = (
  */
 export const runSaga = (
   options: RunSagaOptions,
-): Effect.Effect<
-  SagaResult,
-  StoreFailure | EntifixConnError,
-  SagaDispatcherTag | SagaStoreTag
-> =>
+): Effect.Effect<SagaResult, StoreFailure, SagaDispatcherTag | SagaStoreTag> =>
   Effect.gen(function* () {
     const store = yield* SagaStoreTag;
     const { sagaId, definition, inputs } = options;
@@ -601,11 +589,7 @@ export interface ResumeSagaOptions {
  */
 export const resumeSaga = (
   options: ResumeSagaOptions,
-): Effect.Effect<
-  SagaResult,
-  StoreFailure | EntifixConnError,
-  SagaDispatcherTag | SagaStoreTag
-> =>
+): Effect.Effect<SagaResult, StoreFailure, SagaDispatcherTag | SagaStoreTag> =>
   Effect.gen(function* () {
     const store = yield* SagaStoreTag;
     const { instance, definition, maxResumeAttempts } = options;

@@ -1,4 +1,3 @@
-import { EntifixBuildError } from '../../base-entities/entifix-error/index.js';
 import { extractMetaAccessors } from '../helpers/index.js';
 import { EntityCollectionLink } from '../links/entity-collection-link/index.js';
 import { EntityLink } from '../links/entity-link/index.js';
@@ -135,7 +134,7 @@ function assertNotQueryable(
   if (!COLLECTION_TYPES.includes(type)) return;
   if (metaAccessor.sortable !== true && metaAccessor.filterable !== true)
     return;
-  throw new EntifixBuildError(
+  throw new Error(
     `"${String(metaAccessor.name)}" is a ${type} and cannot be sortable or filterable — member metadata is the server-side query allowlist, and a collection compared as a scalar matches nothing.`,
   );
 }
@@ -149,7 +148,7 @@ function assertItemCounts(metaAccessor: MetaAccessor, type: MetaAccessorType) {
   if (minItems === undefined && maxItems === undefined) return;
   const name = String(metaAccessor.name);
   if (!COLLECTION_TYPES.includes(type)) {
-    throw new EntifixBuildError(
+    throw new Error(
       `"${name}" is a ${type}, and only a collection can declare minItems or maxItems.`,
     );
   }
@@ -168,7 +167,7 @@ function assertNotBefore(descriptors: readonly EntityFieldDescriptor[]) {
       other => other.name === descriptor.notBefore,
     );
     if (descriptor.type !== 'date' || earlier?.type !== 'date') {
-      throw new EntifixBuildError(
+      throw new Error(
         `"${descriptor.name}" declares notBefore "${descriptor.notBefore}", and both must be date members of the entity.`,
       );
     }
@@ -183,7 +182,7 @@ function assertNotBefore(descriptors: readonly EntityFieldDescriptor[]) {
 function assertParentType(metaAccessor: MetaAccessor, type: MetaAccessorType) {
   if (metaAccessor.parent !== true) return;
   if (type === 'id' || type === 'string') return;
-  throw new EntifixBuildError(
+  throw new Error(
     `"${String(metaAccessor.name)}" is a ${type} and cannot be the parent member — a parent is one record's id, so it is an id or a string.`,
   );
 }
@@ -200,7 +199,7 @@ export function assertOneParent(
 ) {
   const parents = members.filter(member => member.parent === true);
   if (parents.length > 1) {
-    throw new EntifixBuildError(
+    throw new Error(
       `An entity declares one parent member at most; found ${parents.map(member => `"${String(member.name)}"`).join(', ')}.`,
     );
   }
@@ -228,7 +227,7 @@ export function assertParentVisible(
       (member.hidden === true || member.readonly === true),
   );
   if (stuck === undefined) return;
-  throw new EntifixBuildError(
+  throw new Error(
     `"${String(stuck.name)}" is the parent member and is ${stuck.hidden === true ? 'hidden' : 'readonly'} — such a member is never serialized, so the tree would arrive flat. Hide it with a slot instead.`,
   );
 }

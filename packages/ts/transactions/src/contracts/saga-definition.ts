@@ -1,5 +1,3 @@
-import { EntifixLogicError } from '@entifix/core';
-
 /**
  * Richardson's classification, and adopting the vocabulary is most of the answer
  * to "which steps are compensable at all".
@@ -171,11 +169,7 @@ export interface SagaStepOutcome {
 }
 
 const fail = (definition: string, detail: string): never => {
-  throw new EntifixLogicError(
-    `saga definition '${definition}' is invalid: ${detail}`,
-    undefined,
-    { definition },
-  );
+  throw new Error(`saga definition '${definition}' is invalid: ${detail}`);
 };
 
 /**

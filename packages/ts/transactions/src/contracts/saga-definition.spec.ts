@@ -1,4 +1,3 @@
-import { EntifixLogicError } from '@entifix/core';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -75,7 +74,7 @@ describe('defineSaga validates at load', () => {
         permission: 'order-management:product-order:write',
         steps: [],
       }),
-    ).toThrow(EntifixLogicError);
+    ).toThrow(Error);
     expect(() =>
       defineSaga({
         name: 'empty',
@@ -197,10 +196,8 @@ describe('defineSaga validates at load', () => {
       });
       expect.unreachable('defineSaga should have thrown');
     } catch (error) {
-      expect(error).toBeInstanceOf(EntifixLogicError);
-      expect((error as EntifixLogicError).details).toEqual({
-        definition: 'checkout',
-      });
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).toContain('checkout');
     }
   });
 });

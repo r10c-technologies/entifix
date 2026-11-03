@@ -252,39 +252,9 @@ export const respond = <E extends RouteFailure, R>(
   );
 
 /**
- * Mounts a set of routes with every handler wrapped in {@link respond}, once,
- * at the composition root. A route whose handler fails with anything but a
- * {@link RouteFailure} does not compile here.
- */
-export const mountRoutes = <
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const Routes extends ReadonlyArray<HttpRouter.Route<RouteFailure, any>>,
->(
-  routes: Routes,
-  policy: FailurePolicy = defaultFailurePolicy,
-) =>
-  HttpRouter.addAll(
-    routes.map(route =>
-      HttpRouter.route(
-        route.method,
-        route.path,
-        respond(route.handler, policy),
-        {
-          uninterruptible: route.uninterruptible,
-        },
-      ),
-    ) as unknown as {
-      readonly [K in keyof Routes]: HttpRouter.Route<
-        never,
-        HttpRouter.Route.Context<Routes[K]>
-      >;
-    },
-  );
-
-/**
  * The router's last net. A path no route matches answers a `404` problem
  * rather than an empty body, and a defect that escaped every route — one not
- * mounted through {@link mountRoutes}, or one thrown while a response was
+ * wrapped in {@link respond}, or one thrown while a response was
  * being written — answers the same opaque `500` problem. It catches those two
  * and nothing else, never the whole cause, so an interruption still
  * interrupts.

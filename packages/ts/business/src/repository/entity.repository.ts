@@ -1,9 +1,9 @@
 import type {
+  EntifixFailure,
   Entity,
   EntityId,
   EntityLoadRequest,
   EntityPage,
-  TransitionalFailure,
 } from '@entifix/core';
 import { Context } from 'effect';
 import { Effect } from 'effect/Effect';
@@ -14,7 +14,7 @@ import { Effect } from 'effect/Effect';
  * the old class tree, or a categorised failure — an `InvalidEnvelope` from a
  * transport, a `DuplicateKey` from a store.
  */
-export type RepositoryFailure = TransitionalFailure;
+export type RepositoryFailure = EntifixFailure;
 
 /**
  * Where a use case reads and writes one entity's records.

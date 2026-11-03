@@ -3,9 +3,8 @@ import './messages.js';
 
 import {
   decodeRequestEnvelope,
-  EntifixBuildError,
   type EntifixEnvelope,
-  type InvalidEnvelope,
+  InvalidEnvelope,
   makeEnvelope,
   type SerializedEntity,
 } from '@entifix/core';
@@ -42,7 +41,7 @@ export interface TransactionCommand<TPayload = SerializedEntity> {
    * {@link readCommandEnvelope} drops whatever a caller sent under this name, so
    * a client cannot name another tenant by writing one into the body. It is the
    * same rule the id already follows (`entity.id = params.id`), and the same
-   * rule `requireOrganization` states: the organization comes from the token and
+   * rule the organization guard states: the organization comes from the token and
    * nowhere else.
    *
    * Optional because the parser produces a command without it and the route
@@ -89,10 +88,7 @@ export const isTransactionId = (value: unknown): value is string =>
  */
 export function readCommandEnvelope<TPayload = SerializedEntity>(
   body: unknown,
-): Effect.Effect<
-  TransactionCommand<TPayload>,
-  EntifixBuildError | InvalidEnvelope
-> {
+): Effect.Effect<TransactionCommand<TPayload>, InvalidEnvelope> {
   return Effect.gen(function* () {
     const envelope = yield* decodeRequestEnvelope(body, 'command', 'command');
     const command = envelope.data as TransactionCommand<TPayload>;
@@ -100,13 +96,9 @@ export function readCommandEnvelope<TPayload = SerializedEntity>(
     // that the id is a UUID, which is what makes it safe as a primary key.
     if (!isTransactionId(command.transactionId)) {
       return yield* Effect.fail(
-        new EntifixBuildError(
-          'command envelope carried no valid command',
-          undefined,
-          {
-            body,
-          },
-        ),
+        new InvalidEnvelope({
+          reason: 'command envelope carried no valid command',
+        }),
       );
     }
     // `organizationId` is deliberately **not** carried over from the parsed

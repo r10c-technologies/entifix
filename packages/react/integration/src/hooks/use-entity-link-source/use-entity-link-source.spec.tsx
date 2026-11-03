@@ -3,10 +3,10 @@ import {
   getUCFactory,
   loadUCFactory,
 } from '@entifix/business';
+import { Unavailable } from '@entifix/core';
 import {
   accessor,
   describeEntityColumns,
-  EntifixConnError,
   type Entity,
   entity,
   type EntityFieldDescriptor,
@@ -302,7 +302,7 @@ describe('useEntityLinkSource', () => {
   });
 
   it('surfaces a failed suggestion request', async () => {
-    repository.failNext(new EntifixConnError('unreachable'));
+    repository.failNext(new Unavailable({ dependency: 'unreachable' }));
     const { result } = renderSource();
 
     await waitFor(() => expect(result.current.quick.error).toBeDefined());

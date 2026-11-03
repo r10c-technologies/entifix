@@ -1,7 +1,7 @@
 import { Effect, Exit } from 'effect';
 import { describe, expect, it } from 'vitest';
 
-import { EntifixConnError } from '../../base-entities/entifix-error/index.js';
+import { Unavailable } from '../../failure/index.js';
 import type {
   Entity,
   EntityConstructor,
@@ -32,10 +32,10 @@ const makeResolver = (values: Brand[] = []) => {
       calls.push(id);
       const found = values.find(value => value.id === id);
       return found === undefined
-        ? Effect.fail(new EntifixConnError(`No brand ${String(id)}`))
+        ? Effect.fail(new Unavailable({ dependency: `No brand ${String(id)}` }))
         : (Effect.succeed(found) as unknown as Effect.Effect<
             TEntity,
-            EntifixConnError
+            Unavailable
           >);
     },
   };

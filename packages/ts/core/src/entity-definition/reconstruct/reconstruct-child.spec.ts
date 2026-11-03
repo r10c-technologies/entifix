@@ -4,7 +4,6 @@ import {
   accessor,
   describeChildColumns,
   editableChildColumns,
-  EntifixBuildError,
   reconstructChild,
   ROW_KEY,
 } from '../../index.js';
@@ -135,7 +134,7 @@ describe('describeChildColumns', () => {
   it('refuses a child that declares the reserved row key', () => {
     // A member of this name would be overwritten by the row's own identity, so
     // the row would re-key on every keystroke and address another row's errors.
-    expect(() => describeChildColumns(Colliding)).toThrow(EntifixBuildError);
+    expect(() => describeChildColumns(Colliding)).toThrow(Error);
   });
 
   it('names the reserved member in the failure', () => {

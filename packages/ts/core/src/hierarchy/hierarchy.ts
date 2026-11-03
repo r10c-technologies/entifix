@@ -1,4 +1,3 @@
-import { EntifixBuildError } from '../base-entities/entifix-error/index.js';
 import {
   assertOneParent,
   assertParentVisible,
@@ -219,7 +218,7 @@ export function hierarchyOf<T extends object>(
     parent.type !== 'id' &&
     parent.type !== 'string'
   ) {
-    throw new EntifixBuildError(
+    throw new Error(
       `"${String(parent.name)}" is a ${parent.type} and cannot be the parent member — a parent is one record's id, so it is an id or a string.`,
     );
   }

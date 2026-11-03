@@ -1,10 +1,10 @@
 import { EntityLoadRequestTag } from '@entifix/business';
 import {
+  type EntifixFailure,
   Entity,
   EntityPage,
   EntitySorting,
   FilterGroup,
-  type TransitionalFailure,
 } from '@entifix/core';
 import { Context, Effect } from 'effect';
 
@@ -14,7 +14,7 @@ export interface UseDataLoadingState<T extends Entity> {
   totalItems: number;
   currentPage: number;
   pageSize: number;
-  error: TransitionalFailure | undefined;
+  error: EntifixFailure | undefined;
   /**
    * The filtering and sorting currently *applied* — not a draft. The controls
    * commit through `onFilteringChange`/`onSortingChange`, so every value here
@@ -31,7 +31,7 @@ export type UseDataLoadingAction<T extends Entity> = {
 export interface UseDataLoadingOptions<TEntity extends Entity, TContext> {
   uc: Effect.Effect<
     EntityPage<TEntity>,
-    TransitionalFailure,
+    EntifixFailure,
     EntityLoadRequestTag | TContext
   >;
   ctx: Context.Context<TContext>;

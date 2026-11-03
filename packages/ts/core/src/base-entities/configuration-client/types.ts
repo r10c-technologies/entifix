@@ -1,6 +1,6 @@
 import { Effect } from 'effect/Effect';
 
-import { EntifixBuildError } from '../entifix-error/index.js';
+import type { Unavailable } from '../../failure/generic.js';
 
 export type ConfigurationExtractMode = 'exact' | 'match' | 'compose';
 
@@ -8,51 +8,51 @@ export interface ConfigurationClientGroup {
   getNumber(
     key: string,
     extractMode?: ConfigurationExtractMode,
-  ): Effect<number, EntifixBuildError>;
+  ): Effect<number, Unavailable>;
   getString(
     key: string,
     extractMode?: ConfigurationExtractMode,
-  ): Effect<string, EntifixBuildError>;
+  ): Effect<string, Unavailable>;
   getDate(
     key: string,
     extractMode?: ConfigurationExtractMode,
-  ): Effect<Date, EntifixBuildError>;
+  ): Effect<Date, Unavailable>;
   getArrayNumber(
     key: string,
     extractMode?: ConfigurationExtractMode,
-  ): Effect<number[], EntifixBuildError>;
+  ): Effect<number[], Unavailable>;
   getArrayString(
     key: string,
     extractMode?: ConfigurationExtractMode,
-  ): Effect<string[], EntifixBuildError>;
+  ): Effect<string[], Unavailable>;
   getArrayDate(
     key: string,
     extractMode?: ConfigurationExtractMode,
-  ): Effect<Date[], EntifixBuildError>;
+  ): Effect<Date[], Unavailable>;
   getOptionalNumber(
     key: string,
     extractMode?: ConfigurationExtractMode,
-  ): Effect<number | undefined, EntifixBuildError>;
+  ): Effect<number | undefined, Unavailable>;
   getOptionalString(
     key: string,
     extractMode?: ConfigurationExtractMode,
-  ): Effect<string | undefined, EntifixBuildError>;
+  ): Effect<string | undefined, Unavailable>;
   getOptionalDate(
     key: string,
     extractMode?: ConfigurationExtractMode,
-  ): Effect<Date | undefined, EntifixBuildError>;
+  ): Effect<Date | undefined, Unavailable>;
   getOptionalArrayNumber(
     key: string,
     extractMode?: ConfigurationExtractMode,
-  ): Effect<number[] | undefined, EntifixBuildError>;
+  ): Effect<number[] | undefined, Unavailable>;
   getOptionalArrayString(
     key: string,
     extractMode?: ConfigurationExtractMode,
-  ): Effect<string[] | undefined, EntifixBuildError>;
+  ): Effect<string[] | undefined, Unavailable>;
   getOptionalArrayDate(
     key: string,
     extractMode?: ConfigurationExtractMode,
-  ): Effect<Date[] | undefined, EntifixBuildError>;
+  ): Effect<Date[] | undefined, Unavailable>;
 }
 
 export interface ConfigurationClient {

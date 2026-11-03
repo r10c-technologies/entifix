@@ -17,9 +17,9 @@ import {
   extendFailurePolicy,
   logLevelFor,
   logMechanismOutcome,
-  mountRoutes,
   problemResponse,
   respond,
+  type RouteFailure,
   statusFor,
 } from './respond.js';
 import {
@@ -99,45 +99,34 @@ describe('problemResponse', () => {
   });
 });
 
-describe('respond and mountRoutes, served', () => {
+describe('respond, served', () => {
   let running: RunningTestService | undefined;
 
-  const routes = mountRoutes(
-    [
-      HttpRouter.route(
-        'GET',
-        '/refused',
-        Effect.fail(new TeapotRefusal({ pot: 'blue' })),
+  // Each handler wrapped in `respond` at the route, as a host's raw route is.
+  const served = (
+    path: HttpRouter.PathInput,
+    handler: Effect.Effect<HttpServerResponse.HttpServerResponse, RouteFailure>,
+  ) => HttpRouter.add('GET', path, respond(handler, policy));
+
+  const routes = Layer.mergeAll(
+    served('/refused', Effect.fail(new TeapotRefusal({ pot: 'blue' }))),
+    served('/query', Effect.fail(new InvalidQuery({ reason: 'bad sort' }))),
+    served(
+      '/defect',
+      Effect.die(new Error('the database password is hunter2')),
+    ),
+    served('/encoding', HttpServerResponse.json({ n: BigInt(1) })),
+    served('/ok', Effect.succeed(HttpServerResponse.text('fine'))),
+    served(
+      '/deadline',
+      Effect.map(currentRemainingMs, left =>
+        HttpServerResponse.text(left === undefined ? 'none' : String(left)),
       ),
-      HttpRouter.route(
-        'GET',
-        '/query',
-        Effect.fail(new InvalidQuery({ reason: 'bad sort' })),
-      ),
-      HttpRouter.route(
-        'GET',
-        '/defect',
-        Effect.die(new Error('the database password is hunter2')),
-      ),
-      HttpRouter.route(
-        'GET',
-        '/encoding',
-        HttpServerResponse.json({ n: BigInt(1) }),
-      ),
-      HttpRouter.route('GET', '/ok', HttpServerResponse.text('fine')),
-      HttpRouter.route(
-        'GET',
-        '/deadline',
-        Effect.map(currentRemainingMs, left =>
-          HttpServerResponse.text(left === undefined ? 'none' : String(left)),
-        ),
-      ),
-    ],
-    policy,
+    ),
   );
 
-  // Not mounted through `mountRoutes`: only the router's last net stands
-  // between this defect and the client.
+  // Not wrapped in `respond`: only the router's last net stands between this
+  // defect and the client.
   const stray = HttpRouter.add(
     'GET',
     '/stray',
@@ -223,7 +212,7 @@ describe('respond and mountRoutes, served', () => {
 
   it('refuses at compile time a handler failing with a plain Error', () => {
     // @ts-expect-error — an uncategorised failure cannot be answered honestly.
-    mountRoutes([HttpRouter.route('GET', '/x', Effect.fail(new Error('no')))]);
+    respond(Effect.fail(new Error('no')));
   });
 
   it('names the trace a defect was logged under', async () => {

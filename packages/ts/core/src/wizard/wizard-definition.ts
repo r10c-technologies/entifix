@@ -1,5 +1,3 @@
-import { EntifixBuildError } from '../base-entities/entifix-error/index.js';
-
 /**
  * What a step holds, which decides how its value is stored and edited.
  *
@@ -85,7 +83,7 @@ export interface WizardDefinition {
 export const entryStep = (definition: WizardDefinition): WizardStep => {
   const [first] = definition.steps;
   if (first === undefined) {
-    throw new EntifixBuildError(`wizard "${definition.key}" declares no steps`);
+    throw new Error(`wizard "${definition.key}" declares no steps`);
   }
   return first;
 };
@@ -128,7 +126,7 @@ export function assertWizardDefinition(definition: WizardDefinition): void {
 
   for (const step of definition.steps) {
     if (ids.has(step.id)) {
-      throw new EntifixBuildError(
+      throw new Error(
         `wizard "${definition.key}" declares step "${step.id}" twice`,
       );
     }
@@ -140,14 +138,14 @@ export function assertWizardDefinition(definition: WizardDefinition): void {
 
     for (const target of step.to) {
       if (!ids.has(target)) {
-        throw new EntifixBuildError(
+        throw new Error(
           `wizard "${definition.key}" step "${step.id}" leads to unknown step "${target}"`,
         );
       }
     }
 
     if (step.to.length > 1 && step.next === undefined) {
-      throw new EntifixBuildError(
+      throw new Error(
         `wizard "${definition.key}" step "${step.id}" has ${step.to.length} edges and no next()`,
       );
     }
@@ -164,14 +162,14 @@ function assertStepOptions(
 ): void {
   if (step.kind === 'choice') {
     if (step.options === undefined || step.options.length === 0) {
-      throw new EntifixBuildError(
+      throw new Error(
         `wizard "${definition.key}" choice step "${step.id}" offers no options`,
       );
     }
     return;
   }
   if (step.options !== undefined) {
-    throw new EntifixBuildError(
+    throw new Error(
       `wizard "${definition.key}" step "${step.id}" is a ${step.kind} step and cannot declare options`,
     );
   }
@@ -181,7 +179,7 @@ function assertStepOptions(
 function assertOneSummaryAtTheEnd(definition: WizardDefinition): void {
   const summaries = definition.steps.filter(step => step.kind === 'summary');
   if (summaries.length !== 1) {
-    throw new EntifixBuildError(
+    throw new Error(
       `wizard "${definition.key}" declares ${summaries.length} summary steps, and must declare exactly one`,
     );
   }
@@ -189,12 +187,12 @@ function assertOneSummaryAtTheEnd(definition: WizardDefinition): void {
   for (const step of definition.steps) {
     const terminal = step.to.length === 0;
     if (terminal && step.kind !== 'summary') {
-      throw new EntifixBuildError(
+      throw new Error(
         `wizard "${definition.key}" ends on "${step.id}", which is not its summary`,
       );
     }
     if (!terminal && step.kind === 'summary') {
-      throw new EntifixBuildError(
+      throw new Error(
         `wizard "${definition.key}" summary step "${step.id}" leads onward, and must end the flow`,
       );
     }
@@ -229,7 +227,7 @@ function assertEveryStepIsReachable(
     .map(step => step.id);
 
   if (stranded.length > 0) {
-    throw new EntifixBuildError(
+    throw new Error(
       `wizard "${definition.key}" cannot reach ${stranded.map(id => `"${id}"`).join(', ')} from "${first.id}"`,
     );
   }

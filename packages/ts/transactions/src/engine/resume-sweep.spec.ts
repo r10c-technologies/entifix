@@ -1,5 +1,5 @@
 import { type ShutdownHook, ShutdownRegistryTag } from '@entifix/business';
-import { EntifixConnError, Unavailable } from '@entifix/core';
+import { Unavailable } from '@entifix/core';
 import { Duration, Effect, Layer, Logger } from 'effect';
 import { TestClock } from 'effect/testing';
 import { describe, expect, it } from 'vitest';
@@ -83,7 +83,7 @@ const dispatcher = (answer: 'ok' | 'unreachable') =>
     dispatch: () =>
       answer === 'ok'
         ? Effect.succeed({ ok: true, status: 200, body: {} })
-        : Effect.fail(new EntifixConnError('participant down')),
+        : Effect.fail(new Unavailable({ dependency: 'participant down' })),
   });
 
 const quiet = Logger.layer([]);

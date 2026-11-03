@@ -1,4 +1,3 @@
-import { EntifixLogicError } from '../base-entities/entifix-error/index.js';
 import { findStep, type WizardDefinition } from './wizard-definition.js';
 import type { WizardState } from './wizard-state.js';
 
@@ -16,7 +15,7 @@ export type WizardStepStatus = (typeof WizardStepStatuses)[number];
  *
  * A step with one edge needs no `next`; a step with several declares one, and
  * what it returns **must** be an edge the step declared. That check is an
- * {@link EntifixLogicError} rather than a silent fallback because the two ways
+ * a plain `Error` rather than a silent fallback because the two ways
  * of being wrong are both invisible otherwise: returning an id from another
  * branch strands the operator on a step whose earlier answers were never given,
  * and returning a typo would read as "this wizard has ended" one step early.
@@ -33,7 +32,7 @@ export function nextStepId(
   const chosen = step.next?.(state) ?? step.to[0];
 
   if (!step.to.includes(chosen)) {
-    throw new EntifixLogicError(
+    throw new Error(
       `wizard "${definition.key}" step "${step.id}" chose "${chosen}", which is not one of its edges`,
     );
   }

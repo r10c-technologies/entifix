@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-28
 - Revised: 2026-10-29 — a caller lacking only a step's requirement is `FlowRequirementsUnmet`, and the enumerator reports it `unmet`
+- Revised: 2026-11-02 by [#126](https://github.com/r10c-technologies/entifix/issues/126) — the `scope` option and `EntityReadScope.includes` are deleted, and `defineSaga` throws a plain `Error`.
 - Area: entities
 - Read when: adding a step to a multi-step flow, letting a module contribute to a flow it does not own, choosing an implementation from who is calling, narrowing a read to its caller, or about to write a `SagaDefinition` or a `scope` callback
 
@@ -32,7 +33,7 @@ out in four places:
   list filter, and every caller casts the principal to reach the fields it
   needs.
 
-`defineSaga` also throws `EntifixLogicError` on the first problem it finds,
+`defineSaga` also throws an `Error` on the first problem it finds,
 instead of returning every violation a CI job could report.
 
 ## Decision

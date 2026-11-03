@@ -1,4 +1,5 @@
-import { ConfigurationClientInMemory, EntifixConnError } from '@entifix/core';
+import { Unavailable } from '@entifix/core';
+import { ConfigurationClientInMemory } from '@entifix/core';
 import {
   http,
   HttpResponse,
@@ -63,31 +64,15 @@ describe('loadRemoteConfiguration', () => {
     ['an error status', () => new HttpResponse(null, { status: 500 })],
     ['a dropped connection', () => HttpResponse.error()],
     ['a non-JSON body', () => new HttpResponse('<html>nope</html>')],
-  ])('fails with EntifixConnError on %s', async (_label, respond) => {
+  ])('fails with Unavailable on %s', async (_label, respond) => {
     server.use(http.get(`${CONFIG_API}/api/config/${SERVICE}`, respond));
 
     const error = await Effect.runPromise(
       Effect.flip(loadRemoteConfiguration(SOURCE, noRetry)),
     );
 
-    expect(error).toBeInstanceOf(EntifixConnError);
-    expect(error.message).toContain(URL_);
-    expect(error.details).toMatchObject({ url: URL_ });
-  });
-
-  it('reports the status it got back', async () => {
-    server.use(
-      http.get(
-        `${CONFIG_API}/api/config/${SERVICE}`,
-        () => new HttpResponse(null, { status: 404 }),
-      ),
-    );
-
-    const error = await Effect.runPromise(
-      Effect.flip(loadRemoteConfiguration(SOURCE, noRetry)),
-    );
-
-    expect(error.cause?.message).toContain('404');
+    expect(error).toBeInstanceOf(Unavailable);
+    expect(error.dependency).toBe(URL_);
   });
 
   // A dependent can boot before config-service is HTTP-ready; the bounded
@@ -131,8 +116,8 @@ describe('loadRemoteConfiguration', () => {
       ),
     );
 
-    expect(error).toBeInstanceOf(EntifixConnError);
-    expect(error.cause?.message).toContain('did not answer within 25ms');
+    expect(error).toBeInstanceOf(Unavailable);
+    expect(error.dependency).toBe(URL_);
   });
 
   // The half that actually fixes the reported bug: a hang has to be *retryable*,
@@ -161,7 +146,7 @@ describe('loadRemoteConfiguration', () => {
 
   // The retry window is bounded — a config-service that never comes back still
   // surfaces the error rather than hanging forever.
-  it('gives up with EntifixConnError once the retry budget is exhausted', async () => {
+  it('gives up with Unavailable once the retry budget is exhausted', async () => {
     server.use(
       http.get(`${CONFIG_API}/api/config/${SERVICE}`, () =>
         HttpResponse.error(),
@@ -172,7 +157,7 @@ describe('loadRemoteConfiguration', () => {
       Effect.flip(loadRemoteConfiguration(SOURCE, instantRetry)),
     );
 
-    expect(error).toBeInstanceOf(EntifixConnError);
+    expect(error).toBeInstanceOf(Unavailable);
   });
 });
 
@@ -200,7 +185,7 @@ describe('loadRemoteConfigurationClient', () => {
       Effect.flip(loadRemoteConfigurationClient(SOURCE, noRetry)),
     );
 
-    expect(error).toBeInstanceOf(EntifixConnError);
+    expect(error).toBeInstanceOf(Unavailable);
   });
 });
 

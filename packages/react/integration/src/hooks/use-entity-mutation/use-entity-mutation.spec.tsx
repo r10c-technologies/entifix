@@ -3,7 +3,8 @@ import {
   EntityRepositoryTag,
   saveUCFactory,
 } from '@entifix/business';
-import { EntifixConnError, type Entity } from '@entifix/core';
+import { Unavailable } from '@entifix/core';
+import { type Entity } from '@entifix/core';
 import { makeInMemoryEntityRepository } from '@entifix/testing-unit';
 import { act, renderHook } from '@testing-library/react';
 import { Context } from 'effect';
@@ -113,7 +114,7 @@ describe('useEntityMutation', () => {
   // A failed write resolves rather than throwing: the caller is an event
   // handler, and an unhandled rejection there would take down the page.
   it('resolves to undefined and records the error when a save fails', async () => {
-    repository.failNext(new EntifixConnError('unreachable'));
+    repository.failNext(new Unavailable({ dependency: 'unreachable' }));
     const { result } = renderMutation();
 
     let saved: Widget | undefined | symbol = Symbol('unset');
@@ -127,7 +128,7 @@ describe('useEntityMutation', () => {
   });
 
   it('resolves to false and records the error when a delete fails', async () => {
-    repository.failNext(new EntifixConnError('unreachable'));
+    repository.failNext(new Unavailable({ dependency: 'unreachable' }));
     const { result } = renderMutation();
 
     let removed: boolean | undefined;
@@ -152,7 +153,7 @@ describe('useEntityMutation', () => {
         api.remove('w-1'),
     ],
   ])('clears a previous error when the next %s starts', async (_label, run) => {
-    repository.failNext(new EntifixConnError('unreachable'));
+    repository.failNext(new Unavailable({ dependency: 'unreachable' }));
     const { result } = renderMutation();
     await act(async () => {
       await result.current.save({ id: 'w-1', name: 'Renamed' });

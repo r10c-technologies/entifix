@@ -1,4 +1,3 @@
-import { EntifixLogicError } from '../base-entities/entifix-error/index.js';
 import type { CommandOption } from './command-source.js';
 
 /**
@@ -127,11 +126,9 @@ export function commandEffectOf(
   );
 
   if (declared.length !== 1) {
-    throw new EntifixLogicError(
+    throw new Error(
       `The command "${option.id}" declares ${declared.length} effects (${declared.join(', ') || 'none'}), and must declare exactly one. ` +
         'Give it an `href` to navigate, a `run` to invoke, or a `push` to open another page.',
-      undefined,
-      { id: option.id, declared },
     );
   }
 

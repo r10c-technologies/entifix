@@ -3,10 +3,10 @@ import './messages.js';
 
 import {
   decodeEnvelope,
-  type EntifixConnError,
+  type EntifixFailure,
   type EntityId,
   type ProtocolFailure,
-  type TransitionalFailure,
+  type StoreFault,
 } from '@entifix/core';
 import { Context, Effect } from 'effect';
 
@@ -44,10 +44,10 @@ export interface TransactionStore {
   /** Folds an event into the record, creating it on first sight. */
   upsertFromEvent(
     event: TransactionEvent,
-  ): Effect.Effect<TransactionRecord, EntifixConnError>;
+  ): Effect.Effect<TransactionRecord, StoreFault>;
   get(
     transactionId: string,
-  ): Effect.Effect<TransactionRecord | undefined, EntifixConnError>;
+  ): Effect.Effect<TransactionRecord | undefined, StoreFault>;
   // There is deliberately no `list`. The `saga` store is control-plane and
   // single-partition, so an unfiltered index is every organization's
   // transactions — which is why there is no `GET /api/transaction` list.
@@ -56,8 +56,8 @@ export interface TransactionStore {
   /** Non-terminal records not updated within `olderThanMs` — recovery input. */
   findStale(
     olderThanMs: number,
-  ): Effect.Effect<readonly TransactionRecord[], EntifixConnError>;
-  markStale(transactionId: string): Effect.Effect<void, EntifixConnError>;
+  ): Effect.Effect<readonly TransactionRecord[], StoreFault>;
+  markStale(transactionId: string): Effect.Effect<void, StoreFault>;
   /**
    * How many records sit in each state — the recovery sweep samples it.
    *
@@ -72,10 +72,7 @@ export interface TransactionStore {
    * poll discovers — which is what the recovery sweep, whose only action is to
    * apply that label, otherwise leaves entirely unobservable.
    */
-  countByState(): Effect.Effect<
-    Record<TransactionState, number>,
-    EntifixConnError
-  >;
+  countByState(): Effect.Effect<Record<TransactionState, number>, StoreFault>;
 }
 
 export class TransactionStoreTag extends Context.Service<
@@ -144,7 +141,7 @@ export function readTransactionRecordEnvelope(
 export interface TransactionStatusReader {
   read(
     transactionId: string,
-  ): Effect.Effect<TransactionRecord | undefined, TransitionalFailure>;
+  ): Effect.Effect<TransactionRecord | undefined, EntifixFailure>;
 }
 
 export class TransactionStatusReaderTag extends Context.Service<

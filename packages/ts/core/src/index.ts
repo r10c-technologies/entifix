@@ -1,5 +1,4 @@
 export * from './base-entities/configuration-client/index.js';
-export * from './base-entities/entifix-error/index.js';
 export * from './command-palette/index.js';
 export * from './deadline/deadline.js';
 export * from './endpoint/index.js';

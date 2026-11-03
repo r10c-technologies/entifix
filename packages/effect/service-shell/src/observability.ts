@@ -1,5 +1,5 @@
 import * as NodeSdk from '@effect/opentelemetry/NodeSdk';
-import type { ConfigurationClient, EntifixBuildError } from '@entifix/core';
+import type { ConfigurationClient, Unavailable } from '@entifix/core';
 import {
   type Attributes,
   createLogger,
@@ -388,10 +388,7 @@ export const makeInMemoryObservabilityLayer = (
 export const observabilityFromConfiguration = (
   store: ConfigurationClient,
   serviceName: string,
-): Effect.Effect<
-  ReturnType<typeof makeObservabilityLayer>,
-  EntifixBuildError
-> =>
+): Effect.Effect<ReturnType<typeof makeObservabilityLayer>, Unavailable> =>
   Effect.gen(function* () {
     const level = yield* store.in('logging').getString('level');
     const sink = yield* store.in('logging').getString('sink');

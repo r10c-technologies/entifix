@@ -1,6 +1,6 @@
+import { Unavailable } from '@entifix/core';
 import {
   accessor,
-  EntifixConnError,
   type Entity,
   entity,
   type EntityId,
@@ -503,13 +503,15 @@ describe('EntityTable controls', () => {
   });
 
   describe('the failure state', () => {
-    const unreachable = new EntifixConnError('the catalog is unreachable');
+    const unreachable = new Unavailable({
+      dependency: 'the catalog is unreachable',
+    });
 
     it('announces the failure', () => {
       renderTable({ items: [], totalItems: 0, error: unreachable });
 
       const alert = screen.getByRole('alert');
-      expect(alert).toHaveTextContent('the catalog is unreachable');
+      expect(alert).toHaveTextContent('Servicio no disponible');
     });
 
     // The whole point: "Sin registros" after a failed load tells the user their

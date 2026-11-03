@@ -47,7 +47,7 @@ export const stubAccessToken = (claims: TokenClaims = STUB_CLAIMS): string => {
  * ⚠️ **The real cookie, not a bypass.** The stub mints into `entifix_at`, the
  * cookie every entifix reader already looks for, so the middleware's presence
  * check, the Next shell's bearer forwarding and the service shell's
- * `requirePrincipal` all run exactly as they do for a real user. A stub that
+ * the session guard all run exactly as they do for a real user. A stub that
  * skipped the cookie path would leave that path proven by nothing but the one
  * application that happens to have an identity provider.
  */

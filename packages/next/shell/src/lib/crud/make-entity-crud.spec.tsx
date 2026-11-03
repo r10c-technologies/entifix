@@ -1,9 +1,10 @@
 import { EntityRepositoryTag } from '@entifix/business';
+import { Unavailable } from '@entifix/core';
 import {
   accessor,
   type BulkOutcome,
   type DomainEvent,
-  EntifixConnError,
+  type EntifixFailure,
   type Entity,
   entity,
   type EntityDraft,
@@ -14,7 +15,6 @@ import {
   Failure,
   pending,
   settled,
-  type TransitionalFailure,
   type WriteResult,
 } from '@entifix/core';
 import {
@@ -227,13 +227,13 @@ const brandVerbs: EntityUseCaseRunner = {
   run: (useCase, id) =>
     Effect.tryPromise({
       try: () => runVerb(useCase.key, id) as Promise<WriteResult<unknown>>,
-      catch: failure => failure as TransitionalFailure,
+      catch: failure => failure as EntifixFailure,
     }),
   bulk: (useCase, selection) =>
     Effect.tryPromise({
       try: () =>
         runBulk(useCase.key, selection) as Promise<readonly BulkOutcome[]>,
-      catch: failure => failure as TransitionalFailure,
+      catch: failure => failure as EntifixFailure,
     }),
 };
 
@@ -808,7 +808,7 @@ describe('the generated form', () => {
   // loading edit form "New" and then relabelled it.
   it('does not title a loading edit form as a create', async () => {
     slug = 'b-1';
-    repositories.brand.failNext(new EntifixConnError('unreachable'));
+    repositories.brand.failNext(new Unavailable({ dependency: 'unreachable' }));
 
     renderPage(<brandCrud.SingleViewPage />);
 
@@ -941,13 +941,12 @@ describe('the generated form', () => {
   });
 
   /**
-   * A rejection that is not an `EntifixError` keeps its own message rather than
-   * being relabelled with a code it never had: `useErrorMessage` falls back to
-   * the message when `details.code` is absent, so inventing one here would
-   * render the wrong catalog sentence with full confidence.
+   * A rejection that is not a typed failure is a bug that reached the screen:
+   * it is shown as `Internal`, never with its own text, which nobody wrote for
+   * a user.
    */
   it.each([
-    ['a plain Error', new Error('la red falló'), 'la red falló'],
+    ['a plain Error', new Error('la red falló'), 'Algo falló de nuestro lado.'],
     ['a thrown value with no message', 42, 'Algo falló de nuestro lado.'],
   ])('renders %s', async (_name, thrown, expected) => {
     slug = 'b-1';
@@ -1149,7 +1148,7 @@ describe('the generated form', () => {
     await waitFor(() =>
       expect(screen.getByLabelText(/nombre/i)).toHaveValue('Acme'),
     );
-    repositories.brand.failNext(new EntifixConnError('unreachable'));
+    repositories.brand.failNext(new Unavailable({ dependency: 'unreachable' }));
 
     await user.click(screen.getByRole('button', { name: button }));
 
@@ -1244,7 +1243,7 @@ describe('the generated form', () => {
     await waitFor(() =>
       expect(screen.getByLabelText(/nombre/i)).toHaveValue('Acme'),
     );
-    repositories.brand.failNext(new EntifixConnError('unreachable'));
+    repositories.brand.failNext(new Unavailable({ dependency: 'unreachable' }));
 
     await user.click(screen.getByRole('button', { name: 'Guardar' }));
 
@@ -1818,7 +1817,7 @@ describe('the generated form, writing through a writer that answers both modes',
     await typeName('Hooli');
 
     await waitFor(() =>
-      expect(screen.getByText(/no PendingFlowStore/)).toBeVisible(),
+      expect(screen.getByText('Algo falló de nuestro lado.')).toBeVisible(),
     );
     expect(screen.getByLabelText(/nombre/i)).toHaveValue('Hooli');
   });

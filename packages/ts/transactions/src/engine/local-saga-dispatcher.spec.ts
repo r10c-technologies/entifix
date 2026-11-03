@@ -1,4 +1,4 @@
-import { EntifixConnError, EntifixLogicError } from '@entifix/core';
+import { Unavailable } from '@entifix/core';
 import { Cause, Effect, Exit } from 'effect';
 import { describe, expect, it } from 'vitest';
 
@@ -41,7 +41,7 @@ describe('makeLocalSagaDispatcher', () => {
   it('passes a refusal and a connection failure through unchanged', async () => {
     const dispatcher = makeLocalSagaDispatcher({
       payment: () => Effect.succeed({ ok: false, status: 409, body: {} }),
-      stock: () => Effect.fail(new EntifixConnError('down')),
+      stock: () => Effect.fail(new Unavailable({ dependency: 'down' })),
     });
 
     const refused = await Effect.runPromise(
@@ -77,7 +77,7 @@ describe('makeLocalSagaDispatcher', () => {
     expect(Exit.isFailure(exit)).toBe(true);
     if (Exit.isFailure(exit)) {
       expect(Cause.hasDies(exit.cause)).toBe(true);
-      expect(Cause.squash(exit.cause)).toBeInstanceOf(EntifixLogicError);
+      expect(Cause.squash(exit.cause)).toBeInstanceOf(Error);
     }
   });
 

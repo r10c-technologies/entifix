@@ -24,7 +24,7 @@ export const sessionToken = async (): Promise<string | undefined> =>
  * same way — the per-backend proxy, the auth shell's hand-written handlers, and
  * the record search fan-out — and none of them grants anything by doing so. They
  * only carry; the service still verifies the token and applies its own
- * `requirePermission`.
+ * the endpoint's `guard`.
  */
 export const bearerHeader = (
   token: string | undefined,

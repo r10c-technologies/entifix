@@ -1,6 +1,7 @@
 import { Effect } from 'effect';
 
-import { EntifixBuildError } from '../../base-entities/entifix-error/index.js';
+import { ProtocolFailure } from '../../failure/generic.js';
+import { messageOf } from '../../failure/predicates.js';
 import { Entity, EntityConstructor, EntityId } from '../../types/Entity.js';
 import { extractMetaAccessors } from '../helpers/index.js';
 import { EntityCollectionLink } from '../links/entity-collection-link/index.js';
@@ -21,15 +22,10 @@ function assertEntityObject<TEntity extends Entity>(
   entityData: unknown,
 ): asserts entityData is object {
   if (typeof entityData !== 'object') {
-    throw new EntifixBuildError(
+    throw new Error(
       `Failed to deserialize entity of type ${
         entityConstructor.name
       }. Expected an object but got ${typeof entityData}`,
-      undefined,
-      {
-        entityData,
-        entityConstructor: entityConstructor.name,
-      },
     );
   }
 }
@@ -39,15 +35,10 @@ function assertEntityCollection<TEntity extends Entity>(
   entityCollectionData: unknown,
 ): asserts entityCollectionData is unknown[] {
   if (!Array.isArray(entityCollectionData)) {
-    throw new EntifixBuildError(
+    throw new Error(
       `Failed to deserialize entity collection of type ${
         entityConstructor.name
       }. Expected an array but got ${typeof entityCollectionData}`,
-      undefined,
-      {
-        entityCollectionData,
-        entityConstructor: entityConstructor.name,
-      },
     );
   }
 }
@@ -213,11 +204,12 @@ function deserializeCollection<TEntity extends Entity>(
 
 //#region Effect factories
 
-const toEntifixBuildError =
-  (message: string, context: Record<string, unknown>) => (error: unknown) =>
-    error instanceof EntifixBuildError
-      ? error
-      : new EntifixBuildError(message, error, context);
+// A record that does not build is a peer answering something unreadable: a
+// stored row or a served body that does not match the entity.
+const unreadable = (message: string) => (error: unknown) =>
+  new ProtocolFailure({
+    reason: `${message}: ${messageOf(error)}`,
+  });
 
 export const deserializeSingleEntity = <TEntity extends Entity>(
   entityConstructor: EntityConstructor<TEntity>,
@@ -225,12 +217,8 @@ export const deserializeSingleEntity = <TEntity extends Entity>(
 ) =>
   Effect.try({
     try: () => deserializeEntity(entityConstructor, entityData),
-    catch: toEntifixBuildError(
+    catch: unreadable(
       `Failed to deserialize entity of type ${entityConstructor.name}`,
-      {
-        entityData,
-        entityConstructor: entityConstructor.name,
-      },
     ),
   });
 
@@ -246,12 +234,8 @@ export const deserializeEntityCollection = <TEntity extends Entity>(
         entityCollectionData,
         failOnNull,
       ),
-    catch: toEntifixBuildError(
+    catch: unreadable(
       `Failed to deserialize entity collection of type ${entityConstructor.name}`,
-      {
-        entityCollectionData,
-        entityConstructor: entityConstructor.name,
-      },
     ),
   });
 

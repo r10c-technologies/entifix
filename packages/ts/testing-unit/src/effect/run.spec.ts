@@ -1,12 +1,12 @@
 import { ConfigurationRepositoryTag } from '@entifix/business';
-import { EntifixConnError } from '@entifix/core';
+import { Unavailable } from '@entifix/core';
 import { Effect, Exit, Layer } from 'effect';
 import { describe, expect, it } from 'vitest';
 
 import { stubUriConfigurationLayer } from '../doubles/configuration.js';
 import { expectFailure, run, runExit, runFailure, runUC } from './run.js';
 
-const failure = new EntifixConnError('unreachable');
+const failure = new Unavailable({ dependency: 'unreachable' });
 
 /** An Effect that needs something from its environment, for `runUC` to provide. */
 const needsConfiguration = Effect.gen(function* () {
@@ -29,7 +29,7 @@ describe('runUC', () => {
 });
 
 // Asserting on the error *value* is the point: "it failed with the
-// EntifixLockError the facade turns into a 409" beats "a promise rejected".
+// Contention the facade turns into a 409" beats "a promise rejected".
 describe('expectFailure', () => {
   it('returns the typed error', async () => {
     const error = await expectFailure(

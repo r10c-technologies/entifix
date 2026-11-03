@@ -4,7 +4,6 @@ import {
   accessor,
   applyEntityLinks,
   describeEntityColumns,
-  EntifixLogicError,
   Entity,
   entity,
   EntityCollectionLink,
@@ -145,7 +144,7 @@ describe('applyEntityLinks', () => {
 
     expect(() =>
       applyEntityLinks(product, descriptors, { brand: 'brand-3' }),
-    ).toThrow(EntifixLogicError);
+    ).toThrow(Error);
     expect(() =>
       applyEntityLinks(product, descriptors, { brand: 'brand-3' }),
     ).toThrow(/embedded relation/);

@@ -1,4 +1,4 @@
-import { EntifixConnError } from '@entifix/core';
+import { Unavailable } from '@entifix/core';
 import { Exit } from 'effect';
 import { describe, expect, it } from 'vitest';
 
@@ -31,7 +31,7 @@ describe('makeInMemoryFacetCounter', () => {
 
   it('fails the next count only, when told to', async () => {
     const counter = makeInMemoryFacetCounter([]);
-    counter.failNext(new EntifixConnError('down'));
+    counter.failNext(new Unavailable({ dependency: 'down' }));
 
     const failed = await runExit(
       counter.count<ContractWidget>([{ member: 'name' }]),

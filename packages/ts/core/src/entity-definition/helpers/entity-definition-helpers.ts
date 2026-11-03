@@ -1,6 +1,5 @@
 (Symbol as { metadata?: symbol }).metadata ??= Symbol.for('Symbol.metadata');
 
-import { EntifixBuildError } from '../../base-entities/entifix-error/index.js';
 import { Entity, EntityConstructor } from '../../types/Entity.js';
 import { UseCaseConstructor } from '../../types/UseCase.js';
 import {
@@ -30,7 +29,7 @@ function requireMetadata(
   metadata: DecoratorMetadataObject | undefined,
 ): DecoratorMetadataObject {
   if (!metadata) {
-    throw new EntifixBuildError(
+    throw new Error(
       'Decorator metadata unavailable — Symbol.metadata polyfill missing or stage-3 decorator emit not enabled.',
     );
   }
@@ -86,7 +85,7 @@ export function appendMetaUseCase<TEntity extends Entity>(
   const own = Object.getOwnPropertyDescriptor(target, Symbol.metadata)
     ?.value as DecoratorMetadataObject | null | undefined;
   if (!own) {
-    throw new EntifixBuildError(
+    throw new Error(
       `Use case "${metaUseCase.key}" targets ${target.name}, which has no metadata of its own — it is missing @entity(), or a circular import evaluated the use case first.`,
     );
   }
@@ -119,7 +118,7 @@ export function extractMetaEntity<TEntity extends Entity>(
   const metadata = readMetadata(target);
   const metaEntity = metadata?.[META_ENTITY_KEY] as MetaEntity | undefined;
   if (!metaEntity) {
-    throw new EntifixBuildError(`MetaEntity not found for ${target.name}`);
+    throw new Error(`MetaEntity not found for ${target.name}`);
   }
   return metaEntity;
 }
@@ -162,7 +161,7 @@ export function extractMetaUseCaseBinding(
   const binding = metadata?.[META_USE_CASE_BINDING_KEY] as
     MetaUseCaseBinding | undefined;
   if (!binding) {
-    throw new EntifixBuildError(
+    throw new Error(
       `MetaUseCase not found for ${target.name} — is it missing @useCase()?`,
     );
   }

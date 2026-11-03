@@ -5,6 +5,7 @@ import {
   countFacets,
   Declined,
   deserializeSingleEntity,
+  type EntifixFailure,
   type Entity,
   type EntityConstructor,
   type EntityFacetQuery,
@@ -14,7 +15,6 @@ import {
   extractMetaAccessors,
   NotFound,
   serializeEntity,
-  type TransitionalFailure,
 } from '@entifix/core';
 import { Effect } from 'effect';
 
@@ -31,7 +31,7 @@ const DEFAULT_PAGE_SIZE = 10;
  */
 function copyOf<TEntity extends Entity>(
   record: TEntity,
-): Effect.Effect<TEntity, TransitionalFailure> {
+): Effect.Effect<TEntity, EntifixFailure> {
   const entityConstructor = record.constructor as EntityConstructor<TEntity>;
   if (extractMetaAccessors(entityConstructor).length === 0) {
     return Effect.succeed(
@@ -46,7 +46,7 @@ function copyOf<TEntity extends Entity>(
   return deserializeSingleEntity(
     entityConstructor,
     serializeEntity(entityConstructor, record),
-  ) as Effect.Effect<TEntity, TransitionalFailure>;
+  ) as Effect.Effect<TEntity, EntifixFailure>;
 }
 
 export interface StaticRepositoryOptions {

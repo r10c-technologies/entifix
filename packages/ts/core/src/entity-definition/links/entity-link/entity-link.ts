@@ -1,6 +1,6 @@
 import { Effect } from 'effect';
 
-import type { TransitionalFailure } from '../../../failure/failure.js';
+import type { EntifixFailure } from '../../../failure/failure.js';
 import { Entity, EntityConstructor, EntityId } from '../../../types/Entity.js';
 
 /**
@@ -14,7 +14,7 @@ export interface EntityLinkResolver {
   resolve<TEntity extends Entity>(
     entityConstructor: EntityConstructor<TEntity>,
     id: EntityId,
-  ): Effect.Effect<TEntity, TransitionalFailure>;
+  ): Effect.Effect<TEntity, EntifixFailure>;
 }
 
 export interface EntityLinkInit<TEntity extends Entity> {
@@ -80,9 +80,7 @@ export class EntityLink<TEntity extends Entity> {
    * hits the resolver — use {@link resolve} to fetch only when not already
    * loaded.
    */
-  reload(
-    resolver: EntityLinkResolver,
-  ): Effect.Effect<TEntity, TransitionalFailure> {
+  reload(resolver: EntityLinkResolver): Effect.Effect<TEntity, EntifixFailure> {
     return resolver
       .resolve(this.entityConstructor, this.#id)
       .pipe(Effect.tap(value => Effect.sync(() => this.setValue(value))));
@@ -93,7 +91,7 @@ export class EntityLink<TEntity extends Entity> {
    */
   resolve(
     resolver: EntityLinkResolver,
-  ): Effect.Effect<TEntity, TransitionalFailure> {
+  ): Effect.Effect<TEntity, EntifixFailure> {
     return this.#value !== undefined
       ? Effect.succeed(this.#value)
       : this.reload(resolver);

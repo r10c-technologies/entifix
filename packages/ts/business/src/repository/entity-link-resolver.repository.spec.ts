@@ -1,11 +1,5 @@
-import {
-  accessor,
-  EntifixConnError,
-  EntifixLogicError,
-  type Entity,
-  entity,
-  type EntityId,
-} from '@entifix/core';
+import { Unavailable } from '@entifix/core';
+import { accessor, type Entity, entity, type EntityId } from '@entifix/core';
 import { Cause, Context, Effect, Exit, Option } from 'effect';
 import { describe, expect, it } from 'vitest';
 
@@ -72,12 +66,14 @@ const repositoryFor = (items: Entity[]) =>
       return found
         ? Effect.succeed(found)
         : Effect.fail(
-            new EntifixConnError(`No entity with id "${String(id)}"`),
+            new Unavailable({
+              dependency: `No entity with id "${String(id)}"`,
+            }),
           );
     },
-    load: () => Effect.fail(new EntifixLogicError('not used')),
-    save: () => Effect.fail(new EntifixLogicError('not used')),
-    delete: () => Effect.fail(new EntifixLogicError('not used')),
+    load: () => Effect.fail(new Error('not used')),
+    save: () => Effect.fail(new Error('not used')),
+    delete: () => Effect.fail(new Error('not used')),
   } as unknown as EntityRepositoryTag['Service']);
 
 const registrations = (): EntityLinkRegistration[] => [

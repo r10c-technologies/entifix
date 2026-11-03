@@ -3,7 +3,7 @@ import {
   applyFiltering,
   applySorting,
   deserializeSingleEntity,
-  type EntifixError,
+  type EntifixFailure,
   type Entity,
   type EntityConstructor,
   type EntityId,
@@ -27,7 +27,7 @@ import { Effect } from 'effect';
  */
 const copyOf = <TEntity extends Entity>(
   entity: TEntity,
-): Effect.Effect<TEntity, EntifixError> => {
+): Effect.Effect<TEntity, EntifixFailure> => {
   const entityConstructor = entity.constructor as EntityConstructor<TEntity>;
   if (extractMetaAccessors(entityConstructor).length === 0) {
     return Effect.succeed(
@@ -42,7 +42,7 @@ const copyOf = <TEntity extends Entity>(
   return deserializeSingleEntity(
     entityConstructor,
     serializeEntity(entityConstructor, entity),
-  ) as Effect.Effect<TEntity, EntifixError>;
+  ) as Effect.Effect<TEntity, EntifixFailure>;
 };
 
 export interface InMemoryEntityRepository extends EntityRepository {

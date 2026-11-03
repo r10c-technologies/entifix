@@ -11,6 +11,7 @@ import {
 } from '@entifix/business';
 import {
   describeEntityColumns,
+  type EntifixFailure,
   type Entity,
   type EntityConstructor,
   type EntityId,
@@ -22,8 +23,8 @@ import {
   extractMetaEntity,
   type FilterGroup,
   Internal,
+  isFailure,
   settled,
-  type TransitionalFailure,
   type UseCaseDescriptor,
 } from '@entifix/core';
 import { EntityTable, useCasesForSurface } from '@entifix/react-controls';
@@ -120,16 +121,12 @@ export function mergeCrudContext<TAdapters>(
  * A rejected write, as something the form's error slot can render.
  *
  * A typed failure is kept as it is: `useErrorMessage` translates its own code,
- * a business refusal and an outage alike. Anything else that carries a
- * message keeps it rather than being relabelled with a code it never had; a
- * thrown value with no message at all is `Internal`.
+ * a business refusal and an outage alike. Anything else is a bug that reached
+ * the screen, and is shown as `Internal` — never with its own text, which
+ * nobody wrote for a user.
  */
-function asFailure(failure: unknown): TransitionalFailure {
-  // A typed failure is an `Error` too — Effect's tagged errors extend it — so
-  // one check keeps both it and a legacy error carrying its own message.
-  return failure instanceof Error
-    ? (failure as TransitionalFailure)
-    : new Internal();
+function asFailure(failure: unknown): EntifixFailure {
+  return isFailure(failure) ? failure : new Internal();
 }
 
 /**
@@ -140,7 +137,7 @@ function asFailure(failure: unknown): TransitionalFailure {
  */
 function syncFailure(
   mutation: OptimisticMutation<never, unknown>,
-): TransitionalFailure | undefined {
+): EntifixFailure | undefined {
   return mutation.status === 'failed' && mutation.flowId === undefined
     ? asFailure(mutation.failure)
     : undefined;

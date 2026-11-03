@@ -2,6 +2,7 @@ import {
   type DomainEvent,
   type EntifixEnvelope,
   type EntityId,
+  messageOf,
 } from '@entifix/core';
 
 import type { TransactionOutcome } from '../ports/transaction-handler.js';
@@ -165,7 +166,7 @@ export const failedEvent = (
     entity: command.entity,
     state: 'FAILED',
     step: 'failed',
-    error: error instanceof Error ? error.message : String(error),
+    error: messageOf(error),
     at: now(),
     organizationId: command.organizationId,
   });

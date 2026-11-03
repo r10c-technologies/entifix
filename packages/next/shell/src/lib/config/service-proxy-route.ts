@@ -39,7 +39,7 @@ export interface ServiceProxyRouteOptions {
  *
  * The cookie is forwarded upstream as a bearer token. **This proxy grants
  * nothing** — the service still verifies the token and applies its own
- * `requirePermission`. It only carries.
+ * the endpoint's `guard`. It only carries.
  *
  * It also carries the **caching contract** in both directions, which it did not
  * always: rebuilding every response as a fresh body dropped `ETag`,

@@ -1,4 +1,4 @@
-import type { TransitionalFailure } from '@entifix/core';
+import type { EntifixFailure } from '@entifix/core';
 import {
   readTransactionRecordEnvelope,
   type TransactionRecord,
@@ -45,7 +45,7 @@ export const buildTransactionStatusReader = (
   return {
     read: (
       transactionId: string,
-    ): Effect.Effect<TransactionRecord | undefined, TransitionalFailure> =>
+    ): Effect.Effect<TransactionRecord | undefined, EntifixFailure> =>
       Effect.gen(function* () {
         const url = yield* adapterMixins.buildEntityBaseUrl(
           configuration,

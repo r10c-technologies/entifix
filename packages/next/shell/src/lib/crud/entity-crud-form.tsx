@@ -1,11 +1,11 @@
 'use client';
 
 import {
+  type EntifixFailure,
   type Entity,
   type EntityConstructor,
   type EntityMetadataSource,
   reconstructEntity,
-  type TransitionalFailure,
 } from '@entifix/core';
 import {
   EntityField,
@@ -40,7 +40,7 @@ export interface EntityCrudFormProps<TEntity extends Entity> {
   /** A write handed to a flow that has not settled: the form waits, keeping its input. */
   readonly isPending?: boolean;
   readonly isDeleting?: boolean;
-  readonly error?: TransitionalFailure;
+  readonly error?: EntifixFailure;
   readonly onSave: (entity: TEntity) => void;
   /** Omitted for a create — there is nothing to delete yet. */
   readonly onDelete?: () => void;

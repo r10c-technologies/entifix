@@ -1,9 +1,5 @@
 import { EntityIdTag, EntityTag } from '@entifix/business';
-import {
-  type Entity,
-  type EntityId,
-  type TransitionalFailure,
-} from '@entifix/core';
+import { type EntifixFailure, type Entity, type EntityId } from '@entifix/core';
 import { Context, Effect } from 'effect';
 import { useCallback, useReducer } from 'react';
 
@@ -56,7 +52,7 @@ export function useEntityMutation<TEntity extends Entity, TContext>({
         return saved;
       } catch (error) {
         dispatch({
-          set: { isSaving: false, error: error as TransitionalFailure },
+          set: { isSaving: false, error: error as EntifixFailure },
         });
         return undefined;
       }
@@ -75,7 +71,7 @@ export function useEntityMutation<TEntity extends Entity, TContext>({
         return true;
       } catch (error) {
         dispatch({
-          set: { isDeleting: false, error: error as TransitionalFailure },
+          set: { isDeleting: false, error: error as EntifixFailure },
         });
         return false;
       }

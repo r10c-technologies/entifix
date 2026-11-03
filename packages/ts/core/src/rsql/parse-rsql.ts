@@ -1,4 +1,3 @@
-import { EntifixBuildError } from '../base-entities/entifix-error/index.js';
 import {
   RSQL_AND,
   RSQL_COMPARISON_TOKENS,
@@ -39,7 +38,7 @@ const MAX_DEPTH = 16;
 const MAX_NODES = 128;
 
 const fail = (message: string, expression: string) =>
-  new EntifixBuildError(`Invalid RSQL: ${message}`, undefined, { expression });
+  new Error(`Invalid RSQL: ${message}`);
 
 /** A property name — the RSQL selector. Kept conservative on purpose. */
 const SELECTOR = /^[A-Za-z_][A-Za-z0-9_.-]*/;
@@ -256,7 +255,7 @@ function parseOr(cursor: Cursor, depth: number): RawFilter | RawFilterGroup {
  * properties against the metadata allowlist. Parsing alone never trusts the
  * input enough to build a query from it.
  *
- * Throws {@link EntifixBuildError} on malformed input, which services surface
+ * Throws an `Error` on malformed input, which services surface
  * as a `400`.
  */
 export function parseRsql(expression: string): RawFilterGroup {

@@ -1,4 +1,3 @@
-import { EntifixLogicError } from '../../../base-entities/entifix-error/index.js';
 import { Entity } from '../../../types/Entity.js';
 import { EntityCollectionLink } from '../entity-collection-link/index.js';
 import { EntityLink } from '../entity-link/index.js';
@@ -16,7 +15,7 @@ export function targetOf<TEntity extends Entity>(
 ): TEntity {
   const { value } = link;
   if (value === undefined) {
-    throw new EntifixLogicError(
+    throw new Error(
       `The link to ${link.entityConstructor.name} ${String(link.id)} was read before it was resolved`,
     );
   }
@@ -29,7 +28,7 @@ export function targetsOf<TEntity extends Entity>(
 ): TEntity[] {
   const { values } = links;
   if (values === undefined) {
-    throw new EntifixLogicError(
+    throw new Error(
       `The links to ${links.entityConstructor.name} were read before they were resolved`,
     );
   }
