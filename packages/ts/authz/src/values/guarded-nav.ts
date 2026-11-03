@@ -6,7 +6,7 @@ import type { ScreenType } from './screen-type.js';
  *
  * This is the permission-annotated half of navigation, which is why it lives with
  * the authorization vocabulary rather than in a shell: an entry and the route
- * behind it must be expressed in the same terms `requirePermission` enforces, and
+ * behind it must be expressed in the same terms an endpoint's `guard` enforces, and
  * `can` — the filter every layer applies — is declared right next to it.
  *
  * It is also the one package both a shell and the host application depend on.

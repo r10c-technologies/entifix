@@ -8,11 +8,9 @@ import {
   type TokenClaims,
   TokenServiceTag,
 } from '@entifix/business';
-import { ACCESS_COOKIE, Forbidden, Unauthenticated } from '@entifix/core';
+import { ACCESS_COOKIE } from '@entifix/core';
 import { Effect, Option } from 'effect';
 import { HttpServerRequest } from 'effect/http';
-
-import { refuse } from './failures.js';
 
 /** Extract a bearer token from an `Authorization` header, if present. */
 const bearerToken = (authorization: string | undefined): string | undefined => {
@@ -47,14 +45,6 @@ const claimsToPrincipal = (claims: TokenClaims): RequestPrincipal => ({
   attributes: {},
 });
 
-// `code` is a key in the shared `errors` catalog; `error` stays English for
-// logs. `permission` is deliberately still in the 403 — it says which grant was
-// missing, which is diagnostic, not a leak.
-const unauthenticated = refuse(new Unauthenticated());
-
-const forbidden = (permission: Permission) =>
-  refuse(new Forbidden({ permission }));
-
 /**
  * Resolve the caller's principal from the request, or `None`. Reads the token
  * from the `entifix_at` cookie (the Next app forwards it) or an
@@ -85,44 +75,3 @@ export const permits = (principal: RequestPrincipal, permission: Permission) =>
       action,
     });
   });
-
-/**
- * Guard a handler behind a valid access token — authentication only. Any
- * missing or invalid token is a `401`; the wrapped handler's own errors are
- * left intact.
- */
-export const requirePrincipal = <A, E, R>(
-  use: (principal: RequestPrincipal) => Effect.Effect<A, E, R>,
-) =>
-  Effect.gen(function* () {
-    const principal = yield* resolveRequestPrincipal;
-    if (Option.isNone(principal)) {
-      return yield* unauthenticated;
-    }
-    return yield* use(principal.value);
-  });
-
-/**
- * Guard a handler behind a permission. Authenticates as above, then asks
- * {@link PolicyDecisionTag} whether this subject may perform the action — so
- * the two failure modes stay distinguishable: `401` means "sign in", `403`
- * means "signed in, not allowed".
- *
- * **This is the authorization boundary.** Filtering a nav menu or hiding a page
- * is presentation; a route that skips this guard is open regardless.
- */
-export const requirePermission =
-  (permission: Permission) =>
-  <A, E, R>(use: (principal: RequestPrincipal) => Effect.Effect<A, E, R>) =>
-    Effect.gen(function* () {
-      const principal = yield* resolveRequestPrincipal;
-      if (Option.isNone(principal)) {
-        return yield* unauthenticated;
-      }
-
-      if (!(yield* permits(principal.value, permission))) {
-        return yield* forbidden(permission);
-      }
-
-      return yield* use(principal.value);
-    });

@@ -119,6 +119,36 @@ describe('flowAccepted', () => {
   });
 });
 
+describe('flowStatus', () => {
+  it('round-trips a failed flow with its failure, and refuses a state it does not know', async () => {
+    const status = {
+      meta: { type: 'flowStatus' },
+      data: {
+        flowId: 'flow-1',
+        state: 'failed',
+        step: 'capture',
+        failure: { code: 'paymentDeclined', category: 'declined' },
+      },
+    };
+
+    expect(
+      await run(decodeEnvelope(await run(encodeEnvelope(status)))),
+    ).toEqual(status);
+    expect(
+      (
+        await run(
+          Effect.flip(
+            decodeEnvelope({
+              ...status,
+              data: { flowId: 'flow-1', state: 'lost' },
+            }),
+          ),
+        )
+      ).category,
+    ).toBe('protocol');
+  });
+});
+
 describe('the flow capability', () => {
   it('verifies the nonce it was minted with', async () => {
     const capability = await run(makeFlowCapability());

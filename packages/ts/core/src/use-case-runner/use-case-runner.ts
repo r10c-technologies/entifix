@@ -2,10 +2,11 @@ import type { Effect } from 'effect';
 
 import type { UseCaseDescriptor } from '../entity-definition/describe/describe-entity-use-cases.js';
 import type { UseCaseBinding } from '../entity-definition/meta-entities/meta-use-case/meta-use-case.js';
-import type { TransitionalFailure } from '../failure/failure.js';
+import type { EntifixFailure } from '../failure/failure.js';
 import type { BulkOutcome } from '../types/BulkOutcome.js';
 import type { Entity, EntityId } from '../types/Entity.js';
 import type { EntitySelection } from '../types/EntitySelection.js';
+import type { WriteResult } from './write-result.js';
 
 /**
  * The path a verb is served at, from its entity's key, its own key and its
@@ -31,14 +32,18 @@ export const verbPath = (
  * a verb without knowing which.
  */
 export interface EntityUseCaseRunner {
-  /** Runs a verb on one record, or on nothing for an unbound verb. */
+  /**
+   * Runs a verb on one record, or on nothing for an unbound verb. A verb that
+   * starts a flow answers {@link Pending}; one that finished answers
+   * {@link Settled} with what the service sent back.
+   */
   run(
     useCase: UseCaseDescriptor,
     id?: EntityId,
-  ): Effect.Effect<void, TransitionalFailure>;
+  ): Effect.Effect<WriteResult<unknown>, EntifixFailure>;
   /** Runs a collection verb on a selection, one outcome per record. */
   bulk(
     useCase: UseCaseDescriptor,
     selection: EntitySelection<Entity>,
-  ): Effect.Effect<readonly BulkOutcome[], TransitionalFailure>;
+  ): Effect.Effect<readonly BulkOutcome[], EntifixFailure>;
 }

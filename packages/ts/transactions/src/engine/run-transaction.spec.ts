@@ -1,9 +1,5 @@
-import {
-  Contention,
-  type DomainEvent,
-  EntifixTransactionError,
-  Unavailable,
-} from '@entifix/core';
+import { Declined } from '@entifix/core';
+import { Contention, type DomainEvent, Unavailable } from '@entifix/core';
 import { Effect, Exit, Layer, Logger, References } from 'effect';
 import { describe, expect, it } from 'vitest';
 
@@ -51,10 +47,10 @@ const outcome: TransactionOutcome = { code: 'product-001', entityId: 'p-1' };
  */
 const makeWorld = (
   script: {
-    validate?: EntifixTransactionError;
+    validate?: Declined;
     lockKeys?: readonly string[];
-    execute?: EntifixTransactionError;
-    rollback?: EntifixTransactionError;
+    execute?: Declined;
+    rollback?: Declined;
     acquireFailsOn?: string;
     releaseFails?: boolean;
     duplicate?: boolean;
@@ -168,7 +164,7 @@ describe('the facade steps', () => {
   });
 
   it('validate surfaces the handler’s rejection', () => {
-    const failure = new EntifixTransactionError('illegal command');
+    const failure = new Declined({ reason: 'illegal command' });
     const world = makeWorld({ validate: failure });
 
     expect(
@@ -306,7 +302,7 @@ describe('acceptTransaction', () => {
 
   it('takes no lock and records nothing when validation rejects', () => {
     const world = makeWorld({
-      validate: new EntifixTransactionError('illegal'),
+      validate: new Declined({ reason: 'illegal' }),
     });
 
     const exit = Effect.runSyncExit(
@@ -364,7 +360,7 @@ describe('completeTransaction', () => {
 
   it('rolls back, records failure, then frees the locks when execute fails', () => {
     const world = makeWorld({
-      execute: new EntifixTransactionError('write failed'),
+      execute: new Declined({ reason: 'write failed' }),
     });
 
     Effect.runSync(
@@ -389,7 +385,7 @@ describe('completeTransaction', () => {
   // which is exactly why the port documents it as idempotent.
   it('rolls back with no outcome', () => {
     const world = makeWorld({
-      execute: new EntifixTransactionError('write failed'),
+      execute: new Declined({ reason: 'write failed' }),
     });
 
     Effect.runSync(
@@ -403,8 +399,8 @@ describe('completeTransaction', () => {
   // polling for a terminal state and would otherwise wait forever.
   it('still records failure and frees when rollback itself fails', () => {
     const world = makeWorld({
-      execute: new EntifixTransactionError('write failed'),
-      rollback: new EntifixTransactionError('rollback failed'),
+      execute: new Declined({ reason: 'write failed' }),
+      rollback: new Declined({ reason: 'rollback failed' }),
     });
 
     const exit = Effect.runSyncExit(
@@ -423,8 +419,8 @@ describe('completeTransaction', () => {
   // `FAILED` concludes the write was undone when it was not.
   it('logs the compensation failure it has to discard', () => {
     const world = makeWorld({
-      execute: new EntifixTransactionError('write failed'),
-      rollback: new EntifixTransactionError('rollback failed'),
+      execute: new Declined({ reason: 'write failed' }),
+      rollback: new Declined({ reason: 'rollback failed' }),
     });
     const logs: Array<{
       message: string;
@@ -467,7 +463,7 @@ describe('completeTransaction', () => {
   // that makes the stranded ones above harder to find.
   it('logs nothing when the compensation succeeds', () => {
     const world = makeWorld({
-      execute: new EntifixTransactionError('write failed'),
+      execute: new Declined({ reason: 'write failed' }),
     });
     const logs: string[] = [];
 
@@ -492,7 +488,7 @@ describe('completeTransaction', () => {
   // notices such a transaction.
   it('survives an outbox that cannot record the failure', () => {
     const world = makeWorld({
-      execute: new EntifixTransactionError('write failed'),
+      execute: new Declined({ reason: 'write failed' }),
       enqueueFails: true,
     });
 

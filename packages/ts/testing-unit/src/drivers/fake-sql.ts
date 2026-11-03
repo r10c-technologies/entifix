@@ -37,7 +37,7 @@ export interface FakeSqlClient {
    */
   respondTo(match: string, rows: ReadonlyArray<Record<string, unknown>>): void;
   /**
-   * Makes every subsequent execution fail, so the adapter's `EntifixConnError`
+   * Makes every subsequent execution fail, so the adapter's `Unavailable`
    * mapping is reachable.
    */
   failWith(message: string): void;

@@ -1,6 +1,6 @@
+import { Unavailable } from '@entifix/core';
 import {
   accessor,
-  EntifixConnError,
   type Entity,
   entity,
   type EntityFieldDescriptor,
@@ -240,11 +240,16 @@ describe('EntityLinkInput', () => {
   it('reports an empty quick search and one that failed', () => {
     const { source } = renderInput({
       source: fakeSource({
-        quick: { options: [], error: new EntifixConnError('offline') },
+        quick: {
+          options: [],
+          error: new Unavailable({ dependency: 'offline' }),
+        },
       }),
     });
 
-    expect(screen.getByRole('alert')).toHaveTextContent('offline');
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Servicio no disponible',
+    );
     expect(source.quick.options).toHaveLength(0);
   });
 

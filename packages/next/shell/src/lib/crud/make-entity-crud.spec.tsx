@@ -1,26 +1,38 @@
 import { EntityRepositoryTag } from '@entifix/business';
+import { Unavailable } from '@entifix/core';
 import {
   accessor,
   type BulkOutcome,
-  EntifixConnError,
+  type DomainEvent,
+  type EntifixFailure,
   type Entity,
   entity,
   type EntityDraft,
   type EntityId,
   type EntityMetadataSource,
   type EntityUseCaseRunner,
+  type EntityWriter,
   Failure,
-  type TransitionalFailure,
+  pending,
+  settled,
+  type WriteResult,
 } from '@entifix/core';
-import { EntityColumn } from '@entifix/react-controls';
+import {
+  EntityColumn,
+  ToastProvider,
+  ToastRegion,
+} from '@entifix/react-controls';
 import {
   EntifixQueryProvider,
+  type FlowStatusRead,
+  makeInMemoryPushChannel,
   makeQueryClient,
 } from '@entifix/react-integration';
 import { makeInMemoryEntityRepository } from '@entifix/testing-unit';
 import type { TransactionSink } from '@entifix/transactions';
 import { TransactionSinkTag } from '@entifix/transactions';
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -33,6 +45,7 @@ import { type ReactElement, useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { EntityNavProvider } from '../workspace/entity-nav.js';
+import { PendingFlowsProvider } from '../workspace/pending-flows.js';
 import { usePendingState } from '../workspace/pending-state.js';
 import { PendingTransactionsProvider } from '../workspace/pending-transactions.js';
 import { makeEntityCrud } from './make-entity-crud.js';
@@ -192,6 +205,7 @@ interface TestAdapters {
   productRest: Context.Context<EntityRepositoryTag>;
   brandMetadata: EntityMetadataSource;
   brandVerbs: EntityUseCaseRunner;
+  brandWrite: EntityWriter;
 }
 
 /**
@@ -212,22 +226,32 @@ let repositories: {
 const brandVerbs: EntityUseCaseRunner = {
   run: (useCase, id) =>
     Effect.tryPromise({
-      try: () => runVerb(useCase.key, id) as Promise<void>,
-      catch: failure => failure as TransitionalFailure,
+      try: () => runVerb(useCase.key, id) as Promise<WriteResult<unknown>>,
+      catch: failure => failure as EntifixFailure,
     }),
   bulk: (useCase, selection) =>
     Effect.tryPromise({
       try: () =>
         runBulk(useCase.key, selection) as Promise<readonly BulkOutcome[]>,
-      catch: failure => failure as TransitionalFailure,
+      catch: failure => failure as EntifixFailure,
     }),
 };
+
+// The writer forwards to two mocks, answering whichever mode a spec sets.
+const writeSave = vi.fn<(entity: Entity) => Promise<WriteResult<Entity>>>();
+const writeDelete =
+  vi.fn<(target: EntityId | Entity) => Promise<WriteResult<void>>>();
+const brandWrite = {
+  save: entity => Effect.promise(() => writeSave(entity)),
+  delete: target => Effect.promise(() => writeDelete(target)),
+} as EntityWriter;
 
 const useAdapters = (): TestAdapters => ({
   brandRest: Context.make(EntityRepositoryTag, repositories.brand),
   productRest: Context.make(EntityRepositoryTag, repositories.product),
   brandMetadata: { fetchMetadata: () => fetchMetadata() },
   brandVerbs,
+  brandWrite,
 });
 
 const brandCrud = makeEntityCrud<Brand, TestAdapters>(Brand, {
@@ -377,6 +401,8 @@ const renderPage = (page: ReactElement) =>
 beforeEach(() => {
   push.mockClear();
   runVerb.mockReset();
+  writeSave.mockReset();
+  writeDelete.mockReset();
   slug = 'new';
   repositories = {
     brand: makeInMemoryEntityRepository([
@@ -550,7 +576,7 @@ describe('the generated list page, opted into affordances', () => {
 
     it('runs a served row verb and re-reads the rows', async () => {
       const user = userEvent.setup();
-      runVerb.mockResolvedValue(undefined);
+      runVerb.mockResolvedValue(settled(undefined));
       fetchMetadata
         .mockReset()
         .mockResolvedValue({ actions: ['read'], useCases: [ARCHIVE] });
@@ -721,6 +747,28 @@ describe('the generated list page, opted into affordances', () => {
       expect(screen.getByTestId('bulk-result')).toBeInTheDocument(),
     );
   });
+
+  it('reports a bulk run whose request failed as every ticked row failing', async () => {
+    const user = userEvent.setup();
+    runBulk.mockReset().mockRejectedValue(new Error('la red falló'));
+    renderPage(<bulkBrandCrud.ListPage />);
+
+    await waitFor(() =>
+      expect(screen.getAllByText('Acme').length).toBeGreaterThan(0),
+    );
+    await user.click(
+      within(screen.getByRole('table')).getByRole('checkbox', {
+        name: 'Seleccionar brand-001',
+      }),
+    );
+    await user.click(await screen.findByRole('button', { name: 'Retirar' }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId('bulk-result')).toHaveTextContent(
+        '1 registro falló',
+      ),
+    );
+  });
 });
 
 describe('the generated form', () => {
@@ -760,7 +808,7 @@ describe('the generated form', () => {
   // loading edit form "New" and then relabelled it.
   it('does not title a loading edit form as a create', async () => {
     slug = 'b-1';
-    repositories.brand.failNext(new EntifixConnError('unreachable'));
+    repositories.brand.failNext(new Unavailable({ dependency: 'unreachable' }));
 
     renderPage(<brandCrud.SingleViewPage />);
 
@@ -844,6 +892,7 @@ describe('the generated form', () => {
           makeBrand('b-1', 'Acme Publicada', 'brand-001'),
         ),
       );
+      return settled(undefined);
     });
 
     renderPage(<verbBrandCrud.SingleViewPage />);
@@ -892,13 +941,12 @@ describe('the generated form', () => {
   });
 
   /**
-   * A rejection that is not an `EntifixError` keeps its own message rather than
-   * being relabelled with a code it never had: `useErrorMessage` falls back to
-   * the message when `details.code` is absent, so inventing one here would
-   * render the wrong catalog sentence with full confidence.
+   * A rejection that is not a typed failure is a bug that reached the screen:
+   * it is shown as `Internal`, never with its own text, which nobody wrote for
+   * a user.
    */
   it.each([
-    ['a plain Error', new Error('la red falló'), 'la red falló'],
+    ['a plain Error', new Error('la red falló'), 'Algo falló de nuestro lado.'],
     ['a thrown value with no message', 42, 'Algo falló de nuestro lado.'],
   ])('renders %s', async (_name, thrown, expected) => {
     slug = 'b-1';
@@ -1100,7 +1148,7 @@ describe('the generated form', () => {
     await waitFor(() =>
       expect(screen.getByLabelText(/nombre/i)).toHaveValue('Acme'),
     );
-    repositories.brand.failNext(new EntifixConnError('unreachable'));
+    repositories.brand.failNext(new Unavailable({ dependency: 'unreachable' }));
 
     await user.click(screen.getByRole('button', { name: button }));
 
@@ -1195,7 +1243,7 @@ describe('the generated form', () => {
     await waitFor(() =>
       expect(screen.getByLabelText(/nombre/i)).toHaveValue('Acme'),
     );
-    repositories.brand.failNext(new EntifixConnError('unreachable'));
+    repositories.brand.failNext(new Unavailable({ dependency: 'unreachable' }));
 
     await user.click(screen.getByRole('button', { name: 'Guardar' }));
 
@@ -1468,5 +1516,320 @@ describe('makeEntityCrud, with the metadata source named by adapter key', () => 
       expect(screen.getAllByText('Acme').length).toBeGreaterThan(0),
     );
     expect(fetchMetadata).toHaveBeenCalled();
+  });
+});
+
+describe('the generated form, writing through a writer that answers both modes', () => {
+  const writtenBrandCrud = makeEntityCrud<Brand, TestAdapters>(Brand, {
+    useAdapters,
+    basePath: '/catalog/brand',
+    catalogKey: 'product-brand',
+    repository: 'brandRest',
+    write: 'brandWrite',
+    hiddenFields: ['id', 'code'],
+    metadataSource: { fetchMetadata: () => fetchMetadata() },
+    useCases: 'brandVerbs',
+  });
+
+  const PUBLISH = {
+    key: 'publish',
+    binding: 'entity' as const,
+    placement: 'context-independent' as const,
+    labelKey: 'entity:product-brand.useCases.retire',
+  };
+
+  const flowEvent = (
+    name: 'flow.completed' | 'flow.failed',
+    failure?: { code: string; category: string },
+  ): DomainEvent => ({
+    name,
+    id: `f-1:${name}`,
+    source: 'catalog',
+    at: '2026-11-02T10:00:01.000Z',
+    data: {
+      flowId: 'f-1',
+      definition: 'brand',
+      slipVersion: 1,
+      ...(failure === undefined ? {} : { failure }),
+    },
+  });
+
+  const memoryStorage = () => {
+    const items = new Map<string, string>();
+    return {
+      getItem: (name: string) => items.get(name) ?? null,
+      setItem: (name: string, value: string) => {
+        items.set(name, value);
+      },
+    };
+  };
+
+  /** The page under the providers a host mounts once, around every route. */
+  const renderWithFlows = (
+    page: ReactElement | null,
+    readStatus?: FlowStatusRead,
+  ) => {
+    const channel = makeInMemoryPushChannel();
+    const storage = memoryStorage();
+    const tree = (inner: ReactElement | null) => (
+      <EntifixQueryProvider>
+        <ToastProvider>
+          <PendingFlowsProvider
+            scope="u-1:-"
+            channel={channel}
+            storage={storage}
+            {...(readStatus === undefined ? {} : { readStatus })}
+          >
+            {inner}
+          </PendingFlowsProvider>
+          <ToastRegion />
+        </ToastProvider>
+      </EntifixQueryProvider>
+    );
+    const view = render(tree(page));
+    return {
+      channel,
+      leave: () => view.rerender(tree(null)),
+      // The flow's topic is subscribed once the store has recorded it.
+      flowWatched: () =>
+        waitFor(() => expect(channel.topics()).toEqual(['flow:f-1'])),
+    };
+  };
+
+  beforeEach(() => {
+    fetchMetadata.mockReset().mockResolvedValue({
+      actions: ['read', 'write', 'delete'],
+      useCases: [PUBLISH],
+    });
+  });
+
+  const typeName = async (name: string) => {
+    const user = userEvent.setup();
+    const field = await screen.findByLabelText(/nombre/i);
+    await user.clear(field);
+    await user.type(field, name);
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+  };
+
+  it('keeps a failed pending create on its form, with its input and one translated toast', async () => {
+    writeSave.mockResolvedValue(pending('f-1'));
+    const draft = draftStore();
+    const { channel, flowWatched } = renderWithFlows(
+      <writtenBrandCrud.SingleViewPage draft={draft} />,
+    );
+
+    await typeName('Hooli');
+
+    expect(
+      await screen.findByRole('button', { name: 'Esperando al servidor…' }),
+    ).toBeDisabled();
+    await flowWatched();
+
+    const failed = flowEvent('flow.failed', {
+      code: 'alreadyRetired',
+      category: 'declined',
+    });
+    act(() => {
+      channel.emit(['flow:f-1'], failed);
+      channel.emit(['flow:f-1'], failed);
+    });
+
+    const alerts = await screen.findAllByRole('alert');
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]).toHaveTextContent(/ya estaba retirado/i);
+    expect(screen.getByLabelText(/nombre/i)).toHaveValue('Hooli');
+    expect(screen.queryByTestId(/form-error$/)).toBeNull();
+    expect(screen.getByRole('button', { name: 'Guardar' })).not.toBeDisabled();
+    expect(draft.clear).not.toHaveBeenCalled();
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it('returns to the list once a pending create completes', async () => {
+    writeSave.mockResolvedValue(pending('f-1'));
+    const draft = draftStore();
+    const { channel, flowWatched } = renderWithFlows(
+      <writtenBrandCrud.SingleViewPage draft={draft} />,
+    );
+
+    await typeName('Hooli');
+    await flowWatched();
+    act(() => channel.emit(['flow:f-1'], flowEvent('flow.completed')));
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/es/catalog/brand'));
+    expect(draft.clear).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not pull an operator who already left back to the list', async () => {
+    writeSave.mockResolvedValue(pending('f-1'));
+    const draft = draftStore();
+    const { channel, flowWatched, leave } = renderWithFlows(
+      <writtenBrandCrud.SingleViewPage draft={draft} />,
+    );
+
+    await typeName('Hooli');
+    await flowWatched();
+    leave();
+    act(() => channel.emit(['flow:f-1'], flowEvent('flow.completed')));
+
+    await waitFor(() => expect(draft.clear).toHaveBeenCalledTimes(1));
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it('returns to the list at once when the writer settles', async () => {
+    writeSave.mockImplementation(entity => Promise.resolve(settled(entity)));
+    renderWithFlows(<writtenBrandCrud.SingleViewPage />);
+
+    await typeName('Hooli');
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/es/catalog/brand'));
+    expect(writeSave.mock.calls[0]?.[0]).toMatchObject({ name: 'Hooli' });
+  });
+
+  it('deletes through the writer, settled or once its flow completes', async () => {
+    slug = 'b-1';
+    writeDelete.mockResolvedValueOnce(settled(undefined));
+    const user = userEvent.setup();
+    const loaded = () =>
+      waitFor(() =>
+        expect(screen.getByLabelText(/nombre/i)).toHaveValue('Acme'),
+      );
+    const first = renderWithFlows(<writtenBrandCrud.SingleViewPage />);
+
+    await loaded();
+    await user.click(screen.getByRole('button', { name: 'Eliminar' }));
+    await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
+    expect(writeDelete).toHaveBeenCalledWith('b-1');
+    first.leave();
+
+    writeDelete.mockResolvedValueOnce(pending('f-1'));
+    const { channel, flowWatched } = renderWithFlows(
+      <writtenBrandCrud.SingleViewPage />,
+    );
+    await loaded();
+    await user.click(screen.getByRole('button', { name: 'Eliminar' }));
+    await flowWatched();
+    act(() => channel.emit(['flow:f-1'], flowEvent('flow.completed')));
+
+    await waitFor(() => expect(push).toHaveBeenCalledTimes(2));
+  });
+
+  it('does not navigate for a pending delete that completes after its form was left', async () => {
+    slug = 'b-1';
+    writeDelete.mockResolvedValue(pending('f-1'));
+    const user = userEvent.setup();
+    const draft = draftStore();
+    const { channel, flowWatched, leave } = renderWithFlows(
+      <writtenBrandCrud.SingleViewPage draft={draft} />,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/nombre/i)).toHaveValue('Acme'),
+    );
+    await user.click(screen.getByRole('button', { name: 'Eliminar' }));
+    await flowWatched();
+    leave();
+    act(() => channel.emit(['flow:f-1'], flowEvent('flow.completed')));
+
+    await waitFor(() => expect(draft.clear).toHaveBeenCalledTimes(1));
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it('settles a pending create from its status read when the push was missed', async () => {
+    writeSave.mockResolvedValue(
+      pending('f-1', [{ rel: 'status', href: '/api/flow/f-1' }]),
+    );
+    const readStatus = vi.fn<FlowStatusRead>(() =>
+      Effect.succeed({ flowId: 'f-1', state: 'completed' }),
+    );
+    const { channel, flowWatched } = renderWithFlows(
+      <writtenBrandCrud.SingleViewPage />,
+      readStatus,
+    );
+
+    await typeName('Hooli');
+    await flowWatched();
+    act(() => channel.connect());
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/es/catalog/brand'));
+    expect(readStatus).toHaveBeenCalledWith('/api/flow/f-1');
+  });
+
+  it('reloads a record once the flow a verb was handed to completes', async () => {
+    slug = 'b-1';
+    runVerb.mockResolvedValue(pending('f-1'));
+    const { channel, flowWatched } = renderWithFlows(
+      <writtenBrandCrud.SingleViewPage />,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: /retirar/i }));
+    expect(
+      await screen.findByRole('button', { name: 'Esperando al servidor…' }),
+    ).toBeDisabled();
+    await flowWatched();
+
+    await Effect.runPromise(
+      repositories.brand.save(makeBrand('b-1', 'Acme Retirada', 'brand-001')),
+    );
+    act(() => channel.emit(['flow:f-1'], flowEvent('flow.completed')));
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/nombre/i)).toHaveValue('Acme Retirada'),
+    );
+  });
+
+  it('re-reads the rows once a row verb’s flow completes', async () => {
+    const user = userEvent.setup();
+    const ARCHIVE = {
+      ...PUBLISH,
+      key: 'archive',
+      placement: 'context-dependent' as const,
+    };
+    fetchMetadata.mockReset().mockResolvedValue({
+      actions: ['read'],
+      useCases: [ARCHIVE],
+    });
+    runVerb.mockResolvedValue(pending('f-1'));
+    const { channel, flowWatched } = renderWithFlows(
+      <writtenBrandCrud.ListPage />,
+    );
+
+    await waitFor(() =>
+      expect(screen.getAllByText('Acme').length).toBeGreaterThan(0),
+    );
+    await user.click(screen.getAllByRole('button', { name: 'Acciones' })[0]!);
+    await user.click(screen.getByRole('menuitem', { name: /retirar/i }));
+    await flowWatched();
+
+    await Effect.runPromise(
+      repositories.brand.save(makeBrand('b-1', 'Acme Archivada', 'brand-001')),
+    );
+    act(() => channel.emit(['flow:f-1'], flowEvent('flow.completed')));
+
+    await waitFor(() =>
+      expect(screen.getAllByText('Acme Archivada').length).toBeGreaterThan(0),
+    );
+  });
+
+  it('refuses a pending write it has no store to wait in, on the form', async () => {
+    writeSave.mockResolvedValue(pending('f-1'));
+    renderPage(<writtenBrandCrud.SingleViewPage />);
+
+    await typeName('Hooli');
+
+    await waitFor(() =>
+      expect(screen.getByText('Algo falló de nuestro lado.')).toBeVisible(),
+    );
+    expect(screen.getByLabelText(/nombre/i)).toHaveValue('Hooli');
+  });
+
+  it('refuses to wait on flows with no toast region to report them in', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    expect(() =>
+      render(
+        <PendingFlowsProvider scope="u-1:-" channel={makeInMemoryPushChannel()}>
+          {null}
+        </PendingFlowsProvider>,
+      ),
+    ).toThrow(/inside a ToastProvider/);
   });
 });

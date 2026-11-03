@@ -30,6 +30,7 @@ import {
   UpstreamUnavailable,
 } from './generic.js';
 import { Failure } from './index.js';
+import { messageOf } from './predicates.js';
 import { decodeProblem, PROBLEM_CONTENT_TYPE, problemOf } from './problem.js';
 import {
   failureTypeUri,
@@ -361,5 +362,15 @@ describe('the fleet-generic failures', () => {
     expect(problemOf(new IdempotencyKeyMissing()).status).toBe(400);
     expect(problemOf(new IdempotencyKeyReused()).status).toBe(422);
     expect(problemOf(new IdempotencyKeyInFlight()).status).toBe(409);
+  });
+});
+
+describe('messageOf', () => {
+  it('reads a message off anything that carries one, and stringifies the rest', () => {
+    expect(messageOf(new TypeError('boom'))).toBe('boom');
+    expect(messageOf({ message: 'shaped' })).toBe('shaped');
+    expect(messageOf({ message: 42 })).toBe('[object Object]');
+    expect(messageOf(null)).toBe('null');
+    expect(messageOf('raw')).toBe('raw');
   });
 });

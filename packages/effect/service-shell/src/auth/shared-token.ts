@@ -1,11 +1,5 @@
 import { timingSafeEqual } from 'node:crypto';
 
-import { Unauthenticated } from '@entifix/core';
-import { Effect } from 'effect';
-import { HttpServerRequest } from 'effect/http';
-
-import { refuse } from './failures.js';
-
 /**
  * A secret every caller of a route presents in one header.
  *
@@ -40,31 +34,3 @@ export const tokenMatches = (
   // first — the length of a shared secret is not what protects it.
   return left.length === right.length && timingSafeEqual(left, right);
 };
-
-/**
- * Serves `route` only to a caller presenting the shared token.
- *
- * ⚠️ This is **not** identity: every caller presents the same value, so it
- * proves membership of whatever group holds the secret and nothing more. It is
- * the right shape for a route whose readers are machines — a fleet fetching its
- * configuration at boot, tooling reading a service's wiring — and the wrong one
- * for anything a person or a browser reaches.
- *
- * Health endpoints should stay unguarded: a probe cannot hold a credential, and
- * a readiness check that needs one becomes an authentication problem.
- */
-export const requireSharedToken =
-  (shared: SharedToken) =>
-  <A, E, R>(route: Effect.Effect<A, E, R>) =>
-    // The return type is inferred rather than written out: `HttpServerResponse.json`
-    // contributes an `HttpBodyError` to the failure channel, and spelling the type
-    // out while omitting it is what makes `tsc` refuse the declaration emit.
-    Effect.gen(function* () {
-      const request = yield* HttpServerRequest.HttpServerRequest;
-
-      if (!tokenMatches(request.headers[shared.header], shared.token())) {
-        return yield* refuse(new Unauthenticated());
-      }
-
-      return yield* route;
-    });

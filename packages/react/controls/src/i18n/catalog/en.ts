@@ -52,6 +52,7 @@ export const controls: EsControls = {
     moreActions: 'More actions',
     back: 'Back',
     loading: 'Loading…',
+    pending: 'Waiting for the server…',
   },
   pagination: {
     label: 'Pages',
@@ -197,6 +198,10 @@ export const controls: EsControls = {
     confirm: 'Confirm',
     cancel: 'Cancel',
     title: 'Confirm',
+  },
+  toast: {
+    region: 'Notifications',
+    dismiss: 'Dismiss',
   },
   breadcrumbs: {
     label: 'Breadcrumb',

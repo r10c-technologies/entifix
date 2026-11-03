@@ -1,7 +1,7 @@
 import { Cause, Effect, Exit, Option } from 'effect';
 import { describe, expect, it } from 'vitest';
 
-import { EntifixBuildError } from '../../base-entities/entifix-error/index.js';
+import { ProtocolFailure } from '../../failure/index.js';
 import type { Entity, EntityId } from '../../types/Entity.js';
 import { accessor } from '../decorators/accessor/index.js';
 import { entity } from '../decorators/entity/index.js';
@@ -97,7 +97,7 @@ class Article implements Entity {
 const deserialize = (data: unknown) =>
   Effect.runPromise(deserializeSingleEntity(Article, data));
 
-const failureOf = async (effect: Effect.Effect<unknown, EntifixBuildError>) => {
+const failureOf = async (effect: Effect.Effect<unknown, ProtocolFailure>) => {
   const exit = await Effect.runPromiseExit(effect);
   if (Exit.isSuccess(exit)) throw new Error('expected a failure');
   const failure = Cause.findErrorOption(exit.cause);
@@ -165,7 +165,7 @@ describe('deserializeSingleEntity', () => {
   it('fails on a non-object payload, naming the type it got', async () => {
     const error = await failureOf(deserializeSingleEntity(Article, 'raw'));
 
-    expect(error).toBeInstanceOf(EntifixBuildError);
+    expect(error).toBeInstanceOf(Error);
     expect(error.message).toContain('Expected an object but got string');
   });
 
@@ -324,7 +324,7 @@ describe('deserializeEntityCollection', () => {
     expect(error.message).toContain('Expected an object but got string');
   });
 
-  it('wraps a non-EntifixBuildError thrown during the build', async () => {
+  it('reports an error thrown during the build as an unreadable record', async () => {
     const exploding = {
       get id() {
         throw new TypeError('boom');
@@ -333,8 +333,8 @@ describe('deserializeEntityCollection', () => {
 
     const error = await failureOf(deserializeSingleEntity(Article, exploding));
 
-    expect(error).toBeInstanceOf(EntifixBuildError);
-    expect(error.cause?.message).toBe('boom');
+    expect(error).toBeInstanceOf(ProtocolFailure);
+    expect(error.message).toContain('boom');
   });
 });
 

@@ -1,210 +1,64 @@
-import { makeStaticPolicyDecision, PolicyDecisionTag } from '@entifix/authz';
-import {
-  InvalidToken,
-  type TokenClaims,
-  TokenServiceTag,
-} from '@entifix/business';
-import { Effect, Layer } from 'effect';
-import { HttpRouter, HttpServerResponse } from 'effect/http';
+import { type TokenClaims, TokenServiceTag } from '@entifix/business';
+import { ACCESS_COOKIE, Unauthenticated } from '@entifix/core';
+import { Effect, Option } from 'effect';
+import { HttpServerRequest } from 'effect/http';
+import { describe, expect, it } from 'vitest';
 
-import { serveTestService } from '../serve-test-service.js';
-import { requirePermission, requirePrincipal } from './require-principal.js';
+import { resolveRequestPrincipal } from './require-principal.js';
 
-/**
- * A stand-in token service: the token IS its JSON claims, and anything that
- * does not parse is rejected. Keeps the guard under test rather than jose.
- */
-const fakeTokens = TokenServiceTag.of({
-  sign: claims => Effect.succeed(JSON.stringify(claims)),
-  verify: token =>
-    Effect.try({
-      try: () => JSON.parse(token) as TokenClaims,
-      catch: () => new InvalidToken(),
-    }),
+const claims: TokenClaims = {
+  userId: 'u-1',
+  subject: 'sub-1',
+  sessionId: 's-1',
+  roles: ['admin'],
+  activeOrganizationId: 'org-1',
+};
+
+const tokens = (answer: TokenClaims | undefined) => ({
+  verify: (token: string) =>
+    answer !== undefined && token === 'good'
+      ? Effect.succeed(answer)
+      : Effect.fail(new Unauthenticated()),
 });
 
-const tokenFor = (roles: readonly string[]): string =>
-  JSON.stringify({
-    userId: 'user-1',
-    subject: 'user-1',
-    sessionId: 'session-1',
-    roles,
-  } satisfies TokenClaims);
-
-const router = HttpRouter.addAll([
-  HttpRouter.route(
-    'GET',
-    '/api/me',
-    requirePrincipal(principal => HttpServerResponse.json(principal)),
-  ),
-  HttpRouter.route(
-    'GET',
-    '/api/users',
-    requirePermission('authn:user-identity:read')(principal =>
-      HttpServerResponse.json({ roles: principal.roles }),
+const resolve = (
+  headers: Record<string, string>,
+  answer: TokenClaims | undefined = claims,
+) =>
+  Effect.runPromise(
+    resolveRequestPrincipal.pipe(
+      Effect.provideService(
+        HttpServerRequest.HttpServerRequest,
+        HttpServerRequest.fromWeb(new Request('http://svc/x', { headers })),
+      ),
+      Effect.provideService(TokenServiceTag, tokens(answer) as never),
     ),
-  ),
-]);
+  );
 
-/**
- * The grant table this spec authorizes against.
- *
- * ⚠️ **The shell's own, not an application's.** These specs used to authorize
- * through a host's grant table, which is exactly the coupling a framework must
- * not have: a shell is supposed to take a grant table, so its tests supply one.
- */
-const GRANTS = {
-  admin: ['authn:user-identity:read'],
-  user: [],
-} as const;
-
-const definition = {
-  name: 'spec-auth-service',
-  port: 0,
-  slices: ['test'],
-  router,
-  appLayer: Layer.mergeAll(
-    Layer.succeed(TokenServiceTag, fakeTokens),
-    Layer.succeed(PolicyDecisionTag, makeStaticPolicyDecision(GRANTS)),
-  ),
-};
-
-const withService = async (
-  use: (baseUrl: string) => Promise<void>,
-): Promise<void> => {
-  const service = await serveTestService(definition);
-  try {
-    await use(service.baseUrl);
-  } finally {
-    await service.close();
-  }
-};
-
-describe('requirePrincipal', () => {
-  it('rebuilds the principal from a bearer token', async () => {
-    await withService(async baseUrl => {
-      const res = await fetch(`${baseUrl}/api/me`, {
-        headers: { Authorization: `Bearer ${tokenFor(['admin'])}` },
-      });
-
-      expect(res.status).toBe(200);
-      expect(await res.json()).toEqual({
-        userId: 'user-1',
-        subject: 'user-1',
-        sessionId: 'session-1',
-        roles: ['admin'],
-        entitlements: [],
-        // Volatile attributes never ride in the token.
-        attributes: {},
-      });
+describe('resolveRequestPrincipal', () => {
+  it('rebuilds the principal from a bearer token, carrying its expiry', async () => {
+    const principal = await resolve(
+      { authorization: 'Bearer good' },
+      { ...claims, exp: 1_900_000_000 },
+    );
+    expect(Option.getOrThrow(principal)).toMatchObject({
+      userId: 'u-1',
+      organizationId: 'org-1',
+      expiresAt: 1_900_000_000,
+      entitlements: [],
     });
   });
 
-  // A held-open stream has no next request to fail verification,
-  // so the stream route reads this and closes the connection itself.
-  it('carries the token expiry through to the principal', async () => {
-    await withService(async baseUrl => {
-      const res = await fetch(`${baseUrl}/api/me`, {
-        headers: {
-          Authorization: `Bearer ${JSON.stringify({
-            userId: 'user-1',
-            subject: 'user-1',
-            sessionId: 'session-1',
-            roles: [],
-            exp: 1_800_000_000,
-          } satisfies TokenClaims)}`,
-        },
-      });
-
-      expect(await res.json()).toMatchObject({ expiresAt: 1_800_000_000 });
-    });
+  it('reads the forwarded cookie, and leaves an absent expiry unset', async () => {
+    const principal = await resolve({ cookie: `${ACCESS_COOKIE}=good` });
+    expect(Option.getOrThrow(principal).expiresAt).toBeUndefined();
   });
 
-  it('leaves the expiry unset when the token carries no exp', async () => {
-    await withService(async baseUrl => {
-      const res = await fetch(`${baseUrl}/api/me`, {
-        headers: { Authorization: `Bearer ${tokenFor(['admin'])}` },
-      });
-
-      expect(await res.json()).not.toHaveProperty('expiresAt');
-    });
-  });
-
-  it('accepts the token from the forwarded cookie too', async () => {
-    await withService(async baseUrl => {
-      const res = await fetch(`${baseUrl}/api/me`, {
-        headers: { Cookie: `entifix_at=${tokenFor(['user'])}` },
-      });
-
-      expect(res.status).toBe(200);
-    });
-  });
-
-  it('401s without a token', async () => {
-    await withService(async baseUrl => {
-      const res = await fetch(`${baseUrl}/api/me`);
-
-      expect(res.status).toBe(401);
-      expect(await res.json()).toMatchObject({
-        code: 'unauthenticated',
-      });
-    });
-  });
-
-  it('401s on a token the service cannot verify', async () => {
-    await withService(async baseUrl => {
-      const res = await fetch(`${baseUrl}/api/me`, {
-        headers: { Authorization: 'Bearer not-a-token' },
-      });
-
-      expect(res.status).toBe(401);
-    });
-  });
-
-  it('ignores a non-bearer authorization scheme', async () => {
-    await withService(async baseUrl => {
-      const res = await fetch(`${baseUrl}/api/me`, {
-        headers: { Authorization: `Basic ${tokenFor(['admin'])}` },
-      });
-
-      expect(res.status).toBe(401);
-    });
-  });
-});
-
-describe('requirePermission', () => {
-  it('runs the handler when the policy allows the action', async () => {
-    await withService(async baseUrl => {
-      const res = await fetch(`${baseUrl}/api/users`, {
-        headers: { Authorization: `Bearer ${tokenFor(['admin'])}` },
-      });
-
-      expect(res.status).toBe(200);
-      expect(await res.json()).toEqual({ roles: ['admin'] });
-    });
-  });
-
-  // The distinction is the whole point: a 401 tells the client to sign in, a
-  // 403 tells it that signing in again will not help.
-  it('403s an authenticated caller the policy denies', async () => {
-    await withService(async baseUrl => {
-      const res = await fetch(`${baseUrl}/api/users`, {
-        headers: { Authorization: `Bearer ${tokenFor(['user'])}` },
-      });
-
-      expect(res.status).toBe(403);
-      expect(await res.json()).toMatchObject({
-        code: 'forbidden',
-        permission: 'authn:user-identity:read',
-      });
-    });
-  });
-
-  it('401s an unauthenticated caller before consulting the policy', async () => {
-    await withService(async baseUrl => {
-      const res = await fetch(`${baseUrl}/api/users`);
-
-      expect(res.status).toBe(401);
-    });
+  it.each([
+    ['no token', {}],
+    ['a non-bearer scheme', { authorization: 'Basic good' }],
+    ['a token that does not verify', { authorization: 'Bearer bad' }],
+  ])('answers nobody for %s', async (_label, headers) => {
+    expect(Option.isNone(await resolve(headers))).toBe(true);
   });
 });

@@ -1,5 +1,6 @@
 import { EntityLoadRequestTag } from '@entifix/business';
 import {
+  type EntifixFailure,
   type Entity,
   type EntityLoadRequest,
   type EntityPage,
@@ -7,7 +8,6 @@ import {
   type FilterGroup,
   serializeRsql,
   serializeSort,
-  type TransitionalFailure,
 } from '@entifix/core';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Context, Effect } from 'effect';
@@ -140,7 +140,7 @@ export function useDataLoading<TEntity extends Entity, TContext>({
   const instanceId = useId();
   const scope = queryKey ?? [instanceId];
 
-  const query = useQuery<EntityPage<TEntity>, TransitionalFailure>({
+  const query = useQuery<EntityPage<TEntity>, EntifixFailure>({
     enabled,
     /**
      * Page, size, filter and sort are all part of the key, so every one of them

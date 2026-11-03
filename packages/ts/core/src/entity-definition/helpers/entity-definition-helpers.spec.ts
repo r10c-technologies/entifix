@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 
-import { EntifixBuildError } from '../../base-entities/entifix-error/index.js';
 import type {
   Entity,
   EntityConstructor,
@@ -163,7 +162,7 @@ describe('@method', () => {
 
 describe('extractors on an undecorated class', () => {
   it('fails loudly for a missing MetaEntity, naming the class', () => {
-    expect(() => extractMetaEntity(Bare)).toThrow(EntifixBuildError);
+    expect(() => extractMetaEntity(Bare)).toThrow(Error);
     expect(() => extractMetaEntity(Bare)).toThrow(
       /MetaEntity not found for Bare/,
     );
@@ -241,6 +240,6 @@ describe('metadata carried on a null slot', () => {
     } as unknown as EntityConstructor<Entity>;
 
     expect(extractMetaAccessors(target)).toEqual([]);
-    expect(() => extractMetaEntity(target)).toThrow(EntifixBuildError);
+    expect(() => extractMetaEntity(target)).toThrow(Error);
   });
 });

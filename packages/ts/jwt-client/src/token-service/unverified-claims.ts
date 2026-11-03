@@ -21,7 +21,7 @@ const decodeSegment = (segment: string): unknown => {
  * ⚠️ This proves nothing. A caller can forge any claims it likes. Use it only
  * for presentation — deciding which nav entries to render, say — where being
  * wrong costs a menu item and every request behind that item is still refused
- * by the service's `requirePermission`. Never branch on it for access.
+ * by the service's endpoint guards. Never branch on it for access.
  *
  * It exists so a Next server component can shape a menu without either calling
  * a service on every render or copying `jwt.secret` out of config-service into

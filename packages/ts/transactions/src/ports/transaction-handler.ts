@@ -1,4 +1,4 @@
-import type { EntifixError, EntityId } from '@entifix/core';
+import type { EntifixFailure, EntityId } from '@entifix/core';
 import { Context, type Effect } from 'effect';
 
 import type { TransactionCommand } from '../contracts/command.js';
@@ -21,7 +21,7 @@ export interface TransactionOutcome {
  */
 export interface TransactionHandler {
   /** Reject a malformed/illegal command (surfaced as `400`). */
-  validate(command: TransactionCommand): Effect.Effect<void, EntifixError>;
+  validate(command: TransactionCommand): Effect.Effect<void, EntifixFailure>;
   /** The resource keys to lock for this command (e.g. the code sequence). */
   lockKeys(command: TransactionCommand): readonly string[];
   /**
@@ -46,7 +46,7 @@ export interface TransactionHandler {
    */
   execute(
     command: TransactionCommand,
-  ): Effect.Effect<TransactionOutcome, EntifixError>;
+  ): Effect.Effect<TransactionOutcome, EntifixFailure>;
   /**
    * Undo a failed execution. Must be idempotent (e.g. delete-if-exists), since
    * the recovery sweep may reach a transaction whose rollback already ran.
@@ -65,7 +65,7 @@ export interface TransactionHandler {
   rollback(
     command: TransactionCommand,
     outcome: TransactionOutcome | undefined,
-  ): Effect.Effect<void, EntifixError>;
+  ): Effect.Effect<void, EntifixFailure>;
 }
 
 export class TransactionHandlerTag extends Context.Service<

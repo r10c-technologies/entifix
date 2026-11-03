@@ -1,7 +1,7 @@
 import {
+  type EntifixFailure,
   type Entity,
   type EntityLinkResolver,
-  type TransitionalFailure,
 } from '@entifix/core';
 import { Effect } from 'effect';
 
@@ -18,9 +18,7 @@ export type LinkMember<TEntity> = {
 }[keyof TEntity & string];
 
 type ResolvableLink = {
-  resolve(
-    resolver: EntityLinkResolver,
-  ): Effect.Effect<unknown, TransitionalFailure>;
+  resolve(resolver: EntityLinkResolver): Effect.Effect<unknown, EntifixFailure>;
 };
 
 /**

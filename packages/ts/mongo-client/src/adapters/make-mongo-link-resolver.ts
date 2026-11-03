@@ -1,10 +1,10 @@
 import { EntityLinkResolverTag } from '@entifix/business';
 import {
+  type EntifixFailure,
   Entity,
   EntityConstructor,
   EntityLinkResolver,
   Internal,
-  type TransitionalFailure,
 } from '@entifix/core';
 import { Context, Effect } from 'effect';
 import type { Db } from 'mongodb';
@@ -43,7 +43,7 @@ export function makeMongoLinkResolver(
       }
       return repository.get(id) as unknown as Effect.Effect<
         never,
-        TransitionalFailure
+        EntifixFailure
       >;
     },
   };

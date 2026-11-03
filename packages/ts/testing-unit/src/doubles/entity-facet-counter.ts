@@ -1,7 +1,7 @@
 import type { EntityFacetCounter } from '@entifix/business';
 import {
   countFacets,
-  type EntifixError,
+  type EntifixFailure,
   type Entity,
   type EntityFacetQuery,
 } from '@entifix/core';
@@ -12,7 +12,7 @@ export interface InMemoryEntityFacetCounter extends EntityFacetCounter {
    * Makes the next count fail with `error`, so a caller's degraded path is
    * reachable without reaching for a mocking library.
    */
-  failNext(error: EntifixError): void;
+  failNext(error: EntifixFailure): void;
 }
 
 /**
@@ -26,7 +26,7 @@ export interface InMemoryEntityFacetCounter extends EntityFacetCounter {
 export const makeInMemoryFacetCounter = (
   source: readonly Entity[] | { readonly items: readonly Entity[] },
 ): InMemoryEntityFacetCounter => {
-  let pendingFailure: EntifixError | undefined;
+  let pendingFailure: EntifixFailure | undefined;
   const records = () => ('items' in source ? source.items : source);
 
   return {

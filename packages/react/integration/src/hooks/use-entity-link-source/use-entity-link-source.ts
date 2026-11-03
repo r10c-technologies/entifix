@@ -3,11 +3,11 @@
 import { EntityIdTag, EntityLoadRequestTag } from '@entifix/business';
 import {
   describeEntityColumns,
+  type EntifixFailure,
   type Entity,
   type EntityLinkSource,
   type EntityLoadRequest,
   type EntityPage,
-  type TransitionalFailure,
 } from '@entifix/core';
 import { useQuery } from '@tanstack/react-query';
 import { Context, Effect } from 'effect';
@@ -150,7 +150,7 @@ export function useEntityLinkSource<TTarget extends Entity, TContext>(
     return request;
   }, [baseFiltering, debouncedTerm, quickPageSize, searchProperty]);
 
-  const quickQuery = useQuery<EntityPage<TTarget>, TransitionalFailure>({
+  const quickQuery = useQuery<EntityPage<TTarget>, EntifixFailure>({
     queryKey: [
       ...entityQueryKey(entityConstructor, quickRequest),
       'link-quick',
@@ -182,7 +182,7 @@ export function useEntityLinkSource<TTarget extends Entity, TContext>(
   const needsLabel =
     selectedEntity === undefined && selectedId != null && getUc !== undefined;
 
-  const labelQuery = useQuery<TTarget, TransitionalFailure>({
+  const labelQuery = useQuery<TTarget, EntifixFailure>({
     queryKey: [
       ...entityQueryScope(entityConstructor),
       'link-label',

@@ -1,4 +1,3 @@
-import { EntifixBuildError } from '../base-entities/entifix-error/index.js';
 import { EntityCollectionLink } from '../entity-definition/links/entity-collection-link/index.js';
 import { EntityLink } from '../entity-definition/links/entity-link/index.js';
 import type { Entity } from '../types/Entity.js';
@@ -197,7 +196,7 @@ function positiveTest<TEntity extends Entity>(
     default: {
       // Exhaustiveness guard — a new operator must be handled explicitly.
       const never: never = filter;
-      throw new EntifixBuildError(
+      throw new Error(
         `Unknown filter operator "${String((never as { operator: unknown }).operator)}"`,
       );
     }

@@ -1,5 +1,5 @@
 import { queueNameFor } from '@entifix/amqp/transactions';
-import { EntifixConnError } from '@entifix/core';
+import { Unavailable } from '@entifix/core';
 import { MongoClientTag, MongoDatabaseTag } from '@entifix/mongo';
 import {
   ensureInboxIndexes,
@@ -63,11 +63,7 @@ export const startOrderStatsProjection = Effect.gen(function* () {
       Effect.catch(error =>
         isDuplicateKey(error)
           ? Effect.void
-          : Effect.fail(
-              new EntifixConnError('Failed to project an order', error, {
-                eventId: event.id,
-              }),
-            ),
+          : Effect.fail(new Unavailable({ dependency: 'mongo' })),
       ),
     ),
   );

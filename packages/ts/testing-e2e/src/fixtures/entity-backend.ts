@@ -134,7 +134,7 @@ export const makeEntityBackend = <TEntity extends Entity>(
       } catch (error) {
         // The same 400 the service answers: an unparseable expression, or a
         // member the entity never declared filterable/sortable. The codec only
-        // ever throws `EntifixBuildError` here, so there is no second case to
+        // ever throws an `Error` here, so there is no second case to
         // discriminate — anything else would be a bug in the codec, and
         // reporting it verbatim is more useful than hiding it behind a 500.
         return {

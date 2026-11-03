@@ -1,7 +1,5 @@
 import type { Schema } from 'effect';
 
-import type { EntifixError } from '../base-entities/entifix-error/entifix-error.js';
-
 /**
  * The two families every failure belongs to
  * ([ADR 0013](../../../../../docs/adr/0013-failures-are-typed-values-decided-at-the-shell.md)).
@@ -111,10 +109,3 @@ export const RESERVED_FIELDS: ReadonlySet<string> = new Set([
   'traceId',
   'retryAfter',
 ]);
-
-/**
- * What a port or a hook fails with while the framework moves from the
- * `EntifixError` class tree to typed failures: either one. Deleted with the
- * class tree, in the release that removes it.
- */
-export type TransitionalFailure = EntifixError | EntifixFailure;

@@ -304,7 +304,7 @@ const signInThroughHostedUi = async (
  * Profile-aware, because "being signed in" means different things in each:
  * `mock` fabricates the cookie, while `live` performs a **real sign-in** through
  * the provider's hosted page so the token is one auth-service actually minted
- * and the downstream `requirePermission` checks are genuinely exercised.
+ * and the downstream endpoint guards are genuinely exercised.
  *
  * Call it before `page.goto` — an app whose middleware protects the route will
  * otherwise redirect away before the spec can assert anything.

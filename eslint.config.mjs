@@ -96,6 +96,12 @@ export const mechanismsDoNotLog = {
         message:
           'A mechanism does not log: return or report an outcome, and let the fork site that started it decide the level (ADR 0013).',
       },
+      {
+        selector:
+          "BinaryExpression[operator='instanceof'][right.name=/(Error|Refused|Failure)$/]",
+        message:
+          'A failure is told apart by its _tag, code or category, never by its class: a decoded or re-created failure is a different instance (ADR 0013). Use isFailure, Failure.isCategory or a tag check.',
+      },
     ],
   },
 };

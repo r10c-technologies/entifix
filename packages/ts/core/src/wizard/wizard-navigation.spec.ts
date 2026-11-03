@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 
-import { EntifixLogicError } from '../base-entities/entifix-error/index.js';
 import type { WizardDefinition } from './wizard-definition.js';
 import {
   advanceWizard,
@@ -98,7 +97,7 @@ describe('nextStepId', () => {
       ],
     };
 
-    expect(() => nextStepId(stray, at('a'))).toThrow(EntifixLogicError);
+    expect(() => nextStepId(stray, at('a'))).toThrow(Error);
     expect(() => nextStepId(stray, at('a'))).toThrow(
       /chose "somewhere-else", which is not one of its edges/,
     );

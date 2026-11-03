@@ -1,4 +1,4 @@
-import { EntifixBuildError } from '@entifix/core';
+import { Unavailable } from '@entifix/core';
 import {
   http,
   HttpResponse,
@@ -90,7 +90,7 @@ describe('ConfigurationClientRestClient', () => {
       ),
     );
 
-    expect(error.details).toEqual({ url: '/api/config' });
+    expect(error.dependency).toBe('/api/config');
   });
 
   /**
@@ -131,7 +131,7 @@ describe('ConfigurationClientRestClient', () => {
     expect(seen).toBeNull();
   });
 
-  it('fails with an EntifixBuildError when the endpoint answers an error status', async () => {
+  it('fails with an Error when the endpoint answers an error status', async () => {
     server.use(
       http.get(CONFIG_URL, () => new HttpResponse(null, { status: 503 })),
     );
@@ -140,9 +140,8 @@ describe('ConfigurationClientRestClient', () => {
       Effect.flip(store().in('mongo').getString('uri')),
     );
 
-    expect(error).toBeInstanceOf(EntifixBuildError);
-    expect(error.message).toContain('Failed to load configuration');
-    expect(error.cause?.message).toContain('status 503');
+    expect(error).toBeInstanceOf(Unavailable);
+    expect(error.dependency).toBe(CONFIG_URL);
   });
 
   it('fails when the endpoint is unreachable', async () => {
@@ -152,7 +151,7 @@ describe('ConfigurationClientRestClient', () => {
       Effect.flip(store().in('mongo').getString('uri')),
     );
 
-    expect(error).toBeInstanceOf(EntifixBuildError);
+    expect(error).toBeInstanceOf(Error);
   });
 
   // A process usually builds one client and keeps it, and in a fleet that
@@ -205,11 +204,10 @@ describe('ConfigurationClientRestClient', () => {
   });
 
   it('fails on a key the configuration does not carry', async () => {
-    const error = await Effect.runPromise(
-      Effect.flip(store().in('mongo').getString('absent')),
-    );
-
-    expect(error.message).toContain('not found');
+    // A missing key is a deployment mistake, so it dies rather than fails.
+    await expect(
+      Effect.runPromise(store().in('mongo').getString('absent')),
+    ).rejects.toThrow('not found');
   });
 
   // Only `getString` is implemented so far. The rest defect rather than
@@ -235,7 +233,7 @@ describe('ConfigurationClientRestClient', () => {
       // and none of them produces one.
       const group = store().in('mongo') as unknown as Record<
         string,
-        (key: string) => Effect.Effect<unknown, EntifixBuildError>
+        (key: string) => Effect.Effect<unknown, Error>
       >;
 
       const exit = await Effect.runPromiseExit(group[name]('uri'));

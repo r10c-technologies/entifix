@@ -1,7 +1,4 @@
 export * from './auth/index.js';
-export * from './entity-facet-routes.js';
-export * from './entity-metadata-route.js';
-export * from './entity-routes.js';
 export * from './http-api/index.js';
 export * from './idempotency.js';
 export * from './metadata-composition.js';

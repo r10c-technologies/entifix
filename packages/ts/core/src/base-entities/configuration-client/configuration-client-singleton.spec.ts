@@ -1,7 +1,6 @@
-import { Cause, Effect, Exit, Option } from 'effect';
+import { Cause, Effect, Exit } from 'effect';
 import { describe, expect, it } from 'vitest';
 
-import { EntifixBuildError } from '../entifix-error/index.js';
 import {
   ConfigurationClientGroupInMemory,
   ConfigurationClientInMemory,
@@ -11,27 +10,24 @@ import type { ConfigurationClientGroup } from './types.js';
 const run = <TValue, TError>(effect: Effect.Effect<TValue, TError>) =>
   Effect.runPromise(effect);
 
-/** The typed failure, so assertions can read its message and details. */
+/**
+ * The defect a misconfiguration dies with, so assertions can read its message:
+ * a missing or malformed key is a deployment mistake, never a typed failure.
+ */
 const failureOf = async <TValue>(
-  effect: Effect.Effect<TValue, EntifixBuildError>,
-): Promise<EntifixBuildError> => {
+  effect: Effect.Effect<TValue, unknown>,
+): Promise<Error> => {
   const exit = await Effect.runPromiseExit(effect);
   if (Exit.isSuccess(exit)) {
     throw new Error('expected the effect to fail');
   }
-  const failure = Cause.findErrorOption(exit.cause);
-  if (Option.isNone(failure)) {
-    throw new Error(
-      `expected a typed failure, got ${Cause.pretty(exit.cause)}`,
-    );
-  }
-  return failure.value;
+  return Cause.squash(exit.cause) as Error;
 };
 
 /** Any group getter, erased to a common type so `it.each` tables stay uniform. */
 type GroupRead = (
   group: ConfigurationClientGroup,
-) => Effect.Effect<unknown, EntifixBuildError>;
+) => Effect.Effect<unknown, Error>;
 
 const group = (
   items: Record<string, unknown> = {},
@@ -94,9 +90,9 @@ describe('ConfigurationClientGroupInMemory', () => {
     it('fails on a missing key, naming the keys that were available', async () => {
       const error = await failureOf(group({ other: 'x' }).getString('uri'));
 
-      expect(error).toBeInstanceOf(EntifixBuildError);
+      expect(error).toBeInstanceOf(Error);
       expect(error.message).toContain('"uri" not found');
-      expect(error.details).toEqual({ key: 'uri', availableKeys: ['other'] });
+      expect(error.message).toContain('(available: other)');
     });
 
     it('treats a null value as missing', async () => {
@@ -119,7 +115,6 @@ describe('ConfigurationClientGroupInMemory', () => {
       const error = await failureOf(group({ port: raw }).getNumber('port'));
 
       expect(error.message).toContain('is not a number');
-      expect(error.details).toEqual({ key: 'port', raw });
     });
   });
 
@@ -263,7 +258,7 @@ describe('ConfigurationClientGroupInMemory', () => {
       new ConfigurationClientGroupInMemory().getString('k'),
     );
 
-    expect(error.details).toEqual({ key: 'k', availableKeys: [] });
+    expect(error.message).toContain('"k" not found (available: none)');
   });
 });
 
@@ -285,7 +280,7 @@ describe('ConfigurationClientInMemory', () => {
 
     const error = await failureOf(store.in('absent').getString('uri'));
 
-    expect(error.details).toEqual({ key: 'uri', availableKeys: [] });
+    expect(error.message).toContain('"uri" not found (available: none)');
   });
 
   it('defaults to an empty configuration', async () => {

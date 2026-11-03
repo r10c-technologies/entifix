@@ -1,4 +1,4 @@
-import { EntifixConnError } from '@entifix/core';
+import { Unavailable } from '@entifix/core';
 import { Effect, Layer, Logger } from 'effect';
 import { describe, expect, it } from 'vitest';
 
@@ -44,9 +44,7 @@ const makeWorld = (
         const answer = respond(dispatch, dispatched.length - 1);
         return answer === 'throw'
           ? Effect.fail(
-              new EntifixConnError('participant unreachable', undefined, {
-                participant: dispatch.participant,
-              }),
+              new Unavailable({ dependency: 'participant unreachable' }),
             )
           : Effect.succeed(answer);
       }),
@@ -574,7 +572,10 @@ describe('runSaga — a participant that is down', () => {
   it('fails the effect rather than compensating', async () => {
     const world = makeWorld(() => 'throw');
 
-    await expect(run(world)).rejects.toThrow(/participant unreachable/);
+    await expect(run(world)).rejects.toMatchObject({
+      _tag: 'Unavailable',
+      dependency: 'participant unreachable',
+    });
     expect(world.transitions).toEqual([]);
   });
 });

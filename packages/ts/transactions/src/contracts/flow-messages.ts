@@ -65,6 +65,30 @@ export type FlowAccepted = typeof FlowAccepted.Type;
 
 registerMessage('flowAccepted', FlowAccepted);
 
+/**
+ * The body a flow's `status` link answers: where the flow stands, and why it
+ * failed when it did. A browser reads it to settle a write whose outcome it
+ * did not hear pushed; a `404` from that link means the flow is not projected
+ * yet, never that it failed.
+ */
+export const FlowStatusBody = Schema.Struct({
+  flowId: Schema.String,
+  state: Schema.Literals([
+    'running',
+    'waiting',
+    'suspended',
+    'completed',
+    'compensated',
+    'failed',
+    'interrupted',
+  ]),
+  step: Schema.optionalKey(Schema.String),
+  failure: Schema.optionalKey(FlowFailure),
+});
+export type FlowStatusBody = typeof FlowStatusBody.Type;
+
+registerMessage('flowStatus', FlowStatusBody);
+
 export interface FlowEventInput {
   readonly name: FlowEventName;
   readonly source: string;

@@ -1,5 +1,5 @@
 import { EntityIdTag } from '@entifix/business';
-import { type Entity, type TransitionalFailure } from '@entifix/core';
+import { type EntifixFailure, type Entity } from '@entifix/core';
 import { Context, Effect } from 'effect';
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 
@@ -91,7 +91,7 @@ export function useEntityRecord<TEntity extends Entity, TContext>({
       .catch((error: unknown) => {
         if (active) {
           dispatch({
-            set: { error: error as TransitionalFailure, isLoading: false },
+            set: { error: error as EntifixFailure, isLoading: false },
           });
         }
       });

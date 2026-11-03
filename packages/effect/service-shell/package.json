@@ -40,6 +40,18 @@
       "import": "./dist/observability.js",
       "default": "./dist/observability.js"
     },
+    "./push": {
+      "@entifix/source": "./src/push/index.ts",
+      "types": "./dist/push/index.d.ts",
+      "import": "./dist/push/index.js",
+      "default": "./dist/push/index.js"
+    },
+    "./push/sse": {
+      "@entifix/source": "./src/push/sse.ts",
+      "types": "./dist/push/sse.d.ts",
+      "import": "./dist/push/sse.js",
+      "default": "./dist/push/sse.js"
+    },
     "./testing": {
       "@entifix/source": "./src/testing.ts",
       "types": "./dist/testing.d.ts",

@@ -1,4 +1,4 @@
-import { EntifixTransactionError } from '@entifix/core';
+import { Declined } from '@entifix/core';
 import { Effect } from 'effect';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -259,11 +259,7 @@ describe('event builders', () => {
   // The failure reason crosses a message boundary, so it has to be a string by
   // the time it is published — whatever was thrown.
   it.each([
-    [
-      'an Error',
-      new EntifixTransactionError('execute failed'),
-      'execute failed',
-    ],
+    ['an Error', new Declined({ reason: 'execute failed' }), 'execute failed'],
     ['a string', 'plain failure', 'plain failure'],
     ['an object', { code: 'E' }, '[object Object]'],
     ['undefined', undefined, 'undefined'],

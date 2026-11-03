@@ -1,5 +1,3 @@
-import { EntifixBuildError } from '../../base-entities/entifix-error/index.js';
-
 const isCount = (value: number | undefined) =>
   value === undefined || (Number.isInteger(value) && value >= 0);
 
@@ -14,7 +12,7 @@ export function assertBounds(
 ): void {
   if (bounds === undefined) return;
   if (!isCount(bounds.min) || !isCount(bounds.max)) {
-    throw new EntifixBuildError(
+    throw new Error(
       `${owner} declares a count that is not a whole number of zero or more.`,
     );
   }
@@ -23,7 +21,7 @@ export function assertBounds(
     bounds.max !== undefined &&
     bounds.min > bounds.max
   ) {
-    throw new EntifixBuildError(
+    throw new Error(
       `${owner} declares a minimum of ${bounds.min} above its maximum of ${bounds.max}.`,
     );
   }

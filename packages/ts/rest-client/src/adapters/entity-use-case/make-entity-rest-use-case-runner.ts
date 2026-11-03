@@ -11,6 +11,7 @@ import { Effect } from 'effect';
 
 import { performHttpRequestThroughFetch } from '../../clients/fetch/index.js';
 import { buildEntityRestAdapterMixins as adapterMixins } from '../entity-rest/build-entity-rest-adapter-mixins/index.js';
+import { readWriteResponse } from '../entity-rest/read-write-response.js';
 import type { BuildEntityRestOptions } from '../entity-rest/types.js';
 
 /**
@@ -20,7 +21,9 @@ import type { BuildEntityRestOptions } from '../entity-rest/types.js';
  * ([ADR 0020](../../../../../../docs/adr/0020-endpoints-are-descriptors-and-the-shell-builds-an-httpapi.md)).
  *
  * A refusal arrives as the failure the service sent, decoded from its problem
- * body, so a screen shows the coded message rather than a generic error.
+ * body, so a screen shows the coded message rather than a generic error. A
+ * verb that starts a flow answers `202 flowAccepted` and runs as pending; any
+ * other success is settled with the `data` of what the service answered.
  */
 export const makeEntityRestUseCaseRunner = <TEntity extends Entity>(
   entityConstructor: EntityConstructor<TEntity>,
@@ -37,10 +40,15 @@ export const makeEntityRestUseCaseRunner = <TEntity extends Entity>(
         const url = yield* baseUrl(
           useCase.binding === 'entity' && id != null ? String(id) : undefined,
         );
-        yield* performHttpRequestThroughFetch({
+        const response = yield* performHttpRequestThroughFetch<{
+          readonly data?: unknown;
+        }>({
           method: 'POST',
           url: `${url}/${useCase.key}`,
         });
+        return yield* readWriteResponse(response, () =>
+          Effect.succeed(response.body?.data),
+        );
       }),
     bulk: (useCase, selection) =>
       Effect.gen(function* () {

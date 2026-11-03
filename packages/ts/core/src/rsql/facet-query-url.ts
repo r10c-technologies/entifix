@@ -1,4 +1,3 @@
-import { EntifixBuildError } from '../base-entities/entifix-error/index.js';
 import type { Entity, EntityConstructor } from '../types/Entity.js';
 import type { EntityFacetQuery } from '../types/EntityFacets.js';
 import {
@@ -43,7 +42,7 @@ export function serializeFacetQueryParams<TEntity extends Entity>(
  * values a filter would choose between, and counting a member nobody may
  * filter on would read out values the entity chose not to expose. A
  * `localized` member is refused, since its value is a record of texts, not one
- * to count. Every failure is an {@link EntifixBuildError}, so a `400`.
+ * to count. Every failure is a thrown `Error`, so a `400`.
  */
 export function parseFacetQueryParams<TEntity extends Entity>(
   entityConstructor: EntityConstructor<TEntity>,
@@ -51,16 +50,10 @@ export function parseFacetQueryParams<TEntity extends Entity>(
 ): EntityFacetQuery<TEntity>[] {
   const members = params.getAll(FACET_PARAM);
   if (members.length === 0) {
-    throw new EntifixBuildError(`name at least one "${FACET_PARAM}"`);
+    throw new Error(`name at least one "${FACET_PARAM}"`);
   }
   if (new Set(members).size !== members.length) {
-    throw new EntifixBuildError(
-      `a "${FACET_PARAM}" is named twice`,
-      undefined,
-      {
-        members,
-      },
-    );
+    throw new Error(`a "${FACET_PARAM}" is named twice`);
   }
 
   const allowed = allowedDescriptors(
@@ -77,9 +70,7 @@ export function parseFacetQueryParams<TEntity extends Entity>(
     if (locale !== undefined) {
       // One locale of a localized member is prose, one value per record —
       // there is nothing to choose between, so nothing to count.
-      throw new EntifixBuildError(`"${member}" cannot be counted`, undefined, {
-        member,
-      });
+      throw new Error(`"${member}" cannot be counted`);
     }
     const expression = params.get(facetFilterParam(member));
     return {

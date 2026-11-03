@@ -9,6 +9,7 @@
 - Revised: 2026-10-23 — the source citations of r10c's records are rewritten and a check keeps them out; the appendix that mapped them is removed
 - Revised: 2026-10-28 by [ADR 0016](0016-a-flow-engine-port-and-a-durable-workflow-adapter.md) — `workflow` joins tier 2, its Postgres storage and socket runner behind optional peers
 - Revised: 2026-10-29 — `@entifix/workflow` is a 25th package, in tier 2 with its socket runner behind an optional peer
+- Revised: 2026-11-02 by [#126](https://github.com/r10c-technologies/entifix/issues/126) — the `EntifixError` tree is deleted; a missing host value is a thrown `Error` naming the call to make.
 - Area: platform
 - Read when: adding a package, adding a dependency between two, deciding whether something is public API, or about to bake a host's value into framework code — a downward edge can still be illegal, and the seam takes values rather than paths
 
@@ -177,7 +178,7 @@ the latter, and it is not a preference: `getServerT` is called directly inside
 React server components scattered across an application, with nothing in between
 to thread a parameter through. So catalogs are installed by `defineCatalogs(…)`,
 once, from a module every entry point imports — and the failure mode is made loud,
-an `EntifixBuildError` naming the call to make, rather than a silent empty default.
+a thrown `Error` naming the call to make, rather than a silent empty default.
 
 ⚠️ **The typed-key gate is the one seam that cannot be split.** TypeScript permits
 exactly one `declare module 'i18next' { interface CustomTypeOptions }` per

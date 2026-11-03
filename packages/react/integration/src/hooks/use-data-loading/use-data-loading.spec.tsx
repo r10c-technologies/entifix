@@ -1,6 +1,6 @@
 import { EntityRepositoryTag, loadUCFactory } from '@entifix/business';
+import { Unavailable } from '@entifix/core';
 import {
-  EntifixConnError,
   type Entity,
   type EntityLoadRequest,
   type FilterGroup,
@@ -135,7 +135,7 @@ describe('useDataLoading', () => {
   });
 
   it('surfaces a failure and stops loading', async () => {
-    repository.failNext(new EntifixConnError('unreachable'));
+    repository.failNext(new Unavailable({ dependency: 'unreachable' }));
     const { result } = renderLoading();
 
     await waitFor(() => expect(result.current.error).toBeDefined());
@@ -145,7 +145,7 @@ describe('useDataLoading', () => {
   });
 
   it('clears a previous failure when the next load starts', async () => {
-    repository.failNext(new EntifixConnError('unreachable'));
+    repository.failNext(new Unavailable({ dependency: 'unreachable' }));
     const { result } = renderLoading();
     await waitFor(() => expect(result.current.error).toBeDefined());
 
@@ -180,7 +180,7 @@ describe('useDataLoading', () => {
   });
 
   it('ignores a failure that lands after unmount', async () => {
-    repository.failNext(new EntifixConnError('unreachable'));
+    repository.failNext(new Unavailable({ dependency: 'unreachable' }));
     const { result, unmount } = renderLoading();
 
     unmount();

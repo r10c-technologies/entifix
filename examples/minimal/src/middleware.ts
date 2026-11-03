@@ -11,7 +11,7 @@ import type { NextRequest, NextResponse } from 'next/server';
  * `@entifix/testing-auth` mints an unsigned token that the service's stub token
  * layer accepts without checking. A real host signs a visitor in and sets the
  * cookie from its identity provider; everything downstream — the proxy's bearer
- * token, the service's `requirePermission` — is the same code either way.
+ * token, the service's endpoint guard — is the same code either way.
  */
 export function middleware(request: NextRequest) {
   const locale = resolveLocale(request);

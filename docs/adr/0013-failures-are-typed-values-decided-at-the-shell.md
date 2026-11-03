@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-28
 - Revised: 2026-10-28 — a transient delivery is bounded by `maxAttempts` as the adapter counts it, not by `x-delivery-limit`, which RabbitMQ 4 does not apply to a requeued nack (#130)
+- Revised: 2026-11-02 by [#126](https://github.com/r10c-technologies/entifix/issues/126) — the deletion release happened: `EntifixError` and its five subclasses, `TransitionalFailure`, `EntityRouteRefusal`, `routeFailure`, `invalid` and `mountRoutes` are gone, a module-load misconfiguration is a thrown `Error`, and lint refuses `instanceof` on a class named `…Error`, `…Refused` or `…Failure` outside specs. `respond` wraps a raw route by hand.
 - Area: platform
 - Read when: adding a refusal or an error type, mapping a failure to an HTTP status, writing an error body by hand, catching an adapter's error with `instanceof`, deciding whether a bus message is poison, or about to call `Effect.log*` from a package that is not a shell
 

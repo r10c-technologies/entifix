@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 
-import { EntifixBuildError } from '../base-entities/entifix-error/index.js';
 import { accessor } from '../entity-definition/decorators/accessor/index.js';
 import { entity } from '../entity-definition/decorators/entity/index.js';
 import type { Entity, EntityId } from '../types/Entity.js';
@@ -155,8 +154,6 @@ describe('parseFacetQueryParams', () => {
       ]),
     ],
   ])('refuses %s as a build error', (_, search) => {
-    expect(() => parseFacetQueryParams(Gadget, search)).toThrow(
-      EntifixBuildError,
-    );
+    expect(() => parseFacetQueryParams(Gadget, search)).toThrow(Error);
   });
 });

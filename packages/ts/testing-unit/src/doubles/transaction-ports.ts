@@ -1,8 +1,8 @@
 import {
   Contention,
   type DomainEvent,
+  type EntifixFailure,
   matchesEventPattern,
-  type TransitionalFailure,
   Unavailable,
 } from '@entifix/core';
 import type {
@@ -104,7 +104,7 @@ export interface RecordingEventBus extends EventBus {
    * broker's job in production, so a double that ignored it would let a
    * consumer pass its tests while receiving traffic it never bound to.
    */
-  deliver(event: DomainEvent): Effect.Effect<void, TransitionalFailure>;
+  deliver(event: DomainEvent): Effect.Effect<void, EntifixFailure>;
   /** Makes the next `publish` fail, for the broker-unavailable branch. */
   failNextPublish(): void;
 }
@@ -118,7 +118,7 @@ export const makeRecordingEventBus = (): RecordingEventBus => {
   const published: DomainEvent[] = [];
   const handlers: Array<{
     pattern: string;
-    handle: (event: DomainEvent) => Effect.Effect<void, TransitionalFailure>;
+    handle: (event: DomainEvent) => Effect.Effect<void, EntifixFailure>;
   }> = [];
   let failNext = false;
 

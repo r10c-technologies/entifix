@@ -1,4 +1,3 @@
-import { EntifixBuildError } from '../../base-entities/entifix-error/index.js';
 import { ROW_KEY } from '../../types/EntityRowDraft.js';
 import type { ChildConstructor } from '../meta-entities/meta-accessor/index.js';
 import {
@@ -24,9 +23,9 @@ import {
  * **Nor a `localized` member**, for a reason of the same kind: a row's draft is a
  * flat string map, and a text per locale has no single cell to live in.
  *
- * `EntifixBuildError` rather than a logic error, because this is a declaration
- * fault in the entity — the same class `assertNotQueryable` raises when a
- * collection claims to be sortable.
+ * Thrown as a plain `Error`, because this is a declaration fault in the
+ * entity — what `assertNotQueryable` throws when a collection claims to be
+ * sortable.
  */
 export function describeChildColumns<TChild extends object>(
   childType: ChildConstructor<TChild>,
@@ -36,12 +35,10 @@ export function describeChildColumns<TChild extends object>(
   const reserved = descriptors.find(descriptor => descriptor.name === ROW_KEY);
 
   if (reserved !== undefined) {
-    throw new EntifixBuildError(
+    throw new Error(
       `A composition child declares a member named \`${ROW_KEY}\`, which is reserved ` +
         'for the row’s client-side key. Rename the member: the key and the member ' +
         'cannot share a name, and the row would lose its identity on every edit.',
-      undefined,
-      { member: ROW_KEY },
     );
   }
 
@@ -51,12 +48,10 @@ export function describeChildColumns<TChild extends object>(
     descriptor => descriptor.type === 'localized',
   );
   if (localized !== undefined) {
-    throw new EntifixBuildError(
+    throw new Error(
       `A composition child declares "${localized.name}" as localized, which a row ` +
         'cannot hold: a row is a flat string map. Keep the localized text on the ' +
         'entity, or make the child an entity of its own.',
-      undefined,
-      { member: localized.name },
     );
   }
 

@@ -1,8 +1,4 @@
-import {
-  EntifixConnError,
-  registerEvent,
-  serializeEntity,
-} from '@entifix/core';
+import { registerEvent, serializeEntity, Unavailable } from '@entifix/core';
 import { Order } from '@entifix/example-service-domain';
 import { MongoClientTag, MongoDatabaseTag } from '@entifix/mongo';
 import {
@@ -151,7 +147,7 @@ const transactionally = (
         ? Effect.succeed(error.response)
         : isDuplicateKey(error)
           ? Effect.succeed(onDuplicate)
-          : Effect.fail(new EntifixConnError('participant failed', error)),
+          : Effect.fail(new Unavailable({ dependency: 'mongo' })),
     ),
   );
 
@@ -307,6 +303,5 @@ export const ensureOrderIndexes = (db: Db) =>
         .collection(STOCK_COLLECTION)
         .createIndex({ sku: 1 }, { unique: true });
     },
-    catch: error =>
-      new EntifixConnError('Failed to ensure order indexes', error),
+    catch: error => new Unavailable({ dependency: 'mongo' }),
   });

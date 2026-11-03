@@ -1,4 +1,3 @@
-import { EntifixLogicError } from '@entifix/core';
 import { describe, expect, it } from 'vitest';
 
 import { resolveBodyTemplate, resolveTemplate } from './resolve-template.js';
@@ -40,7 +39,7 @@ describe('resolveTemplate', () => {
    */
   it('throws rather than interpolating a missing value', () => {
     expect(() => resolveTemplate('/api/x/{outcome.data.id}', {})).toThrow(
-      EntifixLogicError,
+      Error,
     );
     expect(() => resolveTemplate('/api/x/{missing}', {})).toThrow(
       /has no value for '\{missing\}'/,
@@ -52,24 +51,19 @@ describe('resolveTemplate', () => {
       resolveTemplate('/api/x/{outcome.data.id}', {
         outcome: { data: 'flat' },
       }),
-    ).toThrow(EntifixLogicError);
+    ).toThrow(Error);
   });
 
   it('throws on an explicit null as firmly as on an absence', () => {
-    expect(() => resolveTemplate('/api/x/{id}', { id: null })).toThrow(
-      EntifixLogicError,
-    );
+    expect(() => resolveTemplate('/api/x/{id}', { id: null })).toThrow(Error);
   });
 
-  it('carries the template and the path in its error details', () => {
+  it('names the template and the path in its message', () => {
     try {
       resolveTemplate('/api/x/{id}', {});
       expect.unreachable('resolveTemplate should have thrown');
     } catch (error) {
-      expect((error as EntifixLogicError).details).toEqual({
-        template: '/api/x/{id}',
-        path: 'id',
-      });
+      expect((error as Error).message).toContain('/api/x/{id}');
     }
   });
 });

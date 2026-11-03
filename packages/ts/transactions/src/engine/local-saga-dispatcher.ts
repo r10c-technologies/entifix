@@ -1,4 +1,4 @@
-import { type EntifixConnError, EntifixLogicError } from '@entifix/core';
+import type { Unavailable } from '@entifix/core';
 import { Effect, Layer } from 'effect';
 
 import type { SagaCall } from '../contracts/saga-definition.js';
@@ -17,13 +17,13 @@ export type LocalSagaRequest = Omit<SagaDispatch, 'participant'>;
  *
  * The same contract an HTTP participant keeps: a business refusal is a response
  * with `ok: false` — the engine compensates on it — and only a failure to reach
- * the participant at all is an {@link EntifixConnError}. Key the side effect on
+ * the participant at all is an {@link Unavailable}. Key the side effect on
  * `commandId` (an inbox), because a resumed flow dispatches the same command
  * again.
  */
 export type LocalSagaParticipant = (
   request: LocalSagaRequest,
-) => Effect.Effect<SagaResponse, EntifixConnError>;
+) => Effect.Effect<SagaResponse, Unavailable>;
 
 /**
  * A {@link SagaDispatcher} that calls participants in this process.
@@ -45,10 +45,8 @@ export const makeLocalSagaDispatcher = (
     const handle = participants[participant];
     return handle === undefined
       ? Effect.die(
-          new EntifixLogicError(
+          new Error(
             `The saga dispatched to participant "${participant}", which this service registered no local handler for.`,
-            undefined,
-            { participant, call: request.call },
           ),
         )
       : handle(request);

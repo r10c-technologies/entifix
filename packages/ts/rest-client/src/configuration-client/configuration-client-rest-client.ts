@@ -4,7 +4,7 @@ import {
   ConfigurationClientInMemory,
   ConfigurationExtractMode,
   ConfigurationPlain,
-  EntifixBuildError,
+  Unavailable,
 } from '@entifix/core';
 import { Effect } from 'effect';
 
@@ -33,10 +33,7 @@ const DEFAULT_CONFIG_URL = '/api/config';
  */
 class ConfigurationClientGroupRestClient implements ConfigurationClientGroup {
   constructor(
-    private readonly loadPlain: Effect.Effect<
-      ConfigurationPlain,
-      EntifixBuildError
-    >,
+    private readonly loadPlain: Effect.Effect<ConfigurationPlain, Unavailable>,
     private readonly group: string,
   ) {}
 
@@ -107,7 +104,7 @@ class ConfigurationClientGroupRestClient implements ConfigurationClientGroup {
  * while a request is in flight still share it.
  */
 export class ConfigurationClientRestClient implements ConfigurationClient {
-  #loadPlain: Effect.Effect<ConfigurationPlain, EntifixBuildError>;
+  #loadPlain: Effect.Effect<ConfigurationPlain, Unavailable>;
 
   constructor(options?: ConfigurationClientRestClientOptions) {
     const url = options?.url ?? DEFAULT_CONFIG_URL;
@@ -135,8 +132,9 @@ export class ConfigurationClientRestClient implements ConfigurationClient {
 
     this.#loadPlain = Effect.tryPromise({
       try: load,
-      catch: error =>
-        new EntifixBuildError('Failed to load configuration', error, { url }),
+      // The configuration source could not be reached or did not answer: a
+      // dependency, so the next read asks again.
+      catch: () => new Unavailable({ dependency: url }),
     });
   }
 

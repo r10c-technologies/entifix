@@ -1,4 +1,4 @@
-import type { EntifixConnError } from '@entifix/core';
+import type { Unavailable } from '@entifix/core';
 import { Context, type Effect } from 'effect';
 
 import type { SagaCall } from '../contracts/saga-definition.js';
@@ -32,7 +32,7 @@ export interface SagaDispatch {
  * forever or permanently fails a checkout because a pod was restarting.
  *
  * So a `refused` response is a **success** of this port carrying `ok: false`,
- * and only a transport or `5xx` failure is an `EntifixConnError`.
+ * and only a transport or `5xx` failure is an `Unavailable`.
  */
 export interface SagaResponse {
   readonly ok: boolean;
@@ -41,9 +41,7 @@ export interface SagaResponse {
 }
 
 export interface SagaDispatcher {
-  dispatch(
-    dispatch: SagaDispatch,
-  ): Effect.Effect<SagaResponse, EntifixConnError>;
+  dispatch(dispatch: SagaDispatch): Effect.Effect<SagaResponse, Unavailable>;
 }
 
 export class SagaDispatcherTag extends Context.Service<

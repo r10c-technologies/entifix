@@ -1,4 +1,3 @@
-import { EntifixLogicError } from '../../../base-entities/entifix-error/index.js';
 import { Entity, EntityId } from '../../../types/Entity.js';
 import { EntityDraft, readDraftString } from '../../../types/EntityDraft.js';
 import { EntityFieldDescriptor } from '../../describe/index.js';
@@ -36,7 +35,7 @@ export type EntityLinkSelection = Record<string, Entity | undefined>;
  * `linkCollection` members are left untouched: the to-many editor is a follow-up,
  * and this is the branch where `setIds`/`setValues` will land.
  *
- * Throws {@link EntifixLogicError} when an `embedded` member holds an id with no
+ * Throws an `Error` when an `embedded` member holds an id with no
  * instance to inline — see the branch below for why that is a fault and not a
  * fallback.
  */
@@ -73,13 +72,11 @@ export function applyEntityLinks<TEntity extends Entity>(
       // degradation. The caller's job is to resolve the id first
       // (`EntityLinkSource.selected.entity`) and hand the instance over.
       if (descriptor.linkSerialization === 'embedded' && rawId !== '') {
-        throw new EntifixLogicError(
+        throw new Error(
           `Cannot write "${descriptor.name}" as an embedded relation: the draft ` +
             'holds an id but no instance. Resolve the id through the link ' +
             "source's `selected.entity` before submitting, or declare the " +
             "member `linkSerialization: 'id'`.",
-          undefined,
-          { member: descriptor.name, id: rawId },
         );
       }
       link.setValue(undefined);

@@ -2,6 +2,7 @@ export * from './drafts-state.js';
 export * from './entity-nav.js';
 export * from './entity-tab-kind.js';
 export * from './idb-state-storage.js';
+export * from './pending-flows.js';
 export * from './pending-state.js';
 export * from './pending-transactions.js';
 export * from './tab-kind.js';

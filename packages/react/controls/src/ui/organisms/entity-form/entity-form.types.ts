@@ -1,4 +1,5 @@
 import type {
+  EntifixFailure,
   Entity,
   EntityConstructor,
   EntityDraft,
@@ -6,7 +7,6 @@ import type {
   EntityFieldDescriptor,
   EntityLinkSource,
   EntityMetadataDocument,
-  TransitionalFailure,
 } from '@entifix/core';
 import type { ReactNode } from 'react';
 
@@ -166,9 +166,14 @@ export interface EntityFormProps<TEntity extends Entity> {
    */
   skeleton?: boolean | ReactNode;
   isSaving?: boolean;
+  /**
+   * A write the server handed to a flow that has not settled yet. The fields
+   * keep what was typed, and Save waits, until the flow's outcome arrives.
+   */
+  isPending?: boolean;
   isDeleting?: boolean;
   /** The failure of the last load/save, shown as an alert. */
-  error?: TransitionalFailure;
+  error?: EntifixFailure;
 
   /** Link to return to, rendered as a `Back` action. Omit to hide it. */
   backHref?: string;

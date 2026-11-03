@@ -1,8 +1,4 @@
-import type {
-  DomainEvent,
-  StoreFailure,
-  TransitionalFailure,
-} from '@entifix/core';
+import type { DomainEvent, EntifixFailure, StoreFailure } from '@entifix/core';
 import { Context, type Effect } from 'effect';
 
 /**
@@ -107,7 +103,7 @@ export interface EventBus {
    */
   subscribe(
     subscription: Subscription,
-    handler: (event: DomainEvent) => Effect.Effect<void, TransitionalFailure>,
+    handler: (event: DomainEvent) => Effect.Effect<void, EntifixFailure>,
   ): Effect.Effect<void, StoreFailure>;
 }
 

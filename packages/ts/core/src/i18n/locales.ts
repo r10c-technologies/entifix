@@ -1,5 +1,3 @@
-import { EntifixBuildError } from '../base-entities/entifix-error/index.js';
-
 /**
  * Where a host narrows {@link Locale} to the locales it ships:
  *
@@ -60,18 +58,16 @@ let declared: LocaleDefinition = UNDECLARED;
 export function defineLocales(definition: LocaleDefinition): void {
   const { locales: list, defaultLocale: fallback } = definition;
   if (list.length === 0) {
-    throw new EntifixBuildError('defineLocales needs at least one locale.');
+    throw new Error('defineLocales needs at least one locale.');
   }
   const duplicate = list.find(
     (locale, index) => list.indexOf(locale) !== index,
   );
   if (duplicate !== undefined) {
-    throw new EntifixBuildError(
-      `defineLocales was given "${duplicate}" more than once.`,
-    );
+    throw new Error(`defineLocales was given "${duplicate}" more than once.`);
   }
   if (!list.includes(fallback)) {
-    throw new EntifixBuildError(
+    throw new Error(
       `The default locale "${fallback}" is not one of ${JSON.stringify(list)}.`,
     );
   }

@@ -1,4 +1,3 @@
-import { EntifixBuildError } from '../base-entities/entifix-error/index.js';
 import type { Entity, EntityConstructor } from '../types/Entity.js';
 import type { EntityLoadRequest } from '../types/EntityLoadRequest.js';
 import { coerceFiltering } from './coerce-rsql.js';
@@ -60,11 +59,7 @@ function readPositiveInteger(
 
   const value = Number(raw);
   if (!Number.isInteger(value) || value < 1) {
-    throw new EntifixBuildError(
-      `"${name}" must be a positive integer`,
-      undefined,
-      { [name]: raw },
-    );
+    throw new Error(`"${name}" must be a positive integer`);
   }
   return value;
 }
@@ -75,7 +70,7 @@ function readPositiveInteger(
  *
  * Every failure mode (malformed RSQL, an unknown or non-filterable member, a
  * value that is not of the member's type, a nonsense page) is an
- * {@link EntifixBuildError}: the client sent something wrong, so it is a `400`
+ * an `Error`: the client sent something wrong, so it is a `400`
  * and never a `500`.
  */
 export function parseLoadRequestParams<TEntity extends Entity>(

@@ -1,4 +1,3 @@
-import { EntifixBuildError } from '../../base-entities/entifix-error/index.js';
 import {
   accessor,
   describeEntityUseCases,
@@ -115,12 +114,10 @@ describe('useCase', () => {
         placement: 'determining',
         labelKey: 'entity:undeclared.useCases.publish',
       })(Undeclared, { metadata: {} } as ClassDecoratorContext),
-    ).toThrow(EntifixBuildError);
+    ).toThrow(Error);
   });
 
   it('refuses to read a binding off an undecorated class', () => {
-    expect(() => extractMetaUseCaseBinding(NeverDecoratedUC)).toThrow(
-      EntifixBuildError,
-    );
+    expect(() => extractMetaUseCaseBinding(NeverDecoratedUC)).toThrow(Error);
   });
 });

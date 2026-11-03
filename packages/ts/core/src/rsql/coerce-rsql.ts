@@ -1,4 +1,3 @@
-import { EntifixBuildError } from '../base-entities/entifix-error/index.js';
 import {
   describeEntityColumns,
   type EntityFieldDescriptor,
@@ -36,7 +35,7 @@ export function allowedDescriptors<TEntity extends Entity>(
 }
 
 const reject = (message: string, details?: Record<string, unknown>) =>
-  new EntifixBuildError(message, undefined, details);
+  new Error(message);
 
 /** A query property resolved against the allowlist. */
 export interface AllowedProperty {
@@ -184,7 +183,7 @@ function coerceNode<TEntity extends Entity>(
  * This is the trust boundary of the query protocol. Everything before it is a
  * string a client chose; everything after it names only members the entity
  * declared `filterable` and carries only values of those members' declared
- * types. A violation throws {@link EntifixBuildError}, which services already
+ * types. A violation throws an `Error`, which services already
  * map to a `400`.
  */
 export function coerceFiltering<TEntity extends Entity>(

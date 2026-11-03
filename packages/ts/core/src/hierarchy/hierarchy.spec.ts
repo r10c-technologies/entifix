@@ -6,7 +6,6 @@ import {
   depthOf,
   descendantsOf,
   describeEntityColumns,
-  EntifixBuildError,
   Entity,
   entity,
   EntityId,
@@ -247,7 +246,7 @@ describe('hierarchyOf', () => {
     }
 
     expect(() => hierarchyOf(TwoParents)).toThrow(/one parent member at most/);
-    expect(() => describeEntityColumns(TwoParents)).toThrow(EntifixBuildError);
+    expect(() => describeEntityColumns(TwoParents)).toThrow(Error);
   });
 
   /** A hidden member is never serialized: the tree would arrive flat. */

@@ -4,7 +4,7 @@ import type {
   EntityLoadRequest,
   EntityPage,
 } from '@entifix/core';
-import { EntifixConnError } from '@entifix/core';
+import { Unavailable } from '@entifix/core';
 import { Context, Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 
@@ -37,7 +37,7 @@ const aPage = (items: Widget[]): EntityPage<Widget> => ({
 function makeRepositoryDouble(options: {
   page?: EntityPage<Widget>;
   entity?: Widget;
-  failWith?: EntifixConnError;
+  failWith?: Unavailable;
 }) {
   const calls = {
     loaded: [] as EntityLoadRequest[],
@@ -103,7 +103,7 @@ describe('loadUCFactory', () => {
   // reach the caller with its type intact so the shell can distinguish it from
   // a build error.
   it('propagates a repository failure untouched', () => {
-    const failure = new EntifixConnError('unreachable');
+    const failure = new Unavailable({ dependency: 'unreachable' });
     const { repository } = makeRepositoryDouble({ failWith: failure });
 
     const error = Effect.runSync(
@@ -151,7 +151,7 @@ describe('getUCFactory', () => {
   });
 
   it('propagates a repository failure untouched', () => {
-    const failure = new EntifixConnError('unreachable');
+    const failure = new Unavailable({ dependency: 'unreachable' });
     const { repository } = makeRepositoryDouble({ failWith: failure });
 
     const error = Effect.runSync(

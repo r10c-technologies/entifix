@@ -4,14 +4,23 @@ import '../i18n';
 
 import type { Locale } from '@entifix/core';
 import {
+  ANONYMOUS_WORKSPACE_SCOPE,
+  PendingFlowsProvider,
+} from '@entifix/next-shell';
+import {
   makeIndexedDbUiPreferencesState,
   type ThemeOption,
   ThemeProvider,
+  ToastProvider,
+  ToastRegion,
   UiPreferencesProvider,
   useT,
 } from '@entifix/react-controls';
 import { I18nProvider } from '@entifix/react-controls/i18next';
-import { EntifixQueryProvider } from '@entifix/react-integration';
+import {
+  EntifixQueryProvider,
+  NoopPushChannel,
+} from '@entifix/react-integration';
 import { type PropsWithChildren, useMemo } from 'react';
 
 // Module scope: a new store per render would reopen the database each time.
@@ -32,7 +41,15 @@ function Themed({ children }: PropsWithChildren) {
     <EntifixQueryProvider>
       <ThemeProvider themes={themes} defaultTheme="aurora">
         <UiPreferencesProvider store={uiPreferences}>
-          {children}
+          <ToastProvider>
+            <PendingFlowsProvider
+              scope={ANONYMOUS_WORKSPACE_SCOPE}
+              channel={NoopPushChannel}
+            >
+              {children}
+            </PendingFlowsProvider>
+            <ToastRegion />
+          </ToastProvider>
         </UiPreferencesProvider>
       </ThemeProvider>
     </EntifixQueryProvider>
@@ -45,6 +62,11 @@ function Themed({ children }: PropsWithChildren) {
  * No adapters provider — `useExampleAdapters` hands out module-scope contexts —
  * and no `PendingTransactionsProvider`: nothing here writes asynchronously, and
  * the shell falls back to a store that tracks nothing.
+ *
+ * The toast region and the pending-flow provider are mounted anyway, once,
+ * the way a host with a server mounts them: every write here settles, so the
+ * push channel is the no-op one and nothing ever waits — but the composition
+ * is the one a host copies, and it has to compile inside Next.
  */
 export function Providers({
   locale,

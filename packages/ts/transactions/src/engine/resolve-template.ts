@@ -1,5 +1,3 @@
-import { EntifixLogicError } from '@entifix/core';
-
 /** The `{a.b.c}` placeholders a {@link SagaCall}'s path may carry. */
 const PLACEHOLDER = /\{([^{}]+)\}/g;
 
@@ -37,10 +35,8 @@ export function resolveTemplate(
   return template.replaceAll(PLACEHOLDER, (_match, path: string) => {
     const value = readPath(scope, path);
     if (value === undefined || value === null) {
-      throw new EntifixLogicError(
+      throw new Error(
         `saga path template '${template}' has no value for '{${path}}'`,
-        undefined,
-        { template, path },
       );
     }
     return encodeURIComponent(String(value));
@@ -88,10 +84,8 @@ export function resolveBodyTemplate(
     if (whole?.[1] !== undefined) {
       const resolved = readPath(scope, whole[1]);
       if (resolved === undefined || resolved === null) {
-        throw new EntifixLogicError(
+        throw new Error(
           `saga body template '${value}' has no value for '{${whole[1]}}'`,
-          undefined,
-          { template: value, path: whole[1] },
         );
       }
       return resolved;
@@ -99,10 +93,8 @@ export function resolveBodyTemplate(
     return value.replaceAll(PLACEHOLDER, (_match, path: string) => {
       const resolved = readPath(scope, path);
       if (resolved === undefined || resolved === null) {
-        throw new EntifixLogicError(
+        throw new Error(
           `saga body template '${value}' has no value for '{${path}}'`,
-          undefined,
-          { template: value, path },
         );
       }
       return String(resolved);
