@@ -1,3 +1,17 @@
+## 0.14.0 (2026-11-03)
+
+### 🚀 Features
+
+- ⚠️ server push, two settle modes, optimistic CRUD, and the failure-model deletions ([#159](https://github.com/r10c-technologies/entifix/pull/159))
+
+### ⚠️ Breaking Changes
+
+- server push, two settle modes, optimistic CRUD, and the failure-model deletions ([#159](https://github.com/r10c-technologies/entifix/pull/159))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.13.0 (2026-11-02)
 
 ### 🚀 Features
