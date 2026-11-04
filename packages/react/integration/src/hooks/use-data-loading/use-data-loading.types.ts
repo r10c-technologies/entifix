@@ -62,4 +62,15 @@ export interface UseDataLoadingOptions<TEntity extends Entity, TContext> {
    * it; so would a listing scoped to one tenant.
    */
   baseFiltering?: FilterGroup<TEntity>;
+  /**
+   * The filter the list *opens* with: applied to the first load and handed back
+   * as `filtering`, so the filter panel shows it exactly as if the user had set
+   * it — and the user can change or clear it. The opposite of
+   * {@link baseFiltering}, a restriction the user never sees and cannot lift.
+   * A worklist is this: "orders awaiting dispatch" is the default view of the
+   * orders, not the only one.
+   *
+   * Read once, on mount, like {@link initialPageSize}; a later value is ignored.
+   */
+  initialFiltering?: FilterGroup<TEntity>;
 }

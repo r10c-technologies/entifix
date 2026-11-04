@@ -187,6 +187,17 @@ export interface EntityCrudOptions<TAdapters, TEntity extends Entity> {
    * shows the children whose parent fell on another page as roots.
    */
   readonly pageSize?: number;
+  /**
+   * The filter the list opens with — a worklist, where the default view of a
+   * record class is the rows someone has to act on. Shown in the filter panel
+   * as the user's own, so it can be changed or cleared; unlike a link's
+   * `useBaseFiltering`, it restricts nothing.
+   *
+   * Checked when the screen is generated against the same allowlist a service
+   * applies to a query: a member that is not `filterable`, or a value of the
+   * wrong type, throws here rather than answering `400` on every first load.
+   */
+  readonly initialFiltering?: FilterGroup<TEntity>;
   /** Frozen at factory time — see `use-entity-link-sources.ts`. */
   readonly links?: readonly EntityCrudLink<TAdapters, TEntity>[];
   /**

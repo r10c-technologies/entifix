@@ -10,6 +10,7 @@ import {
   saveUCFactory,
 } from '@entifix/business';
 import {
+  coerceFiltering,
   describeEntityColumns,
   type EntifixFailure,
   type Entity,
@@ -24,6 +25,8 @@ import {
   type FilterGroup,
   Internal,
   isFailure,
+  parseRsql,
+  serializeRsql,
   settled,
   type UseCaseDescriptor,
 } from '@entifix/core';
@@ -225,6 +228,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     columns,
     toolbar,
     pageSize,
+    initialFiltering,
     links = [],
     metadataSource: givenMetadataSource,
     metadata,
@@ -243,6 +247,19 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     metadata === undefined
       ? givenMetadataSource
       : (adapters[metadata] as EntityMetadataSource);
+
+  // Through the service's own trust boundary rather than a second walk of the
+  // tree: serialized the way a load request carries it, then coerced against
+  // the entity's `filterable` allowlist exactly as a service coerces a query.
+  // Whatever would answer `400` on the wire throws here instead, when the
+  // screen is generated, naming the member.
+  // An emptied group serializes to nothing and filters nothing, so there is
+  // nothing to check.
+  const initialRsql =
+    initialFiltering === undefined ? '' : serializeRsql([initialFiltering]);
+  if (initialRsql !== '') {
+    coerceFiltering(entityConstructor, parseRsql(initialRsql));
+  }
 
   const meta = extractMetaEntity(entityConstructor);
   if (meta.key !== catalogKey) {
@@ -311,6 +328,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
       // list now also refreshes on a reactive change event.
       queryKey: scope,
       ...(pageSize === undefined ? {} : { initialPageSize: pageSize }),
+      ...(initialFiltering === undefined ? {} : { initialFiltering }),
     });
 
     // Only when this caller may actually run something over a selection.

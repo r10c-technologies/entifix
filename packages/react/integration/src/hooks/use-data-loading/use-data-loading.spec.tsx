@@ -240,6 +240,35 @@ describe('useDataLoading filtering and sorting', () => {
     expect(result.current.filtering).toEqual(filterByName('Widget 8'));
   });
 
+  // A preset is the user's filter, chosen for them: the first request carries
+  // it, the panel shows it, and the user can lift it — unlike a restriction.
+  it('opens on an initial filtering the user can see and clear', async () => {
+    const requests = recording();
+    const { result, rerender } = renderHook(
+      ({ preset }: { preset: FilterGroup<Widget> }) =>
+        useDataLoading<Widget, EntityRepositoryTag>({
+          uc: loadUCFactory<Widget>(),
+          ctx: makeContext(),
+          initialFiltering: preset,
+        }),
+      { wrapper, initialProps: { preset: filterByName('Widget 7') } },
+    );
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(requests[0]?.filtering).toEqual([filterByName('Widget 7')]);
+    expect(result.current.items).toHaveLength(1);
+    expect(result.current.filtering).toEqual(filterByName('Widget 7'));
+
+    // Read once: a later preset does not move a list the user is looking at.
+    rerender({ preset: filterByName('Widget 8') });
+    expect(result.current.filtering).toEqual(filterByName('Widget 7'));
+
+    act(() =>
+      result.current.onFilteringChange({ operator: 'and', values: [] }),
+    );
+    await waitFor(() => expect(result.current.items).toHaveLength(10));
+  });
+
   it('holds the request back while disabled', async () => {
     const { result, rerender } = renderHook(
       ({ enabled }: { enabled: boolean }) =>
