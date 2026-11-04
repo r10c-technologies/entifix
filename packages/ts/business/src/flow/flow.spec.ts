@@ -15,6 +15,7 @@ import {
   fragmentFingerprint,
   fragmentRef,
   type Slip,
+  SLIP_VERSIONS,
   type SlipStep,
   validateSlip,
 } from './index.js';
@@ -501,12 +502,21 @@ describe('the slip schema', () => {
 
   it('refuses an unknown slipVersion as a protocol failure', () => {
     const failure = Effect.runSync(
-      Effect.flip(decodeSlip({ ...cardSlip, slipVersion: 2 })),
+      Effect.flip(decodeSlip({ ...cardSlip, slipVersion: 99 })),
     );
 
     expect(failure.category).toBe('protocol');
     expect(failure.reason).toContain('the slip does not decode');
   });
+});
+
+// A flow started under an earlier grammar finishes under it, so its stored
+// slip must still decode after the next grammar ships.
+it('decodes a slip of every grammar version still interpreted', () => {
+  for (const slipVersion of SLIP_VERSIONS)
+    expect(
+      Effect.runSync(decodeSlip({ ...cardSlip, slipVersion })).slipVersion,
+    ).toBe(slipVersion);
 });
 
 describe('the catalog', () => {

@@ -485,6 +485,38 @@ describe('makeEntityCrud, at factory time', () => {
     ).toThrow(/no member "vendorId"/);
   });
 
+  // The allowlist a service applies: a member outside it — here one the entity
+  // never declared, which the type would refuse, so it arrives cast as a
+  // string built at runtime would — throws where the screen is generated.
+  it('rejects an initial filtering on a member outside the allowlist', () => {
+    expect(() =>
+      makeEntityCrud<Brand, TestAdapters>(Brand, {
+        useAdapters,
+        basePath: '/catalog/brand',
+        catalogKey: 'product-brand',
+        repository: 'brandRest',
+        initialFiltering: {
+          operator: 'and',
+          values: [
+            { property: 'vendor' as 'name', operator: 'eq', value: 'x' },
+          ],
+        },
+      }),
+    ).toThrow(/vendor/);
+  });
+
+  it('accepts an emptied initial filtering, which filters nothing', () => {
+    expect(() =>
+      makeEntityCrud<Brand, TestAdapters>(Brand, {
+        useAdapters,
+        basePath: '/catalog/brand',
+        catalogKey: 'product-brand',
+        repository: 'brandRest',
+        initialFiltering: { operator: 'and', values: [] },
+      }),
+    ).not.toThrow();
+  });
+
   it('carries the entity’s identity for a registry to derive from', () => {
     expect(brandCrud.entityKey).toBe('product-brand');
     expect(brandCrud.basePath).toBe('/catalog/product-brand');
@@ -538,6 +570,37 @@ describe('the generated list page, given a page size', () => {
     await waitFor(() =>
       expect(screen.getAllByText('Beta').length).toBeGreaterThan(0),
     );
+    expect(screen.queryByText('Gamma')).not.toBeInTheDocument();
+  });
+});
+
+/** A worklist: the list opens on the rows someone has to act on. */
+const worklistBrandCrud = makeEntityCrud<Brand, TestAdapters>(Brand, {
+  useAdapters,
+  basePath: '/catalog/brand',
+  catalogKey: 'product-brand',
+  repository: 'brandRest',
+  hiddenFields: ['id', 'code'],
+  initialFiltering: {
+    operator: 'and',
+    values: [{ property: 'name', operator: 'eq', value: 'Beta' }],
+  },
+});
+
+describe('the generated list page, given an initial filtering', () => {
+  it('opens on the rows the filtering keeps', async () => {
+    repositories.brand.seed([
+      makeBrand('b-1', 'Acme'),
+      makeBrand('b-2', 'Beta'),
+      makeBrand('b-3', 'Gamma'),
+    ] as Entity[]);
+
+    renderPage(<worklistBrandCrud.ListPage />);
+
+    await waitFor(() =>
+      expect(screen.getAllByText('Beta').length).toBeGreaterThan(0),
+    );
+    expect(screen.queryByText('Acme')).not.toBeInTheDocument();
     expect(screen.queryByText('Gamma')).not.toBeInTheDocument();
   });
 });

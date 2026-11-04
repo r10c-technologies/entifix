@@ -48,6 +48,49 @@ describe('makeFakeFlowEngine', () => {
     ]);
   });
 
+  const withSteps = (
+    flowId: string,
+    names: readonly string[],
+    slipVersion: 1 | 2 = 2,
+  ) => ({
+    ...slip,
+    slipVersion,
+    flowId,
+    stages: [
+      {
+        name: 'main',
+        steps: names.map(name => ({
+          ref: `contract.${name}@1`,
+          step: name,
+          cardinality: 'one' as const,
+        })),
+      },
+    ],
+  });
+
+  it('announces a wait past the commit point from grammar 2, and none before it or under grammar 1', async () => {
+    const engine = makeFakeFlowEngine(flowEngineContractCatalog, () =>
+      Effect.succeed({}),
+    );
+    await Effect.runPromise(
+      engine.start(withSteps('after', ['hold', 'take', 'await']), 'k-1'),
+    );
+    await Effect.runPromise(
+      engine.start(withSteps('before', ['hold', 'await', 'take']), 'k-2'),
+    );
+    await Effect.runPromise(
+      engine.start(withSteps('v1', ['hold', 'take', 'await'], 1), 'k-3'),
+    );
+
+    expect(engine.events.map(event => event.id)).toEqual([
+      'after:started',
+      'after:await',
+      'before:started',
+      'v1:started',
+    ]);
+    expect(engine.events[1]?.name).toBe('flow.waiting');
+  });
+
   // A step the catalog does not know is treated as retriable: after the
   // commit point, so its failure suspends rather than compensating.
   it('suspends on an unknown step, and reports the failure’s code', async () => {

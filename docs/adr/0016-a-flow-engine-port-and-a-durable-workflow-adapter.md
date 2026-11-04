@@ -5,6 +5,7 @@
 - Revised: 2026-10-29 by the #119 interpreter — `signalCorrelated`, an explicit compensation walk, and `DurableDeferred.raceAll` for timed waits
 - Revised: 2026-10-29 — step bounds are overridable per participant (`dialsFor`), and journaled states are counted
 - Revised: 2026-11-04 — a step may be guarded on a wait's outcome, a wait's timeout answers an outcome or strands the flow, and `signalCorrelated` resolves the wait from the correlation and the outcomes it declares
+- Revised: 2026-11-04 — slip grammar 2: a wait past the commit point announces `flow.waiting`, so a caller whose write landed at the pivot is not held pending while the flow waits days for someone else; grammar-1 flows finish under grammar 1
 - Area: adapters
 - Read when: running a multi-step flow, deciding where a flow survives its process dying, adding a wait, a child flow or a join to a flow, bumping the `effect` pin, or about to import `effect/workflow` or `effect/cluster`
 
@@ -114,12 +115,20 @@ the slip, branching on `slipVersion` — not one workflow per flow:
 
 ### Flow events leave through an outbox
 
-`flow.started`, `flow.completed`, `flow.failed` and `flow.suspended` are written
-by an idempotent `announce` Activity into a **SQL outbox** in the workflow
+`flow.started`, `flow.waiting`, `flow.completed`, `flow.failed`,
+`flow.suspended` and `flow.stranded` are written by an idempotent `announce` Activity into a **SQL outbox** in the workflow
 store, with event id `<flowId>:<step>`, `correlationId = flowId`, the flow as
 aggregate and the step ordinal as version. They reach the bus through the relay
 of [ADR 0018](0018-one-outbox-ordered-per-aggregate.md), like any other domain
 event.
+
+`flow.waiting` is announced only at a wait **past the commit point**, from slip
+grammar 2. Before the pivot nothing the caller asked for has landed, so a wait
+there says nothing; after it the caller's write is committed and what the flow
+waits on — a courier's report, a person — is someone else's. Grammar 1 does not
+announce it, because adding an Activity to a walk changes the command sequence
+its in-flight flows were journaled under: the new behaviour is a new
+`slipVersion`, with its own recorded journal, and the old one stays as it was.
 
 Every state the interpreter journals is also counted, as
 `entifix_flow_states_total` by state and source, inside the Activity that

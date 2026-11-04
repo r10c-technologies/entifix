@@ -118,6 +118,14 @@ export const makeFakeFlowEngine = (
         run.step = step.step;
         if (kindOf(step) === 'wait') {
           run.state = 'waiting';
+          // As the interpreter does from grammar 2: only a wait past the
+          // commit point says the caller's write has landed.
+          if (
+            run.slip.slipVersion >= 2 &&
+            commitAt !== -1 &&
+            run.next > commitAt
+          )
+            announce(run, 'flow.waiting', step.step);
           armTimeout(run, step);
           return;
         }

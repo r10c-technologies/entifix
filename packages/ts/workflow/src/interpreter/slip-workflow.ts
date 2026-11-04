@@ -240,7 +240,13 @@ const groupsOf = (steps: readonly SlipStep[]): readonly SlipStep[][] => {
  * after the last undoing has run — and an undoing that fails stops the flow
  * `failed` at that step instead of pretending.
  */
-const interpretV1 = (slip: Slip) =>
+/** What differs between grammar versions as the walk is interpreted. */
+interface Grammar {
+  /** Whether a wait past the commit point announces `flow.waiting` (v2). */
+  readonly announcesCommittedWaits: boolean;
+}
+
+const walkSlip = (slip: Slip, grammar: Grammar) =>
   Effect.gen(function* () {
     const options = yield* InterpreterOptionsTag;
     const dials = { ...DEFAULT_FLOW_DIALS, ...options.dials };
@@ -386,6 +392,16 @@ const interpretV1 = (slip: Slip) =>
           ...(typeof correlation === 'string' ? { correlation } : {}),
           ...(accepts === undefined ? {} : { accepts }),
         });
+        // Past the commit point the caller's write has landed, and the wait is
+        // for someone else — a courier, a person — so the flow says so and a
+        // browser holding the write pending can let it go. Before it, nothing
+        // has landed, and the flow stays silent.
+        if (
+          grammar.announcesCommittedWaits &&
+          commitPoint !== -1 &&
+          steps.indexOf(step) > commitPoint
+        )
+          yield* announce('flow.waiting', step.step, ordinalOf(step));
         const signalled = DurableDeferred.await(waitFor(step.step));
         const timeoutMs = step.parameters?.['timeoutMs'];
         // A durable race, so a replay answers the branch that won rather than
@@ -546,10 +562,10 @@ const interpretV1 = (slip: Slip) =>
  * edit to an existing one; the journal replay holds every entry to its
  * recorded command sequence.
  */
-const INTERPRETERS = { 1: interpretV1 } as const satisfies Record<
-  Slip['slipVersion'],
-  (slip: Slip) => unknown
->;
+const INTERPRETERS = {
+  1: (slip: Slip) => walkSlip(slip, { announcesCommittedWaits: false }),
+  2: (slip: Slip) => walkSlip(slip, { announcesCommittedWaits: true }),
+} as const satisfies Record<Slip['slipVersion'], (slip: Slip) => unknown>;
 
 /** Every `slipVersion` the interpreter walks — each must have a journal. */
 export const interpretedSlipVersions: readonly number[] =

@@ -163,6 +163,43 @@ describe('the slip interpreter', () => {
     ]);
   });
 
+  // The caller's write landed at the pivot; the wait after it is someone
+  // else's, and saying so is what lets a browser stop holding the write.
+  it('announces a wait past the commit point from grammar 2, and stays silent at one before it', async () => {
+    const v2 = (steps: readonly StepSpec[]): Slip => ({
+      ...slipOf(steps),
+      slipVersion: 2,
+    });
+    const after = await engineOver(() => Effect.void);
+    await start(after.engine, v2(['hold', 'take', 'await', 'settle']));
+    expect((await settled(after.engine)).state).toBe('waiting');
+    expect(
+      after.outbox.entries.map(entry => [entry.event.name, entry.version]),
+    ).toEqual([
+      ['flow.started', 0],
+      ['flow.waiting', 3],
+    ]);
+    expect(after.outbox.entries[1]?.event.audience).toEqual([
+      { kind: 'flow', id: 'flow-x' },
+      { kind: 'organization', id: 'org-1' },
+    ]);
+
+    const before = await engineOver(() => Effect.void);
+    await start(before.engine, v2(['hold', 'await', 'take']));
+    expect((await settled(before.engine)).state).toBe('waiting');
+    expect(before.outbox.entries.map(entry => entry.event.name)).toEqual([
+      'flow.started',
+    ]);
+
+    // A flow journaled under grammar 1 finishes under it, announcing nothing new.
+    const v1 = await engineOver(() => Effect.void);
+    await start(v1.engine, slipOf(['hold', 'take', 'await', 'settle']));
+    expect((await settled(v1.engine)).state).toBe('waiting');
+    expect(v1.outbox.entries.map(entry => entry.event.name)).toEqual([
+      'flow.started',
+    ]);
+  });
+
   it('announces a compensated flow as failed, with the refusal’s code', async () => {
     const { engine, outbox } = await engineOver((step, kind) =>
       step.step === 'take' && kind === 'action'

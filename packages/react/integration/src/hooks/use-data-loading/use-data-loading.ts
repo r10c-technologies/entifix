@@ -45,11 +45,14 @@ function requestReducer<T extends Entity>(
   return { ...state, ...action.set };
 }
 
-function initialRequest<T extends Entity>(pageSize: number): RequestState<T> {
+function initialRequest<T extends Entity>(seed: {
+  pageSize: number;
+  filtering: FilterGroup<T> | undefined;
+}): RequestState<T> {
   return {
     currentPage: 1,
-    pageSize,
-    filtering: undefined,
+    pageSize: seed.pageSize,
+    filtering: seed.filtering,
     sorting: undefined,
   };
 }
@@ -70,13 +73,14 @@ export function useDataLoading<TEntity extends Entity, TContext>({
   queryKey,
   enabled = true,
   baseFiltering,
+  initialFiltering,
 }: UseDataLoadingOptions<TEntity, TContext>) {
   const [request, dispatch] = useReducer(
     requestReducer as (
       state: RequestState<TEntity>,
       action: RequestAction<TEntity>,
     ) => RequestState<TEntity>,
-    initialPageSize,
+    { pageSize: initialPageSize, filtering: initialFiltering },
     initialRequest<TEntity>,
   );
 
