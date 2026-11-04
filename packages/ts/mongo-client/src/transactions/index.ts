@@ -13,6 +13,5 @@ export * from '../idempotency/store.js';
 export * from '../inbox/store.js';
 export * from '../outbox/relay.js';
 export * from '../outbox/store.js';
-export * from '../saga/store.js';
 export * from '../unit-of-work/command-inbox.js';
 export * from '../unit-of-work/mongo-unit-of-work.js';

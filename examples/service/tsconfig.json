@@ -16,6 +16,9 @@
   "include": ["src/**/*.ts"],
   "references": [
     {
+      "path": "../../packages/ts/workflow"
+    },
+    {
       "path": "../../packages/ts/transactions"
     },
     {

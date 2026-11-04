@@ -8,7 +8,6 @@ export * from './adapters/entity-rest/build-entity-rest-adapter-write/index.js';
 export * from './adapters/entity-rest/types.js';
 export * from './adapters/entity-use-case/index.js';
 export * from './adapters/flow-status/build-flow-status-reader/index.js';
-export * from './adapters/transaction-status/build-transaction-status-reader/index.js';
 export * from './clients/fetch/index.js';
 export * from './clients/types.js';
 export * from './configuration-client/index.js';

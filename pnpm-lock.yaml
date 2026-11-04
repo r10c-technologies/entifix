@@ -424,6 +424,9 @@ importers:
       '@entifix/transactions':
         specifier: workspace:*
         version: link:../../packages/ts/transactions
+      '@entifix/workflow':
+        specifier: workspace:*
+        version: link:../../packages/ts/workflow
       amqplib:
         specifier: 2.2.1
         version: 2.2.1
@@ -901,9 +904,6 @@ importers:
       '@entifix/testing-unit':
         specifier: workspace:*
         version: link:../testing-unit
-      '@entifix/transactions':
-        specifier: workspace:*
-        version: link:../transactions
       effect:
         specifier: 4.0.7
         version: 4.0.7

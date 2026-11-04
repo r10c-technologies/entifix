@@ -137,3 +137,13 @@ export const FlowEngineLayer = (options: InterpreterOptions) =>
   Layer.effect(FlowEngineTag, makeFlowEngine).pipe(
     Layer.provideMerge(SlipWorkflowLayer(options)),
   );
+
+/**
+ * The flow engine over Effect's in-memory workflow engine: every flow lives and
+ * dies with the process. For a single-process host — an example, a test, a
+ * tool — whose flows need the interpreter's semantics but not its durability;
+ * a fleet takes `@entifix/workflow/postgres`'s engines instead, and nothing
+ * else in its composition changes.
+ */
+export const MemoryFlowEngineLayer = (options: InterpreterOptions) =>
+  FlowEngineLayer(options).pipe(Layer.provide(WorkflowEngine.layerMemory));

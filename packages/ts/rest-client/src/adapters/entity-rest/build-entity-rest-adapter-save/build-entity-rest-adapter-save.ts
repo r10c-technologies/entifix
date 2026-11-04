@@ -3,24 +3,11 @@ import {
   EntityConstructor,
   extractMetaEntity,
   ProtocolFailure,
-  serializeEntity,
 } from '@entifix/core';
-import {
-  makeCommandEnvelope,
-  readTransactionAcceptedEnvelope,
-  type TransactionCommand,
-  TransactionSinkTag,
-} from '@entifix/transactions';
-import { Effect, Option } from 'effect';
+import { Effect } from 'effect';
 
-import { performHttpRequestThroughFetch } from '../../../clients/fetch/index.js';
-import { buildEntityRestAdapterMixins as adapterMixins } from '../build-entity-rest-adapter-mixins/index.js';
 import { buildEntityRestAdapterWrite } from '../build-entity-rest-adapter-write/index.js';
-import { pendingSaveKeys } from '../pending-save-keys.js';
 import { BuildEntityRestOptions } from '../types.js';
-
-/** A transactional create whose `202` never arrived: same command, same id. */
-const pendingCreates = new WeakSet<object>();
 
 /**
  * Persists an entity over HTTP.
@@ -33,13 +20,9 @@ const pendingCreates = new WeakSet<object>();
  * deserialized and returned, because the service is the authority on the stored
  * entity (it assigns ids and may normalize fields).
  *
- * A **transactional** create inverts that, and deliberately. The service answers
- * `202` describing a transaction rather than an entity, so there is no stored
- * entity to read back yet: the client mints the transaction id, which *is* the
- * id the entity will be stored under, and returns the entity it already holds.
- * That is the point of the client owning the id — before it, this
- * adapter parsed the `202` as an entity envelope, failed, and reported an error
- * for a create that was in fact about to succeed.
+ * A write the service hands to a flow answers `202`; a repository save has no
+ * stored entity to return for it, so such an entity is written through
+ * `buildEntityRestAdapterWrite`, which answers the flow to follow.
  */
 export const buildEntityRestAdapterSave =
   <TEntity extends Entity>(
@@ -51,80 +34,8 @@ export const buildEntityRestAdapterSave =
   // shadowed parameter would make unreachable.
   <TInput extends Entity>(entity: TInput) =>
     Effect.gen(function* () {
-      const { uriConfig, create = 'entity', configuration } = options;
       const metaEntity = extractMetaEntity(entityConstructor);
       const key = metaEntity.key ?? metaEntity.name;
-      const isCreate = entity.id == null || pendingCreates.has(entity);
-
-      if (isCreate && create === 'command') {
-        const url = yield* adapterMixins.buildEntityBaseUrl(
-          configuration,
-          { uriConfig },
-          key,
-        );
-
-        // `crypto.randomUUID` is available in every browser this ships to and in
-        // Node — and the id must be a UUID, because the service constrains the
-        // key space a caller may address.
-        // A retried create reuses the id it was first sent with: that id *is*
-        // the idempotency key, so a new one would write a second record.
-        const transactionId =
-          pendingSaveKeys.get(entity) ?? crypto.randomUUID();
-        pendingSaveKeys.set(entity, transactionId);
-        pendingCreates.add(entity);
-        entity.id = transactionId;
-
-        const command: TransactionCommand = {
-          transactionId,
-          type: 'create',
-          entity: key,
-          payload: serializeEntity(
-            entityConstructor,
-            entity as unknown as TEntity,
-          ),
-        };
-
-        const accepted = yield* performHttpRequestThroughFetch(
-          adapterMixins.buildEntityRequest({
-            method: 'POST',
-            url,
-            envelope: makeCommandEnvelope(command),
-            idempotencyKey: transactionId,
-          }),
-        );
-        // Read for its shape, not its contents: this asserts the service really
-        // accepted a transaction rather than answering something else with a
-        // 2xx, which is the failure the old code path could not distinguish.
-        yield* readTransactionAcceptedEnvelope(accepted.body);
-        pendingSaveKeys.delete(entity);
-        pendingCreates.delete(entity);
-
-        // Tell whoever is watching that a write is in flight. This is the only
-        // point in the system that knows it — the entity returned below is
-        // indistinguishable from a plain REST create, so without this the
-        // browser navigates away at the `202` and a later failure leaves no row,
-        // no message and nothing to retry from.
-        //
-        // `serviceOption`, deliberately: reading the tag this way keeps it out
-        // of this function's `R`, so the storefront, the plain REST adapters and
-        // every existing spec compile and run with no layer to provide. The cost
-        // is that nothing *forces* a composition root to provide it, which is
-        // why `mergeContext` has a spec pinning that it does.
-        const sink = yield* Effect.serviceOption(TransactionSinkTag);
-        if (Option.isSome(sink)) {
-          // After the assertion above, never before: a `2xx` that is not a
-          // transaction envelope must not register a pending id, because nothing
-          // would ever settle it and the entry becomes a permanent phantom.
-          sink.value.began({
-            transactionId,
-            entity: key,
-            at: new Date().toISOString(),
-          });
-        }
-
-        return entity;
-      }
-
       const result = yield* buildEntityRestAdapterWrite(
         entityConstructor,
         options,

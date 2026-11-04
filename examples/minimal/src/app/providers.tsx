@@ -43,8 +43,7 @@ function Themed({ children }: PropsWithChildren) {
  * Everything a screen needs above it, and nothing that talks to a server.
  *
  * No adapters provider — `useExampleAdapters` hands out module-scope contexts —
- * and no `PendingTransactionsProvider`: nothing here writes asynchronously, and
- * the shell falls back to a store that tracks nothing.
+ * and nothing here writes asynchronously.
  */
 export function Providers({
   locale,

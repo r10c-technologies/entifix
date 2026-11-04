@@ -10,7 +10,7 @@ import {
 import { EventBusTag, type Subscription } from '@entifix/transactions';
 import { Effect } from 'effect';
 
-import { ORDER_PLACED, ORDERS_SLICE } from './place-order.saga.ts';
+import { ORDER_PLACED, ORDERS_SLICE } from './place-order.flow.ts';
 
 export const STATS_COLLECTION = 'order-stats';
 

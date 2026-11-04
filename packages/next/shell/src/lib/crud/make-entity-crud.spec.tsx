@@ -29,8 +29,6 @@ import {
   makeQueryClient,
 } from '@entifix/react-integration';
 import { makeInMemoryEntityRepository } from '@entifix/testing-unit';
-import type { TransactionSink } from '@entifix/transactions';
-import { TransactionSinkTag } from '@entifix/transactions';
 import {
   act,
   fireEvent,
@@ -40,14 +38,12 @@ import {
   within,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { Context, Effect, Option } from 'effect';
+import { Context, Effect } from 'effect';
 import { type ReactElement, useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { EntityNavProvider } from '../workspace/entity-nav.js';
 import { PendingFlowsProvider } from '../workspace/pending-flows.js';
-import { usePendingState } from '../workspace/pending-state.js';
-import { PendingTransactionsProvider } from '../workspace/pending-transactions.js';
 import { makeEntityCrud } from './make-entity-crud.js';
 import { CATALOG_NEW_SLUG } from './slug.js';
 
@@ -1379,66 +1375,14 @@ describe('the generated form’s pickers, filtered per record', () => {
   });
 });
 
-/**
- * The optimistic branch: a save whose id is being watched has not committed yet.
- *
- * The pending set is seeded directly rather than driven through the save
- * adapter, because the in-memory repository these specs run on never reaches
- * it — that the adapter registers exactly the transactional creates is its own
- * spec's job (`build-entity-rest-adapter-save`). What is asserted here is the
- * branch this file owns: given an id in the pending set, the draft survives and
- * the row is rendered before the write lands.
- */
-describe('the generated form, saving a write that is still in flight', () => {
-  const withPending = (page: ReactElement) =>
-    render(
-      <EntifixQueryProvider>
-        <PendingTransactionsProvider scope="user-1:org-1">
-          {page}
-        </PendingTransactionsProvider>
-      </EntifixQueryProvider>,
-    );
-
-  beforeEach(() => {
-    usePendingState.setState({ pending: {} });
-    vi.spyOn(usePendingState.persist, 'rehydrate').mockResolvedValue(undefined);
-  });
-
-  const watch = (transactionId: string) =>
-    usePendingState.getState().began({
-      transactionId,
-      entity: 'product-brand',
-      at: '2026-09-02T00:00:00.000Z',
-    });
-
-  // The fix for the silent input loss: a create resolves at the `202`, so
-  // clearing here would destroy the operator's only copy of what they typed
-  // minutes before the transaction actually failed.
-  it('keeps the draft, because the write has not committed', async () => {
-    slug = 'b-1';
-    watch('b-1');
-    const store = draftStore();
-    const user = userEvent.setup();
-
-    withPending(<brandCrud.SingleViewPage draft={store} />);
-    await waitFor(() =>
-      expect(screen.getByLabelText(/nombre/i)).toHaveValue('Acme'),
-    );
-
-    await user.click(screen.getByRole('button', { name: 'Guardar' }));
-
-    await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
-    expect(store.clear).not.toHaveBeenCalled();
-  });
-
-  // The unwatched path is unchanged: a plain REST save is durable when it
-  // answers, so the draft is spent and nothing is patched.
-  it('still clears the draft for a write that is already durable', async () => {
+describe('the generated form, saving a write that settled', () => {
+  // A settled save is durable when it answers, so the draft is spent.
+  it('clears the draft', async () => {
     slug = 'b-1';
     const store = draftStore();
     const user = userEvent.setup();
 
-    withPending(<brandCrud.SingleViewPage draft={store} />);
+    renderPage(<brandCrud.SingleViewPage draft={store} />);
     await waitFor(() =>
       expect(screen.getByLabelText(/nombre/i)).toHaveValue('Acme'),
     );
@@ -1446,46 +1390,6 @@ describe('the generated form, saving a write that is still in flight', () => {
     await user.click(screen.getByRole('button', { name: 'Guardar' }));
 
     await waitFor(() => expect(store.clear).toHaveBeenCalledTimes(1));
-  });
-});
-
-/**
- * ⚠️ The guard the type system cannot give.
- *
- * The sink is read with `Effect.serviceOption`, which erases the tag from the
- * adapter's `R` — that is what keeps every existing caller compiling with no
- * layer to provide, and it is also why **nothing forces the composition root to
- * provide it**. Forget to, and the read returns `None`, everything type-checks,
- * the adapter's own spec still reaches 100% on both arms, and the feature is
- * silently dead. So the wiring is asserted where it is done.
- */
-describe('the context the generated pages run their use-cases in', () => {
-  it('carries a transaction sink, so an announcement has somewhere to go', async () => {
-    let seen: Option.Option<TransactionSink> | undefined;
-
-    // A repository whose only job is to report what it can see in context —
-    // driven through the real `SingleViewPage`, so what is asserted is the
-    // context `mergeContext` actually built rather than a re-derivation of it.
-    repositories.brand = {
-      ...repositories.brand,
-      save: () =>
-        Effect.gen(function* () {
-          seen = yield* Effect.serviceOption(TransactionSinkTag);
-          return yield* Effect.succeed(makeBrand('b-1', 'Acme', 'brand-001'));
-        }),
-    } as ReturnType<typeof makeInMemoryEntityRepository>;
-
-    slug = 'b-1';
-    const user = userEvent.setup();
-    renderPage(<brandCrud.SingleViewPage />);
-    await waitFor(() =>
-      expect(screen.getByLabelText(/nombre/i)).toHaveValue('Acme'),
-    );
-
-    await user.click(screen.getByRole('button', { name: 'Guardar' }));
-
-    await waitFor(() => expect(seen).toBeDefined());
-    expect(Option.isSome(seen!)).toBe(true);
   });
 });
 

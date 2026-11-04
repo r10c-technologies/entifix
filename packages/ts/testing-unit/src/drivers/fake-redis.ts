@@ -1,11 +1,9 @@
 /**
- * A fake of the ioredis client, not of the lock/sequence ports.
+ * A fake of the ioredis client, not of the stores built on it.
  *
- * `makeRedisLockService`, `makeRedisSequenceService`, the session store, the
- * one-time token store and the attempt limiter all run unchanged on top of it,
- * so their real behaviour — `SET NX PX`, the bounded retry loop, the
- * compare-and-delete release script, `INCR`, `GETDEL` — is what the specs
- * exercise.
+ * The session store, the one-time token store and the attempt limiter run
+ * unchanged on top of it, so their real behaviour — `SET NX PX`, the
+ * compare-and-delete script, `INCR`, `GETDEL` — is what the specs exercise.
  *
  * Time does not pass: `EX`/`EXPIRE` are remembered so `TTL` can report them, but
  * nothing here expires on its own. Adapters that must be tested across an expiry

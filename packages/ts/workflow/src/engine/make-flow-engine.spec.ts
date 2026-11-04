@@ -37,7 +37,7 @@ import {
   FlowStatusStoreTag,
   makeInMemoryFlowStatusStore,
 } from '../status/flow-status-store.js';
-import { FlowEngineLayer } from './make-flow-engine.js';
+import { FlowEngineLayer, MemoryFlowEngineLayer } from './make-flow-engine.js';
 
 const runtimes: ManagedRuntime.ManagedRuntime<unknown, unknown>[] = [];
 afterAll(async () => {
@@ -541,5 +541,34 @@ describe('the in-memory status store', () => {
       state: 'running',
       step: 'await',
     });
+  });
+});
+
+describe('MemoryFlowEngineLayer', () => {
+  it('runs a slip to its end over the in-memory workflow engine', async () => {
+    const store = makeInMemoryFlowStatusStore();
+    const runtime = ManagedRuntime.make(
+      MemoryFlowEngineLayer({
+        catalog: flowEngineContractCatalog,
+        source: 'spec',
+      }).pipe(
+        Layer.provide(
+          Layer.mergeAll(
+            InMemoryCircuitBreakerLayer(),
+            InMemoryBulkheadLayer(),
+            InMemoryRetryBudgetLayer(),
+            Layer.succeed(FlowStatusStoreTag, store),
+            Layer.succeed(OutboxTag, makeInMemoryOutbox()),
+            Layer.succeed(ParticipantClientTag, { call: () => Effect.void }),
+          ),
+        ),
+      ),
+    );
+    runtimes.push(runtime as never);
+    const engine = await runtime.runPromise(Effect.service(FlowEngineTag));
+
+    await start(engine, slipOf(['hold', 'take', 'settle']));
+
+    expect(await settled(engine)).toMatchObject({ state: 'completed' });
   });
 });

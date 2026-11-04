@@ -8,7 +8,7 @@ import {
 } from '@entifix/mongo';
 import {
   ensureOutboxIndexes,
-  MongoSagaStoreLayer,
+  makeMongoOutbox,
   startOutboxRelay,
 } from '@entifix/mongo/transactions';
 import { makeObservabilityLayer } from '@entifix/service-shell/observability';
@@ -16,17 +16,30 @@ import {
   AllowAllPolicyLayer,
   FixedTokenServiceLayer,
 } from '@entifix/testing-auth';
-import { EventSourceTag, OutboxMaxAttempts } from '@entifix/transactions';
-import { startSagaResume } from '@entifix/transactions/engine';
+import {
+  EventSourceTag,
+  OutboxMaxAttempts,
+  OutboxTag,
+} from '@entifix/transactions';
+import {
+  InMemoryBulkheadLayer,
+  InMemoryCircuitBreakerLayer,
+  InMemoryRetryBudgetLayer,
+} from '@entifix/transactions/engine';
+import {
+  FlowStatusStoreTag,
+  makeInMemoryFlowStatusStore,
+  MemoryFlowEngineLayer,
+} from '@entifix/workflow';
 import { Effect, Layer } from 'effect';
 
 import { startOrderStatsProjection } from './order-stats.projection.ts';
 import {
   ensureOrderIndexes,
   ORDERS_SLICE,
-  placeOrder,
-  PlaceOrderDispatcherLayer,
-} from './place-order.saga.ts';
+  placeOrderCatalog,
+  PlaceOrderParticipantsLayer,
+} from './place-order.flow.ts';
 import type { ServiceSettings } from './settings.ts';
 
 export const SERVICE_NAME = 'example-service';
@@ -48,11 +61,27 @@ export const makeDomainLayer = (settings: ServiceSettings) => {
     Layer.succeed(OutboxMaxAttempts, 5),
   );
 
-  const saga = Layer.mergeAll(
-    MongoRepositoryFactoryLayer,
-    MongoSagaStoreLayer,
-    PlaceOrderDispatcherLayer(settings.chargeLimit),
+  // The flow engine, in memory: what this example proves is the composition —
+  // a durable fleet puts `@entifix/workflow/postgres` here and nothing else
+  // changes. Its
+  // announcements leave through the same Mongo outbox as the order's.
+  const flows = MemoryFlowEngineLayer({
+    catalog: placeOrderCatalog,
+    source: ORDERS_SLICE,
+  }).pipe(
+    Layer.provide(
+      Layer.mergeAll(
+        InMemoryCircuitBreakerLayer(),
+        InMemoryBulkheadLayer(),
+        InMemoryRetryBudgetLayer(),
+        Layer.succeed(FlowStatusStoreTag, makeInMemoryFlowStatusStore()),
+        Layer.effect(OutboxTag, Effect.map(MongoDatabaseTag, makeMongoOutbox)),
+        PlaceOrderParticipantsLayer(settings.chargeLimit),
+      ),
+    ),
   );
+
+  const domain = Layer.mergeAll(MongoRepositoryFactoryLayer, flows);
 
   const started = Layer.effectDiscard(
     Effect.gen(function* () {
@@ -60,18 +89,12 @@ export const makeDomainLayer = (settings: ServiceSettings) => {
       yield* ensureOrderIndexes(yield* MongoDatabaseTag);
       yield* startOutboxRelay();
       yield* startOrderStatsProjection;
-      yield* startSagaResume({
-        definitions: [placeOrder],
-        staleAfterMs: 30_000,
-        maxResumeAttempts: 5,
-        intervalMs: 15_000,
-      });
     }),
   );
 
   return Layer.provideMerge(
     started,
-    Layer.provideMerge(Layer.mergeAll(saga, AmqpEventBusLayer), infra),
+    Layer.provideMerge(Layer.mergeAll(domain, AmqpEventBusLayer), infra),
   );
 };
 
