@@ -320,6 +320,20 @@ describe('validateSlip', () => {
     ).toEqual([]);
   });
 
+  it('meets a requirement from the entitlements verified for the step’s segment', () => {
+    const vendorSlip = slipOf([
+      step(reserve, {
+        segment: { vendor: 'v-1', entitlements: ['stock-management'] },
+      }),
+    ]);
+
+    // Only the commit point is missing: the requirement itself is met.
+    expect(tags(vendorSlip, { context: {} })).toEqual(['MissingCommitPoint']);
+    expect(tags(vendorSlip, { context: { entitlements: [] } })).toEqual([
+      'MissingCommitPoint',
+    ]);
+  });
+
   it('checks roles, party roles and channels too', () => {
     const picky = defineFragment({
       ...lookup,

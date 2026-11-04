@@ -302,6 +302,139 @@ describe('compose', () => {
   });
 });
 
+describe('compose, threading the start input', () => {
+  const Order = Schema.Struct({
+    buyer: Schema.String,
+    digest: Schema.String,
+    vendors: Schema.Array(
+      Schema.Struct({
+        id: Schema.String,
+        paymentMethod: Schema.String,
+        entitlements: Schema.Array(Schema.String),
+        lines: Schema.Array(
+          Schema.Struct({ offeringId: Schema.String, quantity: Schema.Number }),
+        ),
+      }),
+    ),
+  });
+  type Order = typeof Order.Type;
+
+  const threaded: Recipe<Order> = {
+    name: 'threaded',
+    input: Order,
+    requiresCommitPoint: true,
+    segments: order =>
+      order.vendors.map(vendor => ({
+        vendor: vendor.id,
+        paymentMethod: vendor.paymentMethod,
+        entitlements: vendor.entitlements,
+      })),
+    lines: (order, segment) =>
+      order.vendors
+        .filter(vendor => segment === undefined || vendor.id === segment.vendor)
+        .flatMap(vendor =>
+          vendor.lines.map(line => ({
+            key: line.offeringId,
+            parameters: {
+              offeringId: line.offeringId,
+              quantity: line.quantity,
+            },
+          })),
+        ),
+    audience: (order, _context, flowId) => [
+      { kind: 'flow', id: flowId, digest: order.digest },
+      { kind: 'party', id: order.buyer },
+    ],
+    stages: [
+      {
+        name: 'hold',
+        perSegment: true,
+        steps: [
+          {
+            ref: 'stock.reserve@1',
+            parameters: (context, order, segment, line) => ({
+              organizationId: segment?.vendor,
+              ttl: context.config['holdTtl'],
+              buyer: order.buyer,
+              line: line?.key,
+            }),
+          },
+        ],
+      },
+      { name: 'pay', steps: [{ ref: 'flow.commit@1' }] },
+      { name: 'convert', steps: [{ ref: 'stock.convert@1' }] },
+    ],
+  };
+
+  const order: Order = {
+    buyer: 'p-1',
+    digest: 'd-1',
+    vendors: [
+      {
+        id: 'v-1',
+        paymentMethod: 'cod',
+        entitlements: ['stock-management'],
+        lines: [
+          { offeringId: 'o-1', quantity: 2 },
+          { offeringId: 'o-2', quantity: 1 },
+        ],
+      },
+    ],
+  };
+
+  it('expands a perLine step once per line, with the input, segment and line in its parameters', () => {
+    const slip = run(compose(threaded, catalog, context([]), order, options));
+
+    expect(slip.stages[0]?.steps).toEqual([
+      expect.objectContaining({
+        step: 'v-1/cod:o-1:stock.reserve',
+        line: 'o-1',
+        parameters: {
+          offeringId: 'o-1',
+          quantity: 2,
+          organizationId: 'v-1',
+          ttl: 900,
+          buyer: 'p-1',
+          line: 'o-1',
+        },
+      }),
+      expect.objectContaining({
+        step: 'v-1/cod:o-2:stock.reserve',
+        line: 'o-2',
+      }),
+    ]);
+    // Outside a segment, a perLine step expands over every line.
+    expect(slip.stages[2]?.steps.map(step => step.step)).toEqual([
+      'o-1:stock.convert',
+      'o-2:stock.convert',
+    ]);
+  });
+
+  it('pins the recipe audience on the slip', () => {
+    const slip = run(compose(threaded, catalog, context([]), order, options));
+
+    expect(slip.audience).toEqual([
+      { kind: 'flow', id: 'flow-1', digest: 'd-1' },
+      { kind: 'party', id: 'p-1' },
+    ]);
+  });
+
+  it('checks a segment step against the entitlements verified for its segment', () => {
+    const unprovisioned: Order = {
+      ...order,
+      vendors: order.vendors.map(vendor => ({ ...vendor, entitlements: [] })),
+    };
+
+    expect(
+      Effect.runSync(
+        Effect.flip(
+          compose(threaded, catalog, context([]), unprovisioned, options),
+        ),
+      ),
+    ).toBeInstanceOf(FlowRequirementsUnmet);
+  });
+});
+
 describe('enumerateCompositions', () => {
   const axes = {
     contexts: [

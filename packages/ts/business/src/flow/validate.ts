@@ -75,6 +75,22 @@ export const unmetRequirements = (
 };
 
 /**
+ * The facts a segment's step is checked against: the flow's, plus what was
+ * verified for the party the segment acts for. A storefront buyer holds no
+ * entitlement, and the vendor whose stock a step holds does.
+ */
+const withSegmentFacts = (
+  facts: RequirementFacts,
+  entitlements: readonly string[] | undefined,
+): RequirementFacts =>
+  entitlements === undefined
+    ? facts
+    : {
+        ...facts,
+        entitlements: [...(facts.entitlements ?? []), ...entitlements],
+      };
+
+/**
  * Checks a slip against its catalog and returns **every** violation, one tag
  * per rule, rather than throwing at the first — so a CI job enumerating every
  * composition reports them all in one run. Pure: no clock, no I/O.
@@ -191,7 +207,10 @@ export const validateSlip = (
       provided.set(key, schema);
 
     if (options.context !== undefined && fragment.requires !== undefined) {
-      const missing = unmetRequirements(fragment.requires, options.context);
+      const missing = unmetRequirements(
+        fragment.requires,
+        withSegmentFacts(options.context, step.segment?.entitlements),
+      );
       if (missing.length > 0)
         violations.push({
           tag: 'UnmetRequirement',
