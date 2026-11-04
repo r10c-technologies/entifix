@@ -43,10 +43,7 @@ const capture = fragmentOf('capture', {
   consumes: { orderId: Schema.String, groupId: Schema.String },
 });
 
-const stepOf = (
-  name: string,
-  extra: Partial<SlipStep> = {},
-): SlipStep => ({
+const stepOf = (name: string, extra: Partial<SlipStep> = {}): SlipStep => ({
   ref: `spec.${name}@1`,
   step: name,
   cardinality: 'one',
@@ -111,9 +108,13 @@ describe('makeBindings', () => {
       write,
       { orderId: 'ord-2' },
     );
-    bindings.record(stepOf('group'), fragmentOf('group', {
-      provides: { groupId: Schema.String },
-    }), { id: 'g-1' });
+    bindings.record(
+      stepOf('group'),
+      fragmentOf('group', {
+        provides: { groupId: Schema.String },
+      }),
+      { id: 'g-1' },
+    );
 
     expect(bindings.inputsFor(stepOf('cap'), capture, 'action')).toEqual({
       orderId: { 'v-1': 'ord-1', cod: 'ord-2' },

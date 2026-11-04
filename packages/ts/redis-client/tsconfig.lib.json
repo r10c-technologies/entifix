@@ -21,7 +21,7 @@
     },
     {
       "path": "../testing-unit/tsconfig.lib.json"
-    },
+    }
   ],
   "exclude": [
     "jest.config.ts",

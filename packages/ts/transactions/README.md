@@ -12,10 +12,10 @@ pnpm add @entifix/transactions effect
 
 ## Entry points
 
-| Import                         | What it holds                                                                                                                                                                                         |
-| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Import                         | What it holds                                                                                                                                                                    |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `@entifix/transactions`        | The unit of work; inbox, outbox and event-bus ports; the flow engine, participant client, circuit breaker, bulkhead and retry budget ports; flow messages and capabilities; `On` |
-| `@entifix/transactions/engine` | The in-memory circuit breaker, bulkhead and retry budget, and the outbox relay and its metrics |
+| `@entifix/transactions/engine` | The in-memory circuit breaker, bulkhead and retry budget, and the outbox relay and its metrics                                                                                   |
 
 ---
 

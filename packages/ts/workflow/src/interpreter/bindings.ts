@@ -116,7 +116,10 @@ export const makeBindings = (): Bindings => {
       // Only a segment's own bindings are offered by name: a line's are its
       // line's, and the flow's are everyone's already.
       if (step.segment !== undefined && step.line === undefined)
-        segmentNames.set(scope, step.segment.vendor ?? String(segmentKey(step)));
+        segmentNames.set(
+          scope,
+          step.segment.vendor ?? String(segmentKey(step)),
+        );
       bind(scope, values);
     },
     inputsFor: (step, fragment, kind) => {
