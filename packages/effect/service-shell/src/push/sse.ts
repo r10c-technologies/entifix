@@ -1,3 +1,4 @@
+import { ShutdownRegistryTag } from '@entifix/business';
 import { type DomainEvent, encodeEvent } from '@entifix/core';
 import {
   Clock,
@@ -6,6 +7,7 @@ import {
   Effect,
   Exit,
   Metric,
+  Option,
   Ref,
   type Scope,
   Stream,
@@ -153,6 +155,28 @@ export const makeSsePush = ({
         Effect.timeoutOption(Duration.millis(drainWindowMs)),
       );
     });
+
+    // …and before that, on the signal itself. The server's close waits for
+    // every open response and a stream never finishes by itself, so a drain
+    // left to the finalizer above ran only after the server had given up on
+    // the streams, twenty seconds on, and cut them without the `retry:` that
+    // spreads their reconnect (#492). Told here, each one ends at once.
+    const shutdown = yield* Effect.serviceOption(ShutdownRegistryTag);
+    if (Option.isSome(shutdown)) {
+      yield* Effect.forkScoped(
+        shutdown.value.whenTerminating.pipe(
+          Effect.andThen(
+            Effect.suspend(() =>
+              Effect.forEach(
+                Array.from(live.keys()),
+                drain => Deferred.succeed(drain, undefined),
+                { discard: true },
+              ),
+            ),
+          ),
+        ),
+      );
+    }
 
     const frames = (connection: SsePushConnection) =>
       Stream.unwrap(

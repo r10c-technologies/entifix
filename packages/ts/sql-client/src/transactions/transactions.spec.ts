@@ -4,6 +4,7 @@ import { makeFakeSqlClient } from '@entifix/testing-unit/drivers';
 import {
   type EventBus,
   EventBusTag,
+  OutboxDrainTag,
   type OutboxEvent,
   OutboxMaxAttempts,
 } from '@entifix/transactions';
@@ -14,7 +15,11 @@ import { describe, expect, it } from 'vitest';
 
 import { makeSqlIdempotencyStore } from './idempotency.js';
 import { entryOf, makeSqlOutbox, type OutboxRow } from './outbox.js';
-import { drainSqlOutboxNow, startSqlOutboxRelay } from './relay.js';
+import {
+  drainSqlOutboxNow,
+  SqlOutboxDrainLayer,
+  startSqlOutboxRelay,
+} from './relay.js';
 import { ensureSqlTransactionTables } from './schema.js';
 import { makeSqlUnitOfWork } from './unit-of-work.js';
 
@@ -483,6 +488,30 @@ describe('the SQL relay', () => {
       expect.objectContaining({ name: 'outbox-relay', phase: 'flush' }),
       expect.objectContaining({ name: 'outbox-relay', phase: 'flush' }),
     ]);
+  });
+
+  it('offers that drain as the OutboxDrainTag a writer finds', async () => {
+    const { fake, sql } = fresh();
+    const { bus, published } = recordingBus();
+    fake.respondTo('UPDATE entifix_outbox AS t', [aRow('e-1')]);
+
+    await run(
+      Effect.flatMap(Effect.service(OutboxDrainTag), drain => drain.now).pipe(
+        Effect.provide(
+          SqlOutboxDrainLayer('workflow').pipe(
+            Layer.provide(
+              Layer.mergeAll(
+                Layer.succeed(SqlClient.SqlClient, sql),
+                Layer.succeed(EventBusTag, bus),
+                Layer.succeed(OutboxMaxAttempts, 3),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(published).toEqual(['e-1']);
   });
 
   it('drains now what a write just recorded, and reports a drain that failed', async () => {

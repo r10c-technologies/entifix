@@ -63,6 +63,19 @@ export interface ShutdownRegistry {
    */
   readonly terminating: Effect.Effect<boolean>;
   /**
+   * Completes the moment this process begins terminating — on the signal,
+   * **before** the server closes — and never fails.
+   *
+   * For a connection that only ends when told to: a server-sent stream. The
+   * server's close waits for every open response, and a stream is one that
+   * never finishes by itself, so a stream drained in a hook or a finalizer —
+   * both run after that close — was held open until the server gave up on it,
+   * twenty seconds on, and then cut without the `retry:` that spreads its
+   * reconnect (#492). Awaiting this instead ends it first, and the close is
+   * immediate.
+   */
+  readonly whenTerminating: Effect.Effect<void>;
+  /**
    * Run every hook, phase by phase, in registration order. Never fails.
    *
    * Called from a `Layer` finalizer, which is what orders it: the drain layer
@@ -146,6 +159,14 @@ export const makeShutdownRegistry = (
 } => {
   const hooks: ShutdownHook[] = [];
   let terminating = false;
+  const waiting: (() => void)[] = [];
+  const signalled = new Promise<void>(resolve => {
+    waiting.push(resolve);
+  });
+  const terminate = () => {
+    terminating = true;
+    for (const wake of waiting) wake();
+  };
 
   const registry: ShutdownRegistry = {
     register: hook =>
@@ -155,8 +176,10 @@ export const makeShutdownRegistry = (
 
     terminating: Effect.sync(() => terminating),
 
+    whenTerminating: Effect.promise(() => signalled),
+
     drain: Effect.gen(function* () {
-      terminating = true;
+      terminate();
       yield* report({ _tag: 'draining', hooks: hooks.length });
       for (const phase of SHUTDOWN_PHASES) {
         // Sequential, and in registration order: `stop-intake` before `flush`
@@ -174,8 +197,6 @@ export const makeShutdownRegistry = (
 
   return {
     registry,
-    begin: () => {
-      terminating = true;
-    },
+    begin: terminate,
   };
 };

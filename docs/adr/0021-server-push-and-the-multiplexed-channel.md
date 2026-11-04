@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-11-02
+- Revised: 2026-11-04 — the drain runs on the shutdown **signal** (`ShutdownRegistry.whenTerminating`), not when the adapter's scope finalizes: the server's close runs first and waits for every open response, so a stream drained at finalization was held 20 s and then cut without its `retry:` (measured by r10c's live pass, #492)
 - Area: platform
 - Read when: pushing anything from a service to a browser, opening a second `EventSource` in one tab, a stream dies when its token expires, a fleet restart makes every browser reconnect at once, deciding who may receive a pushed event, or about to add a control endpoint or a WebSocket beside the stream
 
@@ -94,8 +95,13 @@ redeploy and a missed frame, and never sends one audience's event to another.
   `event: reauth` and closes cleanly. The client refreshes its session and only
   then reopens. An `EventSource` that receives a 401 enters `CLOSED` and never
   retries, so a 401 is a permanently dead tab.
-- **Drain.** When the adapter's scope finalizes (a shutdown or a redeploy),
-  every live connection receives a randomized `retry:` and then a clean close.
+- **Drain.** When the process begins terminating — the signal, through
+  `ShutdownRegistry.whenTerminating`, before the server closes — every live
+  connection receives a randomized `retry:` and then a clean close; the scope's
+  finalizer drains whatever is left. Draining only at finalization is too late:
+  the server's close waits for every open response, and a stream never finishes
+  by itself, so it was held until the server gave up on it and then cut without
+  a `retry:`, every browser reconnecting on its own default at once.
 - **Resume through a catch-up hook, not a backlog.** The adapter passes
   `Last-Event-ID` to `resume(cursor, topics)`. The host replays from a read
   model it already has, or answers `resync`, which tells the client to re-read

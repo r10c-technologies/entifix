@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-28
+- Revised: 2026-11-04 — a writer that wants its event out before the next sweep drains through the optional `OutboxDrainTag`; the flow engine's announcements waited up to fifteen seconds for the relay without it (#492)
 - Area: adapters
 - Read when: emitting a domain event from a write, consuming an event that may arrive out of order, an event stuck at the head of the outbox delays unrelated ones, writing an outbox on a new engine, or about to reach for change data capture
 
@@ -52,6 +53,17 @@ order, a poisoned aggregate not blocking another, the stale-version discard and
 a duplicate enqueue. The Mongo store runs it over a fake driver; the SQL store
 runs it too, draining with `FOR UPDATE SKIP LOCKED` so several runners never
 publish one entry twice.
+
+### A writer can drain now; the sweep stays the guarantee
+
+A write that commits with its event drains the outbox at once rather than
+waiting for the relay's sweep: the Mongo unit of work's `afterCommit`, and for
+any writer the optional `OutboxDrainTag` port — `SqlOutboxDrainLayer` over the
+SQL outbox. The flow interpreter drains after each `flow.*` announcement when a
+host provides one. A drain that cannot run is left to the sweep, which is still
+what guarantees delivery; the drain only decides how soon. Without it a flow's
+events reached the bus up to fifteen seconds after they were written, and a
+browser settling a write by push heard it complete that much later.
 
 ### The polling relay stays; change data capture is rejected
 

@@ -62,21 +62,50 @@ describe('the in-memory retry budget', () => {
     ).toBe(true);
   });
 
-  it('throttles first attempts locally once requests outrun accepts', () => {
+  it('throttles first attempts locally once failures outrun accepts', () => {
+    const budget = budgetAt({ now: 0 }, () => 0.1);
+    for (let i = 0; i < 30; i += 1) run(budget.recordFailed(KEY));
+
+    expect(run(budget.admitAttempt(KEY))).toBe(false);
+  });
+
+  it('admits a burst of first attempts still in flight', () => {
+    // The defect this ordering fixes: thirty concurrent calls against a
+    // healthy dependency, none answered yet, used to read as thirty requests
+    // with no accepts — and all but the first ten were throttled here.
     const budget = budgetAt({ now: 0 }, () => 0.1);
 
     const admitted = Array.from({ length: 30 }, () =>
       run(budget.admitAttempt(KEY)),
     );
 
-    expect(admitted.slice(0, 9).every(Boolean)).toBe(true);
-    expect(admitted.at(-1)).toBe(false);
+    expect(admitted.every(Boolean)).toBe(true);
+  });
+
+  it('keeps admitting while the dependency answers', () => {
+    const budget = budgetAt({ now: 0 }, () => 0.1);
+    for (let i = 0; i < 30; i += 1) {
+      run(budget.recordAccepted(KEY));
+      run(budget.recordFailed(KEY));
+    }
+
+    // Half failing is well inside K = 2.
+    expect(run(budget.admitAttempt(KEY))).toBe(true);
+  });
+
+  it('counts a throttled attempt as a request the dependency did not accept', () => {
+    const budget = budgetAt({ now: 0 }, () => 0.5);
+    for (let i = 0; i < 12; i += 1) run(budget.recordFailed(KEY));
+    for (let i = 0; i < 12; i += 1) run(budget.admitAttempt(KEY));
+
+    // Every throttle added a request, so the rejection only grew.
+    expect(run(budget.admitAttempt(KEY))).toBe(false);
   });
 
   it('forgets requests outside the window', () => {
     const clock = { now: 0 };
     const budget = budgetAt(clock, () => 0.1);
-    for (let i = 0; i < 30; i += 1) run(budget.admitAttempt(KEY));
+    for (let i = 0; i < 30; i += 1) run(budget.recordFailed(KEY));
     clock.now = 130_000;
 
     expect(run(budget.admitAttempt(KEY))).toBe(true);

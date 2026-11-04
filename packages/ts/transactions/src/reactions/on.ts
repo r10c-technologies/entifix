@@ -148,6 +148,8 @@ export function On<S, RP>(
               yield* budget.recordAccepted(options.key);
               return yield* Effect.fail(error);
             }
+            // No answer: a request the dependency did not accept.
+            yield* budget.recordFailed(options.key);
             const stop =
               !(yield* matches(error)) ||
               (isFailure(error) && STOPS_RETRIES.has(error._tag)) ||

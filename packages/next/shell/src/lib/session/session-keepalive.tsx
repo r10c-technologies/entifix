@@ -9,6 +9,12 @@ export interface SessionKeepaliveProps {
   /** Where this app mounts the shared refresh handler. */
   readonly endpoint?: string;
   /**
+   * Seconds left on the access token this page was rendered with, read on the
+   * server from its `exp`. Schedules the first refresh; every later one follows
+   * the `expiresIn` the refresh answers. See {@link useSessionRefresh}.
+   */
+  readonly tokenExpiresInSeconds?: number;
+  /**
    * What to do when the session is over. Defaults to reloading the page, which
    * is almost always the right answer — see the note on {@link
    * SessionKeepalive}.
@@ -56,6 +62,7 @@ export interface SessionKeepaliveProps {
  */
 export function SessionKeepalive({
   endpoint,
+  tokenExpiresInSeconds,
   onExpired,
 }: SessionKeepaliveProps = {}) {
   // A reload rather than a route change: middleware is what knows where a
@@ -71,6 +78,7 @@ export function SessionKeepalive({
 
   const { expiringSoon, expired } = useSessionRefresh({
     endpoint,
+    tokenExpiresInSeconds,
     onExpired: expire,
   });
   const t = useT('shell');

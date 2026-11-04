@@ -9,6 +9,7 @@ import {
   CircuitBreakerTag,
   type FlowEngine,
   FlowEngineTag,
+  OutboxDrainTag,
   OutboxTag,
   ParticipantClientTag,
 } from '@entifix/transactions';
@@ -63,6 +64,8 @@ const engineOver = async (
   call: Call,
   options: Pick<InterpreterOptions, 'dials' | 'dialsFor'> & {
     readonly workflowEngine?: Layer.Layer<WorkflowEngine.WorkflowEngine>;
+    /** Counts the drains a host's outbox would run, when given. */
+    readonly drains?: { count: number };
   } = {},
 ) => {
   const store = makeInMemoryFlowStatusStore();
@@ -82,6 +85,13 @@ const engineOver = async (
           InMemoryRetryBudgetLayer(),
           Layer.succeed(FlowStatusStoreTag, store),
           Layer.succeed(OutboxTag, outbox),
+          options.drains === undefined
+            ? Layer.empty
+            : Layer.succeed(OutboxDrainTag, {
+                now: Effect.sync(() => {
+                  (options.drains as { count: number }).count += 1;
+                }),
+              }),
           Layer.succeed(ParticipantClientTag, {
             call: ({ step, kind, inputs }) => call(step, kind, inputs),
           }),
@@ -161,6 +171,20 @@ describe('the slip interpreter', () => {
       { kind: 'flow', id: 'flow-x' },
       { kind: 'organization', id: 'org-1' },
     ]);
+  });
+
+  it('drains the outbox after every announcement, where the host provides a drain', async () => {
+    const drains = { count: 0 };
+    const { engine, outbox } = await engineOver(
+      () => Effect.succeed({ ok: true }),
+      { drains },
+    );
+    await start(engine, slipOf(['hold', 'take', 'settle']));
+    await settled(engine);
+
+    // One drain per announcement, so neither waits for the relay's sweep.
+    expect(drains.count).toBe(outbox.entries.length);
+    expect(drains.count).toBeGreaterThan(0);
   });
 
   // The caller's write landed at the pivot; the wait after it is someone

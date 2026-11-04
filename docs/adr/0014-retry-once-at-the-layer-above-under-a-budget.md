@@ -4,6 +4,7 @@
 - Date: 2026-10-28
 - Revised: 2026-10-28 — a consumer's redeliveries are counted by the adapter against `maxAttempts`; `x-delivery-limit` bounds only what a crashed consumer leaves behind (#130)
 - Revised: 2026-10-28 — the host sizes the redelivery backoff through `RedeliveryBackoffTag`, and the adapter counts every quarantine
+- Revised: 2026-11-04 — adaptive throttling counts a request when it ends, not when it is admitted (`RetryBudget.recordFailed`); counted at admission, a burst of concurrent first calls to a healthy dependency was throttled before any answer arrived
 - Area: platform
 - Read when: adding a retry, a backoff or a `Schedule` to a call, sizing a queue's `maxAttempts`, an outage gets worse when its dependency comes back, a request keeps working after its caller gave up, or about to retry inside a bus consumer
 
@@ -69,6 +70,13 @@ the capped exponential — so callers that failed together do not retry together
 Adaptive throttling is the SRE book's client-side rule: once requests exceed `K`
 times accepts over the window, the client rejects locally with probability
 `max(0, (requests − K·accepts) / (requests + 1))` instead of sending.
+A request is counted **when it ends** — answered (`recordAccepted`), failed
+without an answer (`recordFailed`), or throttled here — and never while it is in
+flight. An attempt still waiting is evidence of nothing, and counting it at
+admission made a burst of concurrent first calls to a healthy dependency read as
+a dependency accepting none of them: ten checkouts started together on a cold
+coordinator lost a third of their stock reservations to local throttling,
+measured by r10c's live pass.
 
 The port sits at `@entifix/transactions` `.`, in tier 2, so anything that
 orchestrates calls — today a coordinator, later a workflow interpreter — can

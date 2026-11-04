@@ -49,6 +49,18 @@ export interface RetryBudget {
   readonly admitRetry: (key: RetryKey) => Effect.Effect<boolean>;
   /** The dependency answered — an answer, even a refusal, counts as accepted. */
   readonly recordAccepted: (key: RetryKey) => Effect.Effect<void>;
+  /**
+   * An attempt ended without an answer: a technical failure. It counts as a
+   * request the dependency did not accept.
+   *
+   * ⚠️ **A request counts when it ends, not when it starts.** Adaptive
+   * throttling weighs requests against accepts, and an attempt still in
+   * flight is neither: counted at admission, a burst of concurrent first
+   * calls against a healthy dependency read as a dependency accepting none of
+   * them, and every call past the minimum sample was throttled locally before
+   * a single answer could arrive (#492).
+   */
+  readonly recordFailed: (key: RetryKey) => Effect.Effect<void>;
 }
 
 export class RetryBudgetTag extends Context.Service<

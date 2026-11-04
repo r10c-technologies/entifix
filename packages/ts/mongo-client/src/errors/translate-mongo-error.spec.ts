@@ -2,7 +2,9 @@ import { Contention, DuplicateKey, Unavailable } from '@entifix/core';
 import { describe, expect, it } from 'vitest';
 
 import {
+  isMongoContention,
   mongoErrorLabelled,
+  mongoUnitFault,
   translateMongoError,
   translateMongoFault,
 } from './translate-mongo-error.js';
@@ -136,6 +138,34 @@ describe('translateMongoFault', () => {
     expect(translateMongoFault(down)).toBe(down);
     expect(translateMongoFault(new Contention())).toMatchObject({
       _tag: 'Contention',
+    });
+  });
+});
+
+describe('isMongoContention', () => {
+  it('names a write conflict and a transient transaction, and nothing else', () => {
+    expect(isMongoContention(driverError({ code: 112 }))).toBe(true);
+    expect(
+      isMongoContention({ errorLabels: ['TransientTransactionError'] }),
+    ).toBe(true);
+    // A duplicate key is an answer or a race the caller classifies, never a
+    // conflict to run the whole unit again on.
+    expect(isMongoContention(driverError({ code: 11000 }))).toBe(false);
+    expect(isMongoContention(driverError({ name: 'MongoNetworkError' }))).toBe(
+      false,
+    );
+    expect(isMongoContention(undefined)).toBe(false);
+  });
+});
+
+describe('mongoUnitFault', () => {
+  it('keeps a lost race retryable and calls anything else unavailable', () => {
+    expect(mongoUnitFault(driverError({ code: 112 }))).toBeInstanceOf(
+      Contention,
+    );
+    expect(mongoUnitFault(driverError({ code: 11000 }))).toMatchObject({
+      _tag: 'Unavailable',
+      dependency: 'mongo',
     });
   });
 });

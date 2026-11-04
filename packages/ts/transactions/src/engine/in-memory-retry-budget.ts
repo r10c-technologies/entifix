@@ -91,20 +91,23 @@ export const makeInMemoryRetryBudget = (
     admitAttempt: key =>
       Effect.sync(() => {
         const bucket = bucketFor(key);
-        bucket.requests.push(now());
         bucket.tokens = Math.min(cap, bucket.tokens + dials.budgetRatio);
         if (dials.adaptiveThrottlingK <= 0) return true;
+        // Requests that have **ended** — answered, failed, or throttled here.
+        // One still in flight is no evidence either way, so a burst of
+        // concurrent first calls is admitted until answers say otherwise.
         const requests = bucket.requests.length;
-        // Too few requests to say anything: a cold dependency, or one just
-        // coming back, would otherwise throttle half its first calls before a
-        // single answer had a chance to arrive.
+        // Too few to say anything: a cold dependency, or one just coming back.
         if (requests < MIN_THROTTLING_SAMPLE) return true;
         const rejection = Math.max(
           0,
           (requests - dials.adaptiveThrottlingK * bucket.accepts.length) /
             (requests + 1),
         );
-        return random() >= rejection;
+        if (random() >= rejection) return true;
+        // Throttled locally: a request the dependency did not accept.
+        bucket.requests.push(now());
+        return false;
       }),
     admitRetry: key =>
       Effect.sync(() => {
@@ -115,7 +118,14 @@ export const makeInMemoryRetryBudget = (
       }),
     recordAccepted: key =>
       Effect.sync(() => {
-        bucketFor(key).accepts.push(now());
+        const bucket = bucketFor(key);
+        const at = now();
+        bucket.requests.push(at);
+        bucket.accepts.push(at);
+      }),
+    recordFailed: key =>
+      Effect.sync(() => {
+        bucketFor(key).requests.push(now());
       }),
   };
 };
