@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-11-02
 - Area: ui
+- Revised: 2026-11-04 — a flow parked at a wait past its commit point confirms the write: `flow.waiting` on push, `waiting` with `committed` on catch-up, so a write whose flow then waits days for someone else is not held pending, nor dropped as failed at the age bound
 - Read when: a write answers `202`, building an optimistic update, a pending state has to survive a reload, a flow's failure has to reach the user, showing money as taken before it is, or about to poll a status route from the browser
 
 ## Context
@@ -65,13 +66,19 @@ Where the two modes are answered:
 ### Settling
 
 - `usePendingFlowSettlement` subscribes `flow:<flowId>` for every pending entry.
+  - `flow.waiting` confirms it too. It is announced only past the commit point
+    ([ADR 0016](0016-a-flow-engine-port-and-a-durable-workflow-adapter.md)), so
+    the caller's write has landed; what the flow still waits for is not the
+    caller's to wait on. The screen re-reads rather than claiming more.
   - `flow.completed` confirms it, by applying the pushed snapshot (version-guarded
     `setQueryData`) or by invalidating the affected queries for a hint.
   - `flow.failed` rolls back and emits **exactly one** toast event, carrying the
     decoded failure.
 - On connect and on resync, it re-reads each entry's status link. A `404` means
   _not projected yet_, never _failed_: the entry stays pending, up to a
-  bounded-age dial, and is dropped after that.
+  bounded-age dial, and is dropped after that. A `waiting` status confirms the
+  entry only when it says `committed`; a flow parked before its commit point
+  stays pending.
 - Failures render through the host's error translator, in a toast region the
   host mounts once. The hook hands each failure to the host's `onFailure`, and
   a flow that aged out settles as failed with no failure, so nothing is

@@ -8,6 +8,7 @@ import {
   encodeSlip,
   flowCommit,
   FlowRequirementsUnmet,
+  SLIP_VERSION,
 } from '../flow/index.js';
 import { Otherwise, Unresolvable, When } from '../resolve/index.js';
 import { verifiedContext } from '../verified/index.js';
@@ -256,7 +257,7 @@ describe('compose', () => {
       }).pipe(Effect.withSpan('compose')),
     );
 
-    expect(attributes.get('entifix.slip.version')).toBe(1);
+    expect(attributes.get('entifix.slip.version')).toBe(SLIP_VERSION);
     expect(attributes.get('entifix.slip.fragments')).toBe(
       'stock.reserve@1,payment.capture@1,stock.convert@1',
     );

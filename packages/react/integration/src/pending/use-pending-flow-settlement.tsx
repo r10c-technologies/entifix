@@ -59,8 +59,9 @@ const failureOf = (
  * Settles every pending flow in `store`
  * ([ADR 0022](../../../../../docs/adr/0022-two-settle-modes-and-the-pending-flow-store.md)).
  *
- * Each pending flow's topic is subscribed: `flow.completed` confirms it and
- * `flow.failed` fails it. A push may have been missed while the stream was
+ * Each pending flow's topic is subscribed: `flow.completed` confirms it, and so
+ * does `flow.waiting` — a flow parked past its commit point has landed the
+ * caller's write and waits on someone else — and `flow.failed` fails it. A push may have been missed while the stream was
  * down or before the topic was subscribed, so each (re)connection and each
  * resync re-reads the status of the flows it touches. A status read that
  * answers `404` means not projected yet, never failed. Mount it once, where
@@ -96,7 +97,7 @@ export function usePendingFlowSettlement({
   useEffect(() => {
     const settle = settleRef.current(store);
     const onEvent = (flow: PendingFlow) => (event: DomainEvent) => {
-      if (event.name === 'flow.completed')
+      if (event.name === 'flow.completed' || event.name === 'flow.waiting')
         settle(flow, { kind: 'confirmed', event });
       else if (event.name === 'flow.failed' && isFlowEvent(event.data))
         settle(flow, {
@@ -137,6 +138,12 @@ export function usePendingFlowSettlement({
                   return expire(flow);
                 case 'completed':
                   return settle(flow, { kind: 'confirmed' });
+                // Parked past its commit point, the write has landed; parked
+                // before it, nothing has, and the flow stays pending.
+                case 'waiting':
+                  return status.committed === true
+                    ? settle(flow, { kind: 'confirmed' })
+                    : undefined;
                 case 'failed':
                 case 'compensated':
                 case 'interrupted':

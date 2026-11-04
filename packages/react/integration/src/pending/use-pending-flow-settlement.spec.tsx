@@ -91,6 +91,37 @@ describe('usePendingFlowSettlement', () => {
     await waitFor(() => expect(channel.topics()).toEqual([]));
   });
 
+  // A delivery waits days for its courier after its pivot. The caller's write
+  // landed at the pivot, so the flow parking says so and the write lets go.
+  it('confirms a flow on flow.waiting, announced past its commit point', async () => {
+    const { channel, store, onConfirmed } = setup();
+    store.add({ flowId: 'f-1' });
+    await waitFor(() => expect(channel.topics()).toEqual(['flow:f-1']));
+
+    channel.emit(['flow:f-1'], flowEvent('flow.waiting', 'f-1'));
+
+    expect(store.list()).toEqual([]);
+    expect(onConfirmed).toHaveBeenCalledTimes(1);
+  });
+
+  it('confirms a committed wait on catch-up, and keeps one before the commit point pending', async () => {
+    const { channel, store, onConfirmed } = setup({
+      readStatus: status({
+        '/f/parked': { flowId: 'parked', state: 'waiting', committed: true },
+        '/f/early': { flowId: 'early', state: 'waiting' },
+      }),
+    });
+    store.add({ flowId: 'parked', status: '/f/parked' });
+    store.add({ flowId: 'early', status: '/f/early' });
+
+    channel.connect();
+
+    await waitFor(() =>
+      expect(store.list().map(flow => flow.flowId)).toEqual(['early']),
+    );
+    expect(onConfirmed).toHaveBeenCalledTimes(1);
+  });
+
   it('fails a flow on flow.failed with exactly one toast, carrying the decoded failure', async () => {
     const { channel, store, onFailure } = setup();
     store.add({ flowId: 'f-1' });

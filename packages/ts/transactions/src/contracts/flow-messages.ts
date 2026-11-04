@@ -8,9 +8,14 @@ import { Schema } from 'effect';
 
 import type { OutboxEvent } from './outbox.js';
 
-/** The five things a flow announces about itself. */
+/**
+ * The six things a flow announces about itself. `flow.waiting` is announced
+ * only at a wait **past the commit point**: the caller's write has landed, and
+ * what the flow waits for — a courier, a person — is someone else's.
+ */
 export const FLOW_EVENTS = [
   'flow.started',
+  'flow.waiting',
   'flow.completed',
   'flow.failed',
   'flow.suspended',
@@ -87,6 +92,12 @@ export const FlowStatusBody = Schema.Struct({
     'stranded',
   ]),
   step: Schema.optionalKey(Schema.String),
+  /**
+   * `true` once the flow is past its commit point. A `waiting` flow that says
+   * so has landed the caller's write; one that does not is parked before it,
+   * and a browser holding it pending keeps it pending.
+   */
+  committed: Schema.optionalKey(Schema.Boolean),
   failure: Schema.optionalKey(FlowFailure),
 });
 export type FlowStatusBody = typeof FlowStatusBody.Type;

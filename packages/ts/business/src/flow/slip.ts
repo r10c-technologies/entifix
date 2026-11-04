@@ -6,7 +6,18 @@ import { Effect, Schema } from 'effect';
  * flow that started under one grammar finishes under that grammar even after
  * the next one ships.
  */
-export const SLIP_VERSION = 1 as const;
+export const SLIP_VERSION = 2 as const;
+
+/**
+ * Every grammar version a stored slip may be written in. A flow started under
+ * an earlier one still decodes and finishes under it.
+ *
+ * - `1` — the walk as first shipped.
+ * - `2` — the same walk, and a wait past the commit point announces
+ *   `flow.waiting`: the caller's write has landed and what is left is someone
+ *   else's, so a browser holding the write pending can let it go.
+ */
+export const SLIP_VERSIONS = [1, SLIP_VERSION] as const;
 
 const Call = Schema.Struct({
   method: Schema.Literals(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']),
@@ -86,7 +97,7 @@ export type SlipResolution = typeof SlipResolution.Type;
  * flow that has already started.
  */
 export const Slip = Schema.Struct({
-  slipVersion: Schema.Literal(SLIP_VERSION),
+  slipVersion: Schema.Literals(SLIP_VERSIONS),
   flowId: Schema.String,
   recipe: Schema.String,
   /** The recipe demands a commit point even with no retriable step (a checkout). */

@@ -4,6 +4,7 @@ import {
   defineCatalog,
   defineFragment,
   flowCommit,
+  SLIP_VERSION,
 } from '@entifix/business/flow';
 import type { UseCaseDescriptor } from '@entifix/core';
 import { Schema } from 'effect';
@@ -86,7 +87,7 @@ describe('compositionFor', () => {
       useCase: 'sell',
       variant: 'storefront',
       recipe: 'checkout',
-      slipVersion: 1,
+      slipVersion: SLIP_VERSION,
       fragments: ['stock.reserve@1', 'flow.commit@1'],
     });
   });
@@ -128,7 +129,7 @@ describe('compositionFor', () => {
       useCase: 'sell',
       variant: 'only',
       recipe: 'gone',
-      slipVersion: 1,
+      slipVersion: SLIP_VERSION,
       fragments: [],
     });
     expect(
