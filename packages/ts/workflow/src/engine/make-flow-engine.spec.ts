@@ -55,6 +55,7 @@ const suspensions = () =>
 type Call = (
   step: SlipStep,
   kind: 'action' | 'compensation',
+  inputs: Readonly<Record<string, unknown>>,
 ) => Effect.Effect<unknown, EntifixFailure>;
 
 /** An engine over the in-memory workflow engine, a fresh one per case. */
@@ -82,7 +83,7 @@ const engineOver = async (
           Layer.succeed(FlowStatusStoreTag, store),
           Layer.succeed(OutboxTag, outbox),
           Layer.succeed(ParticipantClientTag, {
-            call: ({ step, kind }) => call(step, kind),
+            call: ({ step, kind, inputs }) => call(step, kind, inputs),
           }),
         ),
       ),
@@ -332,6 +333,44 @@ describe('the slip interpreter', () => {
       step: 'v2:hold',
     });
     expect(undone).toEqual(['v1:hold']);
+  });
+
+  it('hands a later step what an earlier one answered, and an undoing its own answer', async () => {
+    const calls: string[] = [];
+    const { engine } = await engineOver((step, kind, inputs) => {
+      calls.push(`${kind}:${step.step}:${JSON.stringify(inputs)}`);
+      if (kind === 'action' && step.step === 'v1:hold')
+        return Effect.succeed({ data: { id: 'h-1' } });
+      if (kind === 'action' && step.step === 'take')
+        return Effect.fail(new Declined({}));
+      return Effect.void;
+    });
+    const slip: Slip = {
+      ...slipOf([]),
+      stages: [
+        {
+          name: 'reserve',
+          steps: [
+            {
+              ref: 'contract.hold@1',
+              step: 'v1:hold',
+              cardinality: 'perVendor',
+              segment: { vendor: 'v1' },
+              parameters: { organizationId: 'org-1' },
+            },
+          ],
+        },
+        { name: 'pay', steps: [stepOf('take')] },
+      ],
+    };
+    await start(engine, slip);
+
+    expect(await settled(engine)).toMatchObject({ state: 'compensated' });
+    expect(calls).toEqual([
+      'action:v1:hold:{"organizationId":"org-1"}',
+      'action:take:{}',
+      'compensation:v1:hold:{"organizationId":"org-1","id":"h-1"}',
+    ]);
   });
 
   it('decides on the earliest step when several segments fail', async () => {
