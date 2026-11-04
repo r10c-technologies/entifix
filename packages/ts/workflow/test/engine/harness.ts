@@ -80,8 +80,11 @@ export const chaosWorld = async (
   await query(sql, `CREATE TABLE chaos_flags (flag text PRIMARY KEY)`);
 
   // Ports of their own per case, so a killed runner's socket never answers
-  // for the next case's.
-  const base = 46_000 + (cases % 50) * 20;
+  // for the next case's. ⚠️ Below every ephemeral range (Linux from 32768,
+  // macOS from 49152): a fixed port inside one is handed out as the source
+  // port of some outbound connection — this suite opens many to Postgres —
+  // and the runner's listen then fails `EADDRINUSE`.
+  const base = 21_000 + (cases % 50) * 20;
   const runners: Runner[] = [];
 
   const boot = (runner: Runner, index: number) =>
