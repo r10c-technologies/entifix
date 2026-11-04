@@ -77,6 +77,13 @@ const awaitDelivery = defineFragment({
   contract,
 });
 
+const report = defineFragment({
+  ...awaitDelivery,
+  id: 'fulfilment.report',
+  cardinality: 'one',
+  outcomes: ['delivered', 'refused'],
+});
+
 const shipNow = defineFragment({
   id: 'fulfilment.ship',
   version: 1,
@@ -106,6 +113,7 @@ const catalog = defineCatalog([
   capture,
   convert,
   awaitDelivery,
+  report,
   shipNow,
   lookup,
   flowCommit,
@@ -181,10 +189,24 @@ describe('defineFragment', () => {
       { irreversible: true },
       'cannot be irreversible',
     ],
+    [
+      'outcomes on a step that is not a wait',
+      { outcomes: ['done'] },
+      'only a wait declares',
+    ],
   ])('throws on %s', (_label, overrides, message) => {
     expect(() =>
       defineFragment({ ...reserve, ...overrides } as FragmentDescriptor),
     ).toThrow(message);
+  });
+
+  it.each([
+    ['no outcomes', []],
+    ['the same outcome twice', ['delivered', 'delivered']],
+  ])('throws on a wait declaring %s', (_label, outcomes) => {
+    expect(() => defineFragment({ ...awaitDelivery, outcomes })).toThrow(
+      'at least one, and distinct',
+    );
   });
 
   it('throws on a non-pivot marker', () => {
@@ -275,6 +297,49 @@ describe('validateSlip', () => {
     expect(
       tags(slipOf([step(awaitDelivery)], { requiresCommitPoint: false })),
     ).toEqual(['WaitBeforeCommit']);
+  });
+
+  it('accepts a guard on an earlier wait’s declared or timeout outcome', () => {
+    expect(
+      tags(
+        slipOf([
+          step(capture),
+          step(report, {
+            parameters: { onTimeout: { outcome: 'unanswered' } },
+          }),
+          step(shipNow, {
+            guard: { wait: report.id, outcomes: ['refused', 'unanswered'] },
+          }),
+        ]),
+      ),
+    ).toEqual([]);
+  });
+
+  it.each([
+    ['no wait before it', 'nowhere', ['delivered'], {}],
+    ['an outcome the wait is never answered with', 'report', ['lost'], {}],
+    [
+      'a timeout outcome on a wait that strands instead',
+      'report',
+      ['unanswered'],
+      { onTimeout: 'strand' },
+    ],
+    [
+      'a timeout that names no outcome',
+      'report',
+      ['unanswered'],
+      { onTimeout: { strand: true } },
+    ],
+  ])('refuses a guard naming %s', (_label, wait, outcomes, parameters) => {
+    expect(
+      tags(
+        slipOf([
+          step(capture),
+          step(report, { step: 'report', parameters }),
+          step(shipNow, { guard: { wait, outcomes } }),
+        ]),
+      ),
+    ).toEqual(['UnknownGuard']);
   });
 
   it('refuses a capture inside a cash-on-delivery segment', () => {
@@ -486,6 +551,15 @@ describe('fragmentFingerprint', () => {
     };
 
     expect(fragmentFingerprint(changed)).not.toBe(fragmentFingerprint(reserve));
+  });
+
+  it('changes when a wait’s outcomes do, and not for a fragment declaring none', () => {
+    expect(
+      fragmentFingerprint({ ...report, outcomes: ['delivered'] }),
+    ).not.toBe(fragmentFingerprint(report));
+    expect(fragmentFingerprint({ ...awaitDelivery, outcomes: undefined })).toBe(
+      fragmentFingerprint(awaitDelivery),
+    );
   });
 
   it('does not change when only the module or isolation does', () => {

@@ -563,3 +563,115 @@ describe('enumerateCompositions', () => {
     ).toBe(true);
   });
 });
+
+describe('a guard on a wait’s answer', () => {
+  const report = defineFragment({
+    id: 'parcel.report',
+    version: 1,
+    module: 'parcel',
+    kind: 'wait',
+    participant: 'parcel',
+    call: { method: 'GET', path: '/api/parcel/:id' },
+    cardinality: 'one',
+    outcomes: ['delivered', 'refused'],
+    contract,
+  });
+  const close = defineFragment({
+    id: 'parcel.close',
+    version: 1,
+    module: 'parcel',
+    kind: 'retriable',
+    participant: 'parcel',
+    call: { method: 'POST', path: '/api/parcel/:id/closed' },
+    cardinality: 'one',
+    contract,
+  });
+  const restore = defineFragment({
+    id: 'parcel.restore',
+    version: 1,
+    module: 'parcel',
+    kind: 'retriable',
+    participant: 'parcel',
+    call: { method: 'POST', path: '/api/parcel/restoration' },
+    cardinality: 'perLine',
+    contract,
+  });
+  const parcels = defineCatalog([capture, report, close, restore]);
+
+  const Parcel = Schema.Struct({ lines: Schema.Array(Schema.String) });
+  type Parcel = typeof Parcel.Type;
+
+  const delivery = (segmented: boolean): Recipe<Parcel> => ({
+    name: 'delivery',
+    input: Parcel,
+    ...(segmented
+      ? { segments: () => [{ vendor: 'v-1', paymentMethod: 'card' }] }
+      : {}),
+    lines: parcel => parcel.lines.map(key => ({ key, parameters: { key } })),
+    stages: [
+      {
+        name: 'ship',
+        perSegment: segmented,
+        steps: [
+          { ref: 'payment.capture@1' },
+          {
+            ref: 'parcel.report@1',
+            parameters: () => ({ onTimeout: { outcome: 'unanswered' } }),
+          },
+        ],
+      },
+      {
+        name: 'returned',
+        perSegment: segmented,
+        on: { wait: 'parcel.report', outcomes: ['refused', 'unanswered'] },
+        steps: [
+          { ref: 'parcel.restore@1' },
+          {
+            ref: 'parcel.close@1',
+            on: { wait: 'parcel.report', outcomes: ['delivered'] },
+          },
+        ],
+      },
+    ],
+  });
+
+  const guardsOf = (segmented: boolean) =>
+    Effect.runPromise(
+      compose(
+        delivery(segmented),
+        parcels,
+        context(),
+        { lines: ['a', 'b'] },
+        options,
+      ),
+    ).then(slip =>
+      slip.stages
+        .flatMap(stage => stage.steps)
+        .map(step => [step.step, step.guard]),
+    );
+
+  it('pins a stage’s guard on every step, and a step’s own over it', async () => {
+    expect(await guardsOf(false)).toEqual([
+      ['payment.capture', undefined],
+      ['parcel.report', undefined],
+      [
+        'a:parcel.restore',
+        { wait: 'parcel.report', outcomes: ['refused', 'unanswered'] },
+      ],
+      [
+        'b:parcel.restore',
+        { wait: 'parcel.report', outcomes: ['refused', 'unanswered'] },
+      ],
+      ['parcel.close', { wait: 'parcel.report', outcomes: ['delivered'] }],
+    ]);
+  });
+
+  it('names the wait in the guarded step’s own segment', async () => {
+    const guards = await guardsOf(true);
+
+    expect(guards.at(-1)).toEqual([
+      'v-1/card:parcel.close',
+      { wait: 'v-1/card:parcel.report', outcomes: ['delivered'] },
+    ]);
+  });
+});

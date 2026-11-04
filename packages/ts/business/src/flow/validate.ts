@@ -22,11 +22,22 @@ export interface SlipViolation {
     | 'WaitBeforeCommit'
     | 'ExcludedFromSegment'
     | 'UnsatisfiedInput'
-    | 'UnmetRequirement';
+    | 'UnmetRequirement'
+    | 'UnknownGuard';
   /** The step that broke it, when one step did. */
   readonly step?: string;
   readonly detail: string;
 }
+
+/** The outcome a wait's timeout answers with, when it names one rather than stranding. */
+const timeoutOutcomeOf = (step: SlipStep): readonly string[] => {
+  const onTimeout = step.parameters?.['onTimeout'];
+  const outcome =
+    typeof onTimeout === 'object' && onTimeout !== null
+      ? (onTimeout as { readonly outcome?: unknown }).outcome
+      : undefined;
+  return typeof outcome === 'string' ? [outcome] : [];
+};
 
 /** The facts of a verified context a slip's requirements are checked against. */
 export interface RequirementFacts {
@@ -142,6 +153,8 @@ export const validateSlip = (
   const provided = new Map<string, Schema.Codec<unknown, unknown>>(
     Object.entries(options.start ?? {}),
   );
+  /** Every wait seen so far, by step name, with what it can be answered. */
+  const waits = new Map<string, readonly string[]>();
 
   resolved.forEach(({ step, fragment }, index) => {
     const beforeCommit = commitAt === -1 || index < commitAt;
@@ -175,6 +188,29 @@ export const validateSlip = (
         step: step.step,
         detail: `'${step.ref}' waits before the commit point, holding uncommitted state for as long as it waits`,
       });
+
+    if (step.guard !== undefined) {
+      const answers = waits.get(step.guard.wait);
+      if (answers === undefined)
+        violations.push({
+          tag: 'UnknownGuard',
+          step: step.step,
+          detail: `'${step.ref}' is guarded on '${step.guard.wait}', which is no wait before it`,
+        });
+      else
+        for (const outcome of step.guard.outcomes)
+          if (!answers.includes(outcome))
+            violations.push({
+              tag: 'UnknownGuard',
+              step: step.step,
+              detail: `'${step.ref}' is guarded on '${outcome}', which '${step.guard.wait}' is never answered with`,
+            });
+    }
+    if (fragment.kind === 'wait')
+      waits.set(step.step, [
+        ...(fragment.outcomes ?? []),
+        ...timeoutOutcomeOf(step),
+      ]);
 
     for (const [tag, values] of Object.entries(fragment.excludedFrom ?? {})) {
       const value = (

@@ -8,12 +8,13 @@ import { Schema } from 'effect';
 
 import type { OutboxEvent } from './outbox.js';
 
-/** The four things a flow announces about itself. */
+/** The five things a flow announces about itself. */
 export const FLOW_EVENTS = [
   'flow.started',
   'flow.completed',
   'flow.failed',
   'flow.suspended',
+  'flow.stranded',
 ] as const;
 export type FlowEventName = (typeof FLOW_EVENTS)[number];
 

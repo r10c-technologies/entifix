@@ -42,6 +42,13 @@ const hold = fragment('hold', 'compensatable');
 const take = fragment('take', 'pivot');
 const settle = fragment('settle', 'retriable');
 const wait = fragment('await', 'wait');
+/** A wait that declares what it is answered with, for guards to branch on. */
+const report = defineFragment({
+  ...fragment('report', 'wait'),
+  outcomes: ['delivered', 'refused'],
+});
+const close = fragment('close', 'retriable');
+const restore = fragment('restore', 'retriable');
 
 /** The catalog every case composes its slips from. */
 export const flowEngineContractCatalog: FragmentCatalog = defineCatalog([
@@ -49,6 +56,9 @@ export const flowEngineContractCatalog: FragmentCatalog = defineCatalog([
   take,
   settle,
   wait,
+  report,
+  close,
+  restore,
 ]);
 
 const stepOf = (descriptor: FragmentDescriptor): SlipStep => ({
@@ -68,6 +78,53 @@ const slipOf = (
   resolution: [],
   composedAt: '2026-01-01T00:00:00.000Z',
 });
+
+/**
+ * take ▸ report ▸ close (on `delivered`) ▸ restore (on `refused` or the
+ * timeout's `unanswered`): the one branch a slip can take, on a wait's answer.
+ */
+const branchingSlip = (
+  flowId: string,
+  report: Readonly<Record<string, unknown>> = {},
+): Slip => ({
+  ...slipOf(flowId, []),
+  stages: [
+    {
+      name: 'main',
+      steps: [
+        { ref: fragmentRef(take), step: 'take', cardinality: 'one' },
+        {
+          ref: 'contract.report@1',
+          step: 'report',
+          cardinality: 'one',
+          parameters: { correlation: `parcel-${flowId}`, ...report },
+        },
+        {
+          ref: fragmentRef(close),
+          step: 'close',
+          cardinality: 'one',
+          guard: { wait: 'report', outcomes: ['delivered'] },
+        },
+        {
+          ref: fragmentRef(restore),
+          step: 'restore',
+          cardinality: 'one',
+          guard: { wait: 'report', outcomes: ['refused', 'unanswered'] },
+        },
+      ],
+    },
+  ],
+});
+
+/** A participant that succeeds, remembering every step it was called for. */
+const recording = () => {
+  const called: string[] = [];
+  const participant: FakeParticipant = step => {
+    called.push(step.step);
+    return Effect.succeed({ ok: true });
+  };
+  return { called, participant };
+};
 
 const failing =
   (failAt: string): FakeParticipant =>
@@ -184,13 +241,11 @@ export const describeFlowEngineContract = (
       expect(await state(engine, 'flow-1')).toBe('waiting');
 
       const stranger = await run(
-        Effect.flip(engine.signalCorrelated('order-8', 'await', {})),
+        Effect.flip(engine.signalCorrelated('order-8', { outcome: 'any' })),
       );
       expect(stranger._tag).toBe('FlowNotFound');
 
-      await run(
-        engine.signalCorrelated('order-7', 'await', { delivered: true }),
-      );
+      await run(engine.signalCorrelated('order-7', { outcome: 'delivered' }));
       expect(await state(engine, 'flow-1')).toBe('completed');
     });
 
@@ -220,6 +275,104 @@ export const describeFlowEngineContract = (
       expect(states.filter(next => next !== 'completed')).toEqual([]);
     });
 
+    it('runs only the steps guarded on the outcome a wait was answered with', async () => {
+      const { called, participant } = recording();
+      const engine = await make(flowEngineContractCatalog, participant);
+      await run(engine.start(branchingSlip('flow-1'), 'k'));
+      expect(await state(engine, 'flow-1')).toBe('waiting');
+
+      await run(
+        engine.signalCorrelated('parcel-flow-1', { outcome: 'refused' }),
+      );
+
+      expect(await state(engine, 'flow-1')).toBe('completed');
+      expect(called).toEqual(['take', 'restore']);
+    });
+
+    it('refuses a correlated signal its wait is not answered with', async () => {
+      const engine = await make(flowEngineContractCatalog, succeeding);
+      await run(engine.start(branchingSlip('flow-1'), 'k'));
+      expect(await state(engine, 'flow-1')).toBe('waiting');
+
+      const stray = await run(
+        Effect.flip(
+          engine.signalCorrelated('parcel-flow-1', { outcome: 'returned' }),
+        ),
+      );
+
+      expect(stray._tag).toBe('FlowSignalRejected');
+      expect(await state(engine, 'flow-1')).toBe('waiting');
+    });
+
+    it('answers FlowNotFound to a correlated signal once nothing is parked on it', async () => {
+      const engine = await make(flowEngineContractCatalog, succeeding);
+      await run(engine.start(branchingSlip('flow-1'), 'k'));
+      await settled(engine, 'flow-1');
+      await run(
+        engine.signalCorrelated('parcel-flow-1', { outcome: 'delivered' }),
+      );
+      expect(await state(engine, 'flow-1')).toBe('completed');
+
+      const again = await run(
+        Effect.flip(
+          engine.signalCorrelated('parcel-flow-1', { outcome: 'delivered' }),
+        ),
+      );
+
+      expect(again._tag).toBe('FlowNotFound');
+    });
+
+    it('answers a timed-out wait with the outcome its onTimeout names', async () => {
+      const { called, participant } = recording();
+      const engine = await make(flowEngineContractCatalog, participant);
+      await run(
+        engine.start(
+          branchingSlip('flow-1', {
+            timeoutMs: 20,
+            onTimeout: { outcome: 'unanswered' },
+          }),
+          'k',
+        ),
+      );
+
+      const status = await run(
+        engine.status('flow-1').pipe(
+          Effect.repeat({
+            until: next => next.state === 'completed',
+            schedule: Schedule.spaced('10 millis'),
+            times: 200,
+          }),
+        ),
+      );
+
+      expect(status.state).toBe('completed');
+      expect(called).toEqual(['take', 'restore']);
+    });
+
+    it('strands a flow whose wait runs out and strands on its timeout', async () => {
+      const { called, participant } = recording();
+      const engine = await make(flowEngineContractCatalog, participant);
+      await run(
+        engine.start(
+          branchingSlip('flow-1', { timeoutMs: 20, onTimeout: 'strand' }),
+          'k',
+        ),
+      );
+
+      const status = await run(
+        engine.status('flow-1').pipe(
+          Effect.repeat({
+            until: next => next.state === 'stranded',
+            schedule: Schedule.spaced('10 millis'),
+            times: 200,
+          }),
+        ),
+      );
+
+      expect(status).toMatchObject({ state: 'stranded', step: 'report' });
+      expect(called).toEqual(['take']);
+    });
+
     it('interrupts a waiting flow', async () => {
       const engine = await make(flowEngineContractCatalog, succeeding);
       await run(engine.start(slipOf('flow-1', [take, wait]), 'k'));
@@ -236,7 +389,7 @@ export const describeFlowEngineContract = (
       for (const effect of [
         engine.status('nope'),
         engine.signal('nope', 'await', {}),
-        engine.signalCorrelated('nope', 'await', {}),
+        engine.signalCorrelated('nope', { outcome: 'any' }),
         engine.interrupt('nope'),
       ])
         expect((await run(Effect.flip(effect)))._tag).toBe('FlowNotFound');

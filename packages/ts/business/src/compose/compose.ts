@@ -44,12 +44,25 @@ export interface RecipeLine {
   readonly parameters: Readonly<Record<string, unknown>>;
 }
 
+/**
+ * A branch on an earlier wait's answer: the step runs only when the wait —
+ * named as the recipe names it, its `step` or its fragment id, in the same
+ * segment — was answered with one of `outcomes`. Unlike `when`, which is
+ * decided at composition, this is decided by what the wait is told.
+ */
+export interface RecipeGuard {
+  readonly wait: string;
+  readonly outcomes: readonly string[];
+}
+
 /** One step of a recipe: a fragment by its pinned reference, as a string. */
 export interface RecipeStep<I> {
   readonly ref: string;
   /** The step's name in the slip; defaults to the fragment id. */
   readonly step?: string;
   readonly when?: RecipeGate<I>;
+  /** Runs only on these answers of an earlier wait; overrides its stage's. */
+  readonly on?: RecipeGuard;
   /**
    * Parameters pinned at composition: from the context's config, from the
    * decoded start input, and from the segment and line the step was expanded
@@ -72,6 +85,8 @@ export interface RecipeStep<I> {
 export interface RecipeStage<I> {
   readonly name: string;
   readonly when?: RecipeGate<I>;
+  /** A guard every step of the stage carries unless it names its own. */
+  readonly on?: RecipeGuard;
   readonly perSegment?: boolean;
   readonly steps: readonly RecipeStep<I>[];
 }
@@ -133,6 +148,7 @@ const buildStep = <I>(
   input: I,
   segment: SlipSegment | undefined,
   line: RecipeLine | undefined,
+  guard: RecipeGuard | undefined,
 ): SlipStep => {
   const fragment = catalog.get(recipeStep.ref);
   const name = recipeStep.step ?? fragment?.id ?? recipeStep.ref;
@@ -157,6 +173,19 @@ const buildStep = <I>(
       ? {}
       : { compensation: fragment.compensation }),
     ...(parameters === undefined ? {} : { parameters }),
+    ...(guard === undefined
+      ? {}
+      : {
+          guard: {
+            // A wait is never expanded per line, so its name in the slip is
+            // the segment's prefix and its own name.
+            wait: [
+              ...(segment === undefined ? [] : [segmentKey(segment)]),
+              guard.wait,
+            ].join(':'),
+            outcomes: [...guard.outcomes],
+          },
+        }),
   };
 };
 
@@ -168,15 +197,28 @@ const expand = <I>(
   context: VerifiedContext,
   input: I,
   segment: SlipSegment | undefined,
-): readonly SlipStep[] =>
-  catalog.get(recipeStep.ref)?.cardinality === 'perLine' &&
-  recipe.lines !== undefined
+  stageGuard: RecipeGuard | undefined,
+): readonly SlipStep[] => {
+  const guard = recipeStep.on ?? stageGuard;
+  return catalog.get(recipeStep.ref)?.cardinality === 'perLine' &&
+    recipe.lines !== undefined
     ? recipe
         .lines(input, segment)
         .map(line =>
-          buildStep(recipeStep, catalog, context, input, segment, line),
+          buildStep(recipeStep, catalog, context, input, segment, line, guard),
         )
-    : [buildStep(recipeStep, catalog, context, input, segment, undefined)];
+    : [
+        buildStep(
+          recipeStep,
+          catalog,
+          context,
+          input,
+          segment,
+          undefined,
+          guard,
+        ),
+      ];
+};
 
 const resolutionOf = (
   resolutions: readonly RecipeResolution[],
@@ -212,7 +254,15 @@ const draft = <I>(
               recipeStep => recipeStep.when?.(context, input, segment) ?? true,
             )
             .flatMap(recipeStep =>
-              expand(recipe, recipeStep, catalog, context, input, segment),
+              expand(
+                recipe,
+                recipeStep,
+                catalog,
+                context,
+                input,
+                segment,
+                stage.on,
+              ),
             ),
         ),
       };

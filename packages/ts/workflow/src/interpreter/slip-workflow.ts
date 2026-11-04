@@ -23,6 +23,7 @@ import {
   ParticipantClientTag,
 } from '@entifix/transactions';
 import {
+  Cause,
   Context,
   Effect,
   Exit,
@@ -64,13 +65,50 @@ export const JournaledFailure: Schema.Codec<EntifixFailure, unknown> =
 /**
  * How a flow ended, as the workflow's own result: every step ran, or a
  * refusal before the commit point was undone, or an undoing itself failed and
- * the flow stopped where it was — which a person has to look at.
+ * the flow stopped where it was — which a person has to look at — or a wait
+ * that strands on its timeout ran out, which a person has to look at too.
  */
 export const FlowOutcome = Schema.Literals([
   'completed',
   'compensated',
   'failed',
+  'stranded',
 ]);
+
+/**
+ * What a wait does when its `timeoutMs` runs out, from its `onTimeout`
+ * parameter: answer as if signalled with an outcome a later guard branches
+ * on, strand the flow for an operator, or — named neither — fail as any step
+ * does, which past the commit point suspends it.
+ */
+type OnTimeout =
+  | { readonly kind: 'outcome'; readonly outcome: string }
+  | { readonly kind: 'strand' }
+  | { readonly kind: 'fail' };
+
+const onTimeoutOf = (step: SlipStep): OnTimeout => {
+  const named = step.parameters?.['onTimeout'];
+  if (named === 'strand') return { kind: 'strand' };
+  const outcome =
+    typeof named === 'object' && named !== null
+      ? (named as { readonly outcome?: unknown }).outcome
+      : undefined;
+  return typeof outcome === 'string'
+    ? { kind: 'outcome', outcome }
+    : { kind: 'fail' };
+};
+
+/** The outcome a wait was answered with: its signal's `outcome`, when a string. */
+const outcomeOf = (answer: unknown): string | undefined => {
+  const named =
+    typeof answer === 'object' && answer !== null
+      ? (answer as { readonly outcome?: unknown }).outcome
+      : undefined;
+  return typeof named === 'string' ? named : undefined;
+};
+
+/** The race's answer when a wait that strands on its timeout ran out. */
+const STRANDED = Symbol.for('@entifix/workflow/stranded');
 
 /** A durable wait that outlived its timeout before its signal came. */
 export class FlowWaitTimedOut extends Failure.timeout<FlowWaitTimedOut>()(
@@ -214,6 +252,12 @@ const interpretV1 = (slip: Slip) =>
     );
     const bindings = makeBindings();
     const done: SlipStep[] = [];
+    /** What each wait was answered with, by step name — what a guard reads. */
+    const answered = new Map<string, string | undefined>();
+    /** Steps a guard passed over; a step guarded on one of them is skipped too. */
+    const skipped = new Set<string>();
+    /** The wait whose timeout stranded the flow, once one has. */
+    let stranded: SlipStep | undefined;
 
     const record = (name: string, patch: FlowRecordPatch) =>
       Activity.make({
@@ -333,11 +377,14 @@ const interpretV1 = (slip: Slip) =>
     const wait = (step: SlipStep) =>
       Effect.gen(function* () {
         const correlation = step.parameters?.['correlation'];
+        const accepts = catalog.get(step.ref)?.outcomes;
+        const onTimeout = onTimeoutOf(step);
         yield* record(`status:${step.step}:waiting`, {
           state: 'waiting',
           step: step.step,
           waitingFor: step.step,
           ...(typeof correlation === 'string' ? { correlation } : {}),
+          ...(accepts === undefined ? {} : { accepts }),
         });
         const signalled = DurableDeferred.await(waitFor(step.step));
         const timeoutMs = step.parameters?.['timeoutMs'];
@@ -356,12 +403,32 @@ const interpretV1 = (slip: Slip) =>
                     duration: timeoutMs,
                   }).pipe(
                     Effect.andThen(
-                      Effect.fail(new FlowWaitTimedOut({ step: step.step })),
+                      // An outcome answers as a signal would; a strand and a
+                      // plain failure both fail the race, and are told apart
+                      // below — so the journaled race is the same either way.
+                      onTimeout.kind === 'outcome'
+                        ? Effect.succeed<unknown>({
+                            outcome: onTimeout.outcome,
+                          })
+                        : Effect.fail(
+                            new FlowWaitTimedOut({ step: step.step }),
+                          ),
                     ),
                   ),
                 ],
-              })
+              }).pipe(
+                Effect.catchTag('FlowWaitTimedOut', timedOut =>
+                  onTimeout.kind === 'strand'
+                    ? Effect.succeed<unknown>(STRANDED)
+                    : Effect.fail(timedOut),
+                ),
+              )
             : yield* signalled;
+        if (answer === STRANDED) {
+          stranded = step;
+          return;
+        }
+        answered.set(step.step, outcomeOf(answer));
         bindings.record(step, catalog.get(step.ref), answer);
         yield* record(`status:${step.step}:resumed`, {
           state: 'running',
@@ -372,6 +439,20 @@ const interpretV1 = (slip: Slip) =>
     /** One step, its failure tagged with where it happened. */
     const run = (step: SlipStep) =>
       Effect.gen(function* () {
+        // A stranded flow runs nothing more, in any group of the stage.
+        if (stranded !== undefined) return;
+        if (step.guard !== undefined) {
+          const { wait: guardedOn, outcomes } = step.guard;
+          const outcome = answered.get(guardedOn);
+          if (
+            skipped.has(guardedOn) ||
+            outcome === undefined ||
+            !outcomes.includes(outcome)
+          ) {
+            skipped.add(step.step);
+            return;
+          }
+        }
         if (catalog.get(step.ref)?.kind === 'wait')
           return yield* wait(step).pipe(
             Effect.mapError((failure): StepFailed => ({ step, failure })),
@@ -399,15 +480,23 @@ const interpretV1 = (slip: Slip) =>
       const [first] = exits
         .flatMap(exit =>
           Exit.isFailure(exit)
-            ? exit.cause.reasons.flatMap(reason =>
-                // A durable race fails with its losers' interruptions beside
-                // the failure that won, so the failure is looked for.
-                reason._tag === 'Fail' ? [reason.error] : [],
-              )
+            ? // A durable race fails with its losers' interruptions beside
+              // the failure that won, so the failure is looked for.
+              exit.cause.reasons
+                .filter(Cause.isFailReason)
+                .map(reason => reason.error)
             : [],
         )
         .sort((a, b) => ordinalOf(a.step) - ordinalOf(b.step));
-      if (first === undefined) continue;
+      if (first === undefined) {
+        if (stranded === undefined) continue;
+        yield* record(`status:${stranded.step}:stranded`, {
+          state: 'stranded',
+          step: stranded.step,
+        });
+        yield* announce('flow.stranded', stranded.step, ordinalOf(stranded));
+        return 'stranded' as const;
+      }
 
       const { step, failure } = first;
       if (commitPoint === -1 || steps.indexOf(step) <= commitPoint) {

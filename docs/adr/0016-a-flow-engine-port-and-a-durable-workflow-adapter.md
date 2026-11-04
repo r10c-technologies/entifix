@@ -4,6 +4,7 @@
 - Date: 2026-10-28
 - Revised: 2026-10-29 by the #119 interpreter — `signalCorrelated`, an explicit compensation walk, and `DurableDeferred.raceAll` for timed waits
 - Revised: 2026-10-29 — step bounds are overridable per participant (`dialsFor`), and journaled states are counted
+- Revised: 2026-11-04 — a step may be guarded on a wait's outcome, a wait's timeout answers an outcome or strands the flow, and `signalCorrelated` resolves the wait from the correlation and the outcomes it declares
 - Area: adapters
 - Read when: running a multi-step flow, deciding where a flow survives its process dying, adding a wait, a child flow or a join to a flow, bumping the `effect` pin, or about to import `effect/workflow` or `effect/cluster`
 
@@ -35,8 +36,9 @@ concurrency defects between September and October 2026, all closed before
 
 - `start(slip, idempotencyKey) → { flowId }`, idempotent on the key;
 - `status(flowId)`, `signal(flowId, token, outcome)`, `interrupt(flowId)`;
-- `signalCorrelated(correlation, token, outcome)`, for a sender that knows what
-  a wait is correlated with — the order a delivery follows — and not the flow;
+- `signalCorrelated(correlation, { outcome, … })`, for a sender that knows what
+  a wait is correlated with — the order a delivery follows — and neither the
+  flow nor the wait's step name;
 - typed failures.
 
 There is deliberately **no `await`**. A caller settles by push, from the
@@ -82,6 +84,26 @@ the slip, branching on `slipVersion` — not one workflow per flow:
   `DurableDeferred.raceAll`, whose winner is journaled — a plain
   `Effect.raceFirst` inside a workflow re-runs the race on resume and can pick
   the other branch.
+- **A wait declares its outcomes, and a later step may be guarded on them.**
+  A slip is composed once, so `when` cannot see what a courier reports days
+  later. A `wait` fragment names the values a signal's `outcome` may take; a
+  recipe step or stage carries `on: { wait, outcomes }`, pinned as the step's
+  `guard`; and the interpreter skips a guarded step whose wait answered
+  otherwise — or was itself skipped — recording nothing, so a replay decides
+  the same from the journaled answer. The validator refuses a guard that names
+  no earlier wait, or an outcome that wait is never answered with.
+- **A timeout is an outcome or a strand.** A wait's `onTimeout` parameter makes
+  its timeout answer `{ outcome }` — a branch like any other — or `'strand'`
+  it: the flow ends `stranded`, announces `flow.stranded` and is never retried,
+  because nothing left in it can act on its own and the next move is a
+  person's. A wait naming neither fails as before, which past the commit point
+  suspends it.
+- **A correlated signal finds its wait.** Parking records the wait's step and
+  outcomes beside its correlation, so `signalCorrelated` needs no step name. No
+  flow parked under the correlation is `FlowNotFound` — retryable, since a
+  sender's report can arrive before the flow reaches its wait — and an outcome
+  the parked wait does not declare is `FlowSignalRejected`, so a report meant
+  for a later wait is never taken by an earlier one.
 - **Child flows** are correlated by the order id; **per-vendor joins** run a
   stage's segments at once, bounded by a `concurrency` dial, before a shared
   pivot, and the earliest failing step decides.

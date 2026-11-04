@@ -74,6 +74,9 @@ export const makeFlowEngine = Effect.gen(function* () {
               ...(record.correlation === undefined
                 ? {}
                 : { correlation: record.correlation }),
+              ...(record.accepts === undefined
+                ? {}
+                : { accepts: record.accepts }),
             })
             .pipe(Effect.ignore),
         ),
@@ -105,12 +108,23 @@ export const makeFlowEngine = Effect.gen(function* () {
     signal: (flowId, token, outcome) =>
       Effect.flatMap(known(flowId), complete(token, outcome)),
 
-    signalCorrelated: (correlation, token, outcome) =>
+    signalCorrelated: (correlation, signal) =>
       Effect.gen(function* () {
+        // Only a parked flow carries its correlation: one still on its way to
+        // the wait has none yet, and is not found — the sender retries.
         const found = yield* store.findByCorrelation(correlation);
-        if (Option.isNone(found))
+        if (Option.isNone(found) || found.value.waitingFor === undefined)
           return yield* Effect.fail(new FlowNotFound({ flowId: correlation }));
-        return yield* complete(token, outcome)(found.value);
+        const record = found.value;
+        const token = record.waitingFor as string;
+        if (
+          record.accepts !== undefined &&
+          !record.accepts.includes(signal.outcome)
+        )
+          return yield* Effect.fail(
+            new FlowSignalRejected({ flowId: record.flowId, token }),
+          );
+        return yield* complete(token, signal)(record);
       }),
 
     interrupt: flowId =>

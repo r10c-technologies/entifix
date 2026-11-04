@@ -28,6 +28,7 @@ const row = {
   step: 'await',
   waiting_for: 'await',
   correlation: null,
+  accepts: null,
 };
 
 describe('the SQL flow status store', () => {
@@ -60,7 +61,9 @@ describe('the SQL flow status store', () => {
     const { fake, sql } = fresh();
     const store = makeSqlFlowStatusStore(sql);
 
-    fake.respondTo('WHERE correlation', [{ ...row, correlation: 'order-7' }]);
+    fake.respondTo('WHERE correlation', [
+      { ...row, correlation: 'order-7', accepts: '["delivered","refused"]' },
+    ]);
     expect(await run(store.findByCorrelation('order-7'))).toEqual(
       Option.some({
         flowId: 'flow-1',
@@ -69,7 +72,14 @@ describe('the SQL flow status store', () => {
         step: 'await',
         waitingFor: 'await',
         correlation: 'order-7',
+        accepts: ['delivered', 'refused'],
       }),
+    );
+    // A column written by something other than this store reads as no
+    // outcomes at all, never as a crash.
+    fake.respondTo('WHERE correlation', [{ ...row, accepts: '{}' }]);
+    expect(await run(store.findByCorrelation('order-7'))).toEqual(
+      Option.some(expect.objectContaining({ accepts: [] })),
     );
     fake.respondTo('WHERE correlation', []);
     expect(Option.isNone(await run(store.findByCorrelation('order-8')))).toBe(
@@ -106,13 +116,14 @@ describe('the SQL flow status store', () => {
         step: 'await',
         waitingFor: 'await',
         correlation: 'order-7',
+        accepts: ['delivered'],
       }),
     );
 
     expect(fake.executions.map(({ params }) => params)).toEqual([
-      ['waiting', 'await', 'await', null, 'flow-1'],
-      ['completed', null, null, null, 'flow-1'],
-      ['waiting', 'await', 'await', 'order-7', 'flow-1'],
+      ['waiting', 'await', 'await', null, null, 'flow-1'],
+      ['completed', null, null, null, null, 'flow-1'],
+      ['waiting', 'await', 'await', 'order-7', '["delivered"]', 'flow-1'],
     ]);
   });
 
@@ -158,6 +169,10 @@ describe('the SQL flow status store', () => {
 
     expect(fake.executions[0]?.sql).toContain(
       'CREATE TABLE IF NOT EXISTS entifix_flow_status',
+    );
+    // A table an earlier release created gains the column it lacks.
+    expect(fake.executions[1]?.sql).toContain(
+      'ADD COLUMN IF NOT EXISTS accepts',
     );
   });
 });

@@ -171,9 +171,66 @@ describe('makeFakeFlowEngine', () => {
     await Effect.runPromise(engine.start({ ...slip, flowId: 'flow-2' }, 'k2'));
 
     const missing = await Effect.runPromise(
-      Effect.flip(engine.signalCorrelated('order-1', 'await', {})),
+      Effect.flip(engine.signalCorrelated('order-1', { outcome: 'any' })),
     );
 
     expect(missing._tag).toBe('FlowNotFound');
+  });
+
+  const waitingSlip = (parameters: Readonly<Record<string, unknown>>) => ({
+    ...slip,
+    stages: [
+      {
+        name: 'main',
+        steps: [
+          { ref: 'contract.take@1', step: 'take', cardinality: 'one' as const },
+          {
+            ref: 'contract.await@1',
+            step: 'await',
+            cardinality: 'one' as const,
+            parameters,
+          },
+        ],
+      },
+    ],
+  });
+
+  const after = (ms: number) =>
+    new Promise(resolve => {
+      setTimeout(resolve, ms);
+    });
+
+  it('suspends a wait whose timeout names nothing to do', async () => {
+    const engine = makeFakeFlowEngine(flowEngineContractCatalog, () =>
+      Effect.succeed({}),
+    );
+    await Effect.runPromise(engine.start(waitingSlip({ timeoutMs: 10 }), 'k'));
+
+    await after(50);
+
+    expect(await Effect.runPromise(engine.status('flow-1'))).toMatchObject({
+      state: 'suspended',
+      step: 'await',
+    });
+    expect(engine.events.at(-1)?.data.failure).toEqual({
+      code: 'flowWaitTimedOut',
+      category: 'timeout',
+    });
+  });
+
+  it('lets a timeout pass that a signal already answered', async () => {
+    const engine = makeFakeFlowEngine(flowEngineContractCatalog, () =>
+      Effect.succeed({}),
+    );
+    await Effect.runPromise(
+      engine.start(waitingSlip({ timeoutMs: 10, onTimeout: 'strand' }), 'k'),
+    );
+    await Effect.runPromise(engine.signal('flow-1', 'await', {}));
+
+    await after(50);
+
+    expect((await Effect.runPromise(engine.status('flow-1'))).state).toBe(
+      'completed',
+    );
   });
 });

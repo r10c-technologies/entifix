@@ -20,6 +20,11 @@ export interface FlowRecord {
   readonly waitingFor?: string;
   /** What that wait is correlated with — the order a delivery flow follows. */
   readonly correlation?: string;
+  /**
+   * The outcomes that wait is answered with, when it declares them: a
+   * correlated signal naming another is refused rather than taken.
+   */
+  readonly accepts?: readonly string[];
 }
 
 /** A change to a flow's record: its new state, and where it now stands. */
@@ -28,6 +33,7 @@ export interface FlowRecordPatch {
   readonly step?: string;
   readonly waitingFor?: string;
   readonly correlation?: string;
+  readonly accepts?: readonly string[];
 }
 
 export interface FlowStatusStore {
@@ -121,6 +127,7 @@ export const makeInMemoryFlowStatusStore = (): FlowStatusStore => {
           ...(patch.correlation === undefined
             ? {}
             : { correlation: patch.correlation }),
+          ...(patch.accepts === undefined ? {} : { accepts: patch.accepts }),
         });
       }),
     claimWait: (flowId, token) =>
