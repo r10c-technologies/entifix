@@ -170,6 +170,52 @@ describe('makeAmqpConnector', () => {
     expect(boundTo).toEqual([first.channel, second.channel]);
   });
 
+  // #161: two `addConsumer` calls in flight at once each run a binding pass,
+  // and the second must not see the first consumer still unbound and set it
+  // up again — measured live as two queues per broadcast subscription.
+  it('binds each consumer once when several are added concurrently', async () => {
+    const { connection } = makeFakeConnection();
+    connect.mockResolvedValue(connection);
+
+    const { connector } = makeAmqpConnector('amqp://localhost');
+    // Open first: the race is on a live channel, where each call's own pass
+    // runs beside the others rather than after the open bound everything.
+    await connector.withChannel(async () => undefined);
+    const setups = { a: 0, b: 0, c: 0 };
+    const slow =
+      (name: keyof typeof setups) => async (): Promise<readonly string[]> => {
+        setups[name] += 1;
+        await new Promise(resolve => setTimeout(resolve, 5));
+        return [];
+      };
+
+    await Promise.all([
+      connector.addConsumer(slow('a')),
+      connector.addConsumer(slow('b')),
+      connector.addConsumer(slow('c')),
+    ]);
+
+    expect(setups).toEqual({ a: 1, b: 1, c: 1 });
+  });
+
+  it('tries a consumer whose setup threw again on the next pass', async () => {
+    const { connection } = makeFakeConnection();
+    connect.mockResolvedValue(connection);
+
+    const { connector } = makeAmqpConnector('amqp://localhost');
+    let attempts = 0;
+    await expect(
+      connector.addConsumer(async () => {
+        attempts += 1;
+        if (attempts === 1) throw new Error('queue not ready');
+        return [];
+      }),
+    ).rejects.toThrow('queue not ready');
+    await connector.addConsumer(async () => []);
+
+    expect(attempts).toBe(2);
+  });
+
   // The first phase of a graceful shutdown. Cancelling is what makes the
   // difference between "the handlers finished" and "the broker redelivers
   // whatever was in flight".

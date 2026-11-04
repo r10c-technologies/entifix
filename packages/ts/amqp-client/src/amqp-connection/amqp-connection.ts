@@ -121,6 +121,8 @@ interface Live {
 interface Consumer {
   setup: AmqpConsumerSetup;
   boundTo?: amqp.Channel;
+  /** The channel a pass is binding this consumer to right now, if any. */
+  binding?: amqp.Channel;
   /** The tags this consumer holds on {@link Consumer.boundTo}, for cancelling. */
   tags: readonly string[];
 }
@@ -148,15 +150,25 @@ export const makeAmqpConnector = (uri: string) => {
       return;
     }
     for (const consumer of consumers) {
-      if (consumer.boundTo !== channel) {
-        consumer.tags =
-          (await consumer.setup(channel, {
-            replaceTags: tags => {
-              consumer.tags = tags;
-            },
-            cancelled: () => cancelled,
-          })) ?? [];
-        consumer.boundTo = channel;
+      if (consumer.boundTo !== channel && consumer.binding !== channel) {
+        // Claimed before the setup is awaited, so a second pass running
+        // concurrently — two `addConsumer` calls in flight at once — sees the
+        // consumer taken and skips it rather than binding it twice (#161).
+        consumer.binding = channel;
+        try {
+          consumer.tags =
+            (await consumer.setup(channel, {
+              replaceTags: tags => {
+                consumer.tags = tags;
+              },
+              cancelled: () => cancelled,
+            })) ?? [];
+          consumer.boundTo = channel;
+        } finally {
+          // Released either way: a setup that threw is free to be tried again
+          // on the next pass, and one that bound is `boundTo` from here on.
+          consumer.binding = undefined;
+        }
       }
     }
   };
