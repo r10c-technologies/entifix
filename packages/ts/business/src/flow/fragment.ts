@@ -84,6 +84,12 @@ export interface FragmentDescriptor<I = unknown, O = unknown, F = unknown> {
    * cash-on-delivery segment; the framework names neither.
    */
   readonly excludedFrom?: Readonly<Record<string, readonly string[]>>;
+  /**
+   * What a `wait` can be answered with: the values a signal's `outcome` may
+   * take. A later step guards on them, and a correlated signal naming any
+   * other is refused rather than taken by the wrong wait. A wait only.
+   */
+  readonly outcomes?: readonly string[];
 }
 
 /** The pinned reference a slip carries: `stock.reserve@1`. */
@@ -122,6 +128,15 @@ const shapeProblems = (fragment: FragmentDescriptor): string[] => {
   }
   if (fragment.irreversible === true && fragment.kind === 'compensatable')
     problems.push('a compensatable step cannot be irreversible');
+  if (fragment.outcomes !== undefined) {
+    if (fragment.kind !== 'wait')
+      problems.push('only a wait declares the outcomes it is answered with');
+    else if (
+      fragment.outcomes.length === 0 ||
+      new Set(fragment.outcomes).size !== fragment.outcomes.length
+    )
+      problems.push('its outcomes are at least one, and distinct');
+  }
   return problems;
 };
 
@@ -214,5 +229,8 @@ export const fragmentFingerprint = (fragment: FragmentDescriptor): string =>
       ),
       consumes: keysDocument(fragment.consumes),
       provides: keysDocument(fragment.provides),
+      // Absent on every fragment but a wait that declares them, and dropped
+      // from the JSON then, so declaring none changes no fingerprint.
+      outcomes: fragment.outcomes,
     }),
   );

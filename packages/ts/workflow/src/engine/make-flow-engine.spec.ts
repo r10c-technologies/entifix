@@ -283,6 +283,33 @@ describe('the slip interpreter', () => {
     expect(late._tag).toBe('FlowSignalRejected');
   });
 
+  it('skips a guarded step when its wait was answered with no outcome at all', async () => {
+    const called: string[] = [];
+    const { engine } = await engineOver(step => {
+      called.push(step.step);
+      return Effect.void;
+    });
+    await start(
+      engine,
+      slipOf([
+        'take',
+        { step: 'report', fragment: 'report' },
+        {
+          step: 'close',
+          fragment: 'close',
+          guard: { wait: 'report', outcomes: ['delivered'] },
+        },
+      ]),
+    );
+    expect((await settled(engine)).state).toBe('waiting');
+
+    // A plain signal names no outcome, so no guard on it can pass.
+    await Effect.runPromise(engine.signal('flow-x', 'report', 'delivered'));
+
+    expect((await settled(engine)).state).toBe('completed');
+    expect(called).toEqual(['take']);
+  });
+
   it('continues a wait signalled before its timeout', async () => {
     const { engine } = await engineOver(() => Effect.void);
     await start(
@@ -424,11 +451,16 @@ describe('the slip interpreter', () => {
 
 describe('a signal whose resume fails', () => {
   it.each([
-    ['correlated', { correlation: 'order-7' }],
-    ['uncorrelated', {}],
+    ['correlated', { correlation: 'order-7' }, {}],
+    ['uncorrelated', {}, {}],
+    [
+      'an outcome-declaring',
+      { correlation: 'order-7' },
+      { accepts: ['delivered', 'refused'] },
+    ],
   ] as const)(
     'parks a %s flow on its wait again, so a retried signal can claim it',
-    async (_, parameters) => {
+    async (_, parameters, parked) => {
       // The in-memory engine whose every deferred completion dies: the claim is
       // taken, the resume never lands.
       const unresumable = Layer.effect(
@@ -448,7 +480,7 @@ describe('a signal whose resume fails', () => {
         'take',
         {
           step: 'await',
-          fragment: 'await',
+          fragment: 'accepts' in parked ? 'report' : 'await',
           parameters,
         },
       ]);
@@ -469,6 +501,7 @@ describe('a signal whose resume fails', () => {
         step: 'await',
         waitingFor: 'await',
         ...parameters,
+        ...parked,
       });
     },
   );

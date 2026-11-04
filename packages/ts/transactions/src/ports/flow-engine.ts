@@ -5,7 +5,9 @@ import { Context, type Effect, Schema } from 'effect';
 /**
  * Where a flow stands. `suspended` is a flow past its commit point whose step
  * keeps failing — it is waiting for retries or an operator, never compensated;
- * `waiting` is a flow parked at a durable wait for a signal.
+ * `waiting` is a flow parked at a durable wait for a signal; `stranded` is a
+ * flow whose wait ran out with nothing left it could do on its own, ended for
+ * an operator rather than retried.
  */
 export type FlowState =
   | 'running'
@@ -14,7 +16,8 @@ export type FlowState =
   | 'completed'
   | 'compensated'
   | 'failed'
-  | 'interrupted';
+  | 'interrupted'
+  | 'stranded';
 
 export interface FlowStatus {
   readonly flowId: string;
@@ -32,8 +35,8 @@ export class FlowNotFound extends Failure.notFound<FlowNotFound>()(
 
 /**
  * A signal the flow will not take: it is not waiting, it waits for another
- * token, or the wait already timed out. A late signal is an answer, not an
- * outage.
+ * token, its wait is not answered with that outcome, or the wait already
+ * timed out. A late signal is an answer, not an outage.
  */
 export class FlowSignalRejected extends Failure.conflict<FlowSignalRejected>()(
   'FlowSignalRejected',
@@ -64,14 +67,18 @@ export interface FlowEngine {
     outcome: unknown,
   ) => Effect.Effect<void, FlowNotFound | FlowSignalRejected | StoreFailure>;
   /**
-   * Completes a durable wait by what the waiting flow is correlated with —
-   * the order a delivery flow follows, say — for a sender that knows that and
-   * not the flow's id.
+   * Completes whichever durable wait the flow correlated with `correlation` —
+   * the shipment a delivery flow follows, say — is parked at, for a sender
+   * that knows that and neither the flow's id nor the wait's step name.
+   *
+   * `signal.outcome` must be one the parked wait declares, or the signal is
+   * rejected: a sender's report meant for a later wait is never taken by an
+   * earlier one. No flow parked under the correlation answers `FlowNotFound`,
+   * which a sender may retry — the flow may simply not have reached its wait.
    */
   readonly signalCorrelated: (
     correlation: string,
-    token: string,
-    outcome: unknown,
+    signal: { readonly outcome: string } & Readonly<Record<string, unknown>>,
   ) => Effect.Effect<void, FlowNotFound | FlowSignalRejected | StoreFailure>;
   readonly interrupt: (
     flowId: string,

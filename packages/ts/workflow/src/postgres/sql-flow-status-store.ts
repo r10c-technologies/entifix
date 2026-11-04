@@ -18,6 +18,13 @@ type FlowStatusRow = {
   readonly step: string | null;
   readonly waiting_for: string | null;
   readonly correlation: string | null;
+  /** The parked wait's outcomes, as a JSON array. */
+  readonly accepts: string | null;
+};
+
+const acceptsOf = (text: string): readonly string[] => {
+  const parsed: unknown = JSON.parse(text);
+  return Array.isArray(parsed) ? parsed.map(String) : [];
 };
 
 const recordOf = (row: FlowStatusRow): FlowRecord => ({
@@ -27,22 +34,31 @@ const recordOf = (row: FlowStatusRow): FlowRecord => ({
   ...(row.step === null ? {} : { step: row.step }),
   ...(row.waiting_for === null ? {} : { waitingFor: row.waiting_for }),
   ...(row.correlation === null ? {} : { correlation: row.correlation }),
+  ...(row.accepts === null ? {} : { accepts: acceptsOf(row.accepts) }),
 });
 
 const fault = (error: unknown) => translateSqlError(error);
 
-/** Creates the flow status table if it is missing. Idempotent. */
+/**
+ * Creates the flow status table if it is missing, and adds a column a table
+ * created by an earlier release lacks. Idempotent.
+ */
 export const ensureFlowStatusTable = (sql: SqlClient.SqlClient) =>
-  sql`
-    CREATE TABLE IF NOT EXISTS entifix_flow_status (
-      flow_id text PRIMARY KEY,
-      idempotency_key text NOT NULL UNIQUE,
-      execution_id text NOT NULL,
-      state text NOT NULL,
-      step text,
-      waiting_for text,
-      correlation text
-    )`.pipe(Effect.asVoid, Effect.mapError(fault));
+  Effect.gen(function* () {
+    yield* sql`
+      CREATE TABLE IF NOT EXISTS entifix_flow_status (
+        flow_id text PRIMARY KEY,
+        idempotency_key text NOT NULL UNIQUE,
+        execution_id text NOT NULL,
+        state text NOT NULL,
+        step text,
+        waiting_for text,
+        correlation text,
+        accepts text
+      )`;
+    yield* sql`
+      ALTER TABLE entifix_flow_status ADD COLUMN IF NOT EXISTS accepts text`;
+  }).pipe(Effect.mapError(fault));
 
 /**
  * The flow status store over SQL, beside the workflow engine's own tables. A
@@ -92,13 +108,17 @@ export const makeSqlFlowStatusStore = (
       UPDATE entifix_flow_status
       SET state = ${patch.state}, step = ${patch.step ?? null},
           waiting_for = ${patch.waitingFor ?? null},
-          correlation = ${patch.correlation ?? null}
+          correlation = ${patch.correlation ?? null},
+          accepts = ${
+            patch.accepts === undefined ? null : JSON.stringify(patch.accepts)
+          }
       WHERE flow_id = ${flowId}`.pipe(Effect.asVoid, Effect.mapError(fault)),
 
   claimWait: (flowId, token) =>
     sql<{ readonly flow_id: string }>`
       UPDATE entifix_flow_status
-      SET state = 'running', step = ${token}, waiting_for = NULL
+      SET state = 'running', step = ${token}, waiting_for = NULL,
+          accepts = NULL
       WHERE flow_id = ${flowId} AND state = 'waiting' AND waiting_for = ${token}
       RETURNING flow_id`.pipe(
       Effect.map(rows => rows.length > 0),

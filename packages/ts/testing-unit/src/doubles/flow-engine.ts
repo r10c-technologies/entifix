@@ -30,7 +30,20 @@ interface Run {
   /** The next step to run. */
   next: number;
   readonly done: SlipStep[];
+  /** What each wait was answered with, by step name. */
+  readonly answered: Map<string, string | undefined>;
+  /** Steps a guard passed over. */
+  readonly skipped: Set<string>;
 }
+
+/** The outcome named on a signal's value or a timeout's, when a string. */
+const outcomeOf = (value: unknown): string | undefined => {
+  const named =
+    typeof value === 'object' && value !== null
+      ? (value as { readonly outcome?: unknown }).outcome
+      : undefined;
+  return typeof named === 'string' ? named : undefined;
+};
 
 const failureOf = (error: EntifixFailure) => ({
   code: error.code,
@@ -42,8 +55,11 @@ const failureOf = (error: EntifixFailure) => ({
  * ([ADR 0016](../../../../../docs/adr/0016-a-flow-engine-port-and-a-durable-workflow-adapter.md)):
  * a failure before the commit point — the pivot's own included — compensates
  * the steps that succeeded, in reverse; a failure after it suspends the flow;
- * a `wait` parks it until a signal names that step. It runs synchronously and
- * durably remembers nothing, which is what makes it a fake.
+ * a `wait` parks it until a signal names that step, or until its `timeoutMs`
+ * runs out and its `onTimeout` answers an outcome or strands the flow; a step
+ * guarded on a wait's answer runs only on the outcomes it names. It runs
+ * synchronously but for a timeout, and durably remembers nothing, which is
+ * what makes it a fake.
  */
 export const makeFakeFlowEngine = (
   catalog: FragmentCatalog,
@@ -87,9 +103,22 @@ export const makeFakeFlowEngine = (
       const commitAt = steps.findIndex(step => kindOf(step) === 'pivot');
       while (run.next < steps.length) {
         const step = steps[run.next] as SlipStep;
+        if (step.guard !== undefined) {
+          const outcome = run.answered.get(step.guard.wait);
+          if (
+            run.skipped.has(step.guard.wait) ||
+            outcome === undefined ||
+            !step.guard.outcomes.includes(outcome)
+          ) {
+            run.skipped.add(step.step);
+            run.next += 1;
+            continue;
+          }
+        }
         run.step = step.step;
         if (kindOf(step) === 'wait') {
           run.state = 'waiting';
+          armTimeout(run, step);
           return;
         }
         const result = yield* Effect.result(participant(step));
@@ -120,6 +149,41 @@ export const makeFakeFlowEngine = (
       announce(run, 'flow.completed', 'completed');
     });
 
+  /**
+   * Answers a parked wait when its `timeoutMs` runs out, unless a signal came
+   * first: with the outcome its `onTimeout` names, or by stranding the flow.
+   * Named neither, a timeout is a failure past the commit point — suspended.
+   */
+  function armTimeout(run: Run, step: SlipStep): void {
+    const timeoutMs = step.parameters?.['timeoutMs'];
+    if (typeof timeoutMs !== 'number') return;
+    const onTimeout = step.parameters?.['onTimeout'];
+    Effect.runFork(
+      Effect.sleep(timeoutMs).pipe(
+        Effect.andThen(
+          Effect.suspend(() => {
+            if (run.state !== 'waiting' || run.step !== step.step)
+              return Effect.void;
+            if (onTimeout === 'strand') {
+              run.state = 'stranded';
+              announce(run, 'flow.stranded', step.step);
+              return Effect.void;
+            }
+            const outcome = outcomeOf(onTimeout);
+            if (outcome === undefined) {
+              run.state = 'suspended';
+              announce(run, 'flow.suspended', step.step, {
+                failure: { code: 'flowWaitTimedOut', category: 'timeout' },
+              });
+              return Effect.void;
+            }
+            return resume(run, step.step, { outcome });
+          }),
+        ),
+      ),
+    );
+  }
+
   /** What a parked run's wait is correlated with, per its step's parameters. */
   const correlationOf = (run: Run) => {
     if (run.state !== 'waiting') return undefined;
@@ -129,15 +193,17 @@ export const makeFakeFlowEngine = (
     return typeof correlation === 'string' ? correlation : undefined;
   };
 
-  const signal = (token: string) => (run: Run) => {
-    if (run.state !== 'waiting' || run.step !== token)
-      return Effect.fail(
-        new FlowSignalRejected({ flowId: run.slip.flowId, token }),
-      );
+  function resume(run: Run, token: string, value: unknown) {
+    run.answered.set(token, outcomeOf(value));
     run.state = 'running';
     run.next += 1;
     return walk(run);
-  };
+  }
+
+  const signal = (token: string, value: unknown) => (run: Run) =>
+    run.state !== 'waiting' || run.step !== token
+      ? Effect.fail(new FlowSignalRejected({ flowId: run.slip.flowId, token }))
+      : resume(run, token, value);
 
   const find = (flowId: string) => {
     const run = runs.get(flowId);
@@ -153,7 +219,14 @@ export const makeFakeFlowEngine = (
       Effect.gen(function* () {
         const known = byKey.get(idempotencyKey);
         if (known !== undefined) return { flowId: known };
-        const run: Run = { slip, state: 'running', next: 0, done: [] };
+        const run: Run = {
+          slip,
+          state: 'running',
+          next: 0,
+          done: [],
+          answered: new Map(),
+          skipped: new Set(),
+        };
         runs.set(slip.flowId, run);
         byKey.set(idempotencyKey, slip.flowId);
         announce(run, 'flow.started', 'started');
@@ -166,15 +239,26 @@ export const makeFakeFlowEngine = (
         state: run.state,
         ...(run.step === undefined ? {} : { step: run.step }),
       })),
-    signal: (flowId, token) => Effect.flatMap(find(flowId), signal(token)),
-    signalCorrelated: (correlation, token) =>
-      Effect.flatMap(
-        find(
-          [...runs.entries()].find(
-            ([, run]) => correlationOf(run) === correlation,
-          )?.[0] ?? correlation,
-        ),
-        signal(token),
+    signal: (flowId, token, outcome) =>
+      Effect.flatMap(find(flowId), signal(token, outcome)),
+    signalCorrelated: (correlation, value) =>
+      Effect.suspend(
+        (): Effect.Effect<void, FlowNotFound | FlowSignalRejected> => {
+          const run = [...runs.values()].find(
+            candidate => correlationOf(candidate) === correlation,
+          );
+          if (run === undefined)
+            return Effect.fail(new FlowNotFound({ flowId: correlation }));
+          const token = run.step as string;
+          const accepts = catalog.get(
+            (slipSteps(run.slip)[run.next] as SlipStep).ref,
+          )?.outcomes;
+          return accepts !== undefined && !accepts.includes(value.outcome)
+            ? Effect.fail(
+                new FlowSignalRejected({ flowId: run.slip.flowId, token }),
+              )
+            : signal(token, value)(run);
+        },
       ),
     interrupt: flowId =>
       Effect.map(find(flowId), run => {

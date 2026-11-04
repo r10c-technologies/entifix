@@ -182,6 +182,81 @@ exports[`the catalog > documents itself as stable JSON 1`] = `
     },
     {
       "call": {
+        "method": "GET",
+        "path": "/api/shipping-order/:id",
+      },
+      "cardinality": "one",
+      "consumes": {},
+      "contract": {
+        "failure": {
+          "definitions": {},
+          "dialect": "draft-2020-12",
+          "schema": {
+            "additionalProperties": true,
+            "properties": {
+              "code": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "code",
+            ],
+            "type": "object",
+          },
+        },
+        "input": {
+          "definitions": {},
+          "dialect": "draft-2020-12",
+          "schema": {
+            "additionalProperties": true,
+            "properties": {
+              "sku": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "sku",
+            ],
+            "type": "object",
+          },
+        },
+        "output": {
+          "definitions": {},
+          "dialect": "draft-2020-12",
+          "schema": {
+            "additionalProperties": true,
+            "properties": {
+              "reservationId": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "reservationId",
+            ],
+            "type": "object",
+          },
+        },
+      },
+      "excludedFrom": {},
+      "fingerprint": "07def21c964dc3",
+      "id": "fulfilment.report",
+      "irreversible": false,
+      "isolation": "none",
+      "kind": "wait",
+      "module": "fulfilment",
+      "outcomes": [
+        "delivered",
+        "refused",
+      ],
+      "participant": "fulfilment",
+      "provides": {},
+      "readOnly": false,
+      "ref": "fulfilment.report@1",
+      "requires": {},
+      "version": 1,
+    },
+    {
+      "call": {
         "method": "POST",
         "path": "/api/shipping-order",
       },

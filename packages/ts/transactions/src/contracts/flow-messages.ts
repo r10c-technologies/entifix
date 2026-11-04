@@ -8,12 +8,13 @@ import { Schema } from 'effect';
 
 import type { OutboxEvent } from './outbox.js';
 
-/** The four things a flow announces about itself. */
+/** The five things a flow announces about itself. */
 export const FLOW_EVENTS = [
   'flow.started',
   'flow.completed',
   'flow.failed',
   'flow.suspended',
+  'flow.stranded',
 ] as const;
 export type FlowEventName = (typeof FLOW_EVENTS)[number];
 
@@ -81,6 +82,9 @@ export const FlowStatusBody = Schema.Struct({
     'compensated',
     'failed',
     'interrupted',
+    // A wait's timeout stranded it for a person; like `suspended`, a browser
+    // holding it pending keeps it pending — the write neither landed nor failed.
+    'stranded',
   ]),
   step: Schema.optionalKey(Schema.String),
   failure: Schema.optionalKey(FlowFailure),

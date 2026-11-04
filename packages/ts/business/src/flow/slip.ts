@@ -26,6 +26,19 @@ export const SlipSegment = Schema.Struct({
 });
 export type SlipSegment = typeof SlipSegment.Type;
 
+/**
+ * A step that runs only when an earlier wait was answered with one of
+ * `outcomes` — the one branch a slip can take, decided by what the wait was
+ * told rather than by anything known at composition. A step guarded on a wait
+ * that was itself skipped is skipped too.
+ */
+export const SlipGuard = Schema.Struct({
+  /** The step name of the wait, earlier in the slip. */
+  wait: Schema.String,
+  outcomes: Schema.Array(Schema.String),
+});
+export type SlipGuard = typeof SlipGuard.Type;
+
 /** One pinned step: a fragment reference and everything resolved for it. */
 export const SlipStep = Schema.Struct({
   /** `id@version`, pinned when the slip was composed. */
@@ -41,6 +54,7 @@ export const SlipStep = Schema.Struct({
   compensation: Schema.optionalKey(Call),
   /** Configuration pinned at composition — a hold's expiry, a limit. */
   parameters: Schema.optionalKey(Schema.Record(Schema.String, Schema.Unknown)),
+  guard: Schema.optionalKey(SlipGuard),
 });
 export type SlipStep = typeof SlipStep.Type;
 

@@ -66,6 +66,7 @@ export const catalogDocument = (catalog: FragmentCatalog) => ({
     isolation: fragment.isolation ?? 'none',
     requires: fragment.requires ?? {},
     excludedFrom: fragment.excludedFrom ?? {},
+    ...(fragment.outcomes === undefined ? {} : { outcomes: fragment.outcomes }),
     consumes: keysDocument(fragment.consumes),
     provides: keysDocument(fragment.provides),
     contract: {
