@@ -82,6 +82,9 @@ export const FlowStatusBody = Schema.Struct({
     'compensated',
     'failed',
     'interrupted',
+    // A wait's timeout stranded it for a person; like `suspended`, a browser
+    // holding it pending keeps it pending — the write neither landed nor failed.
+    'stranded',
   ]),
   step: Schema.optionalKey(Schema.String),
   failure: Schema.optionalKey(FlowFailure),
