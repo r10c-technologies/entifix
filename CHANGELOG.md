@@ -1,3 +1,17 @@
+## 0.15.0 (2026-11-04)
+
+### 🚀 Features
+
+- ⚠️ composed flows carry their data, and the saga runner, the tracker and locks are deleted ([#162](https://github.com/r10c-technologies/entifix/pull/162))
+
+### ⚠️ Breaking Changes
+
+- composed flows carry their data, and the saga runner, the tracker and locks are deleted ([#162](https://github.com/r10c-technologies/entifix/pull/162))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.14.0 (2026-11-03)
 
 ### 🚀 Features
