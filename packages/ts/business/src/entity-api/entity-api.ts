@@ -97,6 +97,8 @@ export interface VerbEndpoint<R> {
   /** Defaults to the group's write guard. */
   readonly guard?: EntityApiGuard;
   readonly idempotent?: EndpointIdempotency;
+  /** The verb starts a flow and answers `202` with what to follow. */
+  readonly accepted?: boolean;
   readonly handler: (
     request: EntityApiRequest,
     context: EntityApiContext,

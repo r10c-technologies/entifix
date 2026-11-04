@@ -21,9 +21,6 @@
     },
     {
       "path": "../testing-unit/tsconfig.lib.json"
-    },
-    {
-      "path": "../transactions/tsconfig.lib.json"
     }
   ],
   "exclude": [

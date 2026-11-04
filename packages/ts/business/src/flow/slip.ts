@@ -13,10 +13,16 @@ const Call = Schema.Struct({
   path: Schema.String,
 });
 
-/** Tags that place a step in a segment of the flow: whose lines, which payment. */
+/**
+ * Tags that place a step in a segment of the flow: whose lines, which payment.
+ * `entitlements` are the facts verified for the party the segment acts for —
+ * a vendor's provisioning, never the caller's — and a segment's steps are
+ * checked against them beside the flow's context.
+ */
 export const SlipSegment = Schema.Struct({
   vendor: Schema.optionalKey(Schema.String),
   paymentMethod: Schema.optionalKey(Schema.String),
+  entitlements: Schema.optionalKey(Schema.Array(Schema.String)),
 });
 export type SlipSegment = typeof SlipSegment.Type;
 
@@ -28,6 +34,8 @@ export const SlipStep = Schema.Struct({
   step: Schema.String,
   cardinality: Schema.Literals(['one', 'perVendor', 'perLine']),
   segment: Schema.optionalKey(SlipSegment),
+  /** The line a `perLine` step was expanded for, by the recipe's key. */
+  line: Schema.optionalKey(Schema.String),
   participant: Schema.optionalKey(Schema.String),
   call: Schema.optionalKey(Call),
   compensation: Schema.optionalKey(Call),
@@ -48,6 +56,7 @@ export const SlipAudienceEntry = Schema.Struct({
   id: Schema.String,
   digest: Schema.optionalKey(Schema.String),
 });
+export type SlipAudienceEntry = typeof SlipAudienceEntry.Type;
 
 /** Which variant each use case resolved to, and by which rule. */
 export const SlipResolution = Schema.Struct({

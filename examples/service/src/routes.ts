@@ -1,7 +1,8 @@
 import { defineEntityApi, IdempotencyKeyTag } from '@entifix/business';
+import { compose } from '@entifix/business/compose';
+import { verifiedContext } from '@entifix/business/verified';
 import {
   defineEndpoint,
-  Failure,
   implement,
   Internal,
   JsonBody,
@@ -10,12 +11,11 @@ import {
 import { StockItem } from '@entifix/example-service-domain';
 import { MongoDatabaseTag } from '@entifix/mongo';
 import { endpointGroup, entityApi } from '@entifix/service-shell';
-import { SagaStoreTag } from '@entifix/transactions';
-import { runSaga } from '@entifix/transactions/engine';
+import { FlowEngineTag } from '@entifix/transactions';
 import { Effect, Schema } from 'effect';
 
 import { STATS_COLLECTION } from './order-stats.projection.ts';
-import { placeOrder, placeOrderInputs } from './place-order.saga.ts';
+import { placeOrderCatalog, placeOrderRecipe } from './place-order.flow.ts';
 
 /**
  * The generated CRUD half: one flat entity, its list, read and update — and
@@ -30,13 +30,6 @@ export const stockItems = entityApi(
   }),
 );
 
-/** The saga ran its compensations: the order did not happen. */
-export class OrderRefused extends Failure.conflict<OrderRefused>()(
-  'OrderRefused',
-  'orderRefused',
-  { sagaId: Schema.String, reason: Schema.optionalKey(Schema.String) },
-) {}
-
 const placeOrderEndpoint = defineEndpoint({
   name: 'place',
   method: 'POST',
@@ -46,22 +39,17 @@ const placeOrderEndpoint = defineEndpoint({
     quantity: Schema.Number,
     amount: Schema.Number,
   }),
-  success: Schema.Struct({
-    sagaId: Schema.String,
-    state: Schema.Literal('COMPLETED'),
-  }),
-  errors: [OrderRefused],
-  guard: {
-    kind: 'permission',
-    permission: placeOrder.permission as `${string}:${string}:${string}`,
-  },
+  success: Schema.Struct({ flowId: Schema.String }),
+  errors: [],
+  guard: { kind: 'permission', permission: 'orders:order:write' },
   idempotent: 'unit',
+  accepted: true,
 });
 
-const sagaEndpoint = defineEndpoint({
-  name: 'saga',
+const flowEndpoint = defineEndpoint({
+  name: 'flow',
   method: 'GET',
-  path: '/api/saga/:id',
+  path: '/api/flow/:id',
   params: { id: Schema.String },
   success: JsonBody,
   errors: [NotFound],
@@ -77,43 +65,46 @@ const statsEndpoint = defineEndpoint({
   guard: { kind: 'public' },
 });
 
+/** The caller placing an order: a service with no entitlement to state. */
+const CALLER = verifiedContext({
+  entitlements: [],
+  roles: [],
+  flags: [],
+  config: {},
+});
+
 /**
- * The hand-written half: placing an order runs the saga, and its instance and
- * the order stats are read back. `Idempotency-Key` is the saga id, so a
- * retried request re-runs the same flow, whose every command is keyed on it,
- * and nothing happens twice.
+ * The hand-written half: placing an order starts its flow and answers `202`
+ * with the flow's id, never its outcome; where the flow stands and the order
+ * stats are read back. The engine registers the `Idempotency-Key`, so a
+ * retried request names the flow the first one began, and nothing happens
+ * twice.
  */
 export const orders = endpointGroup(
   'orders',
   implement(placeOrderEndpoint, ({ payload }) =>
     Effect.gen(function* () {
-      const sagaId = yield* IdempotencyKeyTag;
-      const result = yield* runSaga({
-        sagaId,
-        definition: placeOrder,
-        inputs: placeOrderInputs(sagaId, payload),
-      }).pipe(Effect.mapError(() => new Internal()));
-      if (result.state === 'COMPENSATED')
-        return yield* Effect.fail(
-          new OrderRefused({
-            sagaId,
-            ...(result.error === undefined ? {} : { reason: result.error }),
-          }),
-        );
-      if (result.state !== 'COMPLETED')
-        return yield* Effect.fail(new Internal());
-      return { sagaId, state: 'COMPLETED' as const };
+      const key = yield* IdempotencyKeyTag;
+      const flowId = globalThis.crypto.randomUUID();
+      const slip = yield* compose(
+        placeOrderRecipe,
+        placeOrderCatalog,
+        CALLER,
+        { ...payload, orderId: flowId },
+        { flowId, composedAt: new Date().toISOString() },
+      ).pipe(Effect.mapError(() => new Internal()));
+      const engine = yield* FlowEngineTag;
+      return yield* engine
+        .start(slip, key)
+        .pipe(Effect.mapError(() => new Internal()));
     }),
   ),
-  implement(sagaEndpoint, ({ params }) =>
+  implement(flowEndpoint, ({ params }) =>
     Effect.gen(function* () {
-      const store = yield* SagaStoreTag;
-      const instance = yield* store
-        .get(params.id)
-        .pipe(Effect.mapError(() => new Internal()));
-      return instance === undefined
-        ? yield* Effect.fail(new NotFound({ entity: 'saga' }))
-        : instance;
+      const engine = yield* FlowEngineTag;
+      return yield* engine
+        .status(params.id)
+        .pipe(Effect.mapError(() => new NotFound({ entity: 'flow' })));
     }),
   ),
   implement(statsEndpoint, () =>

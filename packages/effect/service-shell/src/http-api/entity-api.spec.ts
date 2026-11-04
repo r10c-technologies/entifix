@@ -876,6 +876,35 @@ describe('verbs derived from @useCase()', () => {
     ]);
   });
 
+  it('carries a verb that starts a flow onto both its cells as accepted', () => {
+    const accepting = entityApi(
+      defineEntityApi(Order, 'order', {
+        verbs: ['get'],
+        guard: { kind: 'permission' },
+        useCases: [
+          shipOrder,
+          shipOrders,
+          verbEndpoint(ArchiveOrder, {
+            accepted: true,
+            handler: () => Effect.succeed('one'),
+            bulk: () => Effect.succeed('all'),
+          }),
+        ],
+      }),
+    );
+
+    expect(
+      accepting.endpoints
+        .filter(({ descriptor }) => descriptor.useCase !== undefined)
+        .map(({ descriptor }) => [descriptor.name, descriptor.accepted]),
+    ).toEqual([
+      ['ship', undefined],
+      ['ship-collection', undefined],
+      ['archive', true],
+      ['archive-collection', true],
+    ]);
+  });
+
   it('refuses a collection cell with no bulk handler, and a bulk handler with no cell', () => {
     const serve = (verbs: readonly VerbEndpoint<never>[]) => () =>
       entityApi(

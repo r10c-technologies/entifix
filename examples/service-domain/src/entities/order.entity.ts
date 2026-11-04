@@ -4,7 +4,7 @@ export const ORDER_STATUSES = ['confirmed'] as const;
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
 
 /**
- * A placed order. It only ever exists confirmed: the saga writes it as its last
+ * A placed order. It only ever exists confirmed: the flow writes it as its last
  * step, after the stock is held and the charge taken, so there is no pending
  * order to clean up when an earlier step refuses.
  */
@@ -15,7 +15,7 @@ export class Order implements Entity {
   #quantity = 0;
   #amount = 0;
   #status: OrderStatus = 'confirmed';
-  #sagaId = '';
+  #flowId = '';
 
   @accessor({ type: 'id', label: 'ID' })
   get id(): EntityId {
@@ -62,11 +62,11 @@ export class Order implements Entity {
     this.#status = value;
   }
 
-  @accessor({ type: 'string', label: 'Saga' })
-  get sagaId(): string {
-    return this.#sagaId;
+  @accessor({ type: 'string', label: 'Flow' })
+  get flowId(): string {
+    return this.#flowId;
   }
-  set sagaId(value: string) {
-    this.#sagaId = value;
+  set flowId(value: string) {
+    this.#flowId = value;
   }
 }

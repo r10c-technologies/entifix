@@ -73,7 +73,7 @@ const callOf = (overrides: Partial<ParticipantCall> = {}): ParticipantCall => ({
   step: hold,
   kind: 'action',
   idempotencyKey: 'flow-1:v1:hold',
-  outputs: {},
+  inputs: hold.parameters ?? {},
   ...overrides,
 });
 
@@ -81,7 +81,7 @@ const run = <A, E>(effect: Effect.Effect<A, E>) =>
   Effect.runPromise(Effect.result(effect));
 
 describe('makeHttpParticipantClient', () => {
-  it('sends the crossing token, the key, the organization and the step’s inputs', async () => {
+  it('sends the crossing token, the key, the organization and the call’s inputs as a flat body', async () => {
     const sent: Sent[] = [];
     const client = makeHttpParticipantClient(
       fakeClient(() => Response.json({ id: 'h-1' }), sent),
@@ -89,7 +89,7 @@ describe('makeHttpParticipantClient', () => {
     );
 
     const result = await run(
-      client.call(callOf({ outputs: { pick: { id: 'p-1' } } })),
+      client.call(callOf({ inputs: { ...hold.parameters, pickId: 'p-1' } })),
     );
 
     expect(result).toMatchObject({ success: { id: 'h-1' } });
@@ -97,8 +97,9 @@ describe('makeHttpParticipantClient', () => {
       method: 'POST',
       url: 'http://stock/api/reservation',
       body: JSON.stringify({
-        parameters: hold.parameters,
-        outputs: { pick: { id: 'p-1' } },
+        organizationId: 'org-1',
+        quantity: 2,
+        pickId: 'p-1',
       }),
     });
     expect(sent[0]?.headers).toMatchObject({
@@ -109,7 +110,7 @@ describe('makeHttpParticipantClient', () => {
     expect(sent[0]?.headers[DEADLINE_HEADER]).toBeUndefined();
   });
 
-  it('takes a path’s parameter from what an earlier step answered, and an empty body as nothing', async () => {
+  it('takes a path’s parameter from the inputs, and an empty body as nothing', async () => {
     const sent: Sent[] = [];
     const client = makeHttpParticipantClient(
       fakeClient(() => new Response(null, { status: 204 }), sent),
@@ -117,13 +118,7 @@ describe('makeHttpParticipantClient', () => {
     );
 
     const result = await run(
-      client.call(
-        callOf({
-          kind: 'compensation',
-          step: { ...hold, parameters: {} },
-          outputs: { hold: { id: 'h 1' } },
-        }),
-      ),
+      client.call(callOf({ kind: 'compensation', inputs: { hold: 'h 1' } })),
     );
 
     expect(result).toMatchObject({ _tag: 'Success', success: undefined });
@@ -134,37 +129,35 @@ describe('makeHttpParticipantClient', () => {
     expect(sent[0]?.headers['x-organization-id']).toBeUndefined();
   });
 
-  it('prefers the step’s own parameter, and leaves a name nothing supplies empty', async () => {
+  it('leaves a name nothing supplies empty, and sends no body on a GET', async () => {
     const sent: Sent[] = [];
     const client = makeHttpParticipantClient(
       fakeClient(() => new Response('not json'), sent),
       participants,
     );
 
-    const named = await run(
-      client.call(
-        callOf({
-          kind: 'compensation',
-          step: { ...hold, parameters: { hold: 'h-2' } },
-          outputs: { hold: { id: 'h-1' } },
-        }),
-      ),
+    const missing = await run(
+      client.call(callOf({ kind: 'compensation', inputs: {} })),
     );
     await run(
       client.call(
         callOf({
-          kind: 'compensation',
-          step: { ...hold, parameters: undefined } as never,
+          step: {
+            ...hold,
+            call: { method: 'GET', path: '/api/reservation/:hold' },
+          },
+          inputs: { hold: 'h-2' },
         }),
       ),
     );
 
-    expect(named).toMatchObject({ _tag: 'Success', success: undefined });
+    expect(missing).toMatchObject({ _tag: 'Success', success: undefined });
     expect(sent.map(request => request.url)).toEqual([
-      'http://stock/api/reservation/h-2',
       'http://stock/api/reservation/',
+      'http://stock/api/reservation/h-2',
     ]);
-    expect(sent[1]?.body).toBe(JSON.stringify({ parameters: {}, outputs: {} }));
+    expect(sent[0]?.body).toBe('{}');
+    expect(sent[1]?.body).toBeUndefined();
   });
 
   it('answers at once for a step with no call', async () => {

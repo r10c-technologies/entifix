@@ -63,7 +63,7 @@ type TypeOf<S> = SchemaOf<S>['Type'];
 
 /**
  * An endpoint, described with Schema and nothing about HTTP beyond its method
- * and path: no status, no content type, no annotation. A cell exports these;
+ * and path: no status beyond `accepted`, no content type, no annotation. A cell exports these;
  * the shell turns them into an API.
  */
 export interface EndpointDescriptor<
@@ -100,6 +100,13 @@ export interface EndpointDescriptor<
   readonly errors: Errors;
   readonly guard: Guard;
   readonly idempotent?: Idempotency;
+  /**
+   * The handler answers before the work is done: it started a flow and
+   * answers what to follow, served as `202 Accepted` rather than `200`. The
+   * only word a descriptor has about a success status, because it is the only
+   * one a client branches on (two settle modes, ADR 0022).
+   */
+  readonly accepted?: boolean;
   /** The `@useCase()` this endpoint serves, when it is a verb. */
   readonly useCase?: string;
 }

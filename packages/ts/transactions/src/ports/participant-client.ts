@@ -12,8 +12,13 @@ export interface ParticipantCall {
    * `Idempotency-Key`, stable across every redelivery and resume.
    */
   readonly idempotencyKey: string;
-  /** What earlier steps answered, by step — the inputs a step may name. */
-  readonly outputs: Readonly<Record<string, unknown>>;
+  /**
+   * Everything the call is given, flat: the step's pinned parameters, the keys
+   * it consumes as earlier steps bound them, and — for an undoing — what its
+   * own action answered. A path's `:name` and the request body read this and
+   * nothing else.
+   */
+  readonly inputs: Readonly<Record<string, unknown>>;
 }
 
 /**

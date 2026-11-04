@@ -3,25 +3,16 @@ import type { Subscription } from '@entifix/transactions';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 
-import { describeSagaStoreContract } from '../contracts/saga-store.contract.js';
 import {
   describeEventBusContract,
-  describeLockServiceContract,
-  describeSequenceServiceContract,
   describeTransactionInboxContract,
 } from '../contracts/transaction-ports.contract.js';
 import { runFailure } from '../effect/run.js';
 import {
   makeInMemoryInboxes,
-  makeInMemoryLockService,
-  makeInMemorySagaStore,
-  makeInMemorySequenceService,
   makeRecordingEventBus,
 } from './transaction-ports.js';
 
-describeLockServiceContract('in-memory fake', makeInMemoryLockService);
-describeSagaStoreContract('in-memory fake', makeInMemorySagaStore);
-describeSequenceServiceContract('in-memory fake', makeInMemorySequenceService);
 describeEventBusContract('recording fake', () => {
   const bus = makeRecordingEventBus();
   return {
@@ -50,49 +41,6 @@ describe('makeInMemoryInboxes', () => {
       { consumer: 'a', eventId: 'tx-1:completed' },
       { consumer: 'b', eventId: 'tx-1:completed' },
     ]);
-  });
-});
-
-describe('makeInMemoryLockService', () => {
-  it('reports which keys are held', async () => {
-    const locks = makeInMemoryLockService();
-
-    await Effect.runPromise(locks.acquire('a'));
-    await Effect.runPromise(locks.acquire('b'));
-
-    expect(locks.held).toEqual(['a', 'b']);
-  });
-
-  it('records acquire and release in order, so the facade can be checked', async () => {
-    const locks = makeInMemoryLockService();
-    const handle = await Effect.runPromise(locks.acquire('code'));
-
-    await Effect.runPromise(locks.release(handle));
-
-    expect(locks.log).toEqual([
-      { action: 'acquire', key: 'code' },
-      { action: 'release', key: 'code' },
-    ]);
-  });
-
-  it('fails acquisition on a key marked contended', async () => {
-    const locks = makeInMemoryLockService();
-    locks.contendOn('busy');
-
-    const error = await runFailure(locks.acquire('busy'));
-
-    expect(error).toMatchObject({ _tag: 'Contention' });
-  });
-});
-
-describe('makeInMemorySequenceService', () => {
-  it('exposes the value each sequence has reached', async () => {
-    const sequences = makeInMemorySequenceService();
-
-    await Effect.runPromise(sequences.next('product'));
-    await Effect.runPromise(sequences.next('product'));
-
-    expect(sequences.values).toEqual({ product: 2 });
   });
 });
 
@@ -180,15 +128,5 @@ describe('makeRecordingEventBus', () => {
     const error = await runFailure(bus.deliver(anEvent('tx-1')));
 
     expect(String(error)).toContain('handler blew up');
-  });
-});
-
-describe('makeInMemorySagaStore', () => {
-  it('exposes what it holds, and ignores a write to an instance it never started', async () => {
-    const store = makeInMemorySagaStore();
-
-    await Effect.runPromise(store.settle('absent', 'COMPLETED'));
-
-    expect(store.instances).toEqual([]);
   });
 });

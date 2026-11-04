@@ -34,8 +34,8 @@ export interface PendingFlowsProviderProps {
    * organizationId })`, or `ANONYMOUS_WORKSPACE_SCOPE` for nobody in
    * particular, which keeps flow ids and their age only.
    *
-   * Required for the reason `PendingTransactionsProviderProps.scope` is:
-   * IndexedDB belongs to the browser profile, not to whoever signed in.
+   * Required because IndexedDB belongs to the browser profile, not to
+   * whoever signed in.
    */
   readonly scope: string;
   /** The tab's push channel, where each pending flow's outcome arrives. */

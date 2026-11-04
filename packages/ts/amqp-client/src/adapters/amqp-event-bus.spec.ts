@@ -5,13 +5,19 @@ import {
   WiringRegistryTag,
 } from '@entifix/business';
 import type { DomainEvent } from '@entifix/core';
-import { Invalid, ProtocolFailure, Unavailable } from '@entifix/core';
+import {
+  Invalid,
+  openStruct,
+  ProtocolFailure,
+  registerEvent,
+  Unavailable,
+} from '@entifix/core';
 import { describeEventBusContract } from '@entifix/testing-unit/contracts';
 import { makeFakeAmqpChannel } from '@entifix/testing-unit/drivers';
 import { EventBusTag, type Subscription } from '@entifix/transactions';
 import { makeInMemoryCircuitBreaker } from '@entifix/transactions/engine';
 import type { Channel } from 'amqplib';
-import { Duration, Effect, Exit, Layer, Metric } from 'effect';
+import { Duration, Effect, Exit, Layer, Metric, Schema } from 'effect';
 import { describe, expect, it } from 'vitest';
 
 import type { AmqpConnector } from '../amqp-connection/amqp-connection.js';
@@ -78,6 +84,14 @@ const anEvent = (id = 'tx-1:accepted'): DomainEvent => ({
     at: '2026-01-01T00:00:00.000Z',
   },
 });
+
+// The fixture's own event, registered here: the adapter frames and reads only
+// what the open registry knows.
+registerEvent(
+  'transaction.accepted',
+  openStruct({ transactionId: Schema.String, step: Schema.String }),
+  { audience: 'none' },
+);
 
 /** The envelope the adapter puts on the wire for `event`. */
 const anEnvelope = (event: DomainEvent) => {

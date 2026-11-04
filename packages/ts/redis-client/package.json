@@ -1,7 +1,7 @@
 {
   "name": "@entifix/redis",
   "version": "0.14.0",
-  "description": "Redis adapters for sessions and one-time tokens, and optionally the lock and sequence services @entifix/transactions needs.",
+  "description": "Redis adapters for sessions and one-time tokens.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -22,12 +22,6 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
-    },
-    "./transactions": {
-      "@entifix/source": "./src/transactions/index.ts",
-      "types": "./dist/transactions/index.d.ts",
-      "import": "./dist/transactions/index.js",
-      "default": "./dist/transactions/index.js"
     }
   },
   "files": [
@@ -64,16 +58,9 @@
   },
   "devDependencies": {
     "@entifix/testing-unit": "workspace:*",
-    "@entifix/transactions": "workspace:*",
     "effect": "4.0.7"
   },
   "peerDependencies": {
-    "@entifix/transactions": "workspace:*",
     "effect": "^4.0.7"
-  },
-  "peerDependenciesMeta": {
-    "@entifix/transactions": {
-      "optional": true
-    }
   }
 }

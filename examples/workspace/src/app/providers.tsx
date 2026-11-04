@@ -60,8 +60,7 @@ function Themed({ children }: PropsWithChildren) {
  * Everything a screen needs above it, and nothing that talks to a server.
  *
  * No adapters provider — `useExampleAdapters` hands out module-scope contexts —
- * and no `PendingTransactionsProvider`: nothing here writes asynchronously, and
- * the shell falls back to a store that tracks nothing.
+ * and nothing here writes asynchronously.
  *
  * The toast region and the pending-flow provider are mounted anyway, once,
  * the way a host with a server mounts them: every write here settles, so the

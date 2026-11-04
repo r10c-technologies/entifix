@@ -39,27 +39,19 @@ const parse = (text: string): unknown => {
   }
 };
 
-/**
- * The step's path with each `:name` taken from its parameters, then from what
- * earlier steps answered — the order a flow learns ids in.
- */
+/** The step's path with each `:name` taken from the call's inputs. */
 const pathOf = (call: ParticipantCall, path: string) =>
   path.replace(/:([A-Za-z0-9_]+)/g, (_match, name: string) =>
-    encodeURIComponent(
-      String(
-        call.step.parameters?.[name] ??
-          (call.outputs[name] as Record<string, unknown> | undefined)?.['id'] ??
-          '',
-      ),
-    ),
+    encodeURIComponent(String(call.inputs[name] ?? '')),
   );
 
 /**
  * Calls participants over HTTP, as the slip pinned each step's call
  * ([ADR 0016](../../../../../docs/adr/0016-a-flow-engine-port-and-a-durable-workflow-adapter.md)):
  * the crossing token the participant takes, the step's `Idempotency-Key`, the
- * flow's remaining deadline, and a body of the step's parameters and what
- * earlier steps answered. A refusal decodes into the failure the participant
+ * flow's remaining deadline, the organization the inputs name, and the inputs
+ * themselves as a flat JSON body — what the participant's own route declares,
+ * never a wrapper of the flow's. A refusal decodes into the failure the participant
  * sent, by its code; a body that is not a problem is `protocol`; no answer at
  * all is `unavailable`. A step with no call — the commit point that names no
  * participant — answers at once.
@@ -85,7 +77,7 @@ export const makeHttpParticipantClient = (
       if (remaining === 0)
         return yield* Effect.fail(new Timeout({ dependency }));
 
-      const organizationId = request.step.parameters?.['organizationId'];
+      const organizationId = request.inputs['organizationId'];
       const outgoing = HttpClientRequest.make(target.method)(
         `${address.baseUrl}${pathOf(request, target.path)}`,
       ).pipe(
@@ -102,13 +94,12 @@ export const makeHttpParticipantClient = (
             ? {}
             : { [DEADLINE_HEADER]: String(remaining) }),
         }),
-        HttpClientRequest.bodyText(
-          JSON.stringify({
-            parameters: request.step.parameters ?? {},
-            outputs: request.outputs,
-          }),
-          'application/json',
-        ),
+        target.method === 'GET'
+          ? (outgoing: HttpClientRequest.HttpClientRequest) => outgoing
+          : HttpClientRequest.bodyText(
+              JSON.stringify(request.inputs),
+              'application/json',
+            ),
       );
 
       const response = yield* client

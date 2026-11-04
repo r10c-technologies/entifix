@@ -1,5 +1,4 @@
 export * from './entity-crud-form.js';
-export * from './hand-off-write.js';
 export * from './make-entity-crud.js';
 export * from './make-entity-crud.types.js';
 export * from './slug.js';

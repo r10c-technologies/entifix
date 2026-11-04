@@ -208,15 +208,13 @@ export const SIDEWAYS_EDGES: readonly SidewaysEdge[] = [
     because:
       'a use case is written against entities, and T1 is the pair of them',
   },
-  ...['@entifix/mongo', '@entifix/sql', '@entifix/redis', '@entifix/amqp'].map(
-    from => ({
-      from,
-      to: '@entifix/transactions',
-      because:
-        'the outbox binding for this driver, behind the `/transactions` ' +
-        'subpath and an optional peer',
-    }),
-  ),
+  ...['@entifix/mongo', '@entifix/sql', '@entifix/amqp'].map(from => ({
+    from,
+    to: '@entifix/transactions',
+    because:
+      'the outbox binding for this driver, behind the `/transactions` ' +
+      'subpath and an optional peer',
+  })),
   ...['@entifix/transactions', '@entifix/sql'].map(to => ({
     from: '@entifix/workflow',
     to,
@@ -285,7 +283,7 @@ export const OPTIONAL_CAPABILITIES: readonly OptionalCapability[] = [
   {
     name: '@entifix/transactions',
     optionalFor: [2],
-    otherwiseInstalls: 'the transactional outbox and the saga engine',
+    otherwiseInstalls: 'the transactional outbox and the flow ports',
     except: [
       {
         name: '@entifix/workflow',

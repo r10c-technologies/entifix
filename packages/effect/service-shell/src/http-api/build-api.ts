@@ -294,7 +294,10 @@ const toEndpoint = (descriptor: AnyEndpoint, policy: FailurePolicy) => {
       ...(query === undefined ? {} : { query }),
       ...(payload === undefined ? {} : { payload }),
       ...(headers === undefined ? {} : { headers }),
-      success: descriptor.success,
+      success:
+        descriptor.accepted === true
+          ? HttpApiSchema.status(202)(descriptor.success)
+          : descriptor.success,
       error: errorSchemas(descriptor, policy),
     } as never,
   ).annotate(EndpointGuardAnnotation, descriptor.guard);

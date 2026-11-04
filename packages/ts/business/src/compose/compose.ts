@@ -6,6 +6,7 @@ import type { FragmentKeys } from '../flow/fragment.js';
 import {
   type Slip,
   SLIP_VERSION,
+  type SlipAudienceEntry,
   type SlipResolution,
   type SlipSegment,
   type SlipStep,
@@ -33,15 +34,33 @@ export type RecipeGate<I> = (
   segment?: SlipSegment,
 ) => boolean;
 
+/**
+ * One line of a segment — an item in a vendor's part of a basket — that a
+ * `perLine` step is expanded for. Its `key` names the step (`segment:line:step`)
+ * and its parameters are pinned on that step beneath the recipe step's own.
+ */
+export interface RecipeLine {
+  readonly key: string;
+  readonly parameters: Readonly<Record<string, unknown>>;
+}
+
 /** One step of a recipe: a fragment by its pinned reference, as a string. */
 export interface RecipeStep<I> {
   readonly ref: string;
   /** The step's name in the slip; defaults to the fragment id. */
   readonly step?: string;
   readonly when?: RecipeGate<I>;
-  /** Parameters pinned at composition, read from the context's config. */
+  /**
+   * Parameters pinned at composition: from the context's config, from the
+   * decoded start input, and from the segment and line the step was expanded
+   * for. What a participant is told travels here and nowhere else, so a slip
+   * read back says exactly what each call was given.
+   */
   readonly parameters?: (
     context: VerifiedContext,
+    input: I,
+    segment?: SlipSegment,
+    line?: RecipeLine,
   ) => Readonly<Record<string, unknown>>;
 }
 
@@ -78,6 +97,22 @@ export interface Recipe<I> {
   readonly requiresCommitPoint?: boolean;
   /** The segments a `perSegment` stage expands over. */
   readonly segments?: (input: I) => readonly SlipSegment[];
+  /**
+   * The lines a `perLine` step expands over — in its segment when it has one,
+   * else across the flow. A `perLine` step in a recipe with no lines is one
+   * step, as before.
+   */
+  readonly lines?: (input: I, segment?: SlipSegment) => readonly RecipeLine[];
+  /**
+   * Who the flow's events reach beside the flow itself: the organizations and
+   * parties it acts for, and a flow entry with the digest of a capability an
+   * anonymous caller holds. Pinned on the slip at composition.
+   */
+  readonly audience?: (
+    input: I,
+    context: VerifiedContext,
+    flowId: string,
+  ) => readonly SlipAudienceEntry[];
   readonly resolve?: readonly RecipeResolution[];
   readonly stages: readonly RecipeStage<I>[];
 }
@@ -95,16 +130,25 @@ const buildStep = <I>(
   recipeStep: RecipeStep<I>,
   catalog: FragmentCatalog,
   context: VerifiedContext,
+  input: I,
   segment: SlipSegment | undefined,
+  line: RecipeLine | undefined,
 ): SlipStep => {
   const fragment = catalog.get(recipeStep.ref);
   const name = recipeStep.step ?? fragment?.id ?? recipeStep.ref;
-  const parameters = recipeStep.parameters?.(context);
+  const own = recipeStep.parameters?.(context, input, segment, line);
+  const parameters =
+    line === undefined ? own : { ...line.parameters, ...(own ?? {}) };
+  const prefix = [
+    ...(segment === undefined ? [] : [segmentKey(segment)]),
+    ...(line === undefined ? [] : [line.key]),
+  ];
   return {
     ref: recipeStep.ref,
-    step: segment === undefined ? name : `${segmentKey(segment)}:${name}`,
+    step: [...prefix, name].join(':'),
     cardinality: fragment?.cardinality ?? 'one',
     ...(segment === undefined ? {} : { segment }),
+    ...(line === undefined ? {} : { line: line.key }),
     ...(fragment?.participant === undefined
       ? {}
       : { participant: fragment.participant }),
@@ -115,6 +159,24 @@ const buildStep = <I>(
     ...(parameters === undefined ? {} : { parameters }),
   };
 };
+
+/** One step per line for a `perLine` fragment when the recipe names lines. */
+const expand = <I>(
+  recipe: Recipe<I>,
+  recipeStep: RecipeStep<I>,
+  catalog: FragmentCatalog,
+  context: VerifiedContext,
+  input: I,
+  segment: SlipSegment | undefined,
+): readonly SlipStep[] =>
+  catalog.get(recipeStep.ref)?.cardinality === 'perLine' &&
+  recipe.lines !== undefined
+    ? recipe
+        .lines(input, segment)
+        .map(line =>
+          buildStep(recipeStep, catalog, context, input, segment, line),
+        )
+    : [buildStep(recipeStep, catalog, context, input, segment, undefined)];
 
 const resolutionOf = (
   resolutions: readonly RecipeResolution[],
@@ -149,8 +211,8 @@ const draft = <I>(
             .filter(
               recipeStep => recipeStep.when?.(context, input, segment) ?? true,
             )
-            .map(recipeStep =>
-              buildStep(recipeStep, catalog, context, segment),
+            .flatMap(recipeStep =>
+              expand(recipe, recipeStep, catalog, context, input, segment),
             ),
         ),
       };
@@ -166,6 +228,9 @@ const draft = <I>(
     stages,
     resolution,
     composedAt: options.composedAt,
+    ...(recipe.audience === undefined
+      ? {}
+      : { audience: recipe.audience(input, context, options.flowId) }),
   };
 };
 

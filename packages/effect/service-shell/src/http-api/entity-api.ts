@@ -754,6 +754,7 @@ export const entityApi = <
         ...(verb.idempotent === undefined
           ? {}
           : { idempotent: verb.idempotent }),
+        ...(verb.accepted === true ? { accepted: true } : {}),
       } as AnyEndpoint);
       return implement(descriptor, ((request: EntityApiRequest) =>
         Effect.flatMap(context, caller =>
@@ -778,6 +779,7 @@ export const entityApi = <
         ...(verb.idempotent === undefined
           ? {}
           : { idempotent: verb.idempotent }),
+        ...(verb.accepted === true ? { accepted: true } : {}),
       } as AnyEndpoint);
       return [
         implement(descriptor, ((request: EntityApiRequest) =>

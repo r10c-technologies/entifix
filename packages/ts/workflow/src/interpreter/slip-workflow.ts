@@ -43,6 +43,7 @@ import {
   flowStates,
   FlowStatusStoreTag,
 } from '../status/flow-status-store.js';
+import { makeBindings } from './bindings.js';
 
 /**
  * A failure as an Activity journals it: the problem body on the way in, the
@@ -211,7 +212,7 @@ const interpretV1 = (slip: Slip) =>
     const commitPoint = steps.findIndex(
       step => catalog.get(step.ref)?.kind === 'pivot',
     );
-    const outputs: Record<string, unknown> = {};
+    const bindings = makeBindings();
     const done: SlipStep[] = [];
 
     const record = (name: string, patch: FlowRecordPatch) =>
@@ -323,7 +324,7 @@ const interpretV1 = (slip: Slip) =>
                 kind === 'action'
                   ? `${slip.flowId}:${step.step}`
                   : `${slip.flowId}:${step.step}:compensation`,
-              outputs,
+              inputs: bindings.inputsFor(step, catalog.get(step.ref), kind),
             }),
           ),
         ),
@@ -342,7 +343,7 @@ const interpretV1 = (slip: Slip) =>
         const timeoutMs = step.parameters?.['timeoutMs'];
         // A durable race, so a replay answers the branch that won rather than
         // racing again.
-        outputs[step.step] =
+        const answer =
           typeof timeoutMs === 'number'
             ? yield* DurableDeferred.raceAll({
                 name: `race:${step.step}`,
@@ -361,6 +362,7 @@ const interpretV1 = (slip: Slip) =>
                 ],
               })
             : yield* signalled;
+        bindings.record(step, catalog.get(step.ref), answer);
         yield* record(`status:${step.step}:resumed`, {
           state: 'running',
           step: step.step,
@@ -378,9 +380,10 @@ const interpretV1 = (slip: Slip) =>
           state: 'running',
           step: step.step,
         });
-        outputs[step.step] = yield* call(step, 'action').pipe(
+        const answer = yield* call(step, 'action').pipe(
           Effect.mapError((failure): StepFailed => ({ step, failure })),
         );
+        bindings.record(step, catalog.get(step.ref), answer);
         if (catalog.get(step.ref)?.kind === 'compensatable') done.push(step);
       });
 

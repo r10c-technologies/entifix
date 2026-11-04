@@ -14,8 +14,8 @@ import { Layer } from 'effect';
 export let mongo: FakeMongoDb | undefined;
 
 /**
- * The real routes and the real domain layer — saga, outbox, consumer, resume
- * sweep — over the Mongo and AMQP drivers' fakes. What is absent is the
+ * The real routes and the real domain layer — the flow engine, the outbox,
+ * the consumer — over the Mongo and AMQP drivers' fakes. What is absent is the
  * infrastructure, not the service.
  *
  * ⚠️ The fake bus records what is published and delivers nothing by itself, so

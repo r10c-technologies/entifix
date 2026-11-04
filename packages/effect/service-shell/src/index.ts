@@ -5,4 +5,3 @@ export * from './metadata-composition.js';
 export * from './narrowing.js';
 export * from './redact-configuration.js';
 export * from './respond.js';
-export * from './sse.js';

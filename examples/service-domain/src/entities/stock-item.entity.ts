@@ -3,7 +3,7 @@ import { accessor, type Entity, entity, type EntityId } from '@entifix/core';
 /**
  * What can be sold, and how many are left.
  *
- * `available` is written only by a conditional `$inc` in the saga's reserve
+ * `available` is written only by a conditional `$inc` in the flow's reserve
  * step, never read-modify-written: two orders racing for the last unit must
  * not both succeed.
  */

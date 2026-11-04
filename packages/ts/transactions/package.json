@@ -1,7 +1,7 @@
 {
   "name": "@entifix/transactions",
   "version": "0.14.0",
-  "description": "Commands, transactions and sagas: inbox and outbox ports, an event bus, locks, and a declarative saga runner.",
+  "description": "Units of work, inbox and outbox ports, an event bus, and the flow engine and resilience ports a durable flow runs on.",
   "license": "MIT",
   "repository": {
     "type": "git",

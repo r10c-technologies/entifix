@@ -29,7 +29,7 @@ const stock = async (code: string, available: number) => {
 const availableOf = async (code: string) =>
   (await service.client.get(`/api/stock-item/${code}`)).data.data.available;
 
-// The key is the saga id, so every order carries one.
+// Every order carries a key: the engine registers it, so a retry is one flow.
 const order = (
   body: object,
   idempotencyKey: string = globalThis.crypto.randomUUID(),
@@ -77,22 +77,29 @@ describe('the generated CRUD surface', () => {
   });
 });
 
+/** Where a flow came to rest: it runs detached, so it is read until it stops. */
+const settledFlow = (flowId: string) =>
+  eventually(
+    async () => (await service.client.get(`/api/flow/${flowId}`)).data,
+    status =>
+      status?.state !== undefined &&
+      status.state !== 'running' &&
+      status.state !== 'waiting',
+  );
+
 describe('placing an order', () => {
-  it('runs the saga to completion: stock held, order written, event announced', async () => {
+  it('runs the flow to completion: stock held, order written, event announced', async () => {
     const code = sku();
     await stock(code, 5);
 
     const placed = await order({ sku: code, quantity: 2, amount: 40 });
 
-    expect(placed.status).toBe(200);
-    expect(placed.data.state).toBe('COMPLETED');
+    // Accepted, never answered with its outcome: the flow runs detached.
+    expect(placed.status).toBe(202);
+    expect(await settledFlow(placed.data.flowId)).toMatchObject({
+      state: 'completed',
+    });
     expect(await availableOf(code)).toBe(3);
-
-    const saga = await service.client.get(`/api/saga/${placed.data.sagaId}`);
-    expect(saga.data.state).toBe('COMPLETED');
-    expect(saga.data.outcomes.map((o: { stepId: string }) => o.stepId)).toEqual(
-      ['reserve', 'charge', 'confirm'],
-    );
 
     if (service.profile === 'mock') {
       // The fake bus delivers nothing, so what is proven here is the half that
@@ -118,8 +125,9 @@ describe('placing an order', () => {
 
     const refused = await order({ sku: code, quantity: 2, amount: 5000 });
 
-    expect(refused.status).toBe(409);
-    expect(refused.data.code).toBe('orderRefused');
+    expect(await settledFlow(refused.data.flowId)).toMatchObject({
+      state: 'compensated',
+    });
     expect(await availableOf(code)).toBe(5);
   });
 
@@ -129,7 +137,9 @@ describe('placing an order', () => {
 
     const refused = await order({ sku: code, quantity: 2, amount: 40 });
 
-    expect(refused.data.code).toBe('orderRefused');
+    expect(await settledFlow(refused.data.flowId)).toMatchObject({
+      state: 'compensated',
+    });
     expect(await availableOf(code)).toBe(1);
   });
 
@@ -141,8 +151,10 @@ describe('placing an order', () => {
     const first = await order({ sku: code, quantity: 2, amount: 40 }, key);
     const retried = await order({ sku: code, quantity: 2, amount: 40 }, key);
 
-    expect(first.data.state).toBe('COMPLETED');
-    expect(retried.data).toMatchObject({ sagaId: key, state: 'COMPLETED' });
+    expect(retried.data.flowId).toBe(first.data.flowId);
+    expect(await settledFlow(first.data.flowId)).toMatchObject({
+      state: 'completed',
+    });
     expect(await availableOf(code)).toBe(3);
   });
 });

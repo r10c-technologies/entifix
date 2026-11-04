@@ -17,4 +17,3 @@ export * from './reactive/push-channel.js';
 export * from './reactive/reactive-channel.js';
 export * from './reactive/use-reactive-cache.js';
 export * from './reactive/use-reactive-invalidation.js';
-export * from './reactive/use-transaction-settlement.js';

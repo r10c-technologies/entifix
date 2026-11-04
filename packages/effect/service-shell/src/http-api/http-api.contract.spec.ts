@@ -73,6 +73,16 @@ const claim = defineEndpoint({
   guard: { kind: 'public' },
 });
 
+const start = defineEndpoint({
+  name: 'start',
+  method: 'POST',
+  path: '/api/flow-start',
+  success: Schema.Struct({ flowId: Schema.String }),
+  errors: [],
+  guard: { kind: 'public' },
+  accepted: true,
+});
+
 const brew = defineEndpoint({
   name: 'brew',
   method: 'POST',
@@ -237,6 +247,7 @@ const groups = [
         : Effect.succeed({ slug: params.slug, times: query.times ?? 1 }),
     ),
     implement(brew, () => Effect.fail(new PotRefused())),
+    implement(start, () => Effect.succeed({ flowId: 'f-1' })),
     implement(hook, ({ payload, headers }) =>
       Effect.succeed({ body: payload, signature: headers['x-signature'] }),
     ),
@@ -378,6 +389,17 @@ describe('a business failure', () => {
 
     expect(answer.status).toBe(409);
     expect(answer.body).toMatchObject({ code: 'specNotDeclared' });
+  });
+});
+
+describe('an accepted endpoint', () => {
+  it('answers 202 with its success body, and a plain one stays 200', async () => {
+    const accepted = await call('/api/flow-start', { method: 'POST' });
+    expect(accepted.status).toBe(202);
+    expect(accepted.body).toEqual({ flowId: 'f-1' });
+
+    const plain = await call('/api/slug/a', { method: 'POST' });
+    expect(plain.status).toBe(200);
   });
 });
 
@@ -682,7 +704,7 @@ describe('idempotency', () => {
 describe('the built API', () => {
   it('lists its endpoints as METHOD /path', () => {
     expect(endpointsOf(groups)).toContain('POST /api/slug/:slug');
-    expect(endpointsOf(groups)).toHaveLength(15);
+    expect(endpointsOf(groups)).toHaveLength(16);
   });
 
   it('refuses two endpoints on one method and path', () => {

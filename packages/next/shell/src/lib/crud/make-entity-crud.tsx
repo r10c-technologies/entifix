@@ -35,8 +35,6 @@ import {
   useEntityRecord,
   useOptimisticMutation,
 } from '@entifix/react-integration';
-import type { TransactionSink } from '@entifix/transactions';
-import { TransactionSinkTag } from '@entifix/transactions';
 import { useQueryClient } from '@tanstack/react-query';
 import { Cause, Context, Effect, Exit } from 'effect';
 import { useParams, useRouter } from 'next/navigation';
@@ -44,13 +42,7 @@ import { useEffect, useRef } from 'react';
 
 import { useLocaleHref } from '../i18n/index.js';
 import { useEntityNavHost } from '../workspace/entity-nav.js';
-import {
-  pendingFor,
-  pendingRecordsFor,
-  usePendingTransactions,
-} from '../workspace/pending-transactions.js';
 import { EntityCrudForm } from './entity-crud-form.js';
-import { handOffWrite } from './hand-off-write.js';
 import type {
   AnyFilterGroup,
   EntityCrud,
@@ -58,7 +50,6 @@ import type {
   EntityCrudOptions,
   EntityCrudSingleViewProps,
 } from './make-entity-crud.types.js';
-import { PendingNotice } from './pending-notice.js';
 import { CATALOG_NEW_SLUG, slugToEntityId } from './slug.js';
 import { useCrudRenderLink } from './use-crud-render-link.js';
 import { useEntityAffordances } from './use-entity-affordances.js';
@@ -68,33 +59,25 @@ import { useEntityBulk } from './use-entity-bulk.js';
 const TARGET_NAME_PROPERTY = 'name';
 
 /**
- * What the generated pages' use-cases run against.
- *
- * Exported because a hand-built screen needs the same three: a wizard reads
- * records, resolves pickers and writes through exactly these ports, and
- * rebuilding the union at each such call site is how one of them ends up
- * missing `TransactionSinkTag` and quietly losing its optimistic treatment.
+ * What the generated pages' use-cases run against: one repository adapter.
+ * Exported because a hand-built screen — a wizard reading records and
+ * resolving pickers — runs against exactly the same.
  */
-export type CrudContext = EntityRepositoryTag | TransactionSinkTag;
+export type CrudContext = EntityRepositoryTag;
 
 /**
- * Adds the pending-write sink to one repository adapter, giving the context the
- * use-cases run against.
+ * One repository adapter, by its key, as the context the use-cases run
+ * against.
  *
  * The cast is the price of naming adapters by key: `AdapterKey` narrows which
  * names may be *offered*, but TypeScript will not carry that narrowing through
  * an index access on a generic record.
  */
-export function mergeCrudContext<TAdapters>(
+export function crudContextOf<TAdapters>(
   adapters: TAdapters,
   repository: keyof TAdapters,
-  sink: TransactionSink,
 ): Context.Context<CrudContext> {
-  return Context.add(
-    adapters[repository] as Context.Context<EntityRepositoryTag>,
-    TransactionSinkTag,
-    sink,
-  );
+  return adapters[repository] as Context.Context<EntityRepositoryTag>;
 }
 
 /**
@@ -284,9 +267,9 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
   // depends on the record being edited. `linkLabelProperty`/`linkSearchProperty`
   // are overridden here because a scalar foreign key's `@accessor()` cannot name
   // the target's members — it may not import the target at all.
-  // The wire name, which is also what a pending entry records and what
-  // `entityQueryScopeFor` keys on — one derivation, so a notice and an
-  // invalidation can never disagree about which entity they mean.
+  // The wire name, which is also what a pending flow's intent records and what
+  // `entityQueryScopeFor` keys on — one derivation, so the two can never
+  // disagree about which entity they mean.
   const entityName = envelopeEntityName(entityConstructor);
   const descriptors = describeEntityColumns(entityConstructor);
   const linkPlans = links.map(link => {
@@ -308,9 +291,6 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
 
   function ListPage() {
     const adapters = useAdapters();
-    // Outside a `PendingTransactionsProvider` this watches nothing, so a host
-    // that has not mounted one behaves exactly as it did before.
-    const pending = usePendingTransactions();
     // Every internal href carries the locale. An unprefixed one still resolves —
     // the middleware redirects it — but the visitor pays a round trip per click.
     const withLocale = useLocaleHref();
@@ -321,14 +301,9 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     const affordances = useEntityAffordances(entityConstructor, metadataSource);
     const renderLink = useCrudRenderLink(catalogKey);
 
-    // Records this browser has created but the service has not finished
-    // writing. Prepended below rather than patched into the cache, which a
-    // refetch would undo.
-    const optimistic = pendingRecordsFor<TEntity>(pending, entityName);
-
     const pager = useDataLoading<TEntity, CrudContext>({
       uc: loadUCFactory<TEntity>(),
-      ctx: mergeCrudContext(adapters, repository, pending),
+      ctx: crudContextOf(adapters, repository),
       // Scoped rather than left to the per-instance fallback, which is correct
       // but unshared: with the entity's own scope one invalidation refreshes
       // every page and filter of it, which is what a bulk run needs — and it is
@@ -405,18 +380,11 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
 
     return (
       <div className="flex flex-col gap-s">
-        {/* Above the table, because this is where `afterSave()` leaves the
-            operator after a create — and a create is the only transactional
-            write there is, so this is the surface the pending state has. */}
-        <PendingNotice
-          entries={pendingFor(pending, entityName)}
-          onDismiss={pending.dismiss}
-        />
         <EntityTable
           entityConstructor={entityConstructor}
           {...pager}
-          items={[...optimistic, ...pager.items]}
-          totalItems={pager.totalItems + optimistic.length}
+          items={pager.items}
+          totalItems={pager.totalItems}
           hrefFor={id => withLocale(`${basePath}/${String(id)}`)}
           newHref={withLocale(`${basePath}/${CATALOG_NEW_SLUG}`)}
           renderLink={renderLink}
@@ -448,14 +416,13 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     // The same served document the form reads its buttons from, so a key the
     // form hands back always names a verb in it.
     const affordances = useEntityAffordances(entityConstructor, metadataSource);
-    const pending = usePendingTransactions();
     const router = useRouter();
     const withLocale = useLocaleHref();
     const params = useParams<{ slug: string }>();
     const mounted = useMounted();
     const id = slugToEntityId(slug ?? params.slug);
 
-    const ctx = mergeCrudContext(adapters, repository, pending);
+    const ctx = crudContextOf(adapters, repository);
 
     const {
       entity,
@@ -483,7 +450,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
           entityConstructor: plan.entityConstructor,
           loadUc: loadUCFactory(),
           getUc: getUCFactory(),
-          ctx: mergeCrudContext(adapters, plan.repository, pending),
+          ctx: crudContextOf(adapters, plan.repository),
           // The config's target is erased to `Entity`, and the host's filter to
           // `any`; the two meet here, where neither type is the real target's.
           baseFiltering: linkFilters[index] as FilterGroup<Entity> | undefined,
@@ -497,9 +464,8 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     const renderLink = useCrudRenderLink(catalogKey);
     const queryClient = useQueryClient();
     // The list this page returns to has its page cached, and it is no longer
-    // true. Invalidated rather than patched, for the reason `handOffWrite`
-    // gives: a transactional create is not in the service yet, and the pending
-    // set, not the cache, is what keeps it visible until it is.
+    // true. Invalidated rather than patched: the service is the authority on
+    // the row it stored.
     //
     // ⚠️ Invisible while every Open was a document load, which threw the cache
     // away anyway (#20): the first client-side navigation back to the list
@@ -567,16 +533,11 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
 
     const handleSave = async (next: TEntity) => {
       const result = await saveMutation.mutate(next).catch(() => undefined);
-      // Failed, or pending: the form stays, and the mutation says which.
+      // Failed, or pending: the form stays, and the mutation says which. A
+      // pending write leaves through the mutation's `confirm`, once its flow
+      // completed.
       if (result?._tag !== 'settled') return;
-      const saved = result.value;
-
-      // ⚠️ Deliberately *not* a `setQueriesData` patch. The list refetches on
-      // mount — precisely when the operator arrives, having just been navigated
-      // here — and the server legitimately does not hold the record yet, so the
-      // refetch would replace the patched page and the row would vanish a
-      // moment after appearing. The pending set outlives refetches.
-      handOffWrite({ id: String(saved.id), record: saved, pending, draft });
+      draft?.clear();
       void refreshList();
       afterSave();
     };
