@@ -1,3 +1,17 @@
+## 0.17.0 (2026-11-04)
+
+### 🚀 Features
+
+- ⚠️ lists open on an initial filtering, and a flow waiting past its commit point settles ([#166](https://github.com/r10c-technologies/entifix/pull/166))
+
+### ⚠️ Breaking Changes
+
+- lists open on an initial filtering, and a flow waiting past its commit point settles ([#166](https://github.com/r10c-technologies/entifix/pull/166))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.16.0 (2026-11-04)
 
 ### 🚀 Features
