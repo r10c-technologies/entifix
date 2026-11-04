@@ -1,3 +1,17 @@
+## 0.16.0 (2026-11-04)
+
+### 🚀 Features
+
+- ⚠️ a wait declares its outcomes, a step branches on them, and a timeout answers or strands ([#164](https://github.com/r10c-technologies/entifix/pull/164))
+
+### ⚠️ Breaking Changes
+
+- a wait declares its outcomes, a step branches on them, and a timeout answers or strands ([#164](https://github.com/r10c-technologies/entifix/pull/164))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.15.0 (2026-11-04)
 
 ### 🚀 Features
