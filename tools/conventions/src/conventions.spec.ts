@@ -390,7 +390,9 @@ const sourcesUnder = (dir: string): string[] =>
   readdirSync(join(REPO_ROOT, dir), { recursive: true, withFileTypes: true })
     .filter(entry => entry.isFile() && /\.tsx?$/.test(entry.name))
     .map(entry => join(entry.parentPath, entry.name))
-    .filter(path => !/\.(spec|stories)\.tsx?$/.test(path))
+    // Stories too: the gate renders them, and a story sized with a colliding
+    // name shows a control at a width no host gives it.
+    .filter(path => !/\.spec\.tsx?$/.test(path))
     .filter(path => !/\/(spec-support|story-support)\//.test(path));
 
 describe('a control sizes with tokens, never with a colliding name or a literal', () => {

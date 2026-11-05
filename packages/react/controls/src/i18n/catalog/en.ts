@@ -103,6 +103,9 @@ export const controls: EsControls = {
     applyAria: 'Apply sorting',
     clearAria: 'Clear sorting',
   },
+  alert: {
+    dismiss: 'Dismiss',
+  },
   tabs: {
     close: 'Close {{label}}',
     new: 'Open a new tab',

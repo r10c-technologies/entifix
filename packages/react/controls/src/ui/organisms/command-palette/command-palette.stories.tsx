@@ -109,9 +109,9 @@ const GATED = import.meta.env['STORYBOOK_A11Y_CELL'] !== undefined;
 const PANEL_MIN_INLINE = 36 * 16;
 
 /**
- * The panel is a container width, not a spacing value: `max-w-xl` once
- * resolved through `--spacing-xl` and measured 40px wide at fixed + compact,
- * clipping what was typed and every result (ADR 0025). At a desktop viewport
+ * The panel is a container width, not a spacing value: a max-width named
+ * `xl` once resolved through `--spacing-xl` and measured 40px wide at fixed +
+ * compact, clipping what was typed and every result (ADR 0025). At a desktop viewport
  * it reaches the container width in every cell.
  */
 export const Width: Story = {

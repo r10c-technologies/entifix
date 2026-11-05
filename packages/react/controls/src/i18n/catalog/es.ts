@@ -114,6 +114,9 @@ export const controls = {
     applyAria: 'Aplicar orden',
     clearAria: 'Limpiar orden',
   },
+  alert: {
+    dismiss: 'Descartar',
+  },
   tabs: {
     close: 'Cerrar {{label}}',
     new: 'Abrir una pestaña nueva',
