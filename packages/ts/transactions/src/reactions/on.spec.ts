@@ -125,6 +125,7 @@ describe('On(…).retry', () => {
       admitAttempt: () => Effect.succeed(false),
       admitRetry: () => Effect.succeed(true),
       recordAccepted: () => Effect.void,
+      recordFailed: () => Effect.void,
     });
 
     const exit = await run(
@@ -137,6 +138,25 @@ describe('On(…).retry', () => {
     expect(exit._tag === 'Failure' && JSON.stringify(exit.cause)).toContain(
       'Overloaded',
     );
+  });
+
+  it('records a request at its outcome: a failure as failed, an answer as accepted', async () => {
+    const outcomes: string[] = [];
+    const recording = Layer.succeed(RetryBudgetTag, {
+      dials: { ...FAST, maxAttempts: 3 } as never,
+      admitAttempt: () => Effect.succeed(true),
+      admitRetry: () => Effect.succeed(true),
+      recordAccepted: () => Effect.sync(() => void outcomes.push('accepted')),
+      recordFailed: () => Effect.sync(() => void outcomes.push('failed')),
+    });
+    const { effect } = flaky([new Unavailable({})]);
+
+    await run(
+      effect.pipe(transient.retry({ key: KEY, idempotent: true })),
+      recording,
+    );
+
+    expect(outcomes).toEqual(['failed', 'accepted']);
   });
 
   it('refuses to be built on a call that is not idempotent', () => {

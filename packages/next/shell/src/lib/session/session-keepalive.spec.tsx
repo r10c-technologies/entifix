@@ -112,4 +112,14 @@ describe('SessionKeepalive', () => {
       expect.objectContaining({ endpoint: '/api/session/refresh' }),
     );
   });
+
+  it('passes the remaining life of the rendered token through to the hook', () => {
+    reports({});
+
+    render(<SessionKeepalive tokenExpiresInSeconds={42} />);
+
+    expect(useSessionRefresh).toHaveBeenCalledWith(
+      expect.objectContaining({ tokenExpiresInSeconds: 42 }),
+    );
+  });
 });

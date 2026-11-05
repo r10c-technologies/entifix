@@ -1,3 +1,8 @@
+import {
+  makeShutdownRegistry,
+  type ShutdownRegistry,
+  ShutdownRegistryTag,
+} from '@entifix/business';
 import { type DomainEvent, registerEvent } from '@entifix/core';
 import {
   Duration,
@@ -68,14 +73,25 @@ const framesOf = (response: ReturnType<SsePush['respond']>) => {
   );
 };
 
-/** A push hub and its SSE adapter, built in `scope`. */
-const build = (scope: Scope.Scope, dials: SsePushDials = DIALS) =>
+/** A push hub and its SSE adapter, built in `scope`, optionally under a shutdown registry. */
+const build = (
+  scope: Scope.Scope,
+  dials: SsePushDials = DIALS,
+  shutdown?: ShutdownRegistry,
+) =>
   Effect.gen(function* () {
     const push = yield* makeServerPush({
       topicsOf: e => [(e.data as { topic: string }).topic],
     });
     const sse = yield* makeSsePush(dials).pipe(
-      Effect.provide(Layer.succeed(ServerPushTag, push)),
+      Effect.provide(
+        Layer.mergeAll(
+          Layer.succeed(ServerPushTag, push),
+          shutdown === undefined
+            ? Layer.empty
+            : Layer.succeed(ShutdownRegistryTag, shutdown),
+        ),
+      ),
     );
     return { push, sse };
   }).pipe(Scope.provide(scope));
@@ -252,6 +268,38 @@ describe('makeSsePush', () => {
           Array.from(yield* Fiber.join(a)).at(-1),
           Array.from(yield* Fiber.join(b)).at(-1),
         ];
+      }),
+    );
+    expect(endings).toEqual(['retry: 5000\n\n', 'retry: 7000\n\n']);
+  });
+
+  it('drains every open connection on the signal, before its scope closes', async () => {
+    // The server's close waits on every open response, so a stream drained
+    // only when the scope closes is held open until the server gives up on it.
+    const { registry, begin } = makeShutdownRegistry();
+    const endings = await run(
+      Effect.gen(function* () {
+        const scope = yield* Scope.make();
+        const { sse } = yield* build(
+          scope,
+          { ...DIALS, random: sequence(0, 0.2, 0.4, 0.6) },
+          registry,
+        );
+        const read = () =>
+          Effect.forkChild(
+            Stream.runCollect(framesOf(sse.respond(connection()))),
+          );
+        const a = yield* read();
+        const b = yield* read();
+        yield* TestClock.adjust('1 millis');
+        begin();
+        // Both end with the scope still open.
+        const endings = [
+          Array.from(yield* Fiber.join(a)).at(-1),
+          Array.from(yield* Fiber.join(b)).at(-1),
+        ];
+        yield* Scope.close(scope, Exit.void);
+        return endings;
       }),
     );
     expect(endings).toEqual(['retry: 5000\n\n', 'retry: 7000\n\n']);

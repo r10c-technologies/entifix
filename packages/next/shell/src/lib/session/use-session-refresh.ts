@@ -31,8 +31,25 @@ const DEFAULT_REFRESH_LEAD_RATIO = 0.8;
 export interface UseSessionRefreshOptions {
   /** Where this app mounts the shared refresh handler. */
   readonly endpoint?: string;
-  /** Access-token lifetime in seconds; the schedule derives from it. */
+  /**
+   * Access-token lifetime in seconds, assumed until the server says otherwise.
+   *
+   * Only a fallback: every refresh answers the `expiresIn` of the token it just
+   * minted, and the next refresh is scheduled from that. A server whose token
+   * lifetime is a configuration value would otherwise be refreshed on this
+   * number, and a token shorter than it would lapse between two refreshes.
+   */
   readonly tokenTtlSeconds?: number;
+  /**
+   * Seconds left on the token the page was rendered with, when the host knows
+   * it — read on the server from the token's `exp`.
+   *
+   * Schedules the **first** refresh. Without it the first one waits for a full
+   * `tokenTtlSeconds` lead, which is late for a page loaded on a token already
+   * part-way through its life, and later still for a token shorter than the
+   * fallback.
+   */
+  readonly tokenExpiresInSeconds?: number;
   /**
    * How long without interaction before the timer stops asking.
    *
@@ -61,7 +78,7 @@ export interface SessionRefreshState {
 /**
  * Keeps the access-token cookie fresh while someone is actually using the app.
  *
- * The refresh runs on a timer at 80% of the token's life, but **only while the
+ * The refresh runs at 80% of the current token's life, but **only while the
  * user has interacted recently**. That condition is the whole point: the server
  * slides the session on refresh, so a timer that fired unconditionally would
  * keep a forgotten tab's session alive forever and "idle timeout" would measure
@@ -77,6 +94,7 @@ export function useSessionRefresh(
   const {
     endpoint = '/api/auth/refresh',
     tokenTtlSeconds = DEFAULT_TOKEN_TTL_SECONDS,
+    tokenExpiresInSeconds,
     idleStopSeconds = DEFAULT_IDLE_STOP_SECONDS,
     expiryWarningSeconds = DEFAULT_EXPIRY_WARNING_SECONDS,
     refreshLeadRatio = DEFAULT_REFRESH_LEAD_RATIO,
@@ -121,47 +139,77 @@ export function useSessionRefresh(
   useEffect(() => {
     if (expired) return undefined;
 
-    const periodMs =
-      Math.max(1, Math.floor(tokenTtlSeconds * refreshLeadRatio)) * 1000;
+    /** When to ask, for a token that has `seconds` left. Never sooner than 1s. */
+    const leadMs = (seconds: number) =>
+      Math.max(1, Math.floor(seconds * refreshLeadRatio)) * 1000;
+
     let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
 
-    const tick = async () => {
-      if (expiredRef.current) return;
+    const schedule = (ms: number) => {
+      timer = setTimeout(() => {
+        void tick();
+      }, ms);
+    };
 
+    /**
+     * One refresh, answering when the next one is due.
+     *
+     * ⚠️ **The delay comes from the token the server just minted**, not from
+     * a period fixed at mount. A fixed interval held the fallback lifetime
+     * for the life of the tab, so a server minting shorter tokens saw every
+     * one of them lapse before the browser asked again.
+     */
+    const attempt = async (): Promise<number> => {
       const idleFor = (Date.now() - lastActivity.current) / 1000;
       // Nobody is here. Skipping the refresh is what lets the session lapse.
-      if (idleFor > idleStopSeconds) return;
+      if (idleFor > idleStopSeconds) return leadMs(tokenTtlSeconds);
 
       try {
         const response = await fetch(endpoint, {
           method: 'POST',
           cache: 'no-store',
         });
-        if (cancelled) return;
+        if (cancelled) return 0;
 
         if (response.status === 401) {
           expiredRef.current = true;
           setExpired(true);
           onExpiredRef.current?.();
-          return;
+          return 0;
         }
-        if (!response.ok) return; // transient (503) — try again next tick
+        // transient (503) — try again after a fallback lead
+        if (!response.ok) return leadMs(tokenTtlSeconds);
 
-        const body = (await response.json()) as { sessionExpiresIn?: number };
-        if (!cancelled && typeof body.sessionExpiresIn === 'number') {
+        const body = (await response.json()) as {
+          expiresIn?: unknown;
+          sessionExpiresIn?: unknown;
+        };
+        if (cancelled) return 0;
+        if (typeof body.sessionExpiresIn === 'number') {
           setSessionExpiresIn(body.sessionExpiresIn);
         }
+        return typeof body.expiresIn === 'number' && body.expiresIn > 0
+          ? leadMs(body.expiresIn)
+          : leadMs(tokenTtlSeconds);
       } catch {
         // Offline or a dropped request: keep the schedule and retry.
+        return leadMs(tokenTtlSeconds);
       }
     };
 
-    const timer = setInterval(tick, periodMs);
+    const tick = async () => {
+      const next = await attempt();
+      if (cancelled || expiredRef.current) return;
+      schedule(next);
+    };
+
+    schedule(leadMs(tokenExpiresInSeconds ?? tokenTtlSeconds));
     return () => {
       cancelled = true;
-      clearInterval(timer);
+      clearTimeout(timer);
     };
-  }, [endpoint, tokenTtlSeconds, expired]);
+  }, [endpoint, tokenTtlSeconds, tokenExpiresInSeconds, expired]);
 
   return {
     sessionExpiresIn,

@@ -81,6 +81,32 @@ const duplicatedKey = (error: DriverErrorShape): string | undefined =>
     ? Object.keys(error.keyPattern).join(',')
     : undefined;
 
+/**
+ * Whether a driver error is a transaction losing a race: a write conflict, or
+ * anything the server labels `TransientTransactionError`. A unit of work runs
+ * itself again on exactly this — so a body that maps its own driver errors
+ * must answer {@link Contention} for these and nothing else, or the retry
+ * never happens and a contended write that would have serialized fails.
+ */
+export const isMongoContention = (error: unknown): boolean =>
+  shape(error).code === WRITE_CONFLICT ||
+  mongoErrorLabelled(error, 'TransientTransactionError');
+
+/**
+ * A failure of a driver call a unit of work's **body** makes itself: a lost
+ * race is {@link Contention}, which the unit runs itself again on, and
+ * anything else is the store failing to answer.
+ *
+ * ⚠️ **Not an `Unavailable` for everything.** A body that answered every
+ * driver error that way hid the write conflict from the unit, so a contended
+ * write that the retry would have serialized failed instead — measured on a
+ * burst of partial refunds against one allocation, 18 of 20 answered `503`.
+ */
+export const mongoUnitFault = (error: unknown): Contention | Unavailable =>
+  isMongoContention(error)
+    ? new Contention()
+    : new Unavailable({ dependency: 'mongo' });
+
 export const translateMongoError = (
   error: unknown,
   context: MongoErrorContext = {},
@@ -95,11 +121,7 @@ export const translateMongoError = (
     const key = duplicatedKey(driver);
     return new DuplicateKey(key === undefined ? {} : { key });
   }
-  if (
-    driver.code === WRITE_CONFLICT ||
-    mongoErrorLabelled(error, 'TransientTransactionError')
-  )
-    return new Contention();
+  if (isMongoContention(error)) return new Contention();
   if (
     driver.code === MAX_TIME_EXPIRED ||
     driver.name === 'MongoNetworkTimeoutError' ||

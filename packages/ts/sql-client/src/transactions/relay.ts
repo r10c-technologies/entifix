@@ -1,4 +1,8 @@
-import { EventBusTag, OutboxMaxAttempts } from '@entifix/transactions';
+import {
+  EventBusTag,
+  OutboxDrainTag,
+  OutboxMaxAttempts,
+} from '@entifix/transactions';
 import {
   drainOutbox,
   ignoreRelayOutcome,
@@ -7,7 +11,7 @@ import {
   runRelayDaemon,
   sweepOutbox,
 } from '@entifix/transactions/engine';
-import { Effect } from 'effect';
+import { Effect, Layer } from 'effect';
 import { SqlClient } from 'effect/sql';
 
 import { makeSqlOutbox } from './outbox.js';
@@ -61,4 +65,30 @@ export const drainSqlOutboxNow = (
     Effect.catch(failure =>
       onOutcome({ _tag: 'drainFailed', database, failure }),
     ),
+  );
+
+/**
+ * {@link drainSqlOutboxNow} as the {@link OutboxDrainTag} a writer finds, over
+ * the client, bus and attempt ceiling this layer is built with — so a flow
+ * engine announcing into this outbox puts its event on the bus at once rather
+ * than at the next sweep.
+ */
+export const SqlOutboxDrainLayer = (
+  database: string,
+  onOutcome: RelayOutcomeSink = ignoreRelayOutcome,
+) =>
+  Layer.effect(
+    OutboxDrainTag,
+    Effect.gen(function* () {
+      const sql = yield* SqlClient.SqlClient;
+      const bus = yield* EventBusTag;
+      const maxAttempts = yield* OutboxMaxAttempts;
+      return {
+        now: drainSqlOutboxNow(database, onOutcome).pipe(
+          Effect.provideService(SqlClient.SqlClient, sql),
+          Effect.provideService(EventBusTag, bus),
+          Effect.provideService(OutboxMaxAttempts, maxAttempts),
+        ),
+      };
+    }),
   );

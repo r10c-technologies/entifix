@@ -166,6 +166,27 @@ export class OutboxTag extends Context.Service<OutboxTag, Outbox>()(
 ) {}
 
 /**
+ * One drain of the outbox now, for a writer that just enqueued and wants its
+ * event on the bus before the relay's next sweep. Optional: a writer that
+ * finds none waits for the sweep, which stays the guarantee either way.
+ *
+ * ⚠️ **Without it an announcement waits for the sweep** — up to fifteen
+ * seconds. The flow engine's `flow.*` events did, so a browser settling a
+ * pending write by push heard its checkout complete up to fifteen seconds
+ * after it had, and the flow-status projection read from those events lagged
+ * by as much (#492).
+ */
+export interface OutboxDrain {
+  /** Never fails: a drain that cannot run is left to the sweep. */
+  readonly now: Effect.Effect<void>;
+}
+
+export class OutboxDrainTag extends Context.Service<
+  OutboxDrainTag,
+  OutboxDrain
+>()('@entifix/transactions/OutboxDrain') {}
+
+/**
  * Publish attempts an outbox entry gets before it is quarantined, from
  * config-service — the dial every store's drain reads, so it sits with the
  * outbox port rather than with one engine.

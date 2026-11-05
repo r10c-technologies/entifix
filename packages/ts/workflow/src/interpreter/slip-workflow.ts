@@ -19,6 +19,7 @@ import {
   flowEvent,
   type FlowEventName,
   On,
+  OutboxDrainTag,
   OutboxTag,
   ParticipantClientTag,
 } from '@entifix/transactions';
@@ -28,6 +29,7 @@ import {
   Effect,
   Exit,
   Metric,
+  Option,
   Schedule,
   Schema,
   SchemaTransformation,
@@ -320,7 +322,17 @@ const walkSlip = (slip: Slip, grammar: Grammar) =>
               },
             }),
           ),
-        ).pipe(Effect.orDie),
+        ).pipe(
+          Effect.orDie,
+          // On the bus now rather than at the relay's next sweep, where the
+          // host provides a drain; inside the activity, so a replay that skips
+          // the announcement skips the drain with it.
+          Effect.andThen(
+            Effect.flatMap(Effect.serviceOption(OutboxDrainTag), drain =>
+              Option.isSome(drain) ? drain.value.now : Effect.void,
+            ),
+          ),
+        ),
       });
 
     /** One call, bounded, under the participant's breaker, bulkhead and budget. */

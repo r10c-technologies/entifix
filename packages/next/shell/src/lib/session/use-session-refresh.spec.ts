@@ -229,4 +229,134 @@ describe('useSessionRefresh', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+
+  it('schedules the next refresh from the expiresIn the server answers', async () => {
+    // The fallback says 10s; the server mints 100s tokens. The second refresh
+    // is due 80s after the first, not 8s.
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ ok: true, expiresIn: 100 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderHook(() => useSessionRefresh({ tokenTtlSeconds: ACTIVE_TTL }));
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(ACTIVE_PERIOD_MS);
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      window.dispatchEvent(new Event('pointerdown'));
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(79_000);
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('follows a server that mints tokens shorter than the fallback', async () => {
+    // The defect this schedule exists to stop: a 15-minute fallback and a
+    // 90-second token, refreshed every 12 minutes, lapse 10.5 minutes in 12.
+    const fetchMock = vi
+      .fn()
+      // A fresh body per call: a `Response` can be read once.
+      .mockImplementation(() =>
+        Promise.resolve(jsonResponse({ ok: true, expiresIn: 90 })),
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderHook(() => useSessionRefresh({ tokenExpiresInSeconds: 90 }));
+
+    for (const expected of [1, 2, 3]) {
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(72_000);
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(expected);
+    }
+  });
+
+  it('schedules the first refresh from the token the page loaded with', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ ok: true }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderHook(() =>
+      useSessionRefresh({ tokenTtlSeconds: 900, tokenExpiresInSeconds: 5 }),
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3_999);
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('asks within a second for a token that has already lapsed', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ ok: true }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderHook(() => useSessionRefresh({ tokenExpiresInSeconds: 0 }));
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('falls back to the configured lifetime for an unusable expiresIn', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ ok: true, expiresIn: 0 }))
+      .mockImplementation(() =>
+        Promise.resolve(jsonResponse({ ok: true, expiresIn: 'soon' })),
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderHook(() => useSessionRefresh({ tokenTtlSeconds: ACTIVE_TTL }));
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(ACTIVE_PERIOD_MS * 3);
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('drops a body that arrives after unmount', async () => {
+    let release: (value: unknown) => void = () => undefined;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          new Promise(resolve => {
+            release = resolve;
+          }),
+      }),
+    );
+
+    const { result, unmount } = renderHook(() =>
+      useSessionRefresh({ tokenTtlSeconds: ACTIVE_TTL }),
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(ACTIVE_PERIOD_MS);
+    });
+    unmount();
+    await act(async () => {
+      release({ sessionExpiresIn: 42, expiresIn: 1 });
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+
+    expect(result.current.sessionExpiresIn).toBeUndefined();
+  });
 });

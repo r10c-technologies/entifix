@@ -43,6 +43,36 @@ describe('ShutdownRegistry', () => {
     expect(await Effect.runPromise(registry.terminating)).toBe(true);
   });
 
+  it('wakes whoever waits on termination when the latch is pulled', async () => {
+    const { registry, begin } = makeShutdownRegistry();
+    let woke = false;
+    const waiting = Effect.runPromise(
+      registry.whenTerminating.pipe(
+        Effect.andThen(
+          Effect.sync(() => {
+            woke = true;
+          }),
+        ),
+      ),
+    );
+    await Promise.resolve();
+    expect(woke).toBe(false);
+
+    begin();
+    await waiting;
+
+    expect(woke).toBe(true);
+  });
+
+  it('wakes them on a drain too, when no signal came first', async () => {
+    const { registry } = makeShutdownRegistry();
+
+    await Effect.runPromise(registry.drain);
+
+    // Already terminating, so this answers at once.
+    await Effect.runPromise(registry.whenTerminating);
+  });
+
   it('drains with nothing registered', async () => {
     const { registry } = makeShutdownRegistry();
 

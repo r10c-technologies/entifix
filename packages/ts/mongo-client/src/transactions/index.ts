@@ -9,6 +9,12 @@
  * the manifest — importing this module without that peer installed is the
  * error, and it is the adopter's to make deliberately.
  */
+/**
+ * How a unit of work's body answers its own driver calls' failures, so the
+ * write conflict the unit retries on is never hidden behind a failure of the
+ * body's choosing.
+ */
+export { mongoUnitFault } from '../errors/translate-mongo-error.js';
 export * from '../idempotency/store.js';
 export * from '../inbox/store.js';
 export * from '../outbox/relay.js';
