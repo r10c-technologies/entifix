@@ -8,12 +8,26 @@
   --color-primary: #5b8cff;
   --color-primary-content: #0b1220;
   --color-border: #2a3546;
+  --color-border-control: #666e7a;
+  --color-selected: #5b8cff;
   --color-accent: #a17cff;
   --color-focus-ring: #7ea6ff;
 
   --color-danger: #ff8b80;
   --color-danger-subtle: #2c1a1a;
   --color-danger-content: #0b1220;
+
+  --color-success: #1da64f;
+  --color-success-subtle: #102e24;
+  --color-success-content: #0b1220;
+  --color-warning: #d97706;
+  --color-warning-subtle: #332618;
+  --color-warning-content: #0b1220;
+  --color-info: #2997d0;
+  --color-info-subtle: #0d283b;
+  --color-info-content: #0b1220;
+
+  --color-scrim: rgb(0 0 0 / 0.6);
 
   /* Deeper elevation for dark surfaces. Black at the light scale's alphas is
      invisible on a dark ground, so the tint carries a strength multiplier —

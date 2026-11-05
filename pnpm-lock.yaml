@@ -766,7 +766,11 @@ importers:
         specifier: 19.3.1
         version: 19.3.1
 
-  packages/style: {}
+  packages/style:
+    dependencies:
+      '@swc/helpers':
+        specifier: 0.5.23
+        version: 0.5.23
 
   packages/ts/amqp-client:
     dependencies:

@@ -4,15 +4,27 @@
   --color-surface-elevated: #fffdfb;
   --color-content: #3a2417;
   --color-content-muted: #8a6b57;
-  --color-primary: #e5622d;
+  --color-primary: #b94f24;
   --color-primary-content: #fff8f3;
   --color-border: #f0dccb;
-  --color-accent: #d9316b;
+  --color-border-control: #978b80;
+  --color-selected: #b94f24;
+  --color-accent: #cf2f66;
   --color-focus-ring: #c2481c;
 
   --color-danger: #c23b1e;
   --color-danger-subtle: #fdeee8;
   --color-danger-content: #fff8f3;
+
+  --color-success: #11803a;
+  --color-success-subtle: #ecf8f1;
+  --color-success-content: #fff8f3;
+  --color-warning: #a75c05;
+  --color-warning-subtle: #fcf4eb;
+  --color-warning-content: #fff8f3;
+  --color-info: #0274af;
+  --color-info-subtle: #ebf5fb;
+  --color-info-content: #fff8f3;
 
   /* Warm-tinted elevation. One line, and it now actually applies: these
      tokens are plain custom properties, not @theme entries Tailwind bakes. */

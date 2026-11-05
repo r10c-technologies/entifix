@@ -17,14 +17,39 @@ export type ThemeColorToken =
   | 'primary'
   | 'primary-content'
   | 'border'
+  | 'border-control'
+  | 'selected'
   | 'accent'
+  | 'focus-ring'
   | 'danger'
   | 'danger-subtle'
-  | 'danger-content';
+  | 'danger-content'
+  | 'success'
+  | 'success-subtle'
+  | 'success-content'
+  | 'warning'
+  | 'warning-subtle'
+  | 'warning-content'
+  | 'info'
+  | 'info-subtle'
+  | 'info-content'
+  | 'scrim';
+
+/**
+ * The tokens a runtime palette must state. Each one is held to a contrast pair
+ * against the palette's own surfaces (ADR 0025), so the neutral default cannot
+ * stand in for it: a ring or a control boundary that clears 3:1 on grey may be
+ * invisible on a brand's surface. Omitting one is a type error, not a silent
+ * fallback.
+ */
+export type ThemePaletteRequiredToken =
+  'focus-ring' | 'border-control' | 'selected';
 
 /** A runtime palette: token → CSS color. Injected as `[data-theme]` vars for
- *  brands not known at build time (multi-tenant / white-label). */
-export type ThemePalette = Partial<Record<ThemeColorToken, string>>;
+ *  brands not known at build time (multi-tenant / white-label). Hold one to
+ *  the contract with `assertPaletteContract` from `@entifix/style/testing`. */
+export type ThemePalette = Partial<Record<ThemeColorToken, string>> &
+  Record<ThemePaletteRequiredToken, string>;
 
 export interface ThemeContextValue {
   /** Active theme id (written to `data-theme`). */

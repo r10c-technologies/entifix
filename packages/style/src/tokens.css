@@ -138,8 +138,21 @@
   --color-content-muted: #626b76;
   --color-primary: #3d4653;
   --color-primary-content: #ffffff;
+  --color-accent: #676f7b;
+
+  /* Two borders, because they answer different questions (ADR 0025).
+     `--color-border` is decorative — a divider, a card edge — and may stay
+     subtle. `--color-border-control` is the boundary of something a person
+     operates (an input, a select, a checkbox, a switch track), and WCAG 1.4.11
+     asks 3:1 of it against both surfaces. One token cannot be both: the
+     decorative border at 3:1 makes every card look outlined in pen. */
   --color-border: #dfe3e8;
-  --color-accent: #6b7480;
+  --color-border-control: #888a8e;
+
+  /* A selected-but-not-focused item: the chosen row, the current option. A
+     background swap from surface to surface-elevated is about 1.05:1 and so
+     invisible; this is a marker colour, held to 3:1 on surface-elevated. */
+  --color-selected: #3d4653;
 
   /* The focus ring is a color in the contract, not a reuse of --color-accent.
      Operator efficiency IS keyboard use, so where the ring lands must be
@@ -156,6 +169,50 @@
   --color-danger: #b42318;
   --color-danger-subtle: #fef3f2;
   --color-danger-content: #ffffff;
+
+  /* The other three tones, shaped exactly like danger: the tone is the text
+     and the marker, `-subtle` the surface it sits on, `-content` the label on a
+     filled tone. Status needs them so it is never colour borrowed from
+     `accent`, and never colour alone — a StatusTag always carries text. */
+  --color-success: #11803a;
+  --color-success-subtle: #ecf8f1;
+  --color-success-content: #ffffff;
+  --color-warning: #a75c05;
+  --color-warning-subtle: #fcf4eb;
+  --color-warning-content: #ffffff;
+  --color-info: #0274af;
+  --color-info-subtle: #ebf5fb;
+  --color-info-content: #ffffff;
+
+  /* The backdrop behind a dialog, a drawer or the command palette. A token
+     rather than `bg-black/40` so a dark palette can deepen it. */
+  --color-scrim: rgb(15 23 42 / 0.4);
+}
+
+/*
+ * Layering. Tailwind v4 has no z-index theme namespace, so these are plain
+ * custom properties read as `z-(--z-overlay)`. Named for what sits there, in
+ * the order they stack; a literal `z-50` beside them is a guess about where
+ * everything else is.
+ */
+:root {
+  --z-dropdown: 10;
+  --z-sticky: 20;
+  --z-overlay: 40;
+  --z-toast: 50;
+  --z-palette: 60;
+}
+
+/*
+ * Target size (WCAG 2.5.8, ADR 0025). The floor every interactive control's
+ * HIT area reaches, in every scale and density: compact density may shrink
+ * what is painted, never what is hit. A control axe measures by its own box
+ * carries `min-block-size: var(--target-min)`; one whose box must stay small
+ * (a checkbox, a tab close) extends a pseudo-element to it. A touch-first host
+ * raises the floor by overriding this one token — 44px is the usual choice.
+ */
+:root {
+  --target-min: 24px;
 }
 
 /*

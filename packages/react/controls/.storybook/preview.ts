@@ -8,6 +8,7 @@ import { createElement } from 'react';
 
 import todo from '../a11y-todo.json' with { type: 'json' };
 import { I18nProvider } from '../src/i18next/index.js';
+import { enterGateEnvironment, type GateEnvironment } from './gate-browser.js';
 
 /**
  * The WCAG 2.2 AA rule tags axe runs, and nothing else (ADR 0024). `wcag21a`
@@ -60,10 +61,17 @@ const preview: Preview = {
   },
   // A listed title still renders and is still audited; its violations are
   // reported instead of failing it, until its issue lands and removes it.
-  beforeEach: ({ title, parameters }) => {
+  //
+  // A story that needs a particular browser — a viewport, forced colours —
+  // declares it as `parameters.gate`, and it is entered before the story
+  // renders and left after it, so it never leaks into the next story.
+  beforeEach: async ({ title, parameters }) => {
     if (TODO[title] !== undefined) {
       parameters['a11y'] = { ...parameters['a11y'], test: 'todo' };
     }
+    return enterGateEnvironment(
+      (parameters['gate'] as GateEnvironment | undefined) ?? {},
+    );
   },
   initialGlobals: {
     locale: 'es',

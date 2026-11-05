@@ -3,10 +3,26 @@
   "nx": {
     "tags": [
       "tier:0"
-    ]
+    ],
+    "sourceRoot": "packages/style/src",
+    "targets": {
+      "build": {
+        "executor": "@nx/js:swc",
+        "outputs": [
+          "{options.outputPath}"
+        ],
+        "options": {
+          "outputPath": "packages/style/dist",
+          "main": "packages/style/src/testing/index.ts",
+          "tsConfig": "packages/style/tsconfig.lib.json",
+          "skipTypeCheck": true,
+          "stripLeadingPaths": true
+        }
+      }
+    }
   },
   "version": "0.18.2",
-  "description": "Tailwind v4 design tokens and a semantic color contract, with a fluid and a fixed spacing scale and three palette presets.",
+  "description": "Tailwind v4 design tokens and a semantic color contract, with a fluid and a fixed spacing scale and three palette presets, plus `assertPaletteContract`, the WCAG pair table every palette is held to.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -24,10 +40,23 @@
     "./presets/fixed-scale.css": "./src/presets/fixed-scale.css",
     "./presets/aurora.css": "./src/presets/aurora.css",
     "./presets/sunset.css": "./src/presets/sunset.css",
-    "./presets/midnight.css": "./src/presets/midnight.css"
+    "./presets/midnight.css": "./src/presets/midnight.css",
+    "./testing": {
+      "@entifix/source": "./src/testing/index.ts",
+      "types": "./dist/testing/index.d.ts",
+      "import": "./dist/testing/index.js",
+      "default": "./dist/testing/index.js"
+    }
   },
   "files": [
-    "src",
+    "src/tokens.css",
+    "src/theme.css",
+    "src/presets",
+    "dist",
+    "!**/*.tsbuildinfo",
     "LICENSE"
-  ]
+  ],
+  "dependencies": {
+    "@swc/helpers": "0.5.23"
+  }
 }

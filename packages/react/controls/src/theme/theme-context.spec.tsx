@@ -3,7 +3,7 @@ import type { PropsWithChildren } from 'react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { ThemeProvider, useTheme } from './theme-context.js';
-import type { ThemeOption } from './types.js';
+import type { ThemeOption, ThemePalette } from './types.js';
 
 /**
  * Derived, the way the provider derives it (`${storageKey}-runtime-palettes`),
@@ -12,6 +12,13 @@ import type { ThemeOption } from './types.js';
  */
 const DEFAULT_STORAGE_KEY = 'entifix-theme';
 const PALETTES_STYLE_ID = `${DEFAULT_STORAGE_KEY}-runtime-palettes`;
+
+// The three tokens a runtime palette must state (ADR 0025).
+const REQUIRED = {
+  'focus-ring': '#123456',
+  'border-control': '#654321',
+  selected: '#abcdef',
+} as const;
 
 const themes: ThemeOption[] = [
   { id: 'light', label: 'Light' },
@@ -118,12 +125,19 @@ describe('ThemeProvider', () => {
   });
 
   describe('runtime palettes', () => {
+    it('must state the three tokens the contract holds against its surfaces', () => {
+      // @ts-expect-error — focus-ring, border-control and selected are required (ADR 0025)
+      const partial: ThemePalette = { primary: '#000' };
+      const complete: ThemePalette = { ...REQUIRED, primary: '#000' };
+      expect([partial, complete]).toHaveLength(2);
+    });
+
     // White-label palettes are injected last in the cascade so they override a
     // static preset defining the same tokens.
     it('injects a style element under the theme selector', () => {
       renderHook(() => useTheme(), {
         wrapper: wrapper({
-          palettes: { dark: { primary: '#000', accent: '#fff' } },
+          palettes: { dark: { ...REQUIRED, primary: '#000', accent: '#fff' } },
         }),
       });
 
@@ -137,11 +151,15 @@ describe('ThemeProvider', () => {
     // fresh one per mount would leave stale palettes stacked in <head>.
     it('reuses the existing style element rather than stacking them', () => {
       renderHook(() => useTheme(), {
-        wrapper: wrapper({ palettes: { dark: { primary: '#000' } } }),
+        wrapper: wrapper({
+          palettes: { dark: { ...REQUIRED, primary: '#000' } },
+        }),
       });
 
       renderHook(() => useTheme(), {
-        wrapper: wrapper({ palettes: { dark: { primary: '#111' } } }),
+        wrapper: wrapper({
+          palettes: { dark: { ...REQUIRED, primary: '#111' } },
+        }),
       });
 
       expect(document.querySelectorAll(`#${PALETTES_STYLE_ID}`)).toHaveLength(

@@ -8,10 +8,13 @@ const LABEL = 'inline-flex cursor-pointer items-center gap-3xs';
  * primary colour, its thumb the surface's, at the end.
  */
 const TRACK =
-  'relative inline-flex h-[1.125rem] w-8 shrink-0 items-center rounded-full border border-content-muted bg-transparent transition-colors motion-reduce:transition-none peer-checked:border-primary peer-checked:bg-primary peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-focus-ring peer-disabled:cursor-not-allowed peer-disabled:opacity-50 peer-checked:[&>span]:translate-x-[0.875rem] peer-checked:[&>span]:bg-surface';
+  'relative inline-flex h-[1.125rem] w-8 shrink-0 items-center rounded-full border border-border-control bg-transparent transition-colors motion-reduce:transition-none peer-checked:border-primary peer-checked:bg-primary peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-focus-ring peer-disabled:cursor-not-allowed peer-disabled:opacity-50 peer-checked:[&>span]:translate-x-[0.875rem] peer-checked:[&>span]:bg-surface';
 
+// Forced colours paint every background as Canvas, which would erase the
+// thumb — the only thing that shows the switch's state there — so it takes
+// the system's text colour instead.
 const THUMB =
-  'ml-[0.125rem] size-3 rounded-full bg-content-muted transition-[translate,background-color] motion-reduce:transition-none';
+  'ml-[0.125rem] size-3 rounded-full bg-content-muted transition-[translate,background-color] motion-reduce:transition-none forced-colors:bg-[CanvasText]';
 
 /**
  * An on/off choice: a native checkbox announced as a switch, drawn as a track
