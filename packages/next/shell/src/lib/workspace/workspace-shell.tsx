@@ -236,7 +236,9 @@ export function WorkspaceShell({
 
       <TabPanel
         id={panelId}
-        labelledBy={!deadLink && activeIndex >= 0 ? tabId(activeIndex) : undefined}
+        labelledBy={
+          !deadLink && activeIndex >= 0 ? tabId(activeIndex) : undefined
+        }
         className="min-w-0 flex-1 p-m"
       >
         {body}

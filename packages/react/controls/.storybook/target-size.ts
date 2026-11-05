@@ -30,7 +30,8 @@ const isInlineLink = (element: Element) =>
   getComputedStyle(element).display === 'inline';
 
 const isDisabled = (element: Element) =>
-  element.matches(':disabled') || element.getAttribute('aria-disabled') === 'true';
+  element.matches(':disabled') ||
+  element.getAttribute('aria-disabled') === 'true';
 
 /** A visually hidden input (a switch's checkbox) is hit through its label. */
 const targetOf = (element: Element): Element => {
@@ -64,7 +65,12 @@ interface Clip {
  * view, which is not where a pointer meets the control.
  */
 const clipOf = (element: Element, view: Window): Clip => {
-  let clip: Clip = { left: 0, top: 0, right: view.innerWidth, bottom: view.innerHeight };
+  let clip: Clip = {
+    left: 0,
+    top: 0,
+    right: view.innerWidth,
+    bottom: view.innerHeight,
+  };
   for (let node = element.parentElement; node; node = node.parentElement) {
     const { overflowX, overflowY } = getComputedStyle(node);
     if (overflowX === 'visible' && overflowY === 'visible') continue;
@@ -118,7 +124,8 @@ export function undersizedTargets(root: ParentNode, min: number): string[] {
       continue;
     }
     const missed = points.filter(
-      ([x, y]) => !reaches(view.document.elementFromPoint(x!, y!), control, target),
+      ([x, y]) =>
+        !reaches(view.document.elementFromPoint(x!, y!), control, target),
     );
     if (missed.length > 0) {
       const name =
@@ -137,5 +144,7 @@ export function undersizedTargets(root: ParentNode, min: number): string[] {
 
 /** The current `--target-min`, in px, as the document resolves it. */
 export function targetMin(element: Element): number {
-  return parseFloat(getComputedStyle(element).getPropertyValue('--target-min')) || 24;
+  return (
+    parseFloat(getComputedStyle(element).getPropertyValue('--target-min')) || 24
+  );
 }

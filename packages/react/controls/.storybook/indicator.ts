@@ -3,7 +3,8 @@ import { contrastRatio, parseColor, type Rgb } from '@entifix/style/testing';
 const parse = (value: string): Rgb | undefined => {
   // Computed colours are `rgb(r, g, b)` or, with alpha, `rgba(…)`.
   const alpha = /^rgba\((.+),\s*([\d.]+)\)$/.exec(value);
-  if (alpha) return Number(alpha[2]) === 0 ? undefined : parseColor(`rgb(${alpha[1]})`);
+  if (alpha)
+    return Number(alpha[2]) === 0 ? undefined : parseColor(`rgb(${alpha[1]})`);
   return parseColor(value);
 };
 
@@ -23,7 +24,8 @@ export function backgroundOf(element: Element): Rgb {
  */
 export function indicatorContrast(element: Element, against: Element): number {
   const style = getComputedStyle(element);
-  if (style.outlineStyle === 'none' || parseFloat(style.outlineWidth) < 2) return 1;
+  if (style.outlineStyle === 'none' || parseFloat(style.outlineWidth) < 2)
+    return 1;
   const ring = parse(style.outlineColor);
   return ring ? contrastRatio(ring, backgroundOf(against)) : 1;
 }

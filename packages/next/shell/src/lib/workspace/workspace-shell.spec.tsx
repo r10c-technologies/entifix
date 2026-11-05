@@ -229,9 +229,7 @@ describe('WorkspaceShell', () => {
     renderShell();
     await screen.findByTestId('body');
 
-    await user.click(
-      screen.getByTitle('Cerrar product catalog'),
-    );
+    await user.click(screen.getByTitle('Cerrar product catalog'));
 
     await waitFor(() =>
       expect(
@@ -266,9 +264,7 @@ describe('WorkspaceShell', () => {
       useDraftsState.getState().setDraft('catalog:product', { name: 'x' });
     });
 
-    await user.click(
-      screen.getByTitle('Cerrar product catalog'),
-    );
+    await user.click(screen.getByTitle('Cerrar product catalog'));
 
     expect(await screen.findByTestId('confirm-dialog')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Cancelar' }));
@@ -291,9 +287,7 @@ describe('WorkspaceShell', () => {
       useDraftsState.getState().setDraft('catalog:product', { name: 'x' });
     });
 
-    await user.click(
-      screen.getByTitle('Cerrar product catalog'),
-    );
+    await user.click(screen.getByTitle('Cerrar product catalog'));
 
     await screen.findByTestId('confirm-dialog');
     await user.click(screen.getByRole('button', { name: 'Descartar' }));
