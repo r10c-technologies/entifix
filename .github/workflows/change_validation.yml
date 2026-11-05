@@ -255,7 +255,10 @@ jobs:
           nx-cache: build-app-${{ strategy.job-index }}
           nx-cache-from: nx-cache-build-libs
       - run: pnpm nx run ${{ matrix.project }}:build --skipTypeCheck=false
-      - run: pnpm nx run ${{ matrix.project }}:typecheck
+      # `run-many`, not `run`: an application without a `typecheck` target
+      # (a Next example checks its types inside `next build`) is skipped
+      # rather than an error.
+      - run: pnpm nx run-many -t typecheck --projects=${{ matrix.project }}
       - if: always() && env.NX_REMOTE_CACHE_NAME != ''
         uses: ./.github/actions/nx-cache-upload
 
