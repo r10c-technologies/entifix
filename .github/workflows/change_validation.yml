@@ -184,9 +184,11 @@ jobs:
   # affected-scoped or cached. A tier claim and a documentation claim are about
   # the whole framework, and the pull request that breaks one usually adds a
   # dependency to a single package — which would never make `tools/tiers`
-  # affected. For the same reason the two checks run `--skip-nx-cache`: what
-  # they read lies outside their own project, so their hash would not move
-  # when it changed, and a replayed pass would be a pass nobody earned.
+  # affected. For the same reason the checks run `--skip-nx-cache`: what they
+  # read lies outside their own project, so their hash would not move when it
+  # changed, and a replayed pass would be a pass nobody earned. The conventions
+  # are one of them: they lint planted code through every package's own config
+  # and walk the controls' component folders for a story.
   assertions:
     name: Repository assertions
     needs: initialize
@@ -204,6 +206,9 @@ jobs:
       - name: The documentation claims
         if: always()
         run: pnpm nx test @entifix/docs-check --skip-nx-cache
+      - name: The working conventions
+        if: always()
+        run: pnpm nx test @entifix/conventions --skip-nx-cache
       - name: Formatting
         if: always()
         run: pnpm exec prettier --check .

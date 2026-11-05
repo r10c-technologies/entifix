@@ -1,3 +1,5 @@
+import { mkdirSync, mkdtempSync, readdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { ESLint } from 'eslint';
@@ -245,5 +247,45 @@ describe('only @entifix/workflow runs durable flows', () => {
         '@typescript-eslint/no-restricted-imports',
       ),
     ).not.toEqual([]);
+  });
+});
+
+/**
+ * The component layers the accessibility gate renders. A component with no
+ * story is a component the gate cannot see, so the gate's verdict would be a
+ * pass about code it never rendered (ADR 0024).
+ */
+const STORIED_LAYERS = ['atoms', 'molecules', 'organisms'];
+
+const CONTROLS_UI = join(REPO_ROOT, 'packages/react/controls/src/ui');
+
+/** Every `<layer>/<component>/` folder under `ui` with no `*.stories.tsx`. */
+const componentsWithoutStory = (ui: string): string[] =>
+  STORIED_LAYERS.flatMap(layer =>
+    readdirSync(join(ui, layer), { withFileTypes: true })
+      .filter(entry => entry.isDirectory())
+      .filter(
+        entry =>
+          !readdirSync(join(ui, layer, entry.name)).some(file =>
+            file.endsWith('.stories.tsx'),
+          ),
+      )
+      .map(entry => `${layer}/${entry.name}`),
+  );
+
+describe('every component has a story', () => {
+  it('holds for react-controls', () => {
+    expect(componentsWithoutStory(CONTROLS_UI)).toEqual([]);
+  });
+
+  it('names a component folder that has none', () => {
+    const ui = mkdtempSync(join(tmpdir(), 'controls-ui-'));
+    for (const layer of STORIED_LAYERS) mkdirSync(join(ui, layer));
+    mkdirSync(join(ui, 'atoms', 'storied'));
+    writeFileSync(join(ui, 'atoms', 'storied', 'storied.stories.tsx'), '');
+    mkdirSync(join(ui, 'molecules', 'planted'));
+    writeFileSync(join(ui, 'molecules', 'planted', 'planted.tsx'), '');
+
+    expect(componentsWithoutStory(ui)).toEqual(['molecules/planted']);
   });
 });

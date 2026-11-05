@@ -10,6 +10,8 @@ export default defineEntifixTest({
   coverageExclude: [
     '**/*.stories.tsx',
     '**/_demo.tsx',
+    // Fixtures the stories share.
+    '**/story-support/**',
     // Fixtures for this package's own specs, not shipped code.
     '**/spec-support/**',
   ],
