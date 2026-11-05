@@ -1,3 +1,13 @@
+## 0.18.2 (2026-11-05)
+
+### 🩹 Fixes
+
+- **testing-e2e:** the screen gate reads a settled page, and the walk reads it as a user does ([#206](https://github.com/r10c-technologies/entifix/pull/206))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.18.1 (2026-11-05)
 
 ### 🚀 Features
