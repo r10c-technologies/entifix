@@ -46,7 +46,15 @@ const specConstraints = sourceConstraints.map(c =>
       },
 );
 
-const allowEslintConfig = ['^.*/eslint(\\.base)?\\.config\\.[cm]?[jt]s$'];
+/**
+ * Workspace-root configuration a project may import by path: the base ESLint
+ * config, and the shared Vitest/SWC transform the controls Storybook reuses so
+ * its Vite build compiles decorators exactly as every test project does.
+ */
+const allowWorkspaceConfig = [
+  '^.*/eslint(\\.base)?\\.config\\.[cm]?[jt]s$',
+  '^.*/vitest\\.shared\\.mjs$',
+];
 
 /**
  * Mechanisms never log; the fork site does
@@ -230,7 +238,7 @@ export default [
         'error',
         {
           enforceBuildableLibDependency: true,
-          allow: allowEslintConfig,
+          allow: allowWorkspaceConfig,
           depConstraints: sourceConstraints,
         },
       ],
@@ -251,7 +259,7 @@ export default [
         'error',
         {
           enforceBuildableLibDependency: false,
-          allow: allowEslintConfig,
+          allow: allowWorkspaceConfig,
           depConstraints: specConstraints,
         },
       ],

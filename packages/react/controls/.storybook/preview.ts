@@ -16,6 +16,14 @@ const preview: Preview = {
     layout: 'centered',
     backgrounds: { disable: true },
   },
+  // A story that renders nothing passes every other check vacuously — the
+  // decorator bug that blanked the entity stories did exactly that — so an
+  // empty root fails the story wherever it runs.
+  afterEach: ({ canvasElement, title, name }) => {
+    if (!canvasElement.hasChildNodes()) {
+      throw new Error(`${title} › ${name} rendered nothing into its root.`);
+    }
+  },
   initialGlobals: {
     locale: 'es',
   },

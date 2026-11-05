@@ -410,46 +410,7 @@ jobs:
         with:
           nx-cache: e2e-browser-${{ strategy.job-index }}
           nx-cache-from: nx-cache-build-*
-      - name: Resolve the Playwright version
-        id: playwright
-        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
-      - name: Restore the browser
-        id: browser
-        uses: actions/cache/restore@v6
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
-      # ⚠️ **Drop Google's Chrome apt repository before installing anything.**
-      # Both install paths below shell out to `apt-get update`, which fails the
-      # whole job if *any* configured repository is inconsistent — and the
-      # runner image ships `dl.google.com/linux/chrome-stable` preconfigured. On
-      # 2026-09-09 that index served a `Packages.gz` whose hash did not match its
-      # Release file for over an hour, and every browser run in r10c failed with
-      # `Hash Sum mismatch` before a single spec ran. Playwright downloads its
-      # own pinned Chromium, so the repository is a dependency this job never
-      # asked for. Matched by content, not filename: the image ships it in
-      # deb822 form (`*.sources`) too.
-      - name: Drop apt sources this job does not need
-        run: |
-          sudo bash -euo pipefail -c '
-            for file in $(grep -rl "dl\.google\.com" /etc/apt/sources.list.d 2>/dev/null || true); do
-              echo "removing $file"
-              rm -f "$file"
-            done
-            sed -i "/dl\.google\.com/d" /etc/apt/sources.list 2>/dev/null || true
-          '
-      - name: Install the browser
-        if: steps.browser.outputs.cache-hit != 'true'
-        run: pnpm exec playwright install --with-deps chromium
-      - name: Install the browser's system libraries
-        if: steps.browser.outputs.cache-hit == 'true'
-        run: pnpm exec playwright install-deps chromium
-      # Saved from `main` only, so one entry serves every pull request.
-      - if: github.ref == 'refs/heads/main' && steps.browser.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v6
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      - uses: ./.github/actions/playwright-browser
       - run: pnpm nx run ${{ matrix.project }}:e2e
       - name: Keep the report of a failed run
         if: failure()
@@ -462,10 +423,11 @@ jobs:
       - if: always() && env.NX_REMOTE_CACHE_NAME != ''
         uses: ./.github/actions/nx-cache-upload
 
-  # Stories are in no tsconfig project, so `typecheck` never reads one and
-  # Vitest never renders one; the loading-contract spec only checks that a
-  # `Loading` story is *exported*. Building Storybook is the one step that
-  # compiles every story, so a story that throws at build fails here (#33).
+  # Stories are in no tsconfig project, so `typecheck` never reads one and the
+  # unit Vitest projects never render one. Building Storybook compiles every
+  # story (#33), but a green build proved nothing about rendering: Vite left the
+  # entity stories' decorators raw and all 22 shipped blank. `test-a11y` renders
+  # every story in Chromium, so a story that throws or renders nothing fails.
   storybook:
     name: Storybook (${{ needs.initialize.outputs.storybook-projects }})
     needs: initialize
@@ -479,6 +441,8 @@ jobs:
         with:
           nx-cache: storybook
       - run: pnpm nx run-many -t build-storybook --projects="${{ needs.initialize.outputs.storybook-projects }}"
+      - uses: ./.github/actions/playwright-browser
+      - run: pnpm nx run-many -t test-a11y --projects="${{ needs.initialize.outputs.storybook-projects }}"
       - if: always() && env.NX_REMOTE_CACHE_NAME != ''
         uses: ./.github/actions/nx-cache-upload
 

@@ -1,7 +1,7 @@
 {
   "name": "@entifix/react-controls",
   "version": "0.18.0",
-  "description": "Entity-agnostic React UI — table, form, filters, wizard, command palette — rendered from entity metadata, plus layout primitives.",
+  "description": "Entity-agnostic React UI \u2014 table, form, filters, wizard, command palette \u2014 rendered from entity metadata, plus layout primitives.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -50,11 +50,16 @@
   "devDependencies": {
     "@entifix/i18n": "workspace:*",
     "@entifix/style": "workspace:*",
+    "@storybook/addon-a11y": "^10.6.5",
     "@storybook/addon-docs": "^10.6.5",
     "@storybook/addon-themes": "^10.6.5",
+    "@storybook/addon-vitest": "^10.6.5",
     "@storybook/react-vite": "^10.6.5",
+    "@vitest/browser": "5.0.5",
+    "@vitest/browser-playwright": "5.0.5",
     "effect": "4.0.7",
     "i18next": "26.6.0",
+    "playwright": "1.64.1",
     "react": "19.3.1",
     "react-i18next": "17.1.10",
     "storybook": "^10.6.5"
@@ -91,6 +96,18 @@
         },
         "outputs": [
           "{projectRoot}/storybook-static"
+        ]
+      },
+      "test-a11y": {
+        "command": "vitest run -c vitest.storybook.config.mts",
+        "options": {
+          "cwd": "{projectRoot}"
+        },
+        "cache": true,
+        "inputs": [
+          "default",
+          "^default",
+          "{workspaceRoot}/vitest.shared.mts"
         ]
       }
     }
