@@ -142,7 +142,10 @@ it. AAA criteria are not targets. Where one is cheap and the product benefits
 - **`A11Y_BASELINE=update`** rewrites the file locally, keeping each owner and
   leaving a new entry's empty. CI fails when a baseline gains an entry relative
   to the merge base, so a rewrite can only shrink it; a baseline new at the
-  merge base is the one place entries are added.
+  merge base is the one place entries are added. A baseline records the
+  fingerprint scheme it was computed with under `$fingerprints`; when a release
+  changes the scheme, every key is renamed, and the check then holds the
+  re-keyed baseline to no more entries than the old one had.
 - **An entry's owner must stay open.** The daily workflow that checks the todo
   lists reads every committed `a11y-baseline.json` too, and fails once an
   owning issue has closed with its entry still there.

@@ -40,8 +40,29 @@ export interface A11yFinding {
   readonly help: string;
 }
 
-/** Accepted fingerprints, each against the issue that removes it. */
+/**
+ * Accepted fingerprints, each against the issue that removes it, plus the
+ * {@link FINGERPRINT_KEY} naming the scheme they were computed with.
+ */
 export type A11yBaseline = Readonly<Record<string, string>>;
+
+/**
+ * The key a baseline records its fingerprint scheme under. Every other key is
+ * a fingerprint; this one is not, and no rule here treats it as one.
+ */
+export const FINGERPRINT_KEY = '$fingerprints';
+
+/**
+ * The scheme {@link findingsOf} computes today. It changes only when the
+ * fingerprint does, and a baseline recorded under another scheme is a
+ * re-keying rather than new debt: CI then holds it to "no more entries than
+ * before" instead of "no new keys", which a rename of every key would fail.
+ */
+export const FINGERPRINT_SCHEME = 'ancestry-1';
+
+/** A baseline's fingerprint entries, without the scheme marker. */
+export const baselineEntries = (baseline: A11yBaseline): [string, string][] =>
+  Object.entries(baseline).filter(([key]) => key !== FINGERPRINT_KEY);
 
 /** What a gate run decides for one screen. */
 export interface A11yVerdict {
@@ -211,7 +232,8 @@ export const compareWithBaseline = (
   const present = new Set(gated.map(finding => finding.fingerprint));
   return {
     added: gated.filter(finding => !(finding.fingerprint in baseline)),
-    stale: Object.keys(baseline)
+    stale: baselineEntries(baseline)
+      .map(([fingerprint]) => fingerprint)
       .filter(fingerprint => screenOf(fingerprint) === screen)
       .filter(fingerprint => !present.has(fingerprint))
       .sort(),
@@ -230,7 +252,7 @@ export const updateBaseline = (
   baseline: A11yBaseline,
 ): A11yBaseline => {
   const next: Record<string, string> = {};
-  for (const [fingerprint, owner] of Object.entries(baseline)) {
+  for (const [fingerprint, owner] of baselineEntries(baseline)) {
     if (screenOf(fingerprint) !== screen) next[fingerprint] = owner;
   }
   for (const finding of findings) {
@@ -238,9 +260,12 @@ export const updateBaseline = (
       next[finding.fingerprint] = baseline[finding.fingerprint] ?? '';
     }
   }
-  return Object.fromEntries(
-    Object.entries(next).sort(([a], [b]) => a.localeCompare(b)),
-  );
+  return {
+    [FINGERPRINT_KEY]: FINGERPRINT_SCHEME,
+    ...Object.fromEntries(
+      Object.entries(next).sort(([a], [b]) => a.localeCompare(b)),
+    ),
+  };
 };
 
 /** An issue reference in the form GitHub links across repositories. */
@@ -248,7 +273,7 @@ export const ISSUE_REFERENCE = /^[\w.-]+\/[\w.-]+#\d+$/;
 
 /** Every entry whose owner is not an `owner/repo#N` issue reference. */
 export const unownedEntries = (baseline: A11yBaseline): string[] =>
-  Object.entries(baseline)
+  baselineEntries(baseline)
     .filter(([, owner]) => !ISSUE_REFERENCE.test(owner))
     .map(([fingerprint]) => fingerprint);
 

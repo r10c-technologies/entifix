@@ -1,4 +1,5 @@
 {
+  "$fingerprints": "ancestry-1",
   "color-contrast|html > body > div:nth-child(n) > main:nth-child(n) > div:nth-child(n) > div > a:nth-child(n)|home": "r10c-technologies/entifix#179",
   "color-contrast|html > body > div:nth-child(n) > main:nth-child(n) > div:nth-child(n) > div > a:nth-child(n)|home-sunset": "r10c-technologies/entifix#179",
   "color-contrast|html > body > div:nth-child(n) > main:nth-child(n) > div:nth-child(n) > div > a:nth-child(n)|palette-results": "r10c-technologies/entifix#179",

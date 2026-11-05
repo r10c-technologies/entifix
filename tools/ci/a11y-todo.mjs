@@ -20,7 +20,10 @@ import { readFileSync } from 'node:fs';
 
 /** The entries whose issue `stateOf` reports closed, as `title → issue`. */
 export const closedEntries = (todo, stateOf) =>
-  Object.entries(todo).filter(([, issue]) => stateOf(issue) === 'CLOSED');
+  Object.entries(todo)
+    // A baseline's `$fingerprints` names a scheme, not an issue.
+    .filter(([key]) => !key.startsWith('$'))
+    .filter(([, issue]) => stateOf(issue) === 'CLOSED');
 
 /** `owner/repo#N` → `OPEN` | `CLOSED`, asked of GitHub once per issue. */
 export const githubState = () => {

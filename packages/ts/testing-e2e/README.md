@@ -119,7 +119,9 @@ await expectFocusKept(page);
   accepted one that is no longer there. Moderate and minor findings become test
   annotations. `A11Y_BASELINE=update` rewrites the screen's entries — owners
   kept, a new entry's left empty for a person to fill with the issue that
-  removes it; `unownedEntries(baseline)` lets a spec refuse an empty one.
+  removes it; `unownedEntries(baseline)` lets a spec refuse an empty one. The file
+  also records its fingerprint scheme under `$fingerprints`, which is not an
+  entry.
 - **`walkKeyboard`** tabs from the top and fails on a missing skip link, a first
   stop inside `main` past `mainIndexMax`, a stop with no visible indicator or
   entirely hidden by something else, and a stop that jumps back more than a row
