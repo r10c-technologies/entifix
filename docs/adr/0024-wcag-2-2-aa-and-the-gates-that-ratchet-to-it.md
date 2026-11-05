@@ -117,25 +117,40 @@ it. AAA criteria are not targets. Where one is cheap and the product benefits
   - **fails on a new critical or serious fingerprint, and on a baseline entry
     that no longer occurs**;
   - reports moderate and minor without failing.
-- **`A11Y_BASELINE=update`** rewrites the file locally. CI refuses a rewritten
-  baseline that adds entries.
+- **`A11Y_BASELINE=update`** rewrites the file locally. CI fails when a
+  baseline gains an entry relative to the merge base, so a rewrite can only
+  shrink it.
 - **`walkKeyboard(page, options)`** is in the same subpath and is
   deterministic. It records each Tab stop and asserts:
-  - a skip link is the first stop where the shell has one;
-  - the first stop inside `main` is at or under a caller-given index;
+  - a skip link is the first stop, when the caller says the shell has one
+    (`skipLink: true`);
+  - the first stop inside `main` is at or under `mainIndexMax`, counted after
+    activating the skip link with Enter where there is one, and in raw Tab
+    stops where there is not;
+  - Tab order follows visual order (no stop starts more than one row above
+    the previous stop in the same column);
   - no stop lacks a visible indicator (measured more than 200 ms after the
     focus move, because the ring transitions);
   - no stop's centre is covered by another element (2.4.11);
   - focus is not on `<body>` after a caller-marked write.
-- **The examples call both on every journey** ([ADR 0004](0004-the-examples-are-the-composability-proof.md)),
-  so the helper is proven in this repository before a host adopts it.
+- **Every example with a hermetic browser e2e calls both on every journey**
+  ([ADR 0004](0004-the-examples-are-the-composability-proof.md)) — today
+  `example-workspace-e2e` — so the helper is proven in this repository before
+  a host adopts it.
+- **Thresholds ratchet like fingerprints.** A host whose screens do not meet
+  the walk's targets yet commits its measured values beside the issue that
+  tightens them; the targets are a skip link first and `mainIndexMax` ≤ 3.
 
 ### Lint
 
-- **entifix exports an `a11yConfig`:** `eslint-plugin-jsx-a11y`'s `strict` set
-  at **error**, with component mappings — `Button`→button, `ButtonLink`→a,
-  `TextInput`→input, `Select`→select, `Checkbox`→input.
-- **This repository spreads it over every package that renders.**
+- **This repository lints every package that renders with
+  `eslint-plugin-jsx-a11y`'s `strict` set at error**, with component mappings —
+  `Button`→button, `ButtonLink`→a, `TextInput`→input, `Select`→select,
+  `Checkbox`→input — so the components themselves are held to it.
+- **entifix ships no ESLint config package.** The runtime packages must not
+  carry a lint plugin, and a config package would be a 25th publish target for
+  a dozen lines. The README documents the recommended config and the component
+  mappings, and a host applies `strict` itself.
 - **Two documented exceptions:**
   - `anchor-has-content` in `button-link.tsx`, whose content is a prop;
   - `no-autofocus`, because Headless UI's `data-autofocus` is how a dialog
@@ -162,5 +177,6 @@ it. AAA criteria are not targets. Where one is cheap and the product benefits
 ## Trigger
 
 Promoted to **Accepted** by the change that lands the component gate (the
-Storybook decorator fix, the missing stories, `test-a11y` with its todo list and
-`a11yConfig`) together with `@entifix/testing-e2e/a11y` used by both examples.
+Storybook decorator fix, the missing stories, `test-a11y` with its todo list,
+and jsx-a11y strict at error here) together with `@entifix/testing-e2e/a11y`
+used by `example-workspace-e2e`.

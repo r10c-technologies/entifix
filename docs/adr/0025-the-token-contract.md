@@ -44,12 +44,14 @@ Three gaps are structural rather than numeric:
   fails 2.5.8 outright (the tab-add button, 15.6×21.4). Every other small
   control passes only on the 24px spacing exception, about one pixel from
   failing.
-- **The spacing scale and Tailwind's named sizes share names.** The fixed +
-  compact preset sets `--spacing-xl: 2.5rem`, and Tailwind v4 resolves
-  `max-w-xl` through `--spacing-xl` when it exists. The command palette's
-  `max-w-xl` therefore renders 40px wide, and the same clash reaches
-  `max-w-md` on ConfirmDialog and ToastRegion. It is not a development-only
-  artefact: it is how the utility resolves.
+- **The spacing scale and Tailwind's named sizes share names.** Tailwind v4
+  resolves `max-w-*` through `--max-width-*`, then `--spacing-*`, then
+  `--container-*`. `tokens.css` declares `--spacing-xl` in `@theme`, so
+  `max-w-xl` is a spacing value in **every** scale: the command palette's panel
+  measured 40px wide at fixed + compact and is a few dozen pixels in the fluid
+  scale. It is not a development-only artefact: it is how the utility
+  resolves. The palette is the one control affected today, because no other
+  size class in the controls uses a spacing name.
 
 ## Decision
 
@@ -70,8 +72,8 @@ asserts:
 | Focus indicator            | `focus-ring` on both surfaces                                                  | 3       |
 | Selected (not focused)     | `selected` on `surface-elevated`                                               | 3       |
 
-The spec is exported as `assertPaletteContract(palette)` under a testing
-subpath. A host registering its own palettes runs the same assertion over them.
+The spec is exported as `assertPaletteContract(palette)` from a new built
+subpath, `@entifix/style/testing` (swc, like every other library). A host registering its own palettes runs the same assertion over them.
 A palette that cannot meet a pair is a palette that cannot ship.
 
 ### New and split tokens
@@ -102,21 +104,30 @@ A palette that cannot meet a pair is a palette that cannot ship.
 - **The spacing exception of 2.5.8 is not relied on by design.** A control that
   passes only because nothing is near it fails the moment a host puts something
   near it.
-- **Compact density may shrink what is painted, never what is hit.** The spec
-  asserts the compact preset's computed control heights against `--target-min`.
+- **Compact density may shrink what is painted, never what is hit.** A
+  Storybook assertion samples each control's hit area at fixed + compact
+  (`elementFromPoint` over a `--target-min` square around its centre).
+- **A control axe measures by its own box gets a real minimum size, not a
+  pseudo-element.** Axe's `target-size` rule ignores `::before` hit areas, so
+  navigation toggles and icon links carry `min-block-size: var(--target-min)`;
+  the pseudo-element extension is for controls whose box must stay small
+  (checkbox, tab close) and whose neighbours are spaced.
 - A host may raise the floor — 44px for touch-first surfaces — by overriding the
   token.
 
 ### Names cannot collide
 
-- `@entifix/style` declares its own `--container-{xs…7xl}` widths, and no
-  `--spacing-*` name equals a Tailwind named size.
-- A check in `@entifix/tiers`' conventions fails on a class in
-  `react-controls` or `next-shell` whose named `max-w-*`, `w-*`, `h-*`,
-  `min-*` or `size-*` would resolve through `--spacing-*`.
-- An arbitrary value (`[…]`) in a control is allowed only as `var(--token)`.
-  The two literals that duplicate a token today (`h-[2rem]`, `duration-[120ms]`)
-  are replaced.
+- A container width is written `max-w-(--container-*)`, never as a bare name.
+- `@entifix/conventions` fails on a `max-w-*`, `min-w-*`, `w-*`, `h-*`,
+  `max-h-*`, `min-h-*` or `size-*` class in `react-controls` or `next-shell`
+  whose suffix is a spacing name (`3xs 2xs xs s m l xl 2xl 3xl`), except where
+  an allow-list records that a spacing value is meant.
+- The spacing names stay as they are: renaming them would break every
+  adopter's `p-xl` and `gap-l` to fix one class.
+- An arbitrary length, colour, duration or z-index (`-[<n><unit>]`, `-[#…]`,
+  `-[rgb…]`, `z-[…]`) in a control is allowed only as `var(--token)`.
+  Arbitrary variants and grid templates are exempt. The two literals that
+  duplicate a token today (`h-[2rem]`, `duration-[120ms]`) are replaced.
 
 ### Forced colours
 
@@ -142,5 +153,6 @@ by a transparent border, and the focus ring falls back to `CanvasText`.
 
 Promoted to **Accepted** by the change that lands `tokens.spec` green over every
 preset, the new and split tokens, `--target-min` with the hit-area extension on
-the listed controls, `--container-*` with the collision check, and
+the listed controls, the palette on `max-w-(--container-xl)` with the
+collision check, and
 `ThemePalette`'s new keys.

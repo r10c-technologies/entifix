@@ -92,7 +92,9 @@ emptyAction }`. EntityTable, EntityForm, EntityDetailGrid and Wizard render
   - F6 moves focus into the region.
   - `makeEntityCrud` announces every save and delete through it.
 - **`usePushConnection()`** in `@entifix/react-integration` exposes the push
-  channel's state, `open | reconnecting | closed`, and TopBar renders it.
+  channel's state, `open | reconnecting | closed`. TopBar takes it as a
+  `connection` prop, which next-shell passes in: `react-controls` never imports
+  `react-integration`.
 - **An error's next step is catalog copy plus a host handler.**
   - Beside `errors:<code>`, a catalog may carry `errors:<code>Action` (for
     example "Choose organization").

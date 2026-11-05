@@ -109,7 +109,7 @@ Server Actions post a form, and `Button` is a client component.
     record: a hard delete, a cancellation that refunds, a session revocation.
 - **`typed`:** the confirmation also asks for the object's name or the count to
   be typed. It is for a `matching` selection above a host-set threshold
-  (default 1,000) and for records a system boots from.
+  (default 1,000) and for entities a host declares `delete: 'typed'`.
 - **`makeEntityCrud`'s Delete takes a `delete` policy.** Its default is
   `confirm`, because it is a hard delete with no inverse. After either path
   focus moves to the list's heading or to the next record, never to `<body>`,
@@ -117,7 +117,8 @@ Server Actions post a form, and `Button` is a client component.
 
 ### A confirmation that works without JavaScript
 
-`ConfirmAction` wraps a Server Action form for pages that avoid client
+`ConfirmAction`, in `@entifix/next-shell` because it needs Next's Server
+Actions, wraps a Server Action form for pages that avoid client
 boundaries:
 
 - Without JavaScript the form posts to an interstitial step that renders the
@@ -168,6 +169,6 @@ label keys, never as literals.
 ## Trigger
 
 Promoted to **Accepted** by the change that lands the descriptor fields,
-`<ActionBar>` on all six surfaces, the toolbar through `invoke()`, the
+`<ActionBar>` on its five surfaces, the toolbar through `invoke()`, the
 `alertdialog` confirmation, undo through the toast region, `makeEntityCrud`'s
 `delete` policy and gated "New", `ConfirmAction`, and the hotkey registry.
