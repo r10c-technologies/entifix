@@ -15,8 +15,11 @@ const TODO: Record<string, string> = JSON.parse(
   readFileSync(join(PACKAGE, 'a11y-todo.json'), 'utf8'),
 );
 
+/** This repository, as GitHub names it across repositories. */
+const REPOSITORY = 'r10c-technologies/entifix';
+
 /** An issue in this repository, in the form GitHub links across repos. */
-const ISSUE = /^r10c-technologies\/entifix#\d+$/;
+const ISSUE = new RegExp(`^${REPOSITORY}#\\d+$`);
 
 const storyTitles = (dir: string): string[] =>
   readdirSync(dir, { recursive: true, encoding: 'utf8' })

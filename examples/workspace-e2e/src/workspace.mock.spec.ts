@@ -1,3 +1,4 @@
+import { expectAccessible } from './a11y';
 import { expect, failOnPageErrors, test } from './support';
 
 /**
@@ -10,6 +11,7 @@ test('opens two tabs, tracks the active one in the URL, and restores both', asyn
   failOnPageErrors(page);
   await page.goto('/es/workspace?tab=master:customer');
   await expect(page.getByRole('tab', { name: /Clientes/ })).toBeVisible();
+  await expectAccessible(page, 'customer-list-tab');
 
   await page
     .getByRole('link', { name: 'Abrir Facturas en el espacio de trabajo' })

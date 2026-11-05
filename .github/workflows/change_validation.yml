@@ -215,6 +215,11 @@ jobs:
       - name: The release and CI scripts
         if: always()
         run: node --test 'tools/release/*.test.mjs' 'tools/ci/*.test.mjs'
+      # An accessibility baseline only shrinks (ADR 0024); `A11Y_BASELINE=update`
+      # would otherwise let a pull request accept its own regression.
+      - name: No accessibility baseline grew
+        if: always() && github.event_name == 'pull_request'
+        run: node tools/ci/a11y-baseline-growth.mjs ${{ needs.initialize.outputs.base }}
 
   # Every library once, on one runner. Their builds are many small swc passes,
   # which suit one machine; what is slow is the applications, which fan out

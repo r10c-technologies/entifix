@@ -1,3 +1,4 @@
+import { expectAccessible, expectNoNewViolations } from './a11y';
 import { expect, failOnPageErrors, test } from './support';
 
 /** Theme and density are document attributes; the locale is the URL prefix. */
@@ -5,9 +6,11 @@ test('switches theme, density and language', async ({ page }) => {
   failOnPageErrors(page);
   await page.goto('/es');
   const html = page.locator('html');
+  await expectAccessible(page, 'home');
 
   await page.getByRole('radio', { name: 'Atardecer' }).click();
   await expect(html).toHaveAttribute('data-theme', 'sunset');
+  await expectNoNewViolations(page, 'home-sunset');
 
   await page.getByRole('radio', { name: 'Cómoda' }).check();
   await expect(html).toHaveAttribute('data-density', 'comfortable');

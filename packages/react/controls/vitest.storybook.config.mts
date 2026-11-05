@@ -64,6 +64,13 @@ export default defineConfig({
   cacheDir: path.join(root, '../../../node_modules/.vite/storybook-controls'),
   test: {
     watch: false,
+    reporters: [
+      'default',
+      [
+        path.join(root, '.storybook/a11y-todo-reporter.ts'),
+        { cells: Object.keys(CELLS) },
+      ],
+    ],
     projects: (Object.keys(CELLS) as (keyof typeof CELLS)[]).map(cell),
   },
 });

@@ -15,6 +15,7 @@
     }
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
     "@entifix/testing-e2e": "workspace:*",
     "@nx/devkit": "24.0.3",
     "@nx/playwright": "24.0.3",

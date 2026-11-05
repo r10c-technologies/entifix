@@ -1,3 +1,4 @@
+import { expectAccessible, expectNoNewViolations } from './a11y';
 import { expect, failOnPageErrors, test } from './support';
 
 /**
@@ -12,6 +13,7 @@ const openPalette = async (page: import('@playwright/test').Page) => {
 test('runs a host command', async ({ page }) => {
   failOnPageErrors(page);
   await page.goto('/es');
+  await expectAccessible(page, 'home');
   const input = await openPalette(page);
   await input.fill('Nueva factura');
   await page.getByRole('option', { name: 'Nueva factura' }).first().click();
@@ -21,6 +23,7 @@ test('runs a host command', async ({ page }) => {
 test('runs an unbound verb declared on an entity', async ({ page }) => {
   failOnPageErrors(page);
   await page.goto('/es');
+  await expectAccessible(page, 'home');
   const input = await openPalette(page);
   await input.fill('Restablecer');
   await page
@@ -32,9 +35,11 @@ test('runs an unbound verb declared on an entity', async ({ page }) => {
 test('finds seeded records through the search route', async ({ page }) => {
   failOnPageErrors(page);
   await page.goto('/es');
+  await expectAccessible(page, 'home');
   const input = await openPalette(page);
   await input.fill('#ada');
   await expect(
     page.getByRole('option', { name: /Ada Lovelace/ }),
   ).toBeVisible();
+  await expectNoNewViolations(page, 'palette-results');
 });

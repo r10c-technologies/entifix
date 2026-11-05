@@ -150,6 +150,10 @@ with a known violation is listed in `packages/react/controls/a11y-todo.json`
 against the issue that removes it, and is reported instead of failing; the
 list can only shrink, because a listed issue that closes fails a daily check.
 
+A screen is held to the same standard by `@entifix/testing-e2e/a11y`: axe
+against a committed baseline that can only shrink, and a scripted keyboard walk
+for what axe cannot see. Every journey of `example-workspace-e2e` calls both.
+
 No lint configuration is published. A host that renders these controls applies
 the same rules to its own JSX, with the same component mapping, so that a
 `<Button onClick>` is checked as the `<button>` it renders:

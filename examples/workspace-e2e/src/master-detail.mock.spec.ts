@@ -1,3 +1,4 @@
+import { expectAccessible, expectFocusKept, LOST_UNTIL } from './a11y';
 import { expect, failOnPageErrors, test } from './support';
 
 /**
@@ -18,6 +19,7 @@ test('adds an owned row, saves, and finds it on the record again', async ({
 
   await expect(page.getByLabel('Número')).toHaveValue('INV-0002');
   await expect(page.getByLabel('Descripción')).toHaveCount(1);
+  await expectAccessible(page, 'invoice-tab');
 
   await page.getByLabel('Número').fill('INV-0002-A');
   await page.getByRole('button', { name: 'Añadir fila' }).click();
@@ -29,6 +31,7 @@ test('adds an owned row, saves, and finds it on the record again', async ({
   // Saving returns to the list tab, which reads the repository again.
   await expect(page).toHaveURL(/tab=master%3Ainvoice$/);
   await expect(page.getByRole('cell', { name: 'INV-0002-A' })).toBeVisible();
+  await expectFocusKept(page, { lostUntil: LOST_UNTIL });
 
   // Reopened from the list row, which opens the record's tab in place.
   await page
@@ -51,6 +54,8 @@ test('runs a declared verb and shows the state it moved to', async ({
 
   const status = page.getByLabel('Estado');
   await expect(status).toHaveValue('draft');
+  await expectAccessible(page, 'invoice');
   await page.getByRole('button', { name: 'Emitir' }).click();
   await expect(status).toHaveValue('issued');
+  await expectFocusKept(page);
 });

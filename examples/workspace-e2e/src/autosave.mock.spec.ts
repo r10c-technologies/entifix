@@ -1,3 +1,4 @@
+import { expectAccessible, expectNoNewViolations } from './a11y';
 import { expect, failOnPageErrors, test } from './support';
 
 /**
@@ -15,6 +16,7 @@ test('restores an unsaved edit after a reload', async ({ page }) => {
 
   const name = page.getByLabel('Nombre');
   await expect(name).toHaveValue('Alan Turing');
+  await expectAccessible(page, 'customer-tab');
   await name.fill('Alan, unsaved');
   await expect(page.getByTestId('tab-indicator')).toBeVisible();
 
@@ -32,6 +34,7 @@ test('asks before closing a tab that holds a draft', async ({ page }) => {
   await page.getByRole('button', { name: 'Cerrar Cliente #c-2' }).click();
   const dialog = page.getByTestId('confirm-dialog');
   await expect(dialog).toBeVisible();
+  await expectNoNewViolations(page, 'customer-tab-close-confirm');
   await dialog.getByRole('button', { name: 'Cancelar' }).click();
 
   await expect(dialog).toBeHidden();

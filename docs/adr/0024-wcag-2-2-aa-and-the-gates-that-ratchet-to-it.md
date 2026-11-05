@@ -1,6 +1,6 @@
 # 24. WCAG 2.2 AA is the target, and the gates ratchet toward it
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-05
 - Area: ui
 - Read when: a control fails an accessibility check, adding a component or a story, a story renders blank while `build-storybook` stays green, writing an e2e journey that a screen-level check should cover, or about to add an axe rule exception, a jsx-a11y suppression or a `'todo'` entry
@@ -70,11 +70,15 @@ it. AAA criteria are not targets. Where one is cheap and the product benefits
 
 - **Addons.** `@storybook/addon-a11y` and `@storybook/addon-vitest` are
   devDependencies of `@entifix/react-controls`. They are tooling, so there is no
-  tier impact.
+  tier impact. The Vitest browser runner (`@vitest/browser-playwright`) sits at
+  the workspace root beside Vitest itself: as a package devDependency it gave
+  Vitest a second peer variant, and the jest-dom matchers augmented the other.
 - **Preview parameters.**
   - `parameters.a11y.test: 'error'` globally.
-  - `runOnly` = `wcag2a, wcag2aa, wcag21a, wcag21aa, wcag22aa`, scoped to
-    `#storybook-root`.
+  - `runOnly` = `wcag2a, wcag2aa, wcag21a, wcag21aa, wcag22aa`, over the
+    whole document rather than `#storybook-root`: dialogs, menus and toasts
+    portal outside the root, and an overlay left open by a `play` function is
+    exactly what the run is there to audit.
 - **Globals.** The preview declares `scale` (fluid/fixed) and `density`
   (comfortable/compact) beside the theme, and a decorator writes `data-scale` /
   `data-density` on `<html>`.
@@ -92,8 +96,12 @@ it. AAA criteria are not targets. Where one is cheap and the product benefits
 - **The ratchet is a committed `a11y-todo.json`:** story title → the issue that
   removes it.
   - A title listed there runs at `'todo'`: it reports but does not fail.
-  - A spec fails when an entry no longer violates anything (a stale entry) or
-    names no issue.
+  - A spec fails on an entry whose issue is not an `owner/repo#N` reference or
+    whose story title no longer exists.
+  - The run fails on a stale entry: a listed title that raised no violation in
+    any of the five cells (a reporter judges it, and only when every cell ran).
+  - A daily workflow outside `Done` fails once a listed issue has closed with
+    its entry still there.
   - The milestone that owns the list closes when the list is empty.
 - **The target is its own `test-a11y`.** It is cacheable, its inputs include
   `.storybook/**` and `^default` (so a token edit in `@entifix/style` makes it
@@ -101,8 +109,10 @@ it. AAA criteria are not targets. Where one is cheap and the product benefits
 --coverage`: stories are excluded from coverage, and a story run must not
   inflate the 100% unit gate.
 - **One exception, written into the rule configuration with its reason.**
-  `aria-hidden-focus` on Headless UI's focus sentinels
-  (`[id^=headlessui-focus-sentinel]`). Any further exception needs an amendment
+  `aria-hidden-focus` on Headless UI's focus sentinels, by narrowing the rule's
+  selector to `[aria-hidden="true"]:not([id^="headlessui-focus-sentinel"])` —
+  the rule's own selector with the sentinels removed, not a replacement for
+  it. Any further exception needs an amendment
   to this record. The todo list is for defects, never for false positives.
 
 ### The screen gate: a helper the hosts call
@@ -111,15 +121,20 @@ it. AAA criteria are not targets. Where one is cheap and the product benefits
   as an optional peer (ADR 0001).
 - **`expectNoNewA11yViolations(page, { screen })`:**
   - runs the five tags;
-  - fingerprints each node as `rule | normalizedTarget | screen`, stripping
-    React and Headless UI generated ids and collapsing repeated `:nth-child`;
-  - compares the result with the caller's committed baseline JSON;
+  - fingerprints each node as `rule | normalizedTarget | screen`, writing
+    React, Headless UI and Radix generated ids as `#generated-id`, collapsing
+    repeated `:nth-child`, and sorting each compound's classes and attributes,
+    which axe orders differently from one run to the next;
+  - compares the result with the caller's committed baseline JSON, which maps
+    each accepted fingerprint to the issue that removes it (`unownedEntries`
+    names an entry without one);
   - **fails on a new critical or serious fingerprint, and on a baseline entry
     that no longer occurs**;
   - reports moderate and minor without failing.
-- **`A11Y_BASELINE=update`** rewrites the file locally. CI fails when a
-  baseline gains an entry relative to the merge base, so a rewrite can only
-  shrink it.
+- **`A11Y_BASELINE=update`** rewrites the file locally, keeping each owner and
+  leaving a new entry's empty. CI fails when a baseline gains an entry relative
+  to the merge base, so a rewrite can only shrink it; a baseline new at the
+  merge base is the one place entries are added.
 - **`walkKeyboard(page, options)`** is in the same subpath and is
   deterministic. It records each Tab stop and asserts:
   - a skip link is the first stop, when the caller says the shell has one
@@ -129,10 +144,14 @@ it. AAA criteria are not targets. Where one is cheap and the product benefits
     stops where there is not;
   - Tab order follows visual order (no stop starts more than one row above
     the previous stop in the same column);
-  - no stop lacks a visible indicator (measured more than 200 ms after the
-    focus move, because the ring transitions);
-  - no stop's centre is covered by another element (2.4.11);
-  - focus is not on `<body>` after a caller-marked write.
+  - no stop lacks a visible indicator (read once the page's finite animations
+    have finished and never sooner than 200 ms after the focus move, because
+    the ring transitions);
+  - no stop's centre is covered by another element (2.4.11).
+- **`expectFocusKept(page, { lostUntil? })`**, called after each write, fails
+  when focus fell back to `<body>`. A write known to drop it names the issue
+  that fixes it in `lostUntil`, and the check then fails once focus is kept,
+  so the fix removes the mark — the baseline's ratchet, for one assertion.
 - **Every example with a hermetic browser e2e calls both on every journey**
   ([ADR 0004](0004-the-examples-are-the-composability-proof.md)) — today
   `example-workspace-e2e` — so the helper is proven in this repository before
@@ -151,15 +170,20 @@ it. AAA criteria are not targets. Where one is cheap and the product benefits
   carry a lint plugin, and a config package would be a 25th publish target for
   a dozen lines. The README documents the recommended config and the component
   mappings, and a host applies `strict` itself.
-- **Two documented exceptions:**
-  - `anchor-has-content` in `button-link.tsx`, whose content is a prop;
-  - `no-autofocus`, because Headless UI's `data-autofocus` is how a dialog
-    places initial focus.
+- **No exception.** The five violations `strict` found were fixed rather than
+  suppressed: three anchors now render their children explicitly, and the
+  segmented control and split view take their arrow keys on the focused item
+  rather than the non-focusable group. Headless UI's `data-autofocus` is not
+  the `autoFocus` prop, so `no-autofocus` never fired. A conventions spec
+  plants a clickable `<div>` in every rendering project and requires both
+  keyboard rules at error.
 
 ## Consequences
 
-- The first gate pull request lands with a todo list of about 10 titles. The
-  token work of ADR 0025 cuts it to about 2 in one change. That change is the
+- The first gate pull request lands with a todo list of 21 titles: the 24
+  components that had no story were found to share the same contrast pairs.
+  20 of them are the token pairs of ADR 0025, whose work cuts the list to
+  about 1 in one change. That change is the
   evidence that the ratchet works rather than freezing a backlog.
 - Writing a component now costs a story, and an interactive one a `play`
   function. That cost is the point: an overlay nobody can render is an overlay
@@ -174,9 +198,9 @@ it. AAA criteria are not targets. Where one is cheap and the product benefits
   in its identity provider's login — states that in its own conformance report.
   This library cannot speak for a page it does not render.
 
-## Trigger
+## Status
 
-Promoted to **Accepted** by the change that lands the component gate (the
-Storybook decorator fix, the missing stories, `test-a11y` with its todo list,
-and jsx-a11y strict at error here) together with `@entifix/testing-e2e/a11y`
-used by `example-workspace-e2e`.
+Accepted with the release that follows **0.18.0**, which carries all five
+changes: the Storybook decorator fix, a story for every component, `test-a11y`
+with its todo list, jsx-a11y strict at error, and `@entifix/testing-e2e/a11y`
+called on every journey of `example-workspace-e2e`.
