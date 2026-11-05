@@ -9,6 +9,7 @@ runs:
   steps:
     - name: Resolve the Playwright version
       id: playwright
+      shell: bash
       run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
     - name: Restore the browser
       id: browser
