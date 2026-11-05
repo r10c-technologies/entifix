@@ -1,27 +1,3 @@
 {
-  "$fingerprints": "ancestry-1",
-  "color-contrast|html > body > div:nth-child(n) > main:nth-child(n) > div:nth-child(n) > div > a:nth-child(n)|home": "r10c-technologies/entifix#179",
-  "color-contrast|html > body > div:nth-child(n) > main:nth-child(n) > div:nth-child(n) > div > a:nth-child(n)|home-sunset": "r10c-technologies/entifix#179",
-  "color-contrast|html > body > div:nth-child(n) > main:nth-child(n) > div:nth-child(n) > div > a:nth-child(n)|palette-results": "r10c-technologies/entifix#179",
-  "color-contrast|html > body > div:nth-child(n) > main:nth-child(n) > div:nth-child(n) > div > div > div:nth-child(n) > button:nth-child(n)|customer": "r10c-technologies/entifix#179",
-  "color-contrast|html > body > div:nth-child(n) > main:nth-child(n) > div:nth-child(n) > div > div > div:nth-child(n) > button:nth-child(n)|invoice": "r10c-technologies/entifix#179",
-  "color-contrast|html > body > div:nth-child(n) > main:nth-child(n) > div:nth-child(n) > div > div > div:nth-child(n) > div > div:nth-child(n) > a|customers": "r10c-technologies/entifix#179",
-  "color-contrast|html > body > div:nth-child(n) > main:nth-child(n) > div:nth-child(n) > div > div > div:nth-child(n) > div > table > tbody:nth-child(n) > tr:nth-child(n) > td:nth-child(n) > a|customers": "r10c-technologies/entifix#179",
-  "color-contrast|html > body > div:nth-child(n) > main:nth-child(n) > div:nth-child(n) > div > div:nth-child(n) > div > div > div:nth-child(n) > button:nth-child(n)|customer-create-tab": "r10c-technologies/entifix#179",
-  "color-contrast|html > body > div:nth-child(n) > main:nth-child(n) > div:nth-child(n) > div > div:nth-child(n) > div > div > div:nth-child(n) > button:nth-child(n)|customer-tab": "r10c-technologies/entifix#179",
-  "color-contrast|html > body > div:nth-child(n) > main:nth-child(n) > div:nth-child(n) > div > div:nth-child(n) > div > div > div:nth-child(n) > button:nth-child(n)|customer-tab-close-confirm": "r10c-technologies/entifix#179",
-  "color-contrast|html > body > div:nth-child(n) > main:nth-child(n) > div:nth-child(n) > div > div:nth-child(n) > div > div > div:nth-child(n) > button:nth-child(n)|invoice-tab": "r10c-technologies/entifix#179",
-  "color-contrast|html > body > div:nth-child(n) > main:nth-child(n) > div:nth-child(n) > div > div:nth-child(n) > div > div > div:nth-child(n) > div > div:nth-child(n) > a|customer-list-tab": "r10c-technologies/entifix#179",
-  "color-contrast|html > body > div:nth-child(n) > main:nth-child(n) > div:nth-child(n) > div > div:nth-child(n) > div > div > div:nth-child(n) > div > table > tbody:nth-child(n) > tr:nth-child(n) > td:nth-child(n) > a|customer-list-tab": "r10c-technologies/entifix#179",
-  "color-contrast|html > body > div:nth-child(n) > main:nth-child(n) > div:nth-child(n) > div > div:nth-child(n) > div > div:nth-child(n) > button:nth-child(n)|new-invoice-wizard-recap": "r10c-technologies/entifix#179",
-  "color-contrast|html > body > div:nth-child(n) > main:nth-child(n) > div:nth-child(n) > div > div:nth-child(n) > div:nth-child(n) > span:nth-child(n)|home": "r10c-technologies/entifix#179",
-  "color-contrast|html > body > div:nth-child(n) > main:nth-child(n) > div:nth-child(n) > div > div:nth-child(n) > div:nth-child(n) > span:nth-child(n)|home-sunset": "r10c-technologies/entifix#179",
-  "color-contrast|html > body > div:nth-child(n) > main:nth-child(n) > div:nth-child(n) > div > div:nth-child(n) > div:nth-child(n) > span:nth-child(n)|palette-results": "r10c-technologies/entifix#179",
-  "nested-interactive|html > body > div:nth-child(n) > main:nth-child(n) > div:nth-child(n) > div > div:nth-child(n) > div:nth-child(n)|customer-create-tab": "r10c-technologies/entifix#183",
-  "nested-interactive|html > body > div:nth-child(n) > main:nth-child(n) > div:nth-child(n) > div > div:nth-child(n) > div|customer-list-tab": "r10c-technologies/entifix#183",
-  "nested-interactive|html > body > div:nth-child(n) > main:nth-child(n) > div:nth-child(n) > div > div:nth-child(n) > div|customer-tab": "r10c-technologies/entifix#183",
-  "nested-interactive|html > body > div:nth-child(n) > main:nth-child(n) > div:nth-child(n) > div > div:nth-child(n) > div|customer-tab-close-confirm": "r10c-technologies/entifix#183",
-  "nested-interactive|html > body > div:nth-child(n) > main:nth-child(n) > div:nth-child(n) > div > div:nth-child(n) > div|invoice-tab": "r10c-technologies/entifix#183",
-  "nested-interactive|html > body > div:nth-child(n) > main:nth-child(n) > div:nth-child(n) > div > div:nth-child(n) > div|new-invoice-wizard": "r10c-technologies/entifix#183",
-  "nested-interactive|html > body > div:nth-child(n) > main:nth-child(n) > div:nth-child(n) > div > div:nth-child(n) > div|new-invoice-wizard-recap": "r10c-technologies/entifix#183"
+  "$fingerprints": "ancestry-1"
 }

@@ -4,10 +4,17 @@ import './global.css';
 import '../i18n';
 
 import { getRequestLocale, getServerT } from '@entifix/next-i18n/server';
+import { ThemeScript } from '@entifix/react-controls';
 import type { ReactNode } from 'react';
 
 import { fontVariables } from './fonts';
 import { Providers } from './providers';
+
+/** The ids `Providers` registers; captions do not matter before paint. */
+const THEME_IDS = ['aurora', 'sunset', 'midnight'].map(id => ({
+  id,
+  label: id,
+}));
 
 export async function generateMetadata() {
   const t = await getServerT('app');
@@ -29,6 +36,10 @@ export default async function RootLayout({
       className={fontVariables}
       suppressHydrationWarning
     >
+      <head>
+        {/* A stored theme and density are painted before React hydrates. */}
+        <ThemeScript themes={THEME_IDS} defaultTheme="aurora" />
+      </head>
       <body>
         <Providers locale={locale}>{children}</Providers>
       </body>

@@ -3,32 +3,29 @@
 import { usePathLocale } from '@entifix/next-shell';
 import {
   Cluster,
+  type Density,
   Stack,
   Text,
   ThemeSwitcher,
   useT,
+  useTheme,
 } from '@entifix/react-controls';
-import { useEffect, useState } from 'react';
 
-const DENSITIES = ['compact', 'comfortable'] as const;
-type Density = (typeof DENSITIES)[number];
+const DENSITIES: readonly Density[] = ['compact', 'comfortable'];
 
 /**
  * Theme, density and language.
  *
- * Theme is the framework's own switcher. Density has no control in the
- * framework on purpose — it is a document attribute `fixed-scale.css` reads, and
- * which density an application offers is the application's call — so this
- * example flips `data-density` itself. Language is a link to the other prefix.
+ * Theme is the framework's own switcher. Density is the theme context's too —
+ * the provider writes `data-density` and remembers the choice beside the
+ * theme — but which densities an application offers, and how it asks, is the
+ * application's call, so the control is this example's. Language is a link to
+ * the other prefix.
  */
 export function Preferences() {
   const t = useT('app');
   const locale = usePathLocale();
-  const [density, setDensity] = useState<Density>('compact');
-
-  useEffect(() => {
-    document.documentElement.dataset['density'] = density;
-  }, [density]);
+  const { density, setDensity } = useTheme();
 
   return (
     <Stack>

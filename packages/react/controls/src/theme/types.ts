@@ -51,10 +51,18 @@ export type ThemePaletteRequiredToken =
 export type ThemePalette = Partial<Record<ThemeColorToken, string>> &
   Record<ThemePaletteRequiredToken, string>;
 
+/** How much room the UI takes: `fixed-scale.css` reads it as `data-density`. */
+export type Density = 'comfortable' | 'compact';
+
 export interface ThemeContextValue {
   /** Active theme id (written to `data-theme`). */
   theme: string;
+  /** Chooses a theme, and remembers the choice. */
   setTheme: (id: string) => void;
   /** The registry this provider was configured with. */
   themes: ThemeOption[];
+  /** Active density (written to `data-density`). */
+  density: Density;
+  /** Chooses a density, and remembers the choice. */
+  setDensity: (density: Density) => void;
 }
