@@ -1,3 +1,17 @@
+## 0.18.0 (2026-11-05)
+
+### 🚀 Features
+
+- ⚠️ streams drain on the signal, flow events leave at once, throttling counts outcomes ([#168](https://github.com/r10c-technologies/entifix/pull/168))
+
+### ⚠️ Breaking Changes
+
+- streams drain on the signal, flow events leave at once, throttling counts outcomes ([#168](https://github.com/r10c-technologies/entifix/pull/168))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.17.0 (2026-11-04)
 
 ### 🚀 Features
