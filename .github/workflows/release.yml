@@ -31,6 +31,10 @@ jobs:
       (github.event.pull_request.merged == true &&
        startsWith(github.event.pull_request.head.ref, 'release/'))
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # To find and follow `main`'s Change Validation run; nothing else.
+      actions: read
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
@@ -41,31 +45,33 @@ jobs:
           ref: main
           fetch-depth: 0
 
-      - uses: pnpm/action-setup@v6
-        with:
-          version: '11.9'
-      - uses: actions/setup-node@v7
-        with:
-          node-version-file: package.json
-          cache: pnpm
-      # Deliberately no `registry-url`: it writes an `~/.npmrc` line pointing at
-      # NODE_AUTH_TOKEN, and there is no token to point it at.
-      - run: pnpm install --frozen-lockfile
-
-      - name: The same gate every pull request passes
+      # The proof is `main`'s own Change Validation run for this exact commit,
+      # which validates the whole graph — lint, build, typecheck, tests with
+      # coverage, the repository's assertions and formatting — and is never
+      # cancelled. Running that gate a second time here, serially and at the
+      # same moment, proved nothing the first run does not (ADR 0023). A red or
+      # cancelled run stops the release; re-run it, then re-run this.
+      #
+      # ⚠️ `change_validation.yml` is named here: renaming that file means
+      # editing this line, or every release waits for a run that never comes.
+      - name: Wait for main's Change Validation run
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          pnpm nx run-many -t lint
-          pnpm nx run-many -t build --skipTypeCheck=false
-          pnpm nx run-many -t typecheck
-          pnpm nx run-many -t test --coverage
-
-      - name: The repository's own assertions
-        run: |
-          pnpm nx test @entifix/tiers
-          pnpm nx test @entifix/docs-check
-
-      - name: Formatting
-        run: pnpm exec prettier --check .
+          set -euo pipefail
+          sha=$(git rev-parse HEAD)
+          id=''
+          # The push that merged the release queues that run at the same moment
+          # as this one, so it may not be listed yet.
+          for _ in $(seq 1 60); do
+            id=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow change_validation.yml \
+              --commit "$sha" --event push --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+            [[ -n "$id" ]] && break
+            sleep 10
+          done
+          [[ -n "$id" ]] || { echo "No Change Validation run exists for $sha."; exit 1; }
+          echo "Following https://github.com/$GITHUB_REPOSITORY/actions/runs/$id"
+          gh run watch "$id" --repo "$GITHUB_REPOSITORY" --exit-status --interval 30
 
       - id: version
         run: echo "version=$(node -p "require('./packages/ts/core/package.json').version")" >> "$GITHUB_OUTPUT"

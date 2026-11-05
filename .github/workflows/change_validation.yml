@@ -1,0 +1,607 @@
+name: Change Validation
+
+# Every change is validated here, whichever way it arrives: a pull request runs
+# what it affects, and a push to `main` or a manual run validates the whole
+# graph. `main`'s run is also what `release.yml` waits on before publishing, and
+# what warms the Nx cache every pull request starts from.
+#
+# The Nx cache travels by GitHub alone — `actions/cache` between runs and
+# artifacts between the jobs of one run — served to Nx by
+# `tools/ci/nx-remote-cache.mjs`. The rules for what may read it are in
+# ADR 0023.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      test_chunk_size:
+        description: 'Projects per test worker'
+        required: false
+        default: '8'
+
+# A pull request's newer push makes its older run worthless, so that one is
+# cancelled. A run on `main` never is: `release.yml` waits on the run for its
+# exact commit, and a cancelled one would block the release and leave the
+# cache unsaved.
+concurrency:
+  group: change-validation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  TEST_CHUNK_SIZE: ${{ github.event.inputs.test_chunk_size || '8' }}
+
+jobs:
+  # Installs once and saves the result, so every job below restores
+  # `node_modules` instead of spending its first half-minute on `pnpm install`.
+  initialize:
+    name: Initialize
+    runs-on: ubuntu-latest
+    outputs:
+      base: ${{ steps.shas.outputs.base }}
+      head: ${{ steps.shas.outputs.head }}
+      lint-projects: ${{ steps.chunks.outputs.lint-projects }}
+      lib-projects: ${{ steps.chunks.outputs.lib-projects }}
+      app-projects: ${{ steps.chunks.outputs.app-projects }}
+      test-chunks: ${{ steps.chunks.outputs.test-chunks }}
+      e2e-service-projects: ${{ steps.chunks.outputs.e2e-service-projects }}
+      e2e-browser-projects: ${{ steps.chunks.outputs.e2e-browser-projects }}
+      storybook-projects: ${{ steps.chunks.outputs.storybook-projects }}
+      integration-projects: ${{ steps.chunks.outputs.integration-projects }}
+      engine: ${{ steps.chunks.outputs.engine }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+        with:
+          install: 'true'
+
+      - name: Resolve affected base/head
+        id: shas
+        uses: nrwl/nx-set-shas@v5
+
+      # A pull request runs what it affects. `main` runs everything: it is what
+      # a release is cut from, and `release.yml` publishes only once `main`'s
+      # run for that commit has passed.
+      #
+      # A pull request that changes CI itself also runs everything. Such a
+      # change affects no project, so affected-only would skip every matrix and
+      # prove the new pipeline on nothing.
+      - name: Compute chunks
+        id: chunks
+        run: |
+          # `tail -n1` is load-bearing: pnpm prints its warnings to STDOUT, so
+          # anything it has to say lands in front of the JSON and `jq` dies on
+          # it — `Invalid numeric literal at line 1, column 6`, which is `[WARN`.
+          # nx prints the array as a single last line.
+          # A step's default shell is `bash -e`, without `pipefail`, so a failing
+          # `nx show projects` piped into `tail` would report `tail`'s success.
+          set -o pipefail
+          scope=all
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            scope=affected
+            if [[ -n "$(git diff --name-only ${{ steps.shas.outputs.base }} ${{ steps.shas.outputs.head }} -- .github tools/ci)" ]]; then
+              scope=all
+            fi
+          fi
+          echo "scope: $scope"
+          projects() {
+            if [[ "$scope" == "affected" ]]; then
+              pnpm nx show projects --affected \
+                --base=${{ steps.shas.outputs.base }} \
+                --head=${{ steps.shas.outputs.head }} \
+                --withTarget "$@" --json | tail -n1
+            else
+              pnpm nx show projects --withTarget "$@" --json | tail -n1
+            fi
+          }
+          chunk() {
+            jq -c --argjson n "$2" '[range(0; length; $n) as $i | .[$i:$i+$n] | join(",")]' <<<"$1"
+          }
+
+          # Assigned before they are echoed, and that is load-bearing: a failure
+          # inside `$(…)` in an `echo` argument does not stop the step, so a
+          # project graph that fails to build left every list empty, every
+          # matrix `skipped`, and `Done` free to pass a run in which nothing ran.
+          # An assignment's exit status is its substitution's, so `-e` stops here.
+          lint=$(projects lint)
+          libs=$(projects build --type lib)
+          apps=$(projects build --type app)
+          test=$(projects test)
+          e2e=$(projects e2e)
+          storybook=$(projects build-storybook)
+          integration=$(projects test-integration)
+
+          # A browser suite is one whose `e2e` runs Playwright. It needs a
+          # browser and an application build; a service suite needs neither.
+          pnpm nx graph --file="$RUNNER_TEMP/graph.json" > /dev/null
+          browser=$(jq -c --argjson e2e "$e2e" '
+            [.graph.nodes | to_entries[]
+              | select(.key as $k | $e2e | index($k))
+              | select((.value.data.targets.e2e.options.command // "") | startswith("playwright"))
+              | .key]' "$RUNNER_TEMP/graph.json")
+          service=$(jq -c --argjson browser "$browser" '[.[] | select(. as $p | $browser | index($p) | not)]' <<<"$e2e")
+
+          echo "lint-projects=$(jq -r 'join(",")' <<<"$lint")" >> "$GITHUB_OUTPUT"
+          echo "lib-projects=$(jq -r 'join(",")' <<<"$libs")" >> "$GITHUB_OUTPUT"
+          echo "app-projects=$apps" >> "$GITHUB_OUTPUT"
+          echo "test-chunks=$(chunk "$test" "$TEST_CHUNK_SIZE")" >> "$GITHUB_OUTPUT"
+          echo "e2e-service-projects=$(jq -r 'join(",")' <<<"$service")" >> "$GITHUB_OUTPUT"
+          echo "e2e-browser-projects=$browser" >> "$GITHUB_OUTPUT"
+          echo "storybook-projects=$(jq -r 'join(",")' <<<"$storybook")" >> "$GITHUB_OUTPUT"
+          echo "integration-projects=$(jq -r 'join(",")' <<<"$integration")" >> "$GITHUB_OUTPUT"
+
+          # The workflow engine's chaos suite runs when the package changes —
+          # which `--affected` sees — and whenever the `effect` pin moves, which
+          # it may not: a pin bump, Dependabot's grouped one included, edits the
+          # manifests and the lockfile, and the engine is what an `effect`
+          # release has broken before (ADR 0016).
+          engine=false
+          if [[ "$(projects test-engine)" != "[]" ]]; then engine=true; fi
+          if [[ "${{ github.event_name }}" == "pull_request" ]] && \
+            git diff ${{ steps.shas.outputs.base }} ${{ steps.shas.outputs.head }} \
+              -- 'package.json' '**/package.json' 'pnpm-lock.yaml' \
+              | grep -qE '^[+-].*("effect"|@effect/)'; then
+            engine=true
+          fi
+          echo "engine=$engine" >> "$GITHUB_OUTPUT"
+
+  # One job, not a matrix: lint takes about as long as a runner takes to start.
+  lint:
+    name: Lint
+    needs: initialize
+    if: needs.initialize.outputs.lint-projects != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+        with:
+          nx-cache: lint
+      - run: pnpm nx run-many -t lint --projects="${{ needs.initialize.outputs.lint-projects }}"
+      - if: always() && env.NX_REMOTE_CACHE_NAME != ''
+        uses: ./.github/actions/nx-cache-upload
+
+  # NOTE: this job must stay unconditional, and its commands must not become
+  # affected-scoped or cached. A tier claim and a documentation claim are about
+  # the whole framework, and the pull request that breaks one usually adds a
+  # dependency to a single package — which would never make `tools/tiers`
+  # affected. For the same reason the two checks run `--skip-nx-cache`: what
+  # they read lies outside their own project, so their hash would not move
+  # when it changed, and a replayed pass would be a pass nobody earned.
+  assertions:
+    name: Repository assertions
+    needs: initialize
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+      # `always()` on every step, so one failure does not hide the next. The
+      # job still fails if any step does.
+      - name: The tier register
+        if: always()
+        run: pnpm nx test @entifix/tiers --skip-nx-cache
+      - name: The documentation claims
+        if: always()
+        run: pnpm nx test @entifix/docs-check --skip-nx-cache
+      - name: Formatting
+        if: always()
+        run: pnpm exec prettier --check .
+      - name: The release and CI scripts
+        if: always()
+        run: node --test 'tools/release/*.test.mjs' 'tools/ci/*.test.mjs'
+
+  # Every library once, on one runner. Their builds are many small swc passes,
+  # which suit one machine; what is slow is the applications, which fan out
+  # below and read these results instead of rebuilding them.
+  build-libs:
+    name: Build libraries
+    needs: initialize
+    if: needs.initialize.outputs.lib-projects != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+        with:
+          nx-cache: build-libs
+      # ⚠️ `--skipTypeCheck=false` is load-bearing, not thoroughness. The build's
+      # declaration pass is what writes the `.d.ts`, and with the default
+      # `skipTypeCheck: true` its diagnostics are **suppressed**: a package whose
+      # declarations fail to compile emits nothing, leaves a build-info file
+      # behind, exits 0 — and `typecheck` then reads that file, concludes the
+      # project is up to date and no-ops. The first symptom is `TS6305` in nine
+      # unrelated consumers naming an import that is perfectly fine.
+      #
+      # Two commands rather than `-t build,typecheck`: an override applies to
+      # every target in the invocation, and `typecheck` is `tsc --build`, which
+      # has no such option.
+      - run: pnpm nx run-many -t build --projects="${{ needs.initialize.outputs.lib-projects }}" --skipTypeCheck=false
+      # Still separate from the build: this is the pass that checks the spec
+      # files, which the library build excludes entirely.
+      - run: pnpm nx run-many -t typecheck --projects="${{ needs.initialize.outputs.lib-projects }}"
+      - if: always() && env.NX_REMOTE_CACHE_NAME != ''
+        uses: ./.github/actions/nx-cache-upload
+
+  # One job per application, each reading the libraries above from the cache.
+  # `build-libs` is skipped when no library is affected, which is not a reason
+  # to skip the applications; failed or cancelled is.
+  build-apps:
+    name: Build (${{ matrix.project }})
+    needs: [initialize, build-libs]
+    if: >-
+      always() &&
+      needs.initialize.result == 'success' &&
+      needs.initialize.outputs.app-projects != '[]' &&
+      (needs.build-libs.result == 'success' || needs.build-libs.result == 'skipped')
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project: ${{ fromJson(needs.initialize.outputs.app-projects) }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+        with:
+          nx-cache: build-app-${{ strategy.job-index }}
+          nx-cache-from: nx-cache-build-libs
+      - run: pnpm nx run ${{ matrix.project }}:build --skipTypeCheck=false
+      - run: pnpm nx run ${{ matrix.project }}:typecheck
+      - if: always() && env.NX_REMOTE_CACHE_NAME != ''
+        uses: ./.github/actions/nx-cache-upload
+
+  # No `needs: build`. Vitest resolves the `@entifix/source` condition to each
+  # package's `src/index.ts` (`vitest.shared.mts`), so a test never reads a
+  # `dist` and the two run side by side.
+  test:
+    name: Test (${{ matrix.chunk }})
+    needs: initialize
+    if: needs.initialize.outputs.test-chunks != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        chunk: ${{ fromJson(needs.initialize.outputs.test-chunks) }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+        with:
+          nx-cache: test-${{ strategy.job-index }}
+      # Coverage is gated at 100% for `packages/*`; the plain `test` target does
+      # not collect it, so CI asks for it explicitly.
+      - run: pnpm nx run-many -t test --projects="${{ matrix.chunk }}" --coverage
+      - if: always() && env.NX_REMOTE_CACHE_NAME != ''
+        uses: ./.github/actions/nx-cache-upload
+
+  # The suites no fake can stand in for, against a real Postgres: the SQL
+  # outbox's claim (`FOR UPDATE SKIP LOCKED`, an advisory lock per aggregate)
+  # and the durable workflow engine. Affected-scoped like the rest, and a change
+  # to the `effect` pin touches the lockfile, which affects every project — so
+  # an effect bump always runs them.
+  integration:
+    name: Integration (${{ needs.initialize.outputs.integration-projects }})
+    needs: initialize
+    if: needs.initialize.outputs.integration-projects != ''
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: entifix
+          POSTGRES_PASSWORD: entifix
+          POSTGRES_DB: entifix
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U entifix -d entifix"
+          --health-interval 2s --health-timeout 5s --health-retries 30
+    env:
+      ENTIFIX_PG_URL: postgres://entifix:entifix@localhost:5432/entifix
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+        with:
+          nx-cache: integration
+      # One at a time: the suites share the one database.
+      - run: pnpm nx run-many -t test-integration --projects="${{ needs.initialize.outputs.integration-projects }}" --parallel=1
+      - if: always() && env.NX_REMOTE_CACHE_NAME != ''
+        uses: ./.github/actions/nx-cache-upload
+
+  # Two runner processes over a real Postgres, killed and restarted: the chaos
+  # suite and its journal-replay sibling gate every interpreter change and
+  # every move of the `effect` pin (ADR 0016). Never from the cache: the suite
+  # exists to be run against the timing of the moment, and a replayed pass
+  # would prove only that it once passed.
+  engine:
+    name: Workflow engine chaos
+    needs: initialize
+    if: needs.initialize.outputs.engine == 'true'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: entifix
+          POSTGRES_PASSWORD: entifix
+          POSTGRES_DB: entifix
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U entifix -d entifix"
+          --health-interval 2s --health-timeout 5s --health-retries 30
+    env:
+      ENTIFIX_PG_URL: postgres://entifix:entifix@localhost:5432/entifix
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+      - run: pnpm nx run @entifix/workflow:test-engine --skip-nx-cache
+
+  # The examples' journeys that need no browser. Only the hermetic ones run
+  # here — they need no infrastructure, so a pull request that breaks a tier
+  # fails on its own check rather than on a nightly run somebody reads the next
+  # morning. They read no build either, so they start with everything else.
+  e2e-services:
+    name: E2E services (${{ needs.initialize.outputs.e2e-service-projects }})
+    needs: initialize
+    if: needs.initialize.outputs.e2e-service-projects != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+        with:
+          nx-cache: e2e-services
+      - run: pnpm nx run-many -t e2e --projects="${{ needs.initialize.outputs.e2e-service-projects }}"
+      - if: always() && env.NX_REMOTE_CACHE_NAME != ''
+        uses: ./.github/actions/nx-cache-upload
+
+  # The Playwright journeys, one job per suite, reading the application builds
+  # from the cache. Affected-scoped like the rest: an example depends on the
+  # packages it composes, so a change to any of them makes its suite affected.
+  e2e-browser:
+    name: E2E browser (${{ matrix.project }})
+    needs: [initialize, build-apps]
+    if: >-
+      always() &&
+      needs.initialize.result == 'success' &&
+      needs.initialize.outputs.e2e-browser-projects != '[]' &&
+      (needs.build-apps.result == 'success' || needs.build-apps.result == 'skipped')
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project: ${{ fromJson(needs.initialize.outputs.e2e-browser-projects) }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+        with:
+          nx-cache: e2e-browser-${{ strategy.job-index }}
+          nx-cache-from: nx-cache-build-*
+      - name: Resolve the Playwright version
+        id: playwright
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Restore the browser
+        id: browser
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      # ⚠️ **Drop Google's Chrome apt repository before installing anything.**
+      # Both install paths below shell out to `apt-get update`, which fails the
+      # whole job if *any* configured repository is inconsistent — and the
+      # runner image ships `dl.google.com/linux/chrome-stable` preconfigured. On
+      # 2026-09-09 that index served a `Packages.gz` whose hash did not match its
+      # Release file for over an hour, and every browser run in r10c failed with
+      # `Hash Sum mismatch` before a single spec ran. Playwright downloads its
+      # own pinned Chromium, so the repository is a dependency this job never
+      # asked for. Matched by content, not filename: the image ships it in
+      # deb822 form (`*.sources`) too.
+      - name: Drop apt sources this job does not need
+        run: |
+          sudo bash -euo pipefail -c '
+            for file in $(grep -rl "dl\.google\.com" /etc/apt/sources.list.d 2>/dev/null || true); do
+              echo "removing $file"
+              rm -f "$file"
+            done
+            sed -i "/dl\.google\.com/d" /etc/apt/sources.list 2>/dev/null || true
+          '
+      - name: Install the browser
+        if: steps.browser.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Install the browser's system libraries
+        if: steps.browser.outputs.cache-hit == 'true'
+        run: pnpm exec playwright install-deps chromium
+      # Saved from `main` only, so one entry serves every pull request.
+      - if: github.ref == 'refs/heads/main' && steps.browser.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      - run: pnpm nx run ${{ matrix.project }}:e2e
+      - name: Keep the report of a failed run
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report-${{ strategy.job-index }}
+          path: |
+            examples/*/test-output
+          retention-days: 7
+      - if: always() && env.NX_REMOTE_CACHE_NAME != ''
+        uses: ./.github/actions/nx-cache-upload
+
+  # Stories are in no tsconfig project, so `typecheck` never reads one and
+  # Vitest never renders one; the loading-contract spec only checks that a
+  # `Loading` story is *exported*. Building Storybook is the one step that
+  # compiles every story, so a story that throws at build fails here (#33).
+  storybook:
+    name: Storybook (${{ needs.initialize.outputs.storybook-projects }})
+    needs: initialize
+    if: needs.initialize.outputs.storybook-projects != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+        with:
+          nx-cache: storybook
+      - run: pnpm nx run-many -t build-storybook --projects="${{ needs.initialize.outputs.storybook-projects }}"
+      - if: always() && env.NX_REMOTE_CACHE_NAME != ''
+        uses: ./.github/actions/nx-cache-upload
+
+  # The version a release cuts is inferred from these messages, so a commit that
+  # slips past `.husky/commit-msg` — with `--no-verify`, from a clone where
+  # `pnpm install` never ran, or through the GitHub web editor — does not merely
+  # look untidy, it changes which version ships.
+  commits:
+    name: Commit conventions
+    needs: initialize
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+
+      - name: Every commit in the range
+        run: |
+          pnpm exec commitlint \
+            --from ${{ github.event.pull_request.base.sha }} \
+            --to ${{ github.event.pull_request.head.sha }} \
+            --verbose
+
+      # Under a squash merge the pull request title becomes the commit message
+      # on `main`, which is the text version inference then reads. Linting the
+      # commits without linting the title would check something that never lands.
+      - name: The pull request title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: printf '%s\n' "$PR_TITLE" | pnpm exec commitlint --verbose
+
+      # The one surface no git hook can see.
+      - name: The pull request body
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: printf '%s\n' "$PR_BODY" | node tools/conventions/check-pr-body.mjs
+
+  # The run's Nx cache, saved for the next run: what this run restored and
+  # wrote, pruned to the entries some job actually used, so a cache restored
+  # and saved run after run does not grow without bound. A pull request saves
+  # into its own scope, so its next push starts from here; `main`'s entry is
+  # what every pull request without one falls back to.
+  #
+  # Not in `Done`'s `needs`: a cache that failed to save costs the next run
+  # time, never this run its verdict.
+  save-cache:
+    name: Save the Nx cache
+    needs:
+      [
+        initialize,
+        lint,
+        build-libs,
+        build-apps,
+        test,
+        integration,
+        e2e-services,
+        e2e-browser,
+        storybook,
+      ]
+    if: always() && needs.initialize.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # To delete this ref's previous entry; a cache key cannot be overwritten.
+      actions: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: tools/ci
+      - uses: actions/cache/restore@v6
+        with:
+          key: nx-remote-${{ runner.os }}-${{ github.sha }}-${{ github.run_attempt }}
+          restore-keys: nx-remote-${{ runner.os }}-
+          path: .nx-remote/entries
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: nx-cache-*
+          path: .nx-remote/entries
+          merge-multiple: true
+      - name: Prune to what this run used
+        run: |
+          set -euo pipefail
+          mkdir -p .nx-remote/entries "$RUNNER_TEMP/journals"
+          find .nx-remote/entries -maxdepth 1 -name 'journal-*' -exec mv {} "$RUNNER_TEMP/journals/" \;
+          node tools/ci/nx-remote-cache.mjs prune .nx-remote/entries "$RUNNER_TEMP"/journals/*
+          echo "saving $(find .nx-remote/entries -type f | wc -l) entries ($(du -sh .nx-remote/entries | cut -f1))"
+      - uses: actions/cache/save@v6
+        with:
+          key: nx-remote-${{ runner.os }}-${{ github.sha }}-${{ github.run_attempt }}
+          path: .nx-remote/entries
+      # One entry per scope. Dependabot's token is read-only on a pull request,
+      # so this fails there; `cache_cleanup.yml` removes what it leaves behind
+      # when the pull request closes.
+      - name: Delete this ref's older entries
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KEEP: nx-remote-${{ runner.os }}-${{ github.sha }}-${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          gh cache list --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF" \
+            --key "nx-remote-$RUNNER_OS-" --limit 100 --json id,key \
+            --jq ".[] | select(.key != \"$KEEP\") | .id" \
+            | while read -r id; do
+                gh cache delete "$id" --repo "$GITHUB_REPOSITORY"
+              done
+
+  # The single required check. A job absent from `needs` still reports its own
+  # status on the pull request but cannot block a merge, so every new job
+  # belongs here.
+  #
+  # `initialize` is listed although every other job already needs it: when it
+  # fails the rest are `skipped`, not `failed`, and a gate that only looked for
+  # failures would pass a run in which nothing ran. `skipped` is otherwise fine:
+  # it is what `commits` reports on a push, and what a matrix with no chunks does.
+  done:
+    name: Done
+    needs:
+      [
+        initialize,
+        lint,
+        assertions,
+        build-libs,
+        build-apps,
+        test,
+        integration,
+        engine,
+        e2e-services,
+        e2e-browser,
+        storybook,
+        commits,
+      ]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every required job succeeded or was skipped
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" || "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "One or more required jobs failed or were cancelled."
+            exit 1
+          fi

@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-09-16
 - Revised: 2026-09-16 by [#2](https://github.com/r10c-technologies/entifix/issues/2) — all three examples built; the engines swapped, compose chosen, mock profiles joined the pull request check
+- Revised: 2026-11-05 by [ADR 0023](0023-change-validation-and-the-cache-it-may-trust.md) — the check is `change_validation.yml`, and the Playwright suite is its `E2E browser` job
 - Area: testing
 - Read when: adding an example, adding an e2e journey, putting an entity class inside a Next application, or wondering why a verb declared with `@useCase()` never appears on screen — entity classes need SWC's 2022-03 decorators, which Next's own compiler cannot provide
 
@@ -32,7 +33,7 @@ All three are built.
 `example-workspace` needs nothing outside the page. Its repositories are
 `@entifix/testing-unit`'s in-memory double, its metadata document is answered
 locally, and its one server call — record search — is its own route. So its
-Playwright suite runs in `pull_request_check.yml` as the `e2e` job, which is in
+Playwright suite runs in `change_validation.yml` as the `E2E browser` job, which is in
 `Done`'s `needs`: a change that breaks the UI tier fails the pull request that
 made it.
 
