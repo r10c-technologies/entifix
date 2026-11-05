@@ -1,6 +1,7 @@
 # 24. WCAG 2.2 AA is the target, and the gates ratchet toward it
 
 - Status: Accepted
+- Revised: 2026-11-05 — fingerprints from axe's ancestry after the page settles; the walk starts at the top, reads the visible main, positions per scroll container, and 2.4.11 on an entirely hidden stop
 - Date: 2026-11-05
 - Area: ui
 - Read when: a control fails an accessibility check, adding a component or a story, a story renders blank while `build-storybook` stays green, writing an e2e journey that a screen-level check should cover, or about to add an axe rule exception, a jsx-a11y suppression or a `'todo'` entry
@@ -121,10 +122,17 @@ it. AAA criteria are not targets. Where one is cheap and the product benefits
   as an optional peer (ADR 0001).
 - **`expectNoNewA11yViolations(page, { screen })`:**
   - runs the five tags;
-  - fingerprints each node as `rule | normalizedTarget | screen`, writing
-    React, Headless UI and Radix generated ids as `#generated-id`, collapsing
-    repeated `:nth-child`, and sorting each compound's classes and attributes,
-    which axe orders differently from one run to the next;
+  - waits for the page's finite animations to finish first, because a palette
+    applied after hydration transitions every colour and axe would measure
+    contrast mid-transition;
+  - fingerprints each node as `rule | normalizedPath | screen`, from axe's
+    `ancestry` (the node's full `tag:nth-child` path) rather than its
+    `target`: a target is the shortest selector unique on the page at that
+    moment, so a hidden copy of the previous page turned `.gallery` into a
+    long path on one run and back on the next. Repeated `:nth-child` is
+    collapsed, and generated ids are written `#generated-id`. The cost is
+    granularity — two siblings of one structural shape share a fingerprint —
+    which a ratchet accepts in exchange for one that does not move;
   - compares the result with the caller's committed baseline JSON, which maps
     each accepted fingerprint to the issue that removes it (`unownedEntries`
     names an entry without one);
@@ -134,7 +142,10 @@ it. AAA criteria are not targets. Where one is cheap and the product benefits
 - **`A11Y_BASELINE=update`** rewrites the file locally, keeping each owner and
   leaving a new entry's empty. CI fails when a baseline gains an entry relative
   to the merge base, so a rewrite can only shrink it; a baseline new at the
-  merge base is the one place entries are added.
+  merge base is the one place entries are added. A baseline records the
+  fingerprint scheme it was computed with under `$fingerprints`; when a release
+  changes the scheme, every key is renamed, and the check then holds the
+  re-keyed baseline to no more entries than the old one had.
 - **An entry's owner must stay open.** The daily workflow that checks the todo
   lists reads every committed `a11y-baseline.json` too, and fails once an
   owning issue has closed with its entry still there.
@@ -150,7 +161,18 @@ it. AAA criteria are not targets. Where one is cheap and the product benefits
   - no stop lacks a visible indicator (read once the page's finite animations
     have finished and never sooner than 200 ms after the focus move, because
     the ring transitions);
-  - no stop's centre is covered by another element (2.4.11).
+  - no stop is entirely hidden by another element (2.4.11 fails only a
+    control that is entirely hidden, so the centre and four points inside its
+    corners are sampled).
+- **Each walk starts at the top of the document**, from a script-only
+  focusable element prepended to `<body>`: after a form posts and redirects,
+  Chromium's next Tab starts where the form was. It reads the **visible**
+  `main` and the visible target of an in-page link, because a router that
+  keeps the previous page mounted but hidden leaves two of each.
+- **Positions are read in the content each stop scrolls with** — its nearest
+  scrolling ancestor, or the document — and visual order is judged only
+  between stops that share one: focusing a stop scrolls its container, and
+  viewport positions taken before and after that scroll are not comparable.
 - **`expectFocusKept(page, { lostUntil? })`**, called after each write, fails
   when focus fell back to `<body>`. A write known to drop it names the issue
   that fixes it in `lostUntil`, and the check then fails once focus is kept,

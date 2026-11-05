@@ -19,6 +19,7 @@ import {
   updateBaseline,
   WCAG_22_AA_TAGS,
 } from './baseline.js';
+import { settled } from './settle.js';
 
 export interface A11yGateOptions {
   /** The screen's name in every fingerprint: stable, and one per screen. */
@@ -72,7 +73,12 @@ export async function expectNoNewA11yViolations(
   page: Page,
   { screen, baselinePath, exclude = [] }: A11yGateOptions,
 ): Promise<void> {
-  let builder = new AxeBuilder({ page }).withTags([...WCAG_22_AA_TAGS]);
+  await settled(page);
+  // `ancestry`: fingerprint by the node's full path, which does not depend on
+  // what else happens to be on the page (`A11yNodeResult.ancestry`).
+  let builder = new AxeBuilder({ page })
+    .withTags([...WCAG_22_AA_TAGS])
+    .options({ ancestry: true });
   for (const selector of exclude) builder = builder.exclude(selector);
   const results = await builder.analyze();
   const findings = findingsOf(

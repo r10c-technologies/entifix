@@ -3,6 +3,7 @@
 /// <reference lib="dom" />
 import { expect, type Page } from '@playwright/test';
 
+import { settled } from './settle.js';
 import {
   assessWalk,
   type FocusStop,
@@ -15,29 +16,6 @@ export interface WalkOptions extends Partial<WalkExpectations> {
   readonly maxStops?: number;
 }
 
-/**
- * A focus ring animates in, and WCAG judges the settled state: each stop is
- * read once every running transition has finished, and never sooner than
- * `SETTLE_MS` after the focus moved.
- */
-const SETTLE_MS = 200;
-
-/** Resolves once the page's animations and transitions have finished. */
-const settled = async (page: Page) => {
-  await page.waitForTimeout(SETTLE_MS);
-  await page.evaluate(() =>
-    Promise.all(
-      document
-        .getAnimations()
-        // A spinner never finishes; only what eventually settles is awaited.
-        .filter(
-          animation => animation.effect?.getTiming().iterations !== Infinity,
-        )
-        .map(animation => animation.finished),
-    ),
-  );
-};
-
 /** Reads the focused element in the page. Runs in the browser. */
 const readStop = (): FocusStop | null => {
   const element = document.activeElement as HTMLElement | null;
@@ -45,27 +23,76 @@ const readStop = (): FocusStop | null => {
 
   const rect = element.getBoundingClientRect();
   const style = getComputedStyle(element);
+
+  // Where the stop sits in the content it scrolls with, not in the viewport:
+  // focusing a stop scrolls its container, so viewport positions taken at
+  // different stops are not comparable — a sidebar link further down read as
+  // a row *above* the one before it once the sidebar had scrolled. The nearest
+  // scrolling ancestor names the content, and the position is taken inside it.
+  let scroller: HTMLElement | null = element.parentElement;
+  while (
+    scroller !== null &&
+    scroller !== document.body &&
+    !(
+      /auto|scroll/.test(getComputedStyle(scroller).overflowY) &&
+      scroller.scrollHeight > scroller.clientHeight
+    )
+  ) {
+    scroller = scroller.parentElement;
+  }
+  if (scroller === document.body) scroller = null;
+  const origin =
+    scroller === null
+      ? { x: -window.scrollX, y: -window.scrollY }
+      : (() => {
+          const box = scroller.getBoundingClientRect();
+          return {
+            x: box.x - scroller.scrollLeft,
+            y: box.y - scroller.scrollTop,
+          };
+        })();
+  const path = (node: Element | null): string =>
+    node === null
+      ? 'document'
+      : `${path(node.parentElement === document.documentElement ? null : node.parentElement)} > ${node.tagName.toLowerCase()}:${[...(node.parentElement?.children ?? [])].indexOf(node)}`;
+
   const outline =
     style.outlineStyle !== 'none' && parseFloat(style.outlineWidth) > 0;
   const ring = style.boxShadow !== 'none' && style.boxShadow !== '';
 
-  const centre = document.elementFromPoint(
-    rect.x + rect.width / 2,
-    rect.y + rect.height / 2,
-  );
+  // WCAG 2.4.11 (AA) fails a focused control only when it is entirely hidden,
+  // so the stop is covered when no sampled point of it — the centre and four
+  // points just inside its corners — shows the element itself.
+  const inset = Math.min(2, rect.width / 2, rect.height / 2);
+  const points = [
+    [rect.x + rect.width / 2, rect.y + rect.height / 2],
+    [rect.x + inset, rect.y + inset],
+    [rect.x + rect.width - inset, rect.y + inset],
+    [rect.x + inset, rect.y + rect.height - inset],
+    [rect.x + rect.width - inset, rect.y + rect.height - inset],
+  ] as const;
   const obscured =
     rect.width > 0 &&
     rect.height > 0 &&
-    centre !== null &&
-    !element.contains(centre) &&
-    !centre.contains(element);
+    points.every(([x, y]) => {
+      const hit = document.elementFromPoint(x, y);
+      return hit === null || (!element.contains(hit) && !hit.contains(element));
+    });
 
+  // The visible `main`, and the visible element an in-page link names: a
+  // router that keeps the previous page mounted but hidden (React's
+  // `<Activity>`) leaves two of each in the document, and the first in
+  // document order may be the hidden one.
+  const visible = (candidates: Iterable<Element>) =>
+    [...candidates].find(candidate => candidate.checkVisibility()) ?? null;
   const href = element.getAttribute('href');
   const target =
     href?.startsWith('#') && href.length > 1
-      ? document.getElementById(href.slice(1))
+      ? visible(
+          document.querySelectorAll(`[id="${CSS.escape(href.slice(1))}"]`),
+        )
       : null;
-  const main = document.querySelector('main');
+  const main = visible(document.querySelectorAll('main'));
   const isSkipLink =
     element.tagName === 'A' &&
     target !== null &&
@@ -79,13 +106,43 @@ const readStop = (): FocusStop | null => {
   const role = element.getAttribute('role');
   return {
     label: `${element.tagName.toLowerCase()}${role ? `[role=${role}]` : ''} "${name}"`,
-    rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
-    inMain: element.closest('main') !== null,
+    rect: {
+      x: rect.x - origin.x,
+      y: rect.y - origin.y,
+      width: rect.width,
+      height: rect.height,
+    },
+    container: path(scroller),
+    inMain: main !== null && main.contains(element),
     isSkipLink,
     indicatorVisible: outline || ring,
     obscured,
   };
 };
+
+/** The id of the walk's starting point, so it can be removed afterwards. */
+const WALK_START = 'entifix-a11y-walk-start';
+
+/**
+ * Puts the browser's sequential focus starting point at the top of the
+ * document. Blurring is not enough: after a form posts and redirects, or a
+ * control was clicked, the next Tab starts from where that happened, and a
+ * walk from there skipped the whole header — or found nothing. A script-only
+ * focusable element first in `<body>` is focused instead; `tabIndex = -1`
+ * keeps it out of the walk itself.
+ */
+const fromTheTop = (page: Page) =>
+  page.evaluate(id => {
+    window.scrollTo(0, 0);
+    let start = document.getElementById(id);
+    if (start === null) {
+      start = document.createElement('span');
+      start.id = id;
+      start.tabIndex = -1;
+      document.body.prepend(start);
+    }
+    start.focus({ preventScroll: true });
+  }, WALK_START);
 
 const tabThrough = async (page: Page, maxStops: number) => {
   const stops: FocusStop[] = [];
@@ -115,23 +172,18 @@ export async function walkKeyboard(
   page: Page,
   { maxStops = 120, skipLink = true, mainIndexMax = 3 }: WalkOptions = {},
 ): Promise<void> {
-  await page.evaluate(() => {
-    (document.activeElement as HTMLElement | null)?.blur();
-    window.scrollTo(0, 0);
-  });
+  await fromTheTop(page);
   const stops = await tabThrough(page, maxStops);
 
   let walk: FocusWalk = { stops };
   if (skipLink && stops[0]?.isSkipLink === true) {
-    await page.evaluate(() => {
-      (document.activeElement as HTMLElement | null)?.blur();
-      window.scrollTo(0, 0);
-    });
+    await fromTheTop(page);
     await page.keyboard.press('Tab');
     await page.keyboard.press('Enter');
     walk = { stops, afterSkip: await tabThrough(page, maxStops) };
   }
 
+  await page.evaluate(id => document.getElementById(id)?.remove(), WALK_START);
   expect(assessWalk(walk, { skipLink, mainIndexMax })).toEqual([]);
 }
 

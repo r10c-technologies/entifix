@@ -5,6 +5,8 @@ import {
   compareWithBaseline,
   describeVerdict,
   findingsOf,
+  FINGERPRINT_KEY,
+  FINGERPRINT_SCHEME,
   fingerprintOf,
   normalizeTarget,
   screenOf,
@@ -107,6 +109,27 @@ describe('findingsOf', () => {
   });
 });
 
+describe('a node with an ancestry', () => {
+  it('is fingerprinted by it, not by the target axe shortened', () => {
+    expect(
+      findingsOf('home', [
+        {
+          id: 'region',
+          impact: 'moderate',
+          nodes: [
+            {
+              target: ['.gallery'],
+              ancestry: ['html > body > main:nth-child(2) > div:nth-child(4)'],
+            },
+          ],
+        },
+      ]).map(finding => finding.fingerprint),
+    ).toEqual([
+      'region|html > body > main:nth-child(n) > div:nth-child(n)|home',
+    ]);
+  });
+});
+
 describe('compareWithBaseline', () => {
   const findings = findingsOf('home', [
     contrast('.badge', '.price'),
@@ -137,6 +160,7 @@ describe('compareWithBaseline', () => {
       'color-contrast|.price|home': 'acme/shop#1',
       'label|input|home': 'acme/shop#2',
       'label|input|cart': 'acme/shop#2',
+      [FINGERPRINT_KEY]: FINGERPRINT_SCHEME,
     });
     expect(verdict.added).toEqual([]);
     expect(verdict.stale).toEqual(['label|input|home']);
@@ -169,11 +193,13 @@ describe('updateBaseline', () => {
       },
     );
     expect(next).toEqual({
+      [FINGERPRINT_KEY]: FINGERPRINT_SCHEME,
       'color-contrast|.badge|home': 'acme/shop#1',
       'color-contrast|.price|home': '',
       'label|input|cart': 'acme/shop#2',
     });
-    expect(Object.keys(next)).toEqual([...Object.keys(next)].sort());
+    const keys = Object.keys(next).slice(1);
+    expect(keys).toEqual([...keys].sort());
   });
 });
 
@@ -181,6 +207,7 @@ describe('unownedEntries', () => {
   it('names every entry without an owner/repo#N issue', () => {
     expect(
       unownedEntries({
+        [FINGERPRINT_KEY]: FINGERPRINT_SCHEME,
         'a|b|home': 'acme/shop#1',
         'a|c|home': '',
         'a|d|home': '#12',

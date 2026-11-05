@@ -4,7 +4,11 @@
  * covering the focused control (WCAG 2.4.1, 2.4.3, 2.4.7 and 2.4.11).
  */
 
-/** Where a stop sits on the page, in CSS pixels. */
+/**
+ * Where a stop sits in the content it scrolls with, in CSS pixels — inside
+ * its nearest scrolling container, or the document — so two stops read before
+ * and after that container scrolled can be compared.
+ */
 export interface FocusRect {
   readonly x: number;
   readonly y: number;
@@ -17,12 +21,18 @@ export interface FocusStop {
   /** A short description for the failure message: tag, role and name. */
   readonly label: string;
   readonly rect: FocusRect;
+  /**
+   * The content `rect` is measured in: the nearest scrolling ancestor, or
+   * `document`. Positions in two different contents are not comparable, so
+   * visual order is only judged between stops that share one.
+   */
+  readonly container: string;
   readonly inMain: boolean;
   /** An in-page link to `main`, or to something inside it. */
   readonly isSkipLink: boolean;
   /** An outline or a ring could be seen once the focus transition settled. */
   readonly indicatorVisible: boolean;
-  /** Something else is on top of the stop's centre. */
+  /** Entirely hidden: no sampled point of the stop shows the stop (2.4.11). */
   readonly obscured: boolean;
 }
 
@@ -50,6 +60,7 @@ const describe = (stop: FocusStop, position: number) =>
 const outOfOrder = (stops: readonly FocusStop[]): string[] =>
   stops.slice(1).flatMap((stop, index) => {
     const previous = stops[index] as FocusStop;
+    if (stop.container !== previous.container) return [];
     const sameColumn =
       stop.rect.x < previous.rect.x + previous.rect.width &&
       previous.rect.x < stop.rect.x + stop.rect.width;

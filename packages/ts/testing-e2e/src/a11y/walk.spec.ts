@@ -5,6 +5,7 @@ import { assessWalk, type FocusStop } from './walk.js';
 const stop = (overrides: Partial<FocusStop> = {}): FocusStop => ({
   label: 'a "Home"',
   rect: { x: 0, y: 0, width: 100, height: 20 },
+  container: 'document',
   inMain: false,
   isSkipLink: false,
   indicatorVisible: true,
@@ -94,6 +95,19 @@ describe('assessWalk', () => {
     ).toEqual([
       'stop 3 (a "Back up") sits more than a row above stop 2 (a "Down") in the same column',
     ]);
+  });
+
+  it('compares positions only within one scrolled content', () => {
+    // The last sidebar link sits far down the sidebar's own content; main's
+    // first link sits near the top of the document. Neither is above the
+    // other in any sense a reader sees.
+    const stops = [
+      row(900, { container: 'document > aside:1', label: 'a "Link 39"' }),
+      row(40, { inMain: true, label: 'a "Main"' }),
+    ];
+    expect(assessWalk({ stops }, { skipLink: false, mainIndexMax: 2 })).toEqual(
+      [],
+    );
   });
 
   it('allows a new column to start higher, and the next line of a row', () => {
