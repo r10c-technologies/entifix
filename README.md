@@ -143,6 +143,13 @@ The controls target **WCAG 2.2 AA**
 and the part a linter can see fails this repository's build: every package and
 example that renders runs `eslint-plugin-jsx-a11y`'s strict set at `error`.
 
+Every story is rendered in Chromium and audited by axe against the WCAG 2.2 AA
+rules in five cells — each palette, and both scales with the compact density —
+by `pnpm nx test-a11y @entifix/react-controls`. A violation fails it. A story
+with a known violation is listed in `packages/react/controls/a11y-todo.json`
+against the issue that removes it, and is reported instead of failing; the
+list can only shrink, because a listed issue that closes fails a daily check.
+
 No lint configuration is published. A host that renders these controls applies
 the same rules to its own JSX, with the same component mapping, so that a
 `<Button onClick>` is checked as the `<button>` it renders:
