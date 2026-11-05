@@ -1,4 +1,5 @@
 import nx from '@nx/eslint-plugin';
+import jsxA11y from 'eslint-plugin-jsx-a11y';
 import react from 'eslint-plugin-react';
 import simpleImportSort from 'eslint-plugin-simple-import-sort';
 
@@ -214,6 +215,36 @@ const ROOT_LINTED_BELOW_THE_SHELL = [
   'packages/ts/jwt-client/src/**/*.ts',
   'packages/ts/zitadel-client/src/**/*.ts',
 ];
+
+/**
+ * WCAG 2.2 AA is the target (ADR 0024), and the part of it a linter can see
+ * fails the build: `jsx-a11y`'s strict set, every rule at `error`. Nx's React
+ * presets turn on a subset at `warn`, which nothing enforced.
+ *
+ * The rules only see intrinsic elements unless told what a component renders,
+ * so `components` maps the atoms that wrap one — a `<Button onClick>` is then
+ * checked exactly as a `<button onClick>` would be. A host adopting these
+ * controls configures the same block; the README shows it.
+ *
+ * Exported because a project spreads it after its React preset, which would
+ * otherwise put the `warn` levels back. The plugin itself is registered by that
+ * preset, so this block names rules and settings only.
+ */
+export const accessibleJsx = {
+  files: ['**/*.tsx', '**/*.jsx'],
+  settings: {
+    'jsx-a11y': {
+      components: {
+        Button: 'button',
+        ButtonLink: 'a',
+        TextInput: 'input',
+        Select: 'select',
+        Checkbox: 'input',
+      },
+    },
+  },
+  rules: jsxA11y.flatConfigs.strict.rules,
+};
 
 export default [
   ...nx.configs['flat/base'],

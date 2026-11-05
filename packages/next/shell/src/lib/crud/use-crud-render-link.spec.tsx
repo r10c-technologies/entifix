@@ -10,7 +10,9 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 // `next/link` needs a mounted router; its behaviour is Next's, and what is under
 // test is the click this hook takes over.
 vi.mock('next/link', () => ({
-  default: (props: ComponentProps<'a'>) => <a {...props} />,
+  default: ({ children, ...props }: ComponentProps<'a'>) => (
+    <a {...props}>{children}</a>
+  ),
 }));
 
 function Links() {

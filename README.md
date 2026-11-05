@@ -136,6 +136,43 @@ An entity's metadata says more than how to store and render it:
   path. `@entifix/static` runs it before serving bundled records through the
   ordinary use cases.
 
+## Accessibility
+
+The controls target **WCAG 2.2 AA**
+([ADR 0024](docs/adr/0024-wcag-2-2-aa-and-the-gates-that-ratchet-to-it.md)),
+and the part a linter can see fails this repository's build: every package and
+example that renders runs `eslint-plugin-jsx-a11y`'s strict set at `error`.
+
+No lint configuration is published. A host that renders these controls applies
+the same rules to its own JSX, with the same component mapping, so that a
+`<Button onClick>` is checked as the `<button>` it renders:
+
+```js
+// eslint.config.mjs — after any React or Next preset, which ships a
+// warn-level subset of these rules that would otherwise win.
+import jsxA11y from 'eslint-plugin-jsx-a11y';
+
+export default [
+  // …your presets…
+  {
+    files: ['**/*.tsx', '**/*.jsx'],
+    plugins: { 'jsx-a11y': jsxA11y }, // omit if a preset already registers it
+    settings: {
+      'jsx-a11y': {
+        components: {
+          Button: 'button',
+          ButtonLink: 'a',
+          TextInput: 'input',
+          Select: 'select',
+          Checkbox: 'input',
+        },
+      },
+    },
+    rules: jsxA11y.flatConfigs.strict.rules,
+  },
+];
+```
+
 ## Examples
 
 Each example is a different cut through the tiers, so together they are the

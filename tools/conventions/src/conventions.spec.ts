@@ -29,6 +29,21 @@ const violations = async (
     .map(message => message.message);
 };
 
+/** The severity of each `rule` message `code` at `path` raises (2 = error). */
+const severities = async (
+  path: string,
+  code: string,
+  rule: string,
+): Promise<number[]> => {
+  const eslint = new ESLint({ cwd: REPO_ROOT });
+  const [result] = await eslint.lintText(code, {
+    filePath: join(REPO_ROOT, path),
+  });
+  return (result?.messages ?? [])
+    .filter(message => message.ruleId === rule)
+    .map(message => message.severity);
+};
+
 const LOGS = [
   "import { Effect } from 'effect';\nexport const x = Effect.logError('boom');\n",
   "import { Effect } from 'effect';\nexport const x = Effect.void.pipe(Effect.annotateLogs({ a: 1 }));\n",
@@ -247,6 +262,33 @@ describe('only @entifix/workflow runs durable flows', () => {
         '@typescript-eslint/no-restricted-imports',
       ),
     ).not.toEqual([]);
+  });
+});
+
+/**
+ * The accessibility rules a linter can check fail the build in every package
+ * and example that renders, through each one's own config (ADR 0024). A
+ * project that spreads a React preset after `accessibleJsx` would put the
+ * preset's `warn` levels back, which is what this plants against.
+ */
+describe('a click target is reachable by keyboard', () => {
+  const CLICKABLE_DIV =
+    'export const X = () => <div onClick={() => undefined}>x</div>;\n';
+
+  it.each([
+    ['a control', 'packages/react/controls/src/planted.tsx'],
+    ['a React hook package', 'packages/react/integration/src/planted.tsx'],
+    ['the Next shell', 'packages/next/shell/src/planted.tsx'],
+    ['the workspace example', 'examples/workspace/src/planted.tsx'],
+    ['the minimal example', 'examples/minimal/src/planted.tsx'],
+  ])('is required in %s', async (_label, path) => {
+    for (const rule of [
+      'jsx-a11y/click-events-have-key-events',
+      'jsx-a11y/no-static-element-interactions',
+    ]) {
+      const [severity] = await severities(path, CLICKABLE_DIV, rule);
+      expect(severity, rule).toBe(2);
+    }
   });
 });
 
