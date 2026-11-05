@@ -72,10 +72,10 @@ export function SplitView({
     if (to === undefined) return;
     event.preventDefault();
     const next = to(focusable, items.length);
-    event.currentTarget
+    const triggers = event.currentTarget
       .closest('[data-slot="split-list"]')
-      ?.querySelectorAll<HTMLElement>('[data-slot="split-trigger"]')
-      [next]?.focus();
+      ?.querySelectorAll<HTMLElement>('[data-slot="split-trigger"]');
+    triggers?.[next]?.focus();
     onSelect((items[next] as SplitViewItem).id);
   };
 

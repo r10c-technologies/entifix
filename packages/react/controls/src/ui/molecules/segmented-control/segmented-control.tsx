@@ -55,10 +55,10 @@ export function SegmentedControl<Key extends string>({
     if (to === undefined) return;
     event.preventDefault();
     const next = to(chosen, options.length);
-    event.currentTarget
+    const radios = event.currentTarget
       .closest('[data-slot="segmented-control"]')
-      ?.querySelectorAll<HTMLElement>('[role="radio"]')
-      [next]?.focus();
+      ?.querySelectorAll<HTMLElement>('[role="radio"]');
+    radios?.[next]?.focus();
     onChange((options[next] as (typeof options)[number]).key);
   };
 
