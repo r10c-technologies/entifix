@@ -82,12 +82,12 @@ export function SplitView({
   return (
     <div
       data-slot="split-view"
-      className={cn('lg:min-h-[28rem] relative', className)}
+      className={cn('lg:min-h-112 relative', className)}
     >
       <ol
         data-slot="split-list"
         aria-label={label}
-        className="m-0 p-0 lg:max-h-[28rem] lg:w-[40%] lg:overflow-y-auto list-none"
+        className="m-0 p-0 lg:max-h-112 lg:w-2/5 lg:overflow-y-auto list-none"
       >
         {items.map((item, at) => {
           const chosen = at === index;
@@ -107,7 +107,7 @@ export function SplitView({
               {chosen && (
                 <div
                   data-slot="split-detail"
-                  className="lg:absolute lg:top-0 lg:right-0 lg:max-h-[28rem] lg:w-[58%] lg:overflow-y-auto lg:p-0 px-xs py-s"
+                  className="lg:absolute lg:top-0 lg:right-0 lg:max-h-112 lg:w-7/12 lg:overflow-y-auto lg:p-0 px-xs py-s"
                 >
                   {item.detail}
                 </div>

@@ -26,7 +26,7 @@ export function Skeleton({
       data-testid="skeleton"
       className={cn(
         'animate-pulse bg-border/60 motion-reduce:animate-none',
-        shape === 'line' && 'h-[1em] rounded-full',
+        shape === 'line' && 'h-(--glyph-block) rounded-full',
         shape === 'block' && 'rounded-md',
         shape === 'circle' && 'aspect-square rounded-full',
         className,

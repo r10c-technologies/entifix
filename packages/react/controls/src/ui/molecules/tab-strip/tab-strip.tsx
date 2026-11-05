@@ -72,13 +72,13 @@ export function Tab({
       {active && (
         <span
           aria-hidden="true"
-          className="inset-x-0 top-0 absolute h-[2px] rounded-full bg-accent"
+          className="inset-x-0 top-0 absolute h-0.5 rounded-full bg-accent"
         />
       )}
       <button
         type="button"
         onClick={onSelect}
-        className="max-w-[12rem] truncate focus-ring"
+        className="max-w-48 truncate focus-ring"
       >
         {label}
       </button>
@@ -87,7 +87,7 @@ export function Tab({
           data-testid="tab-indicator"
           aria-hidden="true"
           className={cn(
-            'size-[6px] shrink-0 rounded-full',
+            'size-1.5 shrink-0 rounded-full',
             state === 'error' ? 'bg-danger' : 'bg-accent',
             state === 'saving' && 'animate-pulse motion-reduce:animate-none',
           )}

@@ -273,12 +273,12 @@ export function CommandPalette({
       // Headless UI routes Escape here. Popping rather than closing is what
       // makes the stack feel like a stack; at the root the two are the same.
       onClose={pop}
-      className="inset-0 fixed z-50 flex items-start justify-center overflow-y-auto p-s pt-[12vh]"
+      className="inset-0 fixed z-(--z-palette) flex items-start justify-center overflow-y-auto p-s pt-(--overlay-offset-block)"
     >
-      <div aria-hidden className="inset-0 bg-black/40 fixed" />
+      <div aria-hidden className="inset-0 bg-scrim fixed" />
       <DialogPanel
         data-testid="command-palette"
-        className="relative w-full max-w-xl overflow-hidden rounded-lg border border-border bg-surface-elevated shadow-overlay"
+        className="relative w-full max-w-(--container-xl) overflow-hidden rounded-lg border border-border bg-surface-elevated shadow-overlay"
       >
         <DialogTitle className="sr-only">{labels.title}</DialogTitle>
 
@@ -314,7 +314,7 @@ export function CommandPalette({
           <ComboboxOptions
             static
             className={cn(
-              'max-h-[60vh] overflow-y-auto p-3xs',
+              'max-h-(--overlay-max-block) overflow-y-auto p-3xs',
               // The panel is a focus-managed CONTAINER, not a target: the ring
               // belongs on the row inside it.
               'focus:outline-none',

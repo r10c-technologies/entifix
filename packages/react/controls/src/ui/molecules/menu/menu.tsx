@@ -55,7 +55,7 @@ function Items({
   return (
     <MenuItems
       className={cn(
-        'right-0 absolute z-50 mt-2xs min-w-[12rem] rounded-lg border border-border bg-surface-elevated p-3xs shadow-overlay',
+        'right-0 absolute z-(--z-dropdown) mt-2xs min-w-48 rounded-lg border border-border bg-surface-elevated p-3xs shadow-overlay',
         // The panel itself is a focus-managed CONTAINER, not a target: the ring
         // belongs on the item inside it. Stripping the outline here is
         // correct, and is not a missing `focus-ring`.

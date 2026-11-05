@@ -87,7 +87,7 @@ export function ToastRegion() {
   return (
     <section
       aria-label={t('toast.region')}
-      className="bottom-0 right-0 max-w-md fixed z-50 flex w-full flex-col gap-xs p-s"
+      className="bottom-0 right-0 max-w-md fixed z-(--z-toast) flex w-full flex-col gap-xs p-s"
     >
       {toasts.failures.map(({ id, failure }) => (
         <div

@@ -142,7 +142,7 @@ export function EntityLinkInput<TTarget extends Entity>({
             </ComboboxButton>
             <ComboboxOptions
               className={[
-                'max-h-64 absolute z-50 mt-3xs w-full overflow-auto',
+                'max-h-64 absolute z-(--z-dropdown) mt-3xs w-full overflow-auto',
                 'rounded-lg border border-border bg-surface-elevated p-3xs shadow-overlay',
                 // The panel itself is a focus-managed CONTAINER, not a target: the ring
                 // belongs on the item inside it. Stripping the outline here is

@@ -216,6 +216,22 @@
 }
 
 /*
+ * Overlay geometry, relative to the viewport rather than the scale: how far
+ * down the command palette opens, and how much of the screen a drawer or a
+ * results list may take. Tokens, because a literal `pt-[12vh]` in a control is
+ * a decision nobody can find to change (ADR 0025).
+ */
+:root {
+  --overlay-offset-block: 12vh;
+  --overlay-max-inline: 85vw;
+  --overlay-max-block: 60vh;
+
+  /* One em of the surrounding text: a skeleton line stands in for a line of
+     text at that text's own size, whatever scale it is set in. */
+  --glyph-block: 1em;
+}
+
+/*
  * Elevation — deliberately NOT in @theme, and NOT named after sizes.
  *
  * Two things forced this shape, both measured rather than assumed.
