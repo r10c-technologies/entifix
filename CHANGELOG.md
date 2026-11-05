@@ -1,3 +1,13 @@
+## 0.18.1 (2026-11-05)
+
+### 🚀 Features
+
+- **testing-e2e:** the accessibility gates that measure, from stories to screens ([#204](https://github.com/r10c-technologies/entifix/pull/204))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.18.0 (2026-11-05)
 
 ### 🚀 Features
