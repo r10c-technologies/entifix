@@ -1,0 +1,166 @@
+# 24. WCAG 2.2 AA is the target, and the gates ratchet toward it
+
+- Status: Proposed
+- Date: 2026-11-05
+- Area: ui
+- Read when: a control fails an accessibility check, adding a component or a story, a story renders blank while `build-storybook` stays green, writing an e2e journey that a screen-level check should cover, or about to add an axe rule exception, a jsx-a11y suppression or a `'todo'` entry
+
+## Context
+
+The agnostic layer (`@entifix/react-controls`, `@entifix/style`) is what every
+screen of an adopting application is built from. A defect in it reaches every
+screen at once, and so does a fix. Nothing measured that layer against a
+standard. A baseline taken on 2026-11-05 found:
+
+- **No accessibility test of any kind.** `axe-core` appears only as a transitive
+  dependency of `eslint-plugin-jsx-a11y`. The plugin's rules are all at `warn`
+  with no `--max-warnings`, so in effect they are off.
+- **A Storybook that renders nothing for any entity.** Vite 8 leaves the stage-3
+  decorators raw, so every story that instantiates an entity (EntityTable,
+  EntityForm, EntityDetailGrid, EntityLinkInput — 22 stories) throws
+  `SyntaxError` and renders an empty root. `build-storybook` stays green. The
+  `main.ts` comment saying the default transform handles decorators is false.
+- **No story at all for 24 of 48 component folders**, including every overlay:
+  the command palette, ConfirmDialog, Drawer, ToastRegion and menus in their
+  open state.
+- **Measured over a corrected build:** 76 stories × 7 theme/scale/density cells
+  give 34 unique violations, 1 critical and 33 serious, from 3 root causes.
+  Brand-primary contrast and the TabStrip's tab structure explain almost all of
+  them.
+
+The standard is chosen for three reasons:
+
+- WCAG 2.2 AA is the current W3C recommendation.
+- EN 301 549 V4.1.1 (2 September 2026) moved its web baseline to WCAG 2.2 A/AA.
+  That is the harmonised standard the European Accessibility Act points to, so a
+  public library adopted by EU products is judged against it.
+- Its 2.2 additions — 2.4.11 focus not obscured, 2.5.7 dragging, 2.5.8 target
+  size, 3.2.6 consistent help, 3.3.7 redundant entry, 3.3.8 accessible
+  authentication — land squarely on dense business UI.
+
+Two facts shape _how_ the target is enforced:
+
+- **Axe finds roughly a third of WCAG failures.** The rest — focus order,
+  obscured focus, keyboard models, the meaning of an error — need deterministic
+  scripted checks or judgement.
+- **A gate switched on at zero violations blocks every pull request** until the
+  backlog is gone, and nothing is measured meanwhile.
+
+## Decision
+
+### The target
+
+**Every component and organism in `@entifix/react-controls`, and every shell
+surface in `@entifix/next-shell`, conforms to WCAG 2.2 Level AA.** An adopting
+host may narrow this — a higher level, a stricter target size — and never loosen
+it. AAA criteria are not targets. Where one is cheap and the product benefits
+(2.5.5 target size 44px for touch-first surfaces), the host decides.
+
+### Stories must render, and every component has one
+
+- `.storybook/main.ts` runs the same `unplugin-swc` pass (`decoratorVersion:
+'2022-03'`) that `vitest.shared.mts` uses. A story that throws fails the
+  Storybook test run, so a blank organism can no longer pass.
+- Every `ui/{atoms,molecules,organisms}/<name>/` folder carries a
+  `*.stories.tsx`. A component with an open state — menu, popover, dialog,
+  drawer, toast, palette, disclosure — has a story that opens it through a
+  `play` function. A conventions spec fails on a folder without a story.
+
+### The component gate: addon-a11y under Vitest, ratcheted
+
+- **Addons.** `@storybook/addon-a11y` and `@storybook/addon-vitest` are
+  devDependencies of `@entifix/react-controls`. They are tooling, so there is no
+  tier impact.
+- **Preview parameters.**
+  - `parameters.a11y.test: 'error'` globally.
+  - `runOnly` = `wcag2a, wcag2aa, wcag21a, wcag21aa, wcag22aa`, scoped to
+    `#storybook-root`.
+- **Globals.** The preview declares `scale` (fluid/fixed) and `density`
+  (comfortable/compact) beside the theme, and a decorator writes `data-scale` /
+  `data-density` on `<html>`.
+- **Five Vitest projects** run every story through `initialGlobals`:
+  - aurora-fluid
+  - aurora-fixed-compact
+  - midnight-fluid
+  - midnight-fixed-compact
+  - sunset-fixed
+
+  Density was measured to change no axe result. It is covered by the
+  target-size assertions of [ADR 0025](0025-the-token-contract.md), not by
+  multiplying runs.
+
+- **The ratchet is a committed `a11y-todo.json`:** story title → the issue that
+  removes it.
+  - A title listed there runs at `'todo'`: it reports but does not fail.
+  - A spec fails when an entry no longer violates anything (a stale entry) or
+    names no issue.
+  - The milestone that owns the list closes when the list is empty.
+- **The target is its own `test-a11y`.** It is cacheable, its inputs include
+  `.storybook/**` and `^default` (so a token edit in `@entifix/style` makes it
+  affected), and it runs in Change Validation. It is **not** part of `test
+--coverage`: stories are excluded from coverage, and a story run must not
+  inflate the 100% unit gate.
+- **One exception, written into the rule configuration with its reason.**
+  `aria-hidden-focus` on Headless UI's focus sentinels
+  (`[id^=headlessui-focus-sentinel]`). Any further exception needs an amendment
+  to this record. The todo list is for defects, never for false positives.
+
+### The screen gate: a helper the hosts call
+
+- **`@entifix/testing-e2e/a11y`** is a new subpath, with `@axe-core/playwright`
+  as an optional peer (ADR 0001).
+- **`expectNoNewA11yViolations(page, { screen })`:**
+  - runs the five tags;
+  - fingerprints each node as `rule | normalizedTarget | screen`, stripping
+    React and Headless UI generated ids and collapsing repeated `:nth-child`;
+  - compares the result with the caller's committed baseline JSON;
+  - **fails on a new critical or serious fingerprint, and on a baseline entry
+    that no longer occurs**;
+  - reports moderate and minor without failing.
+- **`A11Y_BASELINE=update`** rewrites the file locally. CI refuses a rewritten
+  baseline that adds entries.
+- **`walkKeyboard(page, options)`** is in the same subpath and is
+  deterministic. It records each Tab stop and asserts:
+  - a skip link is the first stop where the shell has one;
+  - the first stop inside `main` is at or under a caller-given index;
+  - no stop lacks a visible indicator (measured more than 200 ms after the
+    focus move, because the ring transitions);
+  - no stop's centre is covered by another element (2.4.11);
+  - focus is not on `<body>` after a caller-marked write.
+- **The examples call both on every journey** ([ADR 0004](0004-the-examples-are-the-composability-proof.md)),
+  so the helper is proven in this repository before a host adopts it.
+
+### Lint
+
+- **entifix exports an `a11yConfig`:** `eslint-plugin-jsx-a11y`'s `strict` set
+  at **error**, with component mappings — `Button`→button, `ButtonLink`→a,
+  `TextInput`→input, `Select`→select, `Checkbox`→input.
+- **This repository spreads it over every package that renders.**
+- **Two documented exceptions:**
+  - `anchor-has-content` in `button-link.tsx`, whose content is a prop;
+  - `no-autofocus`, because Headless UI's `data-autofocus` is how a dialog
+    places initial focus.
+
+## Consequences
+
+- The first gate pull request lands with a todo list of about 10 titles. The
+  token work of ADR 0025 cuts it to about 2 in one change. That change is the
+  evidence that the ratchet works rather than freezing a backlog.
+- Writing a component now costs a story, and an interactive one a `play`
+  function. That cost is the point: an overlay nobody can render is an overlay
+  nobody can check.
+- Five Storybook projects roughly quintuple story render time in CI. Measured
+  locally at the baseline, 532 renders took under five minutes. The Nx cache
+  takes the rest.
+- Axe and the keyboard walk still miss screen-reader output and judgement. A
+  host's manual pass remains necessary, and the published conformance report
+  says which criteria were tested how.
+- A host that needs a criterion this record does not gate — 3.3.8, which lives
+  in its identity provider's login — states that in its own conformance report.
+  This library cannot speak for a page it does not render.
+
+## Trigger
+
+Promoted to **Accepted** by the change that lands the component gate (the
+Storybook decorator fix, the missing stories, `test-a11y` with its todo list and
+`a11yConfig`) together with `@entifix/testing-e2e/a11y` used by both examples.
