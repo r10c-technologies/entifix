@@ -31,6 +31,15 @@ const checked = () =>
     .filter(radio => radio.getAttribute('aria-checked') === 'true')
     .map(radio => radio.textContent);
 
+/** The segment a keypress lands on: the one in the tab order. */
+const press = (key: string) =>
+  fireEvent.keyDown(
+    screen
+      .getAllByRole('radio')
+      .find(radio => radio.tabIndex === 0) as HTMLElement,
+    { key },
+  );
+
 describe('a segmented control', () => {
   it('is a radio group, one segment in the tab order', () => {
     render(<Controlled start="chart" />);
@@ -44,21 +53,20 @@ describe('a segmented control', () => {
 
   it('chooses by click, and by the arrows, Home and End, wrapping', () => {
     render(<Controlled start="list" />);
-    const group = screen.getByRole('radiogroup');
     fireEvent.click(screen.getByRole('radio', { name: 'Both' }));
     expect(checked()).toEqual(['Both']);
-    fireEvent.keyDown(group, { key: 'ArrowRight' });
+    press('ArrowRight');
     expect(checked()).toEqual(['List']);
     expect(document.activeElement?.textContent).toBe('List');
-    fireEvent.keyDown(group, { key: 'ArrowLeft' });
+    press('ArrowLeft');
     expect(checked()).toEqual(['Both']);
-    fireEvent.keyDown(group, { key: 'ArrowUp' });
+    press('ArrowUp');
     expect(checked()).toEqual(['Chart']);
-    fireEvent.keyDown(group, { key: 'ArrowDown' });
+    press('ArrowDown');
     expect(checked()).toEqual(['Both']);
-    fireEvent.keyDown(group, { key: 'Home' });
+    press('Home');
     expect(checked()).toEqual(['List']);
-    fireEvent.keyDown(group, { key: 'End' });
+    press('End');
     expect(checked()).toEqual(['Both']);
   });
 
@@ -72,7 +80,7 @@ describe('a segmented control', () => {
         onChange={onChange}
       />,
     );
-    fireEvent.keyDown(screen.getByRole('radiogroup'), { key: 'a' });
+    press('a');
     expect(onChange).not.toHaveBeenCalled();
     expect(checked()).toEqual(['List']);
   });

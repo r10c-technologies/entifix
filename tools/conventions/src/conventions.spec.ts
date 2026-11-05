@@ -1,3 +1,5 @@
+import { mkdirSync, mkdtempSync, readdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { ESLint } from 'eslint';
@@ -25,6 +27,21 @@ const violations = async (
   return (result?.messages ?? [])
     .filter(message => message.ruleId === rule)
     .map(message => message.message);
+};
+
+/** The severity of each `rule` message `code` at `path` raises (2 = error). */
+const severities = async (
+  path: string,
+  code: string,
+  rule: string,
+): Promise<number[]> => {
+  const eslint = new ESLint({ cwd: REPO_ROOT });
+  const [result] = await eslint.lintText(code, {
+    filePath: join(REPO_ROOT, path),
+  });
+  return (result?.messages ?? [])
+    .filter(message => message.ruleId === rule)
+    .map(message => message.severity);
 };
 
 const LOGS = [
@@ -245,5 +262,72 @@ describe('only @entifix/workflow runs durable flows', () => {
         '@typescript-eslint/no-restricted-imports',
       ),
     ).not.toEqual([]);
+  });
+});
+
+/**
+ * The accessibility rules a linter can check fail the build in every package
+ * and example that renders, through each one's own config (ADR 0024). A
+ * project that spreads a React preset after `accessibleJsx` would put the
+ * preset's `warn` levels back, which is what this plants against.
+ */
+describe('a click target is reachable by keyboard', () => {
+  const CLICKABLE_DIV =
+    'export const X = () => <div onClick={() => undefined}>x</div>;\n';
+
+  it.each([
+    ['a control', 'packages/react/controls/src/planted.tsx'],
+    ['a React hook package', 'packages/react/integration/src/planted.tsx'],
+    ['the Next shell', 'packages/next/shell/src/planted.tsx'],
+    ['the workspace example', 'examples/workspace/src/planted.tsx'],
+    ['the minimal example', 'examples/minimal/src/planted.tsx'],
+  ])('is required in %s', async (_label, path) => {
+    for (const rule of [
+      'jsx-a11y/click-events-have-key-events',
+      'jsx-a11y/no-static-element-interactions',
+    ]) {
+      const [severity] = await severities(path, CLICKABLE_DIV, rule);
+      expect(severity, rule).toBe(2);
+    }
+  });
+});
+
+/**
+ * The component layers the accessibility gate renders. A component with no
+ * story is a component the gate cannot see, so the gate's verdict would be a
+ * pass about code it never rendered (ADR 0024).
+ */
+const STORIED_LAYERS = ['atoms', 'molecules', 'organisms'];
+
+const CONTROLS_UI = join(REPO_ROOT, 'packages/react/controls/src/ui');
+
+/** Every `<layer>/<component>/` folder under `ui` with no `*.stories.tsx`. */
+const componentsWithoutStory = (ui: string): string[] =>
+  STORIED_LAYERS.flatMap(layer =>
+    readdirSync(join(ui, layer), { withFileTypes: true })
+      .filter(entry => entry.isDirectory())
+      .filter(
+        entry =>
+          !readdirSync(join(ui, layer, entry.name)).some(file =>
+            file.endsWith('.stories.tsx'),
+          ),
+      )
+      .map(entry => `${layer}/${entry.name}`),
+  );
+
+describe('every component has a story', () => {
+  it('holds for react-controls', () => {
+    expect(componentsWithoutStory(CONTROLS_UI)).toEqual([]);
+  });
+
+  it('names a component folder that has none', () => {
+    const ui = mkdtempSync(join(tmpdir(), 'controls-ui-'));
+    for (const layer of STORIED_LAYERS) mkdirSync(join(ui, layer));
+    mkdirSync(join(ui, 'atoms', 'storied'));
+    writeFileSync(join(ui, 'atoms', 'storied', 'storied.stories.tsx'), '');
+    mkdirSync(join(ui, 'molecules', 'planted'));
+    writeFileSync(join(ui, 'molecules', 'planted', 'planted.tsx'), '');
+
+    expect(componentsWithoutStory(ui)).toEqual(['molecules/planted']);
   });
 });

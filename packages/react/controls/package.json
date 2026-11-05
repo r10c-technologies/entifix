@@ -50,8 +50,10 @@
   "devDependencies": {
     "@entifix/i18n": "workspace:*",
     "@entifix/style": "workspace:*",
+    "@storybook/addon-a11y": "^10.6.5",
     "@storybook/addon-docs": "^10.6.5",
     "@storybook/addon-themes": "^10.6.5",
+    "@storybook/addon-vitest": "^10.6.5",
     "@storybook/react-vite": "^10.6.5",
     "effect": "4.0.7",
     "i18next": "26.6.0",
@@ -91,6 +93,18 @@
         },
         "outputs": [
           "{projectRoot}/storybook-static"
+        ]
+      },
+      "test-a11y": {
+        "command": "vitest run -c vitest.storybook.config.mts",
+        "options": {
+          "cwd": "{projectRoot}"
+        },
+        "cache": true,
+        "inputs": [
+          "default",
+          "^default",
+          "{workspaceRoot}/vitest.shared.mts"
         ]
       }
     }

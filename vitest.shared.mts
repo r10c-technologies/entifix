@@ -10,8 +10,11 @@ const workspaceRoot = import.meta.dirname;
  * decorators. Entity classes rely on them (`@entity()`/`@accessor()` register on
  * `MetaEntity`), so every project runs its sources through SWC instead, with the
  * same `decoratorVersion` + `keepClassNames` the library builds use.
+ *
+ * Exported because the controls Storybook needs the identical pass: its Vite
+ * build has the same oxc transform and would otherwise ship the decorators raw.
  */
-const swcTransform = () =>
+export const swcTransform = () =>
   swc.vite({
     // Ignore the per-project `.swcrc` files so the test transform is defined in
     // exactly one place.

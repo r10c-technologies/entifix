@@ -65,14 +65,17 @@ export function SplitView({
     onSelect(id);
   };
 
-  const move = (event: KeyboardEvent<HTMLOListElement>) => {
+  // On each trigger rather than the list: a list is not interactive, so the
+  // keys belong to the row that has focus.
+  const move = (event: KeyboardEvent<HTMLAnchorElement>) => {
     const to = MOVES[event.key];
     if (to === undefined) return;
     event.preventDefault();
     const next = to(focusable, items.length);
-    event.currentTarget
-      .querySelectorAll<HTMLElement>('[data-slot="split-trigger"]')
-      [next]?.focus();
+    const triggers = event.currentTarget
+      .closest('[data-slot="split-list"]')
+      ?.querySelectorAll<HTMLElement>('[data-slot="split-trigger"]');
+    triggers?.[next]?.focus();
     onSelect((items[next] as SplitViewItem).id);
   };
 
@@ -84,7 +87,6 @@ export function SplitView({
       <ol
         data-slot="split-list"
         aria-label={label}
-        onKeyDown={move}
         className="m-0 p-0 lg:max-h-[28rem] lg:w-[40%] lg:overflow-y-auto list-none"
       >
         {items.map((item, at) => {
@@ -97,6 +99,7 @@ export function SplitView({
                 aria-current={chosen ? 'true' : undefined}
                 tabIndex={at === focusable ? 0 : -1}
                 onClick={event => choose(event, item.id)}
+                onKeyDown={move}
                 className="block rounded-md px-xs py-2xs text-inherit no-underline focus-ring hover:bg-[color-mix(in_srgb,var(--color-content)_6%,transparent)] aria-[current]:bg-[color-mix(in_srgb,var(--color-primary)_14%,transparent)]"
               >
                 {item.head}

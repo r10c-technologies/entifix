@@ -40,12 +40,15 @@ export function NavMenu({
 }) {
   return (
     <details data-slot="nav-menu" className={cn('relative', className)}>
+      {/* The name is the label followed by the summary, so what a sighted
+          user reads on the trigger ("EN") is part of what is announced and
+          what a voice user says (WCAG 2.5.3), rather than replaced by it. */}
       <summary
-        aria-label={label}
         title={label}
         data-slot="nav-menu-trigger"
         className={triggerClassName}
       >
+        <span className="sr-only">{label}</span>
         {icon}
         {summary}
         {chevron && (

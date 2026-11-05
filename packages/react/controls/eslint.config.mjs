@@ -1,6 +1,9 @@
 import nx from '@nx/eslint-plugin';
 
-import baseConfig, { mechanismsDoNotLog } from '../../../eslint.config.mjs';
+import baseConfig, {
+  accessibleJsx,
+  mechanismsDoNotLog,
+} from '../../../eslint.config.mjs';
 
 export default [
   ...baseConfig,
@@ -17,5 +20,7 @@ export default [
     ignores: ['**/out-tsc', 'storybook-static'],
   },
   // Last: the React preset above replaces `no-restricted-syntax` (ADR 0013).
+  // After the React preset, whose warn-level subset would otherwise win.
+  accessibleJsx,
   mechanismsDoNotLog,
 ];

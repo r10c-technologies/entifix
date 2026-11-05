@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { NavMenu, NavMenuCheck } from './nav-menu.js';
@@ -13,7 +13,9 @@ describe('a nav menu', () => {
     const details = container.querySelector('details');
     expect(details?.dataset.slot).toBe('nav-menu');
     expect(details?.open).toBe(false);
-    expect(screen.getByLabelText('Language').textContent).toBe('EN');
+    const trigger = container.querySelector('[data-slot="nav-menu-trigger"]');
+    expect(trigger?.getAttribute('title')).toBe('Language');
+    expect(trigger?.textContent).toBe('LanguageEN');
     expect(
       container.querySelector('[data-slot="nav-menu-chevron"]'),
     ).not.toBeNull();

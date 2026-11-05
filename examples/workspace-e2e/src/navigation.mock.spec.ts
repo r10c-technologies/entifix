@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 
+import { expectAccessible } from './a11y';
 import { expect, failOnPageErrors, test } from './support';
 
 /**
@@ -25,6 +26,7 @@ test('a list tab opens a record, and its create form, as tabs', async ({
   failOnPageErrors(page);
   await page.goto('/es/workspace?tab=master:customer');
   await expect(page.getByRole('cell', { name: 'Ada Lovelace' })).toBeVisible();
+  await expectAccessible(page, 'customer-list-tab');
   await plantMarker(page);
 
   await page
@@ -46,6 +48,7 @@ test('a list tab opens a record, and its create form, as tabs', async ({
     /tab=master%3Acustomer%3Anew|tab=master:customer:new/,
   );
   await expect(page.getByText('Nuevo cliente')).toBeVisible();
+  await expectAccessible(page, 'customer-create-tab');
 
   expect(await markerSurvived(page)).toBe(true);
 });
@@ -54,6 +57,7 @@ test('a route host opens a record client-side', async ({ page }) => {
   failOnPageErrors(page);
   await page.goto('/es/customers');
   await expect(page.getByRole('cell', { name: 'Alan Turing' })).toBeVisible();
+  await expectAccessible(page, 'customers');
   await plantMarker(page);
 
   await page

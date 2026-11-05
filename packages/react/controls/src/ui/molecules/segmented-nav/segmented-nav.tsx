@@ -17,7 +17,9 @@ export type SegmentedNavLink = ComponentType<{
   children: ReactNode;
 }>;
 
-const ANCHOR: SegmentedNavLink = props => <a {...props} />;
+const ANCHOR: SegmentedNavLink = ({ children, ...props }) => (
+  <a {...props}>{children}</a>
+);
 
 /**
  * A choice between pages, drawn as one segmented control: each segment is a

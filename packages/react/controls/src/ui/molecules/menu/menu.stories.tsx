@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { expect, userEvent, within } from 'storybook/test';
 
 import { Menu } from './menu.js';
 
@@ -23,4 +24,14 @@ export const UserMenu: Story = {
       </Menu.Items>
     </Menu>
   ),
+};
+
+/** The menu open, with its items in the accessibility tree. */
+export const Open: Story = {
+  ...UserMenu,
+  play: async ({ canvasElement }) => {
+    const page = within(canvasElement.ownerDocument.body);
+    await userEvent.click(page.getByRole('button', { name: /Jordan/ }));
+    await expect(await page.findByRole('menu')).toBeVisible();
+  },
 };

@@ -1,3 +1,9 @@
+import {
+  expectAccessible,
+  expectFocusKept,
+  expectNoNewViolations,
+  LOST_UNTIL,
+} from './a11y';
 import { expect, failOnPageErrors, test } from './support';
 
 /**
@@ -12,6 +18,7 @@ test('walks the steps, goes back without losing input, and opens the new invoice
 
   const next = page.getByRole('button', { name: 'Continuar' });
   await expect(next).toBeDisabled();
+  await expectAccessible(page, 'new-invoice-wizard');
   await page
     .getByLabel('Cliente', { exact: true })
     .selectOption({ label: 'Grace Hopper' });
@@ -25,6 +32,7 @@ test('walks the steps, goes back without losing input, and opens the new invoice
   await next.click();
 
   await expect(page.getByText('Grace Hopper')).toBeVisible();
+  await expectNoNewViolations(page, 'new-invoice-wizard-recap');
   await page.getByRole('button', { name: 'Atrás' }).click();
   await expect(page.getByText('1 × Debugging')).toBeVisible();
   await next.click();
@@ -32,4 +40,5 @@ test('walks the steps, goes back without losing input, and opens the new invoice
   await page.getByRole('button', { name: 'Finalizar' }).click();
   await expect(page.getByRole('tab', { name: /Factura #/ })).toBeVisible();
   await expect(page.getByLabel('Descripción')).toHaveValue('Debugging');
+  await expectFocusKept(page, { lostUntil: LOST_UNTIL });
 });

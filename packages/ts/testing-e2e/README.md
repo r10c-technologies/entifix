@@ -63,6 +63,7 @@ import { resolveE2eProfile, isMockProfile, requireLiveUrl } from '@entifix/testi
 import { entityBackendHandlers, configurationHandler } from '@entifix/testing-e2e/fixtures';
 import { defineServiceE2e } from '@entifix/testing-e2e/service';
 import { defineEntifixE2eConfig, defineEntifixE2eTest, EntityTablePage } from '@entifix/testing-e2e/playwright';
+import { expectNoNewA11yViolations, walkKeyboard, expectFocusKept } from '@entifix/testing-e2e/a11y';
 ```
 
 `.` carries no Playwright, no msw and no vitest, so a consumer pulls only what
@@ -98,6 +99,38 @@ Two stubs are always needed, not one: the entity endpoint _and_ the app's
 `/api/config`, because the REST adapters resolve their base URL through the
 latter before they can issue the former. `configurationHandler` exists so that
 is not something each suite has to remember.
+
+### The accessibility gate on a screen (Playwright)
+
+`@entifix/testing-e2e/a11y` needs `@axe-core/playwright` (an optional peer).
+
+```ts
+// After the screen has rendered what it is for:
+await expectNoNewA11yViolations(page, { screen: 'customers', baselinePath });
+await walkKeyboard(page, { skipLink: true, mainIndexMax: 3 });
+
+// After each write:
+await page.getByRole('button', { name: 'Guardar' }).click();
+await expectFocusKept(page);
+```
+
+- **`expectNoNewA11yViolations`** runs axe against WCAG 2.2 AA and fails on a
+  serious or critical fingerprint the baseline does not accept, and on an
+  accepted one that is no longer there. Moderate and minor findings become test
+  annotations. `A11Y_BASELINE=update` rewrites the screen's entries — owners
+  kept, a new entry's left empty for a person to fill with the issue that
+  removes it; `unownedEntries(baseline)` lets a spec refuse an empty one.
+- **`walkKeyboard`** tabs from the top and fails on a missing skip link, a first
+  stop inside `main` past `mainIndexMax`, a stop with no visible indicator or
+  with something covering it, and a stop that jumps back more than a row.
+- **`expectFocusKept`** fails when focus fell back to `<body>`. A write known to
+  drop it passes `{ lostUntil: 'owner/repo#N' }`, and the check then fails once
+  focus is kept, so the fix has to remove the mark.
+
+A baseline only shrinks: switch the gate on with today's fingerprints, each
+against its issue, and tighten `mainIndexMax` the same way. The pure halves —
+`findingsOf`, `compareWithBaseline`, `updateBaseline` and `assessWalk` — are
+exported for a host that drives a browser some other way.
 
 ### Service e2e (Vitest)
 

@@ -24,6 +24,7 @@ pnpm nx lint <project>
 pnpm nx test <project> --coverage              # every packages/* project is gated at 100%
 pnpm nx test @entifix/tiers                    # the tier contract, against the tree
 pnpm nx test @entifix/docs-check               # links, ADR headers, supersession
+pnpm nx test-a11y @entifix/react-controls      # every story in Chromium, axe in five theme/scale cells
 # Real Postgres at ENTIFIX_PG_URL (CI's service container, or examples/compose.yaml):
 pnpm nx run-many -t test-integration --parallel=1  # the SQL stores' contract suites
 pnpm nx run @entifix/workflow:test-engine      # chaos: two runner processes, killed and restarted
@@ -143,6 +144,8 @@ tests need no build. A consumer resolves `dist`.
 - [0020](docs/adr/0020-endpoints-are-descriptors-and-the-shell-builds-an-httpapi.md) **Endpoints are Schema descriptors, and the service shell builds an HttpApi** — read when adding a route to a service, guarding one, writing an error body or a status by hand, building a link to a verb, a client decoding an error by its status, or about to import `effect/http` or `effect/http-api` outside the service shell.
 - [0021](docs/adr/0021-server-push-and-the-multiplexed-channel.md) **Server push is a port, served over one multiplexed stream per tab** — read when pushing anything from a service to a browser, opening a second `EventSource` in one tab, a stream dies when its token expires, a fleet restart makes every browser reconnect at once, deciding who may receive a pushed event, or about to add a control endpoint or a WebSocket beside the stream.
 - [0022](docs/adr/0022-two-settle-modes-and-the-pending-flow-store.md) **One mutation API, two settle modes, and a pending-flow store** — read when a write answers `202`, building an optimistic update, a pending state has to survive a reload, a flow's failure has to reach the user, showing money as taken before it is, or about to poll a status route from the browser.
+- [0023](docs/adr/0023-change-validation-and-the-cache-it-may-trust.md) **Change Validation, and what may trust the cache it carries** — read when a CI job is slow because it rebuilds what another job built, adding a job or a check to `change_validation.yml`, a check passed without running, or about to restore `.nx/cache` between runners.
+- [0024](docs/adr/0024-wcag-2-2-aa-and-the-gates-that-ratchet-to-it.md) **WCAG 2.2 AA is the target, and the gates ratchet toward it** — read when a control fails an accessibility check, adding a component or a story, a story renders blank while `build-storybook` stays green, writing an e2e journey that a screen-level check should cover, or about to add an axe rule exception, a jsx-a11y suppression or a `'todo'` entry.
 
 **Cite this collection or nothing.** Every `ADR NNNN` in the repository names a
 record above, and nothing under `packages/`, `examples/` or `tools/` names r10c —

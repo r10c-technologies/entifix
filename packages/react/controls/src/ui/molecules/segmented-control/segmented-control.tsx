@@ -48,14 +48,17 @@ export function SegmentedControl<Key extends string>({
     options.findIndex(option => option.key === value),
   );
 
-  const move = (event: KeyboardEvent<HTMLDivElement>) => {
+  // On each radio rather than the group: the group is not focusable, so the
+  // keys belong to the segment that has focus.
+  const move = (event: KeyboardEvent<HTMLButtonElement>) => {
     const to = MOVES[event.key];
     if (to === undefined) return;
     event.preventDefault();
     const next = to(chosen, options.length);
-    event.currentTarget
-      .querySelectorAll<HTMLElement>('[role="radio"]')
-      [next]?.focus();
+    const radios = event.currentTarget
+      .closest('[data-slot="segmented-control"]')
+      ?.querySelectorAll<HTMLElement>('[role="radio"]');
+    radios?.[next]?.focus();
     onChange((options[next] as (typeof options)[number]).key);
   };
 
@@ -64,7 +67,6 @@ export function SegmentedControl<Key extends string>({
       role="radiogroup"
       aria-label={label}
       data-slot="segmented-control"
-      onKeyDown={move}
       className={cn(LIST, className)}
     >
       {options.map((option, index) => {
@@ -76,6 +78,7 @@ export function SegmentedControl<Key extends string>({
             role="radio"
             aria-checked={checked}
             tabIndex={checked ? 0 : -1}
+            onKeyDown={move}
             data-slot="segmented-control-option"
             className={cn(
               checked ? `${CURRENT} focus-ring` : `${OTHER} bg-transparent`,

@@ -1,5 +1,11 @@
 import { EntityTablePage } from '@entifix/testing-e2e/playwright';
 
+import {
+  expectAccessible,
+  expectFocusKept,
+  expectNoNewViolations,
+  LOST_UNTIL,
+} from './a11y';
 import { expect, failOnPageErrors, test } from './support';
 
 /**
@@ -19,6 +25,7 @@ test('lists the seed, edits a record and shows the edit in the list', async ({
   expect(await table.columnValues('Nombre')).toEqual(
     expect.arrayContaining(['Ada Lovelace', 'Alan Turing', 'Grace Hopper']),
   );
+  await expectAccessible(page, 'customers');
 
   await table.rows
     .filter({ hasText: 'Alan Turing' })
@@ -32,11 +39,13 @@ test('lists the seed, edits a record and shows the edit in the list', async ({
 
   const name = page.getByLabel('Nombre');
   await expect(name).toHaveValue('Alan Turing');
+  await expectAccessible(page, 'customer');
   await name.fill('Alan M. Turing');
   await page.getByRole('button', { name: 'Guardar' }).click();
 
   await expect(page).toHaveURL(/\/es\/customers$/);
   await table.waitForRows();
+  await expectFocusKept(page, { lostUntil: LOST_UNTIL });
   expect(await table.columnValues('Nombre')).toContain('Alan M. Turing');
 });
 
@@ -55,6 +64,7 @@ test('nests a branch under its account, and folds it away', async ({
   await table.waitForRows();
   const names = await table.columnValues('Nombre');
   expect(names.indexOf('Hopper Labs')).toBe(names.indexOf('Grace Hopper') + 1);
+  await expectAccessible(page, 'customers');
 
   await page
     .getByRole('button', { name: 'Contraer Grace Hopper' })
@@ -79,6 +89,7 @@ test('offers no parent from the customer’s own subtree', async ({ page }) => {
   await expect(page.getByLabel('Nombre')).toHaveValue('Grace Hopper');
   await page.getByLabel('Buscar Sucursal de').fill('a');
   await expect(suggestions).toHaveText(['Ada Lovelace', 'Alan Turing']);
+  await expectNoNewViolations(page, 'customer-parent-suggestions');
 
   await page.goto('/es/customers/c-4');
   await expect(page.getByLabel('Nombre')).toHaveValue('Hopper Labs');

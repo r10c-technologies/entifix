@@ -27,6 +27,15 @@ function Chosen({ initial }: { initial?: string }) {
 
 const trigger = (name: string) => screen.getByRole('link', { name });
 
+/** The row a keypress lands on: the one in the tab order. */
+const press = (key: string) =>
+  fireEvent.keyDown(
+    screen
+      .getAllByRole('link')
+      .find(link => link.tabIndex === 0) as HTMLElement,
+    { key },
+  );
+
 describe('a split view', () => {
   it('lists every item as a link, and shows the chosen one’s detail', () => {
     const { container } = render(<Chosen initial="two" />);
@@ -65,15 +74,14 @@ describe('a split view', () => {
 
   it('moves the choice and the focus with the arrows, Home and End', () => {
     render(<Chosen initial="one" />);
-    const list = screen.getByRole('list', { name: 'Items' });
-    fireEvent.keyDown(list, { key: 'ArrowDown' });
+    press('ArrowDown');
     expect(screen.getByText('Detail two')).toBeTruthy();
     expect(document.activeElement).toBe(trigger('Head two'));
-    fireEvent.keyDown(list, { key: 'End' });
-    fireEvent.keyDown(list, { key: 'ArrowDown' });
+    press('End');
+    press('ArrowDown');
     expect(screen.getByText('Detail three')).toBeTruthy();
-    fireEvent.keyDown(list, { key: 'Home' });
-    fireEvent.keyDown(list, { key: 'ArrowUp' });
+    press('Home');
+    press('ArrowUp');
     expect(screen.getByText('Detail one')).toBeTruthy();
   });
 
@@ -87,9 +95,9 @@ describe('a split view', () => {
         onSelect={onSelect}
       />,
     );
-    fireEvent.keyDown(screen.getByRole('list'), { key: 'Enter' });
+    press('Enter');
     expect(onSelect).not.toHaveBeenCalled();
-    fireEvent.keyDown(screen.getByRole('list'), { key: 'ArrowDown' });
+    press('ArrowDown');
     expect(onSelect).toHaveBeenCalledWith('two');
   });
 });

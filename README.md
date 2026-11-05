@@ -136,6 +136,54 @@ An entity's metadata says more than how to store and render it:
   path. `@entifix/static` runs it before serving bundled records through the
   ordinary use cases.
 
+## Accessibility
+
+The controls target **WCAG 2.2 AA**
+([ADR 0024](docs/adr/0024-wcag-2-2-aa-and-the-gates-that-ratchet-to-it.md)),
+and the part a linter can see fails this repository's build: every package and
+example that renders runs `eslint-plugin-jsx-a11y`'s strict set at `error`.
+
+Every story is rendered in Chromium and audited by axe against the WCAG 2.2 AA
+rules in five cells — each palette, and both scales with the compact density —
+by `pnpm nx test-a11y @entifix/react-controls`. A violation fails it. A story
+with a known violation is listed in `packages/react/controls/a11y-todo.json`
+against the issue that removes it, and is reported instead of failing; the
+list can only shrink, because a listed issue that closes fails a daily check.
+
+A screen is held to the same standard by `@entifix/testing-e2e/a11y`: axe
+against a committed baseline that can only shrink, and a scripted keyboard walk
+for what axe cannot see. Every journey of `example-workspace-e2e` calls both.
+
+No lint configuration is published. A host that renders these controls applies
+the same rules to its own JSX, with the same component mapping, so that a
+`<Button onClick>` is checked as the `<button>` it renders:
+
+```js
+// eslint.config.mjs — after any React or Next preset, which ships a
+// warn-level subset of these rules that would otherwise win.
+import jsxA11y from 'eslint-plugin-jsx-a11y';
+
+export default [
+  // …your presets…
+  {
+    files: ['**/*.tsx', '**/*.jsx'],
+    plugins: { 'jsx-a11y': jsxA11y }, // omit if a preset already registers it
+    settings: {
+      'jsx-a11y': {
+        components: {
+          Button: 'button',
+          ButtonLink: 'a',
+          TextInput: 'input',
+          Select: 'select',
+          Checkbox: 'input',
+        },
+      },
+    },
+    rules: jsxA11y.flatConfigs.strict.rules,
+  },
+];
+```
+
 ## Examples
 
 Each example is a different cut through the tiers, so together they are the

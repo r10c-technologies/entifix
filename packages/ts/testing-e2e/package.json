@@ -45,6 +45,12 @@
       "types": "./dist/playwright/index.d.ts",
       "import": "./dist/playwright/index.js",
       "default": "./dist/playwright/index.js"
+    },
+    "./a11y": {
+      "@entifix/source": "./src/a11y/index.ts",
+      "types": "./dist/a11y/index.d.ts",
+      "import": "./dist/a11y/index.js",
+      "default": "./dist/a11y/index.js"
     }
   },
   "nx": {
@@ -76,6 +82,7 @@
     "@swc/helpers": "0.5.23"
   },
   "peerDependencies": {
+    "@axe-core/playwright": ">=4.14 <5",
     "@entifix/amqp": "workspace:*",
     "@entifix/mongo": "workspace:*",
     "@entifix/redis": "workspace:*",
@@ -89,6 +96,18 @@
     "vitest": "*"
   },
   "peerDependenciesMeta": {
+    "@axe-core/playwright": {
+      "optional": true
+    },
+    "@entifix/amqp": {
+      "optional": true
+    },
+    "@entifix/mongo": {
+      "optional": true
+    },
+    "@entifix/redis": {
+      "optional": true
+    },
     "@msw/playwright": {
       "optional": true
     },
@@ -99,15 +118,6 @@
       "optional": true
     },
     "@playwright/test": {
-      "optional": true
-    },
-    "@entifix/amqp": {
-      "optional": true
-    },
-    "@entifix/mongo": {
-      "optional": true
-    },
-    "@entifix/redis": {
       "optional": true
     },
     "axios": {
