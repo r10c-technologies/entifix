@@ -107,6 +107,27 @@ describe('findingsOf', () => {
   });
 });
 
+describe('a node with an ancestry', () => {
+  it('is fingerprinted by it, not by the target axe shortened', () => {
+    expect(
+      findingsOf('home', [
+        {
+          id: 'region',
+          impact: 'moderate',
+          nodes: [
+            {
+              target: ['.gallery'],
+              ancestry: ['html > body > main:nth-child(2) > div:nth-child(4)'],
+            },
+          ],
+        },
+      ]).map(finding => finding.fingerprint),
+    ).toEqual([
+      'region|html > body > main:nth-child(n) > div:nth-child(n)|home',
+    ]);
+  });
+});
+
 describe('compareWithBaseline', () => {
   const findings = findingsOf('home', [
     contrast('.badge', '.price'),

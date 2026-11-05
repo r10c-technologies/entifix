@@ -17,5 +17,6 @@ export default defineEntifixTest({
     // example workspace's journeys run this half on every screen.
     'src/a11y/axe.ts',
     'src/a11y/keyboard.ts',
+    'src/a11y/settle.ts',
   ],
 });

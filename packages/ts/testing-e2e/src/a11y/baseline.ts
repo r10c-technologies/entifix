@@ -15,6 +15,14 @@ export type A11yImpact = 'minor' | 'moderate' | 'serious' | 'critical';
 /** The part of an axe node this module reads. */
 export interface A11yNodeResult {
   readonly target: readonly unknown[];
+  /**
+   * The node's full `tag:nth-child` path, present when axe ran with
+   * `ancestry: true`. Preferred over `target`: axe builds a target as the
+   * shortest selector unique on the page at that moment, so a hidden copy of
+   * the previous page (a router's `<Activity>`) turns `.gallery` into a long
+   * path on one run and back on the next.
+   */
+  readonly ancestry?: readonly unknown[];
 }
 
 /** The part of an axe violation this module reads. */
@@ -178,7 +186,7 @@ export const findingsOf = (
     for (const node of violation.nodes) {
       const fingerprint = fingerprintOf(
         violation.id,
-        normalizeTarget(node.target),
+        normalizeTarget(node.ancestry ?? node.target),
         screen,
       );
       found.set(fingerprint, {

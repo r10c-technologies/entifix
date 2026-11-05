@@ -122,7 +122,8 @@ await expectFocusKept(page);
   removes it; `unownedEntries(baseline)` lets a spec refuse an empty one.
 - **`walkKeyboard`** tabs from the top and fails on a missing skip link, a first
   stop inside `main` past `mainIndexMax`, a stop with no visible indicator or
-  with something covering it, and a stop that jumps back more than a row.
+  entirely hidden by something else, and a stop that jumps back more than a row
+  within the content it scrolls with.
 - **`expectFocusKept`** fails when focus fell back to `<body>`. A write known to
   drop it passes `{ lostUntil: 'owner/repo#N' }`, and the check then fails once
   focus is kept, so the fix has to remove the mark.
