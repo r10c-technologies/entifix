@@ -117,6 +117,11 @@ export const controls = {
   tabs: {
     close: 'Cerrar {{label}}',
     new: 'Abrir una pestaña nueva',
+    list: 'Pestañas del espacio de trabajo',
+    withState: '{{label}}, {{state}}',
+    dirty: 'cambios sin guardar',
+    saving: 'guardando',
+    error: 'sin guardar',
   },
   /**
    * El editor de una relación. `search` es la búsqueda rápida y `browse` abre el

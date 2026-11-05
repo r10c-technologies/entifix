@@ -31,7 +31,7 @@ test('asks before closing a tab that holds a draft', async ({ page }) => {
   await page.getByLabel('Nombre').fill('Alan, unsaved');
   await expect(page.getByTestId('tab-indicator')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Cerrar Cliente #c-2' }).click();
+  await page.getByTitle('Cerrar Cliente #c-2').click();
   const dialog = page.getByTestId('confirm-dialog');
   await expect(dialog).toBeVisible();
   await expectNoNewViolations(page, 'customer-tab-close-confirm');

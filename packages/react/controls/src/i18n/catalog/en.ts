@@ -106,6 +106,11 @@ export const controls: EsControls = {
   tabs: {
     close: 'Close {{label}}',
     new: 'Open a new tab',
+    list: 'Workspace tabs',
+    withState: '{{label}}, {{state}}',
+    dirty: 'unsaved changes',
+    saving: 'saving',
+    error: 'not saved',
   },
   link: {
     search: 'Search {{field}}',
