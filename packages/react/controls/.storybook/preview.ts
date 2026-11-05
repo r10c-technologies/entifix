@@ -9,6 +9,7 @@ import { createElement } from 'react';
 import todo from '../a11y-todo.json' with { type: 'json' };
 import { I18nProvider } from '../src/i18next/index.js';
 import { enterGateEnvironment, type GateEnvironment } from './gate-browser.js';
+import { targetMin, undersizedTargets } from './target-size.js';
 
 /**
  * The WCAG 2.2 AA rule tags axe runs, and nothing else (ADR 0024). `wcag21a`
@@ -54,9 +55,25 @@ const preview: Preview = {
   // A story that renders nothing passes every other check vacuously — the
   // decorator bug that blanked the entity stories did exactly that — so an
   // empty root fails the story wherever it runs.
+  //
+  // At fixed + compact, the smallest any control is painted, every target's
+  // hit area must reach `--target-min` (ADR 0025, `target-size.ts`).
   afterEach: ({ canvasElement, title, name }) => {
     if (!canvasElement.hasChildNodes()) {
       throw new Error(`${title} › ${name} rendered nothing into its root.`);
+    }
+    if (
+      CELL?.scale === 'fixed' &&
+      CELL.density === 'compact' &&
+      TODO[title] === undefined
+    ) {
+      const body = canvasElement.ownerDocument.body;
+      const undersized = undersizedTargets(body, targetMin(body));
+      if (undersized.length > 0) {
+        throw new Error(
+          `${title} › ${name}: targets under --target-min at fixed + compact:\n  ${undersized.join('\n  ')}`,
+        );
+      }
     }
   },
   // A listed title still renders and is still audited; its violations are

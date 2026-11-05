@@ -12,7 +12,7 @@ import { cva, type VariantProps } from 'class-variance-authority';
  */
 export const button = cva(
   [
-    'inline-flex items-center justify-center rounded-lg font-medium',
+    'inline-flex min-h-(--target-min) min-w-(--target-min) items-center justify-center rounded-lg font-medium',
     'transition duration-200 ease-smooth active:scale-[0.97]',
     'focus-ring',
     'disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:active:scale-100',

@@ -161,7 +161,7 @@ export function Tab({
       {active && (
         <span
           aria-hidden="true"
-          className="inset-x-0 top-0 absolute h-0.5 rounded-full bg-accent"
+          className="pointer-events-none inset-x-0 top-0 absolute h-0.5 rounded-full bg-accent"
         />
       )}
       <button

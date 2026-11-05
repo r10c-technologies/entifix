@@ -34,7 +34,8 @@ export interface BreadcrumbsProps extends Omit<
 }
 
 /** How a breadcrumb link looks, wherever it is rendered from. */
-const LINK_CLASS = 'focus-ring rounded-sm hover:text-content hover:underline';
+const LINK_CLASS =
+  'focus-ring inline-flex min-h-(--target-min) min-w-(--target-min) items-center justify-center rounded-sm hover:text-content hover:underline';
 
 /** Accessible breadcrumb trail. Presentational only — no routing knowledge. */
 export function Breadcrumbs({

@@ -128,7 +128,7 @@ export function EntityLinkInput<TTarget extends Entity>({
                 source.quick.setTerm(event.currentTarget.value)
               }
               className={[
-                'w-full rounded-lg border border-border-control bg-surface-elevated px-2xs py-3xs',
+                'min-h-(--target-min) w-full rounded-lg border border-border-control bg-surface-elevated px-2xs py-3xs',
                 'text-step-sm text-content',
                 'focus-ring',
                 'disabled:cursor-not-allowed disabled:opacity-50',

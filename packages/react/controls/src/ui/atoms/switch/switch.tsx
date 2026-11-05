@@ -1,7 +1,8 @@
 import type { ComponentPropsWithoutRef, ReactNode } from 'react';
 
 /** The label: the switch, then its text, on one line. */
-const LABEL = 'inline-flex cursor-pointer items-center gap-3xs';
+const LABEL =
+  'inline-flex min-h-(--target-min) cursor-pointer items-center gap-3xs';
 
 /**
  * Off: an outlined track, its thumb muted at the start. On: filled with the

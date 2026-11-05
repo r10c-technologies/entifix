@@ -35,7 +35,7 @@ function Trigger({ className, ...props }: ComponentPropsWithoutRef<'button'>) {
   return (
     <MenuButton
       className={cn(
-        'inline-flex items-center gap-2xs rounded-lg px-2xs py-3xs text-step-sm text-content',
+        'inline-flex min-h-(--target-min) min-w-(--target-min) items-center gap-2xs rounded-lg px-2xs py-3xs text-step-sm text-content',
         'transition duration-200 ease-smooth hover:bg-surface',
         'focus-ring',
         className,

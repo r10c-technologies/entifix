@@ -83,7 +83,7 @@ function CommandRow({ option }: { option: CommandOption }) {
     <ComboboxOption
       value={option}
       className={cn(
-        'flex cursor-pointer items-baseline gap-2xs rounded-md px-2xs py-3xs',
+        'flex min-h-(--target-min) cursor-pointer items-baseline gap-2xs rounded-md px-2xs py-3xs',
         'text-step-sm text-content',
         'data-focus:bg-surface',
       )}
