@@ -135,6 +135,9 @@ it. AAA criteria are not targets. Where one is cheap and the product benefits
   leaving a new entry's empty. CI fails when a baseline gains an entry relative
   to the merge base, so a rewrite can only shrink it; a baseline new at the
   merge base is the one place entries are added.
+- **An entry's owner must stay open.** The daily workflow that checks the todo
+  lists reads every committed `a11y-baseline.json` too, and fails once an
+  owning issue has closed with its entry still there.
 - **`walkKeyboard(page, options)`** is in the same subpath and is
   deterministic. It records each Tab stop and asserts:
   - a skip link is the first stop, when the caller says the shell has one
