@@ -1,6 +1,7 @@
 # 25. The token contract: contrast pairs, control borders, target size, and names that cannot collide
 
-- Status: Proposed
+- Status: Accepted
+- Revised: 2026-11-05 — accent joins primary in darkening; hit areas are sampled over a circle; the checkbox's layout reserves its hit area; overlay sizes are tokens
 - Date: 2026-11-05
 - Area: ui
 - Read when: adding or changing a palette or a preset, a host registers a runtime `ThemePalette`, a control is hard to see at rest or when focused, a menu item or option shows no active state, a target is under 24px at compact density, a dialog or palette renders a few pixels wide, or about to write a Tailwind arbitrary value or a colour literal
@@ -97,21 +98,29 @@ A palette that cannot meet a pair is a palette that cannot ship.
 ### Target size
 
 - **`--target-min: 24px`** in every scale and density.
-- Every interactive control whose painted box may be smaller reaches it with a
-  pseudo-element hit area, not padding that would change layout. That covers
-  checkbox, switch, tab, tab close, tab add, `sm` buttons, overflow triggers,
-  page numbers, breadcrumb links and sidebar group toggles.
+- Every interactive control whose painted box may be smaller reaches it. That
+  covers checkbox, switch, tab, tab close, tab add, every button size, menu
+  triggers and items, inputs and selects, page numbers, breadcrumb links,
+  palette and combobox options, and sidebar group toggles.
 - **The spacing exception of 2.5.8 is not relied on by design.** A control that
   passes only because nothing is near it fails the moment a host puts something
   near it.
-- **Compact density may shrink what is painted, never what is hit.** A
-  Storybook assertion samples each control's hit area at fixed + compact
-  (`elementFromPoint` over a `--target-min` square around its centre).
-- **A control axe measures by its own box gets a real minimum size, not a
-  pseudo-element.** Axe's `target-size` rule ignores `::before` hit areas, so
-  navigation toggles and icon links carry `min-block-size: var(--target-min)`;
-  the pseudo-element extension is for controls whose box must stay small
-  (checkbox, tab close) and whose neighbours are spaced.
+- **Compact density may shrink what is painted, never what is hit.** The
+  Storybook gate samples each control's hit area at fixed + compact:
+  `elementFromPoint` around a `--target-min` **circle** on its centre — 2.5.8's
+  own measure; a square failed every rounded control at its corners, where
+  the pointer genuinely misses it and no user aims — clipped to what is
+  scrolled into view, and skipping a control a modal covers.
+- **A control gets a real minimum size, which axe can see.** Axe's
+  `target-size` rule ignores `::before` hit areas, so controls carry
+  `min-*-size: var(--target-min)` on their own box.
+- **A control whose paint must stay small is hit at the floor anyway.** The
+  checkbox is painted at 1rem by its own `::before` inside an `appearance:
+none` input sized to `--target-min`, and **the layout reserves the whole hit
+  area**. A hit area extended past the layout box was measured to fail: at a
+  44px floor two adjacent boxes each sat inside the other's area and took its
+  clicks. A pseudo-element hit area that overlaps a neighbour is not a target
+  of that size.
 - A host may raise the floor — 44px for touch-first surfaces — by overriding the
   token.
 
@@ -126,24 +135,33 @@ A palette that cannot meet a pair is a palette that cannot ship.
   adopter's `p-xl` and `gap-l` to fix one class.
 - An arbitrary length, colour, duration or z-index (`-[<n><unit>]`, `-[#…]`,
   `-[rgb…]`, `z-[…]`) in a control is allowed only as `var(--token)`.
-  Arbitrary variants and grid templates are exempt. The two literals that
-  duplicate a token today (`h-[2rem]`, `duration-[120ms]`) are replaced.
+  Arbitrary variants and grid templates are exempt. Every literal was
+  replaced: a length by a step of Tailwind's numeric scale, and the
+  viewport-relative overlay sizes by tokens of their own
+  (`--overlay-offset-block`, `--overlay-max-inline`, `--overlay-max-block`).
+  The check reads stories too, since the gate renders them.
 
 ### Forced colours
 
 Controls keep a visible boundary and focus indicator under
-`@media (forced-colors: active)`. Every boundary drawn as a background is backed
-by a transparent border, and the focus ring falls back to `CanvasText`.
+`@media (forced-colors: active)`. Boundaries are real borders and the ring a
+real outline, which forced colours keep; anything that shows state only as a
+background (the switch's thumb) paints a system colour there. A story under
+emulated forced colours asserts both. Axe's contrast rule is off for that one
+story, because axe does not model forced colours and reports the palette's
+text over the forced Canvas.
 
 ## Consequences
 
-- Darkening aurora's and sunset's primary changes the brand look of both
-  presets. That is accepted, because the alternative is a preset that fails the
+- Darkening aurora's and sunset's primary, and every light palette's accent
+  (which failed as text at 4.12–4.34), changes the brand look of the presets. That is accepted, because the alternative is a preset that fails the
   most common criterion on every button.
 - The contract test fails on today's tokens, so it lands **with** the token
-  values that pass it, in one change. That change cuts the component gate's todo
+  values that pass it, in one change. That change cut the component gate's todo
   list ([ADR 0024](0024-wcag-2-2-aa-and-the-gates-that-ratchet-to-it.md)) from
-  about 10 titles to about 2.
+  21 titles to 2, and the tab strip's rewrite to 1.
+- A checkbox now occupies `--target-min` in the layout rather than 1rem: a
+  selection column is 8px wider at the default floor.
 - `--color-border-control` makes every input visibly bordered. That is a visible
   change in every adopting application, and is the point of 1.4.11.
 - Adding three keys to `ThemePalette` is a breaking change to a public type and
