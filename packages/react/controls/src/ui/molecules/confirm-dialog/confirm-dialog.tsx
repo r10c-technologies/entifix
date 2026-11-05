@@ -55,7 +55,7 @@ export function ConfirmDialog({
       onClose={onCancel}
       className="inset-0 fixed z-(--z-overlay) flex items-center justify-center overflow-y-auto p-s"
     >
-      <div aria-hidden className="inset-0 bg-scrim fixed" />
+      <div aria-hidden className="inset-0 fixed bg-scrim" />
       <DialogPanel
         data-testid="confirm-dialog"
         className="max-w-md relative w-full rounded-lg border border-border bg-surface p-s shadow-overlay"

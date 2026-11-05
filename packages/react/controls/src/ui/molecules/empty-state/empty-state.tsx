@@ -2,8 +2,10 @@ import type { ComponentPropsWithoutRef, ReactNode } from 'react';
 
 import { cn } from '../../utils/cn.js';
 
-export interface EmptyStateProps
-  extends Omit<ComponentPropsWithoutRef<'div'>, 'children'> {
+export interface EmptyStateProps extends Omit<
+  ComponentPropsWithoutRef<'div'>,
+  'children'
+> {
   /** One sentence: what is not here, and why when it is not obvious. */
   children: ReactNode;
   /** The one thing to do about it — create the first record, clear a filter. */

@@ -118,7 +118,9 @@ export function FieldControl({
   // and written back in the unit it is stored in. Without a currency to know
   // the minor units by, it stays a plain number field.
   const currency =
-    descriptor.money === undefined ? undefined : currencyOf(descriptor.money, record);
+    descriptor.money === undefined
+      ? undefined
+      : currencyOf(descriptor.money, record);
   if (descriptor.money !== undefined && currency !== undefined) {
     return (
       <MoneyInput

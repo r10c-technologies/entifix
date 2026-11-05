@@ -173,7 +173,7 @@ export function EntityLinkInput<TTarget extends Entity>({
                     'flex min-h-(--target-min) cursor-pointer items-center rounded-md border-l-2 border-transparent px-2xs py-3xs text-step-sm text-content',
                     // Active: the focus ring. Chosen but not under the
                     // keyboard: a `selected` edge, 3:1 on the panel.
-                    'focus-ring data-focus:-outline-offset-2 data-focus:bg-surface',
+                    'focus-ring data-focus:bg-surface data-focus:-outline-offset-2',
                     'data-selected:border-selected',
                   ].join(' ')}
                 >

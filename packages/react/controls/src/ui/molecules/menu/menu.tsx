@@ -55,7 +55,7 @@ function Items({
   return (
     <MenuItems
       className={cn(
-        'right-0 absolute z-(--z-dropdown) mt-2xs min-w-48 rounded-lg border border-border bg-surface-elevated p-3xs shadow-overlay',
+        'right-0 min-w-48 absolute z-(--z-dropdown) mt-2xs rounded-lg border border-border bg-surface-elevated p-3xs shadow-overlay',
         // The panel itself is a focus-managed CONTAINER, not a target: the ring
         // belongs on the item inside it. Stripping the outline here is
         // correct, and is not a missing `focus-ring`.
@@ -99,7 +99,7 @@ function Item({ className, tone = 'neutral', ...props }: MenuItemProps) {
         'flex min-h-(--target-min) w-full items-center gap-2xs rounded-md px-2xs py-3xs text-step-sm',
         // The item under the keyboard wears the focus ring, inset so the
         // panel's edge never clips it; a background swap alone is ~1.05:1.
-        'focus-ring data-focus:-outline-offset-2 data-focus:bg-surface',
+        'focus-ring data-focus:bg-surface data-focus:-outline-offset-2',
         ITEM_TONE_CLASS[tone],
         'disabled:cursor-not-allowed disabled:opacity-50',
         className,
@@ -124,7 +124,7 @@ function Link({ className, ...props }: ComponentPropsWithoutRef<'a'>) {
       as="a"
       className={cn(
         'flex min-h-(--target-min) w-full items-center gap-2xs rounded-md px-2xs py-3xs text-step-sm text-content no-underline',
-        'focus-ring data-focus:-outline-offset-2 data-focus:bg-surface data-focus:text-content',
+        'focus-ring data-focus:bg-surface data-focus:text-content data-focus:-outline-offset-2',
         className,
       )}
       {...props}

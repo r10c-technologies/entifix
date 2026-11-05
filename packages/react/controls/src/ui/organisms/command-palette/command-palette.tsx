@@ -85,7 +85,7 @@ function CommandRow({ option }: { option: CommandOption }) {
       className={cn(
         'flex min-h-(--target-min) cursor-pointer items-baseline gap-2xs rounded-md px-2xs py-3xs',
         'text-step-sm text-content',
-        'focus-ring data-focus:-outline-offset-2 data-focus:bg-surface',
+        'focus-ring data-focus:bg-surface data-focus:-outline-offset-2',
       )}
     >
       <span className="truncate">{option.label}</span>
@@ -275,7 +275,7 @@ export function CommandPalette({
       onClose={pop}
       className="inset-0 fixed z-(--z-palette) flex items-start justify-center overflow-y-auto p-s pt-(--overlay-offset-block)"
     >
-      <div aria-hidden className="inset-0 bg-scrim fixed" />
+      <div aria-hidden className="inset-0 fixed bg-scrim" />
       <DialogPanel
         data-testid="command-palette"
         className="relative w-full max-w-(--container-xl) overflow-hidden rounded-lg border border-border bg-surface-elevated shadow-overlay"
@@ -307,7 +307,7 @@ export function CommandPalette({
               value={term}
               onChange={event => onTermChange(event.currentTarget.value)}
               onKeyDown={handleKeyDown}
-              className="flex-1 rounded-sm bg-transparent py-3xs text-step-1 text-content placeholder:text-content-muted focus-ring"
+              className="flex-1 rounded-sm bg-transparent py-3xs text-step-1 text-content focus-ring placeholder:text-content-muted"
             />
           </div>
 

@@ -11,7 +11,9 @@ describe('EmptyState', () => {
       </EmptyState>,
     );
     expect(screen.getByText('No products yet.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'New product' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'New product' }),
+    ).toBeInTheDocument();
   });
 
   it('renders without an action', () => {

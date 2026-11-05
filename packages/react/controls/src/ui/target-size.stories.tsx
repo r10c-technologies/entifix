@@ -10,7 +10,11 @@ import { Switch } from './atoms/switch/switch.js';
 import { Breadcrumbs } from './molecules/breadcrumbs/breadcrumbs.js';
 import { Menu } from './molecules/menu/menu.js';
 import { PaginationLinks } from './molecules/pagination/pagination-links.js';
-import { Tab, TabAddButton, TabStrip } from './molecules/tab-strip/tab-strip.js';
+import {
+  Tab,
+  TabAddButton,
+  TabStrip,
+} from './molecules/tab-strip/tab-strip.js';
 
 const meta: Meta = {
   title: 'Foundations/TargetSize',
@@ -48,7 +52,11 @@ export const TouchFloor: Story = {
         <Tab id="tab-b" label="Brands" onClose={() => undefined} />
       </TabStrip>
       <Breadcrumbs
-        items={[{ label: 'Home', href: '#' }, { label: 'Catalog', href: '#' }, { label: 'Sprocket' }]}
+        items={[
+          { label: 'Home', href: '#' },
+          { label: 'Catalog', href: '#' },
+          { label: 'Sprocket' },
+        ]}
       />
       <PaginationLinks
         currentPage={2}

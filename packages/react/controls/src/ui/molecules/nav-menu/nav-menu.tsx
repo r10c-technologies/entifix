@@ -64,7 +64,7 @@ export function NavMenu({
       </summary>
       <div
         data-slot="nav-menu-panel"
-        className="right-0 ease-out starting:-translate-y-1 [&_ul]:m-0 [&_ul]:p-0 absolute top-[calc(100%+var(--spacing-3xs))] z-(--z-dropdown) min-w-40 rounded-lg border border-border bg-surface-elevated p-3xs shadow-overlay transition-[opacity,translate] duration-(--duration-fast) motion-reduce:transition-none starting:opacity-0 [&_ul]:list-none"
+        className="right-0 ease-out starting:-translate-y-1 [&_ul]:m-0 [&_ul]:p-0 min-w-40 absolute top-[calc(100%+var(--spacing-3xs))] z-(--z-dropdown) rounded-lg border border-border bg-surface-elevated p-3xs shadow-overlay transition-[opacity,translate] duration-(--duration-fast) motion-reduce:transition-none starting:opacity-0 [&_ul]:list-none"
       >
         {children}
       </div>

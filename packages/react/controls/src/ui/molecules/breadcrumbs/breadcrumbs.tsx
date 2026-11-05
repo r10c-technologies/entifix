@@ -1,8 +1,5 @@
-'use client';
-
 import type { ComponentPropsWithoutRef, ReactNode } from 'react';
 
-import { useT } from '../../../i18n/index.js';
 import { cn } from '../../utils/cn.js';
 
 export interface BreadcrumbItem {
@@ -15,6 +12,11 @@ export interface BreadcrumbsProps extends Omit<
   'children'
 > {
   items: BreadcrumbItem[];
+  /**
+   * The trail's accessible name. English when omitted; a host with a catalog
+   * passes its own (the controls catalog's `breadcrumbs.label`).
+   */
+  label?: string;
   /** Glyph between crumbs. */
   separator?: ReactNode;
   /**
@@ -37,19 +39,22 @@ export interface BreadcrumbsProps extends Omit<
 const LINK_CLASS =
   'focus-ring inline-flex min-h-(--target-min) min-w-(--target-min) items-center justify-center rounded-sm hover:text-content hover:underline';
 
-/** Accessible breadcrumb trail. Presentational only — no routing knowledge. */
+/**
+ * Accessible breadcrumb trail. Presentational only — no routing knowledge, and
+ * no hooks: every label arrives as a prop, so a server component renders it
+ * and a storefront never pays a client boundary for its trail.
+ */
 export function Breadcrumbs({
   items,
+  label = 'Breadcrumb',
   separator = '/',
   renderLink,
   className,
   ...props
 }: BreadcrumbsProps) {
-  const t = useT();
-
   return (
     <nav
-      aria-label={t('breadcrumbs.label')}
+      aria-label={label}
       className={cn('text-step-sm text-content-muted', className)}
       {...props}
     >

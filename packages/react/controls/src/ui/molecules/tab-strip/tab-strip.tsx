@@ -13,8 +13,10 @@ import {
 import { useT } from '../../../i18n/index.js';
 import { cn } from '../../utils/cn.js';
 
-export interface TabStripProps
-  extends Omit<ComponentPropsWithoutRef<'div'>, 'children'> {
+export interface TabStripProps extends Omit<
+  ComponentPropsWithoutRef<'div'>,
+  'children'
+> {
   /** The {@link Tab}s, in order. */
   children?: ReactNode;
   /** The tablist's accessible name; the controls catalog's `tabs.list` when omitted. */
@@ -161,7 +163,7 @@ export function Tab({
       {active && (
         <span
           aria-hidden="true"
-          className="pointer-events-none inset-x-0 top-0 absolute h-0.5 rounded-full bg-accent"
+          className="inset-x-0 top-0 h-0.5 pointer-events-none absolute rounded-full bg-accent"
         />
       )}
       <button
@@ -187,7 +189,7 @@ export function Tab({
           }
         }}
         className={cn(
-          'min-h-(--target-min) flex max-w-48 items-center gap-2xs rounded-t-md py-2xs pl-s focus-ring',
+          'max-w-48 flex min-h-(--target-min) items-center gap-2xs rounded-t-md py-2xs pl-s focus-ring',
           onClose ? 'pr-3xs' : 'pr-s',
         )}
       >
@@ -212,8 +214,8 @@ export function Tab({
           title={t('tabs.close', { label })}
           onClick={onClose}
           className={cn(
-            'mr-3xs flex min-h-(--target-min) min-w-(--target-min) items-center justify-center rounded text-content-muted opacity-0 transition',
-            'group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-surface hover:text-content',
+            'rounded mr-3xs flex min-h-(--target-min) min-w-(--target-min) items-center justify-center text-content-muted opacity-0 transition',
+            'group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-surface hover:text-content',
             active && 'opacity-100',
           )}
         >

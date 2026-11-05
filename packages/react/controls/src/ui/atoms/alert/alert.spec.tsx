@@ -24,7 +24,11 @@ describe('Alert', () => {
 
   it('renders a title and an action when given', () => {
     render(
-      <Alert tone="info" title="Import finished" action={<a href="#r">Review</a>}>
+      <Alert
+        tone="info"
+        title="Import finished"
+        action={<a href="#r">Review</a>}
+      >
         12 rows were added.
       </Alert>,
     );

@@ -393,7 +393,10 @@ describe('CellValue money', () => {
 
   it('renders the placeholder for an empty draft value', () => {
     render(
-      <CellValue value="" descriptor={money({ unit: 'minor', currency: 'GTQ' })} />,
+      <CellValue
+        value=""
+        descriptor={money({ unit: 'minor', currency: 'GTQ' })}
+      />,
     );
     expect(screen.getByText(EMPTY)).toBeInTheDocument();
   });

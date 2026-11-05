@@ -51,11 +51,13 @@ export function BackOfficeBreadcrumbs({
   labels = {},
 }: BackOfficeBreadcrumbsProps) {
   const t = useT('shell');
+  const controls = useT();
   const pathname = usePathname() ?? '/';
   const items = buildCrumbs(pathname, labels, t('breadcrumbs.home'));
 
   return (
     <Breadcrumbs
+      label={controls('breadcrumbs.label')}
       items={items}
       renderLink={item => (
         <LocaleLink href={item.href} className={item.className}>

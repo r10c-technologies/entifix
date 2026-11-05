@@ -5,8 +5,10 @@ import { type Tone, TONE_SURFACE } from './tone.js';
 
 export type { Tone as AlertTone } from './tone.js';
 
-export interface AlertProps
-  extends Omit<ComponentPropsWithoutRef<'div'>, 'title' | 'role'> {
+export interface AlertProps extends Omit<
+  ComponentPropsWithoutRef<'div'>,
+  'title' | 'role'
+> {
   tone: Tone;
   /** A short heading in bold before the message. */
   title?: ReactNode;

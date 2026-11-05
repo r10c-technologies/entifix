@@ -39,7 +39,7 @@ export function Drawer({
 }: DrawerProps) {
   return (
     <Dialog open={open} onClose={onClose} className="relative z-(--z-overlay)">
-      <div aria-hidden className="inset-0 bg-scrim fixed" />
+      <div aria-hidden className="inset-0 fixed bg-scrim" />
       <div className="inset-0 fixed flex">
         <DialogPanel
           data-testid="drawer"

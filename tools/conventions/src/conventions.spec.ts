@@ -448,3 +448,46 @@ describe('a control sizes with tokens, never with a colliding name or a literal'
     ).toEqual([]);
   });
 });
+
+/**
+ * Components a server page renders, and so never a client boundary: each was
+ * re-implemented by a host while the entifix one was client-only or missing.
+ * Their copy arrives as props; nothing here may reach for a hook.
+ */
+const SERVER_SAFE = [
+  'packages/react/controls/src/ui/atoms/alert/alert.tsx',
+  'packages/react/controls/src/ui/atoms/button/button-link.tsx',
+  'packages/react/controls/src/ui/atoms/button/submit-button.tsx',
+  'packages/react/controls/src/ui/atoms/money/money.tsx',
+  'packages/react/controls/src/ui/atoms/number-input/number-input.tsx',
+  'packages/react/controls/src/ui/atoms/status-tag/status-tag.tsx',
+  'packages/react/controls/src/ui/molecules/breadcrumbs/breadcrumbs.tsx',
+  'packages/react/controls/src/ui/molecules/description-list/description-list.tsx',
+  'packages/react/controls/src/ui/molecules/empty-state/empty-state.tsx',
+  'packages/react/controls/src/ui/molecules/media-gallery/media-gallery.tsx',
+  'packages/react/controls/src/ui/molecules/segmented-nav/segmented-nav.tsx',
+];
+
+/** Why `source` cannot render on a server, or nothing. */
+const clientOnly = (source: string): string[] => [
+  ...(/^\s*['"]use client['"]/m.test(source) ? ["declares 'use client'"] : []),
+  ...[
+    ...source.matchAll(
+      /\b(use(?:State|Effect|Ref|Context|T|Locale|Id)|createContext)\s*\(/g,
+    ),
+  ].map(match => `calls ${match[1]}()`),
+];
+
+describe('a server-safe component stays one', () => {
+  it.each(SERVER_SAFE)('holds for %s', path => {
+    expect(clientOnly(readFileSync(join(REPO_ROOT, path), 'utf8'))).toEqual([]);
+  });
+
+  it('finds a planted client boundary and a planted hook', () => {
+    expect(
+      clientOnly(
+        "'use client';\nexport const X = () => { const t = useT(); return t('a'); };",
+      ),
+    ).toEqual(["declares 'use client'", 'calls useT()']);
+  });
+});

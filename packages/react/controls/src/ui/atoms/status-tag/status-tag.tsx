@@ -10,8 +10,10 @@ const TONE_CLASS: Record<StatusTagTone, string> = {
   neutral: 'border-border bg-surface text-content-muted',
 };
 
-export interface StatusTagProps
-  extends Omit<ComponentPropsWithoutRef<'span'>, 'children'> {
+export interface StatusTagProps extends Omit<
+  ComponentPropsWithoutRef<'span'>,
+  'children'
+> {
   tone: StatusTagTone;
   /** The status in words. Required and non-empty: colour is never the only carrier (WCAG 1.4.1). */
   children: string;

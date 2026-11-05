@@ -535,7 +535,11 @@ class PricedOrder implements Entity {
     this.#id = value;
   }
 
-  @accessor({ type: 'composition', childType: () => PricedLine, label: 'Líneas' })
+  @accessor({
+    type: 'composition',
+    childType: () => PricedLine,
+    label: 'Líneas',
+  })
   get lines(): readonly PricedLine[] {
     return this.#lines;
   }

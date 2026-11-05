@@ -12,7 +12,7 @@ export interface MoneyProps extends Omit<
   currency: string;
   /** Whether `amount` counts minor units (cents) or major ones. */
   unit: MoneyUnit;
-  /** The reader's locale; a client caller passes `useLocale()`. */
+  /** The reader's locale; a client caller reads it with the `useLocale` hook. */
   locale: string;
 }
 

@@ -48,7 +48,7 @@ export function EntityLinkPicker<TTarget extends Entity>({
     >
       {/* Backdrop and panel are separate so a click outside closes the dialog
           without the table's own clicks bubbling into it. */}
-      <div aria-hidden className="inset-0 bg-scrim fixed" />
+      <div aria-hidden className="inset-0 fixed bg-scrim" />
       <DialogPanel className="max-w-4xl relative w-full rounded-lg border border-border bg-surface p-s shadow-overlay">
         <div className="flex items-center justify-between gap-s">
           <DialogTitle className="text-step-1 font-semibold text-content">

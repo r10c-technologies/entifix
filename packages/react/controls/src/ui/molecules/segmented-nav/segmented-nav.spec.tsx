@@ -40,3 +40,23 @@ describe('a segmented nav', () => {
     ).toBe(true);
   });
 });
+
+describe('a segmented nav of sort links', () => {
+  it('marks the current ordering as current, not as the page', () => {
+    render(
+      <SegmentedNav
+        kind="sort"
+        label="Sort by"
+        items={[
+          { key: 'price', label: 'Price', href: '?sort=price', current: true },
+          { key: 'name', label: 'Name', href: '?sort=name', current: false },
+        ]}
+      />,
+    );
+    expect(screen.getByText('Price')).toHaveAttribute('aria-current', 'true');
+    expect(screen.getByRole('link', { name: 'Name' })).toHaveAttribute(
+      'href',
+      '?sort=name',
+    );
+  });
+});

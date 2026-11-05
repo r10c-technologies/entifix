@@ -6,7 +6,10 @@ import { Tab, TabAddButton, TabPanel, TabStrip } from './tab-strip.js';
 
 const strip = (
   active: string | null,
-  handlers: { onSelect?: (id: string) => void; onClose?: (id: string) => void } = {},
+  handlers: {
+    onSelect?: (id: string) => void;
+    onClose?: (id: string) => void;
+  } = {},
 ) => (
   <TabStrip actions={<TabAddButton />}>
     {['products', 'brands', 'orders'].map(id => (
@@ -26,9 +29,13 @@ const strip = (
 describe('TabStrip', () => {
   it('is a named tablist that owns only its tabs', () => {
     render(strip('products'));
-    const list = screen.getByRole('tablist', { name: 'Pestañas del espacio de trabajo' });
+    const list = screen.getByRole('tablist', {
+      name: 'Pestañas del espacio de trabajo',
+    });
 
-    expect(list.querySelectorAll('button:not([role="tab"]):not([aria-hidden])')).toHaveLength(0);
+    expect(
+      list.querySelectorAll('button:not([role="tab"]):not([aria-hidden])'),
+    ).toHaveLength(0);
     // The add button is beside the list, not in it.
     expect(list).not.toContainElement(
       screen.getByRole('button', { name: 'Abrir una pestaña nueva' }),
@@ -37,7 +44,9 @@ describe('TabStrip', () => {
 
   it('takes its name from `label` when given', () => {
     render(<TabStrip label="Open records" />);
-    expect(screen.getByRole('tablist', { name: 'Open records' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('tablist', { name: 'Open records' }),
+    ).toBeInTheDocument();
   });
 
   it('is one Tab stop: the active tab', async () => {
@@ -49,12 +58,16 @@ describe('TabStrip', () => {
     await user.tab();
     expect(screen.getByRole('tab', { name: 'brands' })).toHaveFocus();
     await user.tab();
-    expect(screen.getByRole('button', { name: 'Abrir una pestaña nueva' })).toHaveFocus();
+    expect(
+      screen.getByRole('button', { name: 'Abrir una pestaña nueva' }),
+    ).toHaveFocus();
   });
 
   it('makes the first tab the Tab stop when none is active', () => {
     render(strip(null));
-    expect(screen.getAllByRole('tab').map(tab => tab.tabIndex)).toEqual([0, -1, -1]);
+    expect(screen.getAllByRole('tab').map(tab => tab.tabIndex)).toEqual([
+      0, -1, -1,
+    ]);
   });
 
   it('moves focus with Arrow keys (wrapping), Home and End, without activating', async () => {
@@ -152,14 +165,17 @@ describe('Tab', () => {
     ['dirty', 'bg-accent', false, 'cambios sin guardar'],
     ['saving', 'bg-accent', true, 'guardando'],
     ['error', 'bg-danger', false, 'sin guardar'],
-  ] as const)('says %s in words beside its dot', (state, tone, pulses, words) => {
-    render(<Tab id="t" label="Acme" state={state} />);
-    const dot = screen.getByTestId('tab-indicator');
+  ] as const)(
+    'says %s in words beside its dot',
+    (state, tone, pulses, words) => {
+      render(<Tab id="t" label="Acme" state={state} />);
+      const dot = screen.getByTestId('tab-indicator');
 
-    expect(dot.className).toContain(tone);
-    expect(dot.className.includes('animate-pulse')).toBe(pulses);
-    expect(screen.getByRole('tab')).toHaveAccessibleName(`Acme, ${words}`);
-  });
+      expect(dot.className).toContain(tone);
+      expect(dot.className.includes('animate-pulse')).toBe(pulses);
+      expect(screen.getByRole('tab')).toHaveAccessibleName(`Acme, ${words}`);
+    },
+  );
 
   it('turns the tab to danger on error', () => {
     render(<Tab id="t" label="Acme" state="error" />);
@@ -171,9 +187,7 @@ describe('Tab', () => {
   it('closes from its × by pointer, which is hidden from assistive technology', async () => {
     const onClose = vi.fn();
     const user = userEvent.setup();
-    const { container } = render(
-      <Tab id="t" label="Acme" onClose={onClose} />,
-    );
+    const { container } = render(<Tab id="t" label="Acme" onClose={onClose} />);
     const close = container.querySelector('button[aria-hidden="true"]')!;
 
     expect(close).toHaveAttribute('tabindex', '-1');
@@ -215,7 +229,9 @@ describe('TabAddButton', () => {
     const user = userEvent.setup();
     render(<TabAddButton onClick={onClick} />);
 
-    await user.click(screen.getByRole('button', { name: 'Abrir una pestaña nueva' }));
+    await user.click(
+      screen.getByRole('button', { name: 'Abrir una pestaña nueva' }),
+    );
 
     expect(onClick).toHaveBeenCalledTimes(1);
   });
