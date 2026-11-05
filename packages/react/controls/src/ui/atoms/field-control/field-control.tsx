@@ -2,8 +2,10 @@
 
 import type { EntityFieldDescriptor, MetaAccessorType } from '@entifix/core';
 
-import { useEnumLabel } from '../../../i18n/index.js';
+import { useEnumLabel, useLocale } from '../../../i18n/index.js';
 import { Checkbox, Select, TextInput } from '../field/index.js';
+import { MoneyInput } from '../money/money-input.js';
+import { currencyOf } from '../money/money-math.js';
 
 export interface FieldControlProps {
   descriptor: EntityFieldDescriptor;
@@ -29,6 +31,11 @@ export interface FieldControlProps {
   value: string;
   onChange: (value: string) => void;
   id?: string;
+  /**
+   * The record being edited, as its draft. A money member whose currency is
+   * another member (`money.currencyMember`) reads it from here.
+   */
+  record?: Readonly<Record<string, unknown>>;
 }
 
 /** Native input type for the text-like controls; text is the default. */
@@ -64,9 +71,11 @@ export function FieldControl({
   value,
   onChange,
   id,
+  record,
   ...aria
 }: FieldControlProps) {
   const enumLabel = useEnumLabel();
+  const locale = useLocale();
   const disabled =
     descriptor.readonly ||
     descriptor.type === 'link' ||
@@ -102,6 +111,26 @@ export function FieldControl({
           </option>
         ))}
       </Select>
+    );
+  }
+
+  // An amount is edited in major units, in the reader's decimal separator,
+  // and written back in the unit it is stored in. Without a currency to know
+  // the minor units by, it stays a plain number field.
+  const currency =
+    descriptor.money === undefined ? undefined : currencyOf(descriptor.money, record);
+  if (descriptor.money !== undefined && currency !== undefined) {
+    return (
+      <MoneyInput
+        id={id}
+        {...aria}
+        value={value}
+        currency={currency}
+        unit={descriptor.money.unit}
+        locale={locale}
+        disabled={disabled}
+        onChange={onChange}
+      />
     );
   }
 

@@ -106,6 +106,10 @@ export const controls: EsControls = {
   alert: {
     dismiss: 'Dismiss',
   },
+  quantity: {
+    decrease: 'Decrease {{label}}',
+    increase: 'Increase {{label}}',
+  },
   tabs: {
     close: 'Close {{label}}',
     new: 'Open a new tab',

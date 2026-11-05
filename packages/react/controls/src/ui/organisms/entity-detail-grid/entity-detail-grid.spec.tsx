@@ -496,3 +496,83 @@ describe('EntityDetailGrid', () => {
     });
   });
 });
+
+class PricedLine {
+  #amount = 0;
+  #currency = '';
+
+  @accessor({
+    type: 'number',
+    label: 'Importe',
+    money: { unit: 'minor', currencyMember: 'currency' },
+  })
+  get amount(): number {
+    return this.#amount;
+  }
+  set amount(value: number) {
+    this.#amount = value;
+  }
+
+  @accessor({ type: 'string', label: 'Moneda' })
+  get currency(): string {
+    return this.#currency;
+  }
+  set currency(value: string) {
+    this.#currency = value;
+  }
+}
+
+@entity({ key: 'priced-order' })
+class PricedOrder implements Entity {
+  #id: EntityId;
+  #lines: readonly PricedLine[] = [];
+
+  @accessor({ type: 'id', label: 'ID' })
+  get id(): EntityId {
+    return this.#id;
+  }
+  set id(value: EntityId) {
+    this.#id = value;
+  }
+
+  @accessor({ type: 'composition', childType: () => PricedLine, label: 'Líneas' })
+  get lines(): readonly PricedLine[] {
+    return this.#lines;
+  }
+  set lines(value: readonly PricedLine[]) {
+    this.#lines = value;
+  }
+}
+
+describe('EntityDetailGrid money', () => {
+  const PRICED = describeEntityColumns(PricedOrder).find(
+    column => column.name === 'lines',
+  ) as EntityFieldDescriptor;
+  const priced = { [ROW_KEY]: 'p1', amount: '6499', currency: 'GTQ' };
+
+  it('reads an amount as money, never as the stored number', () => {
+    render(
+      <EntityDetailGrid
+        descriptor={PRICED}
+        rows={[priced]}
+        onRowsChange={vi.fn()}
+        editing={false}
+      />,
+    );
+    expect(screen.getByText(/64,99/)).toBeInTheDocument();
+    expect(screen.queryByText('6499')).not.toBeInTheDocument();
+    expect(screen.getByText('GTQ')).toBeInTheDocument();
+  });
+
+  it('edits it in major units', () => {
+    render(
+      <EntityDetailGrid
+        descriptor={PRICED}
+        rows={[priced]}
+        onRowsChange={vi.fn()}
+        editing
+      />,
+    );
+    expect(screen.getByDisplayValue('64,99')).toBeInTheDocument();
+  });
+});

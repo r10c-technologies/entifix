@@ -117,6 +117,10 @@ export const controls = {
   alert: {
     dismiss: 'Descartar',
   },
+  quantity: {
+    decrease: 'Disminuir {{label}}',
+    increase: 'Aumentar {{label}}',
+  },
   tabs: {
     close: 'Cerrar {{label}}',
     new: 'Abrir una pestaña nueva',

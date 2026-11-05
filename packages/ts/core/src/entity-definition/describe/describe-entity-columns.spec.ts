@@ -485,3 +485,128 @@ describe('the accessor-type partition', () => {
     expect(things?.type).toBe('string');
   });
 });
+
+describe('describeEntityColumns money', () => {
+  @entity({ key: 'priced' })
+  class Priced implements Entity {
+    #id?: EntityId;
+    #price = 6499;
+    #fee = 25;
+    #currency = 'GTQ';
+
+    @accessor({ type: 'id' })
+    get id(): EntityId {
+      return this.#id;
+    }
+    set id(value: EntityId) {
+      this.#id = value;
+    }
+
+    @accessor({
+      type: 'number',
+      money: { unit: 'minor', currencyMember: 'currency' },
+    })
+    get price(): number {
+      return this.#price;
+    }
+    set price(value: number) {
+      this.#price = value;
+    }
+
+    @accessor({ type: 'number', money: { unit: 'major', currency: 'USD' } })
+    get fee(): number {
+      return this.#fee;
+    }
+    set fee(value: number) {
+      this.#fee = value;
+    }
+
+    @accessor({ type: 'string' })
+    get currency(): string {
+      return this.#currency;
+    }
+    set currency(value: string) {
+      this.#currency = value;
+    }
+  }
+
+  it('carries the money reading on the descriptor, and nothing on other members', () => {
+    const columns = describeEntityColumns(Priced);
+    const by = (name: string) => columns.find(column => column.name === name);
+
+    expect(by('price')?.money).toEqual({
+      unit: 'minor',
+      currencyMember: 'currency',
+    });
+    expect(by('fee')?.money).toEqual({ unit: 'major', currency: 'USD' });
+    expect(by('currency')).not.toHaveProperty('money');
+    // Still a number to everything else: sortable and filterable as one.
+    expect(by('price')).toMatchObject({
+      type: 'number',
+      sortable: true,
+      filterable: true,
+    });
+  });
+
+  it('refuses money on a member that is not a number', () => {
+    @entity({ key: 'bad-money' })
+    class BadMoney implements Entity {
+      #id?: EntityId;
+      #label = '';
+
+      @accessor({ type: 'id' })
+      get id(): EntityId {
+        return this.#id;
+      }
+      set id(value: EntityId) {
+        this.#id = value;
+      }
+
+      @accessor({ type: 'string', money: { unit: 'major', currency: 'GTQ' } })
+      get label(): string {
+        return this.#label;
+      }
+      set label(value: string) {
+        this.#label = value;
+      }
+    }
+
+    expect(() => describeEntityColumns(BadMoney)).toThrow(
+      /"label" is a string and declares money/,
+    );
+  });
+
+  it.each([
+    ['names no member', 'missing'],
+    ['names a member that is not a string', 'amount'],
+  ])('refuses a currency member that %s', (_label, member) => {
+    @entity({ key: `bad-currency-${member}` })
+    class BadCurrency implements Entity {
+      #id?: EntityId;
+      #amount = 1;
+
+      @accessor({ type: 'id' })
+      get id(): EntityId {
+        return this.#id;
+      }
+      set id(value: EntityId) {
+        this.#id = value;
+      }
+
+      @accessor({
+        type: 'number',
+        money: { unit: 'minor', currencyMember: member },
+      })
+      get amount(): number {
+        return this.#amount;
+      }
+      set amount(value: number) {
+        this.#amount = value;
+      }
+    }
+
+    expect(() => describeEntityColumns(BadCurrency)).toThrow(
+      new RegExp(`reads its currency from "${member}"`),
+    );
+  });
+});

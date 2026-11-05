@@ -279,6 +279,7 @@ export function EntityTable<TEntity extends Entity>({
       <CellValue
         value={(item as Record<string, unknown>)[column.name]}
         descriptor={column}
+        record={item as Record<string, unknown>}
       />
     );
 

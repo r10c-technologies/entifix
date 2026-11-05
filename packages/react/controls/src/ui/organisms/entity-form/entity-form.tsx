@@ -647,6 +647,7 @@ function FieldRow<TEntity extends Entity>({
         entity ? (entity as Record<string, unknown>)[field.name] : undefined
       }
       descriptor={field}
+      record={entity as Record<string, unknown> | undefined}
     />
   );
 
@@ -703,6 +704,7 @@ function FieldRow<TEntity extends Entity>({
         value={value}
         onChange={next => setField(field.name, next)}
         id={id}
+        record={draft}
       />
     );
   }

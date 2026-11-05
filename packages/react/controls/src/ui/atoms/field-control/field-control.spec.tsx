@@ -1,6 +1,7 @@
 import type { EntityFieldDescriptor, MetaAccessorType } from '@entifix/core';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { FieldControl } from './field-control.js';
@@ -168,4 +169,47 @@ describe('FieldControl', () => {
       expect(screen.getByRole('textbox')).toBeDisabled();
     },
   );
+});
+
+describe('FieldControl money', () => {
+  it('edits a minor-unit amount in major units and writes back minor', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    function Form() {
+      const [value, setValue] = useState('6499');
+      return (
+        <FieldControl
+          descriptor={descriptor('number', {
+            money: { unit: 'minor', currencyMember: 'currency' },
+          })}
+          value={value}
+          record={{ currency: 'GTQ' }}
+          onChange={next => {
+            setValue(next);
+            onChange(next);
+          }}
+        />
+      );
+    }
+    render(<Form />);
+    const input = screen.getByRole('textbox');
+    expect(input).toHaveValue('64,99');
+    await user.clear(input);
+    await user.type(input, '70');
+    expect(onChange).toHaveBeenLastCalledWith('7000');
+    expect(screen.getByText('GTQ')).toBeInTheDocument();
+  });
+
+  it('is a plain number field when no currency is known', () => {
+    render(
+      <FieldControl
+        descriptor={descriptor('number', {
+          money: { unit: 'minor', currencyMember: 'currency' },
+        })}
+        value="6499"
+        onChange={() => undefined}
+      />,
+    );
+    expect(screen.getByRole('spinbutton')).toHaveValue(6499);
+  });
 });

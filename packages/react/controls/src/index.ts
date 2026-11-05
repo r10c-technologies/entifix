@@ -9,6 +9,8 @@ export * from './ui/atoms/external-link/index.js';
 export * from './ui/atoms/field/index.js';
 export * from './ui/atoms/field-control/index.js';
 export * from './ui/atoms/localized-field-control/index.js';
+export * from './ui/atoms/money/index.js';
+export * from './ui/atoms/number-input/index.js';
 export * from './ui/atoms/skeleton/index.js';
 export * from './ui/atoms/status-tag/index.js';
 export * from './ui/atoms/switch/index.js';
