@@ -96,8 +96,10 @@ function Item({ className, tone = 'neutral', ...props }: MenuItemProps) {
     <HuiMenuItem
       as="button"
       className={cn(
-        'flex w-full items-center gap-2xs rounded-md px-2xs py-3xs text-step-sm',
-        'data-focus:bg-surface',
+        'flex min-h-(--target-min) w-full items-center gap-2xs rounded-md px-2xs py-3xs text-step-sm',
+        // The item under the keyboard wears the focus ring, inset so the
+        // panel's edge never clips it; a background swap alone is ~1.05:1.
+        'focus-ring data-focus:-outline-offset-2 data-focus:bg-surface',
         ITEM_TONE_CLASS[tone],
         'disabled:cursor-not-allowed disabled:opacity-50',
         className,
@@ -121,8 +123,8 @@ function Link({ className, ...props }: ComponentPropsWithoutRef<'a'>) {
     <HuiMenuItem
       as="a"
       className={cn(
-        'flex w-full items-center gap-2xs rounded-md px-2xs py-3xs text-step-sm text-content no-underline',
-        'data-focus:bg-surface data-focus:text-content',
+        'flex min-h-(--target-min) w-full items-center gap-2xs rounded-md px-2xs py-3xs text-step-sm text-content no-underline',
+        'focus-ring data-focus:-outline-offset-2 data-focus:bg-surface data-focus:text-content',
         className,
       )}
       {...props}

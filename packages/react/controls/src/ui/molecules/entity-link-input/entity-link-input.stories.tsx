@@ -8,7 +8,9 @@ import {
 } from '@entifix/core';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
+import { expect, userEvent, within } from 'storybook/test';
 
+import { indicatorContrast } from '../../../../.storybook/indicator.js';
 import { EntityLinkInput } from './entity-link-input.js';
 
 @entity({ key: 'story-brand' })
@@ -132,4 +134,19 @@ export const Editable: Story = {
 /** A read-only relation still reads, it just cannot be changed. */
 export const Disabled: Story = {
   render: () => <Demo disabled />,
+};
+
+/** The option under the keyboard wears the focus ring, 3:1 on the list. */
+export const Keyboard: Story = {
+  render: () => <Demo />,
+  play: async ({ canvasElement }) => {
+    const page = within(canvasElement.ownerDocument.body);
+    await userEvent.click(page.getByRole('combobox'));
+    await userEvent.keyboard('a');
+    const list = await page.findByRole('listbox');
+    await userEvent.keyboard('{ArrowDown}');
+    const active = list.querySelector('[data-focus]');
+    await expect(active).not.toBeNull();
+    await expect(indicatorContrast(active!, list)).toBeGreaterThanOrEqual(3);
+  },
 };

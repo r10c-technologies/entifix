@@ -170,8 +170,11 @@ export function EntityLinkInput<TTarget extends Entity>({
                   key={String(option.id)}
                   value={option}
                   className={[
-                    'cursor-pointer rounded-md px-2xs py-3xs text-step-sm text-content',
-                    'data-focus:bg-surface',
+                    'flex min-h-(--target-min) cursor-pointer items-center rounded-md border-l-2 border-transparent px-2xs py-3xs text-step-sm text-content',
+                    // Active: the focus ring. Chosen but not under the
+                    // keyboard: a `selected` edge, 3:1 on the panel.
+                    'focus-ring data-focus:-outline-offset-2 data-focus:bg-surface',
+                    'data-selected:border-selected',
                   ].join(' ')}
                 >
                   {source.labelOf(option)}

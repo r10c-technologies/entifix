@@ -1,8 +1,9 @@
 import type { CommandPage } from '@entifix/core';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
-import { expect, within } from 'storybook/test';
+import { expect, userEvent, within } from 'storybook/test';
 
+import { indicatorContrast } from '../../../../.storybook/indicator.js';
 import { Button } from '../../atoms/button/button.js';
 import { CommandPalette } from './command-palette.js';
 
@@ -126,5 +127,24 @@ export const Width: Story = {
     await expect(panel.getBoundingClientRect().width).toBeGreaterThanOrEqual(
       Math.min(PANEL_MIN_INLINE, viewport - 64),
     );
+  },
+};
+
+/**
+ * Focus has one visual language: the input shows a ring while it holds focus,
+ * and the result under the keyboard wears the same ring, 3:1 on the panel.
+ */
+export const Keyboard: Story = {
+  render: () => <Demo />,
+  play: async ({ canvasElement }) => {
+    const page = within(canvasElement.ownerDocument.body);
+    const input = await page.findByRole('combobox');
+    await expect(input).toHaveFocus();
+    await expect(getComputedStyle(input).outlineStyle).not.toBe('none');
+    await userEvent.keyboard('{ArrowDown}{ArrowDown}');
+    const panel = page.getByTestId('command-palette');
+    const active = panel.querySelector('[role="option"][data-focus]');
+    await expect(active).not.toBeNull();
+    await expect(indicatorContrast(active!, panel)).toBeGreaterThanOrEqual(3);
   },
 };

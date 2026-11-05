@@ -85,7 +85,7 @@ function CommandRow({ option }: { option: CommandOption }) {
       className={cn(
         'flex min-h-(--target-min) cursor-pointer items-baseline gap-2xs rounded-md px-2xs py-3xs',
         'text-step-sm text-content',
-        'data-focus:bg-surface',
+        'focus-ring data-focus:-outline-offset-2 data-focus:bg-surface',
       )}
     >
       <span className="truncate">{option.label}</span>
@@ -307,7 +307,7 @@ export function CommandPalette({
               value={term}
               onChange={event => onTermChange(event.currentTarget.value)}
               onKeyDown={handleKeyDown}
-              className="flex-1 bg-transparent py-3xs text-step-1 text-content placeholder:text-content-muted focus:outline-none"
+              className="flex-1 rounded-sm bg-transparent py-3xs text-step-1 text-content placeholder:text-content-muted focus-ring"
             />
           </div>
 
