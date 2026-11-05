@@ -102,11 +102,13 @@ tests need no build. A consumer resolves `dist`.
   resolves nothing else, and the tarball is loaded by Node — a specifier the
   workspace resolves happily can fail for every adopter. `@entifix/tiers`
   refuses it.
-- **`Done` is the only required check.** `pull_request_check.yml` fans lint,
-  build and test out over affected chunks behind one gate job. A new job must be
-  added to `Done`'s `needs`, or it only advises. A change touching only a
-  workflow affects no project and skips the matrices — prove it with
-  `gh workflow run pull_request_check.yml --ref <branch>`.
+- **`Done` is the only required check.** `change_validation.yml` validates a
+  pull request, every push to `main` and a manual run behind one gate job. A new
+  job must be added to `Done`'s `needs`, or it only advises. A pull request that
+  touches `.github/` or `tools/ci/` runs the whole graph, because it affects no
+  project. The Nx cache travels through GitHub alone, and a check that reads
+  outside its own project runs `--skip-nx-cache`, or a replayed pass hides a
+  break ([ADR 0023](docs/adr/0023-change-validation-and-the-cache-it-may-trust.md)).
 - **A consumer sees unreleased work by copy, never by link.** A `link:` or
   `file:` specifier resolves `effect` from this repository and gives the consumer
   two copies, which breaks `Context.Service` identity without an error. Use
