@@ -40,7 +40,7 @@ export const Open: Story = {
   render: () => <LanguageMenu />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByLabelText('Language'));
+    await userEvent.click(canvas.getByTitle('Language'));
     // The panel fades in from `opacity: 0`, so visibility settles a frame later.
     await waitFor(() =>
       expect(canvas.getByRole('link', { name: 'English' })).toBeVisible(),

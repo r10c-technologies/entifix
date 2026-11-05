@@ -35,7 +35,7 @@ export const Open: Story = {
   render: () => <Export />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByLabelText('More formats'));
+    await userEvent.click(canvas.getByTitle('More formats'));
     // The panel fades in from `opacity: 0`, so visibility settles a frame later.
     await waitFor(() =>
       expect(canvas.getByRole('link', { name: 'PDF' })).toBeVisible(),
