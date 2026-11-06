@@ -94,7 +94,7 @@ export function PendingFlowsProvider({
     maxAgeMs,
     ...(readStatus === undefined ? {} : { readStatus }),
     onFailure: failure => {
-      toasts?.showFailure(failure);
+      toasts?.show({ tone: 'failure', failure });
     },
   });
 
