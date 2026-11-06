@@ -14,6 +14,7 @@ import { type KeyboardEvent, useId, useMemo } from 'react';
 
 import { useLocalizedDescriptors, useT } from '../../../i18n/index.js';
 import { Button } from '../../atoms/button/index.js';
+import { CellValue } from '../../atoms/cell-value/index.js';
 import { FieldControl } from '../../atoms/field-control/index.js';
 import { Skeleton } from '../../atoms/skeleton/index.js';
 import {
@@ -238,9 +239,16 @@ export function EntityDetailGrid({
                                 : `${cellId}-error`
                             }
                             onChange={next => setRow(index, column.name, next)}
+                            record={row}
                           />
-                        ) : (
+                        ) : column.money === undefined ? (
                           <span>{row[column.name] ?? ''}</span>
+                        ) : (
+                          <CellValue
+                            value={row[column.name]}
+                            descriptor={column}
+                            record={row}
+                          />
                         )}
                         {editing && error !== undefined && (
                           <span

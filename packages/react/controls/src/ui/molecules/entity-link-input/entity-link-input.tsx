@@ -128,7 +128,7 @@ export function EntityLinkInput<TTarget extends Entity>({
                 source.quick.setTerm(event.currentTarget.value)
               }
               className={[
-                'w-full rounded-lg border border-border bg-surface-elevated px-2xs py-3xs',
+                'min-h-(--target-min) w-full rounded-lg border border-border-control bg-surface-elevated px-2xs py-3xs',
                 'text-step-sm text-content',
                 'focus-ring',
                 'disabled:cursor-not-allowed disabled:opacity-50',
@@ -142,7 +142,7 @@ export function EntityLinkInput<TTarget extends Entity>({
             </ComboboxButton>
             <ComboboxOptions
               className={[
-                'max-h-64 absolute z-50 mt-3xs w-full overflow-auto',
+                'max-h-64 absolute z-(--z-dropdown) mt-3xs w-full overflow-auto',
                 'rounded-lg border border-border bg-surface-elevated p-3xs shadow-overlay',
                 // The panel itself is a focus-managed CONTAINER, not a target: the ring
                 // belongs on the item inside it. Stripping the outline here is
@@ -170,8 +170,11 @@ export function EntityLinkInput<TTarget extends Entity>({
                   key={String(option.id)}
                   value={option}
                   className={[
-                    'cursor-pointer rounded-md px-2xs py-3xs text-step-sm text-content',
-                    'data-focus:bg-surface',
+                    'flex min-h-(--target-min) cursor-pointer items-center rounded-md border-l-2 border-transparent px-2xs py-3xs text-step-sm text-content',
+                    // Active: the focus ring. Chosen but not under the
+                    // keyboard: a `selected` edge, 3:1 on the panel.
+                    'focus-ring data-focus:bg-surface data-focus:-outline-offset-2',
+                    'data-selected:border-selected',
                   ].join(' ')}
                 >
                   {source.labelOf(option)}

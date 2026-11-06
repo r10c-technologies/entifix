@@ -78,7 +78,7 @@ export function ColumnSettings({
       </PopoverButton>
       <PopoverPanel
         anchor="bottom end"
-        className="w-64 z-10 mt-3xs rounded-xl border border-border bg-surface-elevated p-2xs shadow-card"
+        className="w-64 z-(--z-dropdown) mt-3xs rounded-xl border border-border bg-surface-elevated p-2xs shadow-card"
       >
         <Text step={-2} tone="muted" className="px-3xs pb-3xs">
           {t('columns.subtitle')}

@@ -110,6 +110,9 @@
     },
     {
       "path": "./packages/ts/workflow"
+    },
+    {
+      "path": "./packages/style"
     }
   ],
   "compilerOptions": {

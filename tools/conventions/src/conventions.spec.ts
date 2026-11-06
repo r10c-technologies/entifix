@@ -1,4 +1,10 @@
-import { mkdirSync, mkdtempSync, readdirSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -329,5 +335,159 @@ describe('every component has a story', () => {
     writeFileSync(join(ui, 'molecules', 'planted', 'planted.tsx'), '');
 
     expect(componentsWithoutStory(ui)).toEqual(['molecules/planted']);
+  });
+});
+
+/** The spacing scale's names, which Tailwind also accepts after a size utility. */
+const SPACING_NAMES = ['3xs', '2xs', 'xs', 's', 'm', 'l', 'xl', '2xl', '3xl'];
+
+/** A size utility whose suffix is a spacing name, with any variant prefix. */
+const SPACING_SIZE = new RegExp(
+  String.raw`(?<![\w-])((?:[\w-]+:)*(?:max-w|min-w|w|h|max-h|min-h|size)-(?:${SPACING_NAMES.join('|')}))(?![\w/-])`,
+  'g',
+);
+
+/**
+ * An arbitrary length, colour, duration or z-index written as a literal:
+ * `-[12px]`, `-[2rem]`, `-[58%]`, `-[120ms]`, `-[#fff]`, `-[rgb(…)]`, `z-[…]`.
+ * `var(--…)` and `calc()`/`color-mix()` over tokens are what is meant instead;
+ * an arbitrary *variant* (`aria-[current]:`) ends in a colon and is not a value.
+ */
+const LITERAL_VALUE = new RegExp(
+  String.raw`(?<![\w-])((?:[\w-]+:)*-?[a-z][\w-]*-\[(?:-?\d*\.?\d+(?:px|rem|em|vh|vw|dvh|svh|lvh|ch|%|m?s)|#[0-9a-fA-F]{3,8}|rgba?\([^\]]*\)|hsla?\([^\]]*\))\])(?!:)|(?<![\w-])((?:[\w-]+:)*z-\[[^\]]+\])(?!:)`,
+  'g',
+);
+
+/**
+ * The tokens ADR 0025 rules out of a control's classes, one finding per
+ * occurrence. `allowed` names the spacing-sized classes a file means.
+ */
+const tokenFindings = (
+  source: string,
+  allowed: readonly string[] = [],
+): string[] => [
+  ...[...source.matchAll(SPACING_SIZE)]
+    .map(match => match[1])
+    .filter(found => !allowed.includes(found))
+    .map(found => `spacing-sized ${found}`),
+  ...[...source.matchAll(LITERAL_VALUE)].map(
+    match => `literal ${match[1] ?? match[2]}`,
+  ),
+];
+
+/**
+ * A spacing value a file means as a size, by file, with the reason. Anything
+ * else spacing-sized is a container width or a fixed size written with the
+ * wrong name, as the command palette's `max-w-xl` was.
+ */
+const SPACING_SIZE_ALLOWED: Readonly<Record<string, readonly string[]>> = {
+  // The connector between two steps is a gap drawn as a line: one spacing step
+  // long, in whatever scale the wizard sits in.
+  'packages/react/controls/src/ui/organisms/wizard/wizard.tsx': ['w-s'],
+};
+
+const sourcesUnder = (dir: string): string[] =>
+  readdirSync(join(REPO_ROOT, dir), { recursive: true, withFileTypes: true })
+    .filter(entry => entry.isFile() && /\.tsx?$/.test(entry.name))
+    .map(entry => join(entry.parentPath, entry.name))
+    // Stories too: the gate renders them, and a story sized with a colliding
+    // name shows a control at a width no host gives it.
+    .filter(path => !/\.spec\.tsx?$/.test(path))
+    .filter(path => !/\/(spec-support|story-support)\//.test(path));
+
+describe('a control sizes with tokens, never with a colliding name or a literal', () => {
+  it.each(['packages/react/controls/src', 'packages/next/shell/src'])(
+    'holds for %s',
+    dir => {
+      const findings = sourcesUnder(dir).flatMap(path => {
+        const relative = path.slice(REPO_ROOT.length + 1);
+        return tokenFindings(
+          readFileSync(path, 'utf8'),
+          SPACING_SIZE_ALLOWED[relative],
+        ).map(finding => `${relative}: ${finding}`);
+      });
+      expect(findings).toEqual([]);
+    },
+  );
+
+  it('finds a planted container width written as a spacing name', () => {
+    expect(
+      tokenFindings('<div className="relative w-full max-w-xl lg:h-s" />'),
+    ).toEqual(['spacing-sized max-w-xl', 'spacing-sized lg:h-s']);
+  });
+
+  it('finds planted literals of every kind', () => {
+    expect(
+      tokenFindings(
+        "cn('h-[2rem] w-[58%] lg:max-h-[60vh] duration-[120ms] bg-[#000] text-[rgb(0,0,0)] z-[60] -mt-[1px]')",
+      ),
+    ).toEqual([
+      'literal h-[2rem]',
+      'literal w-[58%]',
+      'literal lg:max-h-[60vh]',
+      'literal duration-[120ms]',
+      'literal bg-[#000]',
+      'literal text-[rgb(0,0,0)]',
+      'literal z-[60]',
+      'literal -mt-[1px]',
+    ]);
+  });
+
+  it('leaves tokens, numbers, variants, templates and allowed sizes alone', () => {
+    expect(
+      tokenFindings(
+        [
+          'max-w-(--container-xl) p-xl gap-s w-s h-8 size-3.5 max-w-md w-2/5',
+          'z-(--z-overlay) duration-(--duration-fast) bg-scrim scale-[0.97]',
+          'aria-[current]:font-semibold grid-cols-[repeat(auto-fill,minmax(1rem,1fr))]',
+          'bg-[color-mix(in_srgb,var(--color-primary)_14%,transparent)] max-w-[var(--measure)]',
+          'forced-colors:bg-[CanvasText] w-sm h-screen',
+        ].join(' '),
+        ['w-s'],
+      ),
+    ).toEqual([]);
+  });
+});
+
+/**
+ * Components a server page renders, and so never a client boundary: each was
+ * re-implemented by a host while the entifix one was client-only or missing.
+ * Their copy arrives as props; nothing here may reach for a hook.
+ */
+const SERVER_SAFE = [
+  'packages/react/controls/src/ui/atoms/alert/alert.tsx',
+  'packages/react/controls/src/ui/atoms/button/button-link.tsx',
+  'packages/react/controls/src/ui/atoms/button/submit-button.tsx',
+  'packages/react/controls/src/ui/atoms/money/money.tsx',
+  'packages/react/controls/src/ui/atoms/number-input/number-input.tsx',
+  'packages/react/controls/src/ui/atoms/status-tag/status-tag.tsx',
+  'packages/react/controls/src/ui/molecules/breadcrumbs/breadcrumbs.tsx',
+  'packages/react/controls/src/ui/molecules/description-list/description-list.tsx',
+  'packages/react/controls/src/ui/molecules/empty-state/empty-state.tsx',
+  'packages/react/controls/src/ui/molecules/media-gallery/media-gallery.tsx',
+  'packages/react/controls/src/ui/molecules/segmented-nav/segmented-nav.tsx',
+];
+
+/** Why `source` cannot render on a server, or nothing. */
+const clientOnly = (source: string): string[] => [
+  ...(/^\s*['"]use client['"]/m.test(source) ? ["declares 'use client'"] : []),
+  ...[
+    ...source.matchAll(
+      /\b(use(?:State|Effect|Ref|Context|T|Locale|Id)|createContext)\s*\(/g,
+    ),
+  ].map(match => `calls ${match[1]}()`),
+];
+
+describe('a server-safe component stays one', () => {
+  it.each(SERVER_SAFE)('holds for %s', path => {
+    expect(clientOnly(readFileSync(join(REPO_ROOT, path), 'utf8'))).toEqual([]);
+  });
+
+  it('finds a planted client boundary and a planted hook', () => {
+    expect(
+      clientOnly(
+        "'use client';\nexport const X = () => { const t = useT(); return t('a'); };",
+      ),
+    ).toEqual(["declares 'use client'", 'calls useT()']);
   });
 });

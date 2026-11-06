@@ -22,9 +22,19 @@ const ANCHOR: SegmentedNavLink = ({ children, ...props }) => (
 );
 
 /**
- * A choice between pages, drawn as one segmented control: each segment is a
- * link, the current page's is a marked span. A visible label names the
- * choice; the `<nav>` carries it for assistive technology.
+ * What the segments choose between. `pages` are separate pages, and the
+ * current one is `aria-current="page"`; `sort` orders one page's results, so
+ * every segment is the same page and the current one is only the current
+ * choice (`aria-current="true"`) — calling it the page would tell a screen
+ * reader the visitor is somewhere they are not.
+ */
+export type SegmentedNavKind = 'pages' | 'sort';
+
+/**
+ * A choice between pages, or between orderings of one page, drawn as one
+ * segmented control: each segment is a link, the current one a marked span.
+ * A visible label names the choice; the `<nav>` carries it for assistive
+ * technology.
  *
  * No hooks, so a server component renders it, and every segment works with
  * scripting off. Its parts carry `data-slot` (`segmented-nav`,
@@ -34,11 +44,13 @@ export function SegmentedNav({
   label,
   items,
   link: Link = ANCHOR,
+  kind = 'pages',
   className,
 }: {
   label: string;
   items: readonly SegmentedNavItem[];
   link?: SegmentedNavLink;
+  kind?: SegmentedNavKind;
   className?: string;
 }) {
   return (
@@ -58,7 +70,10 @@ export function SegmentedNav({
             className="flex-none"
           >
             {item.current ? (
-              <span aria-current="page" className={CURRENT}>
+              <span
+                aria-current={kind === 'sort' ? 'true' : 'page'}
+                className={CURRENT}
+              >
                 {item.label}
               </span>
             ) : (

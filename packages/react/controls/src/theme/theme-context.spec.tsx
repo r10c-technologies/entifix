@@ -1,9 +1,9 @@
 import { act, render, renderHook, screen } from '@testing-library/react';
-import type { PropsWithChildren } from 'react';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { type PropsWithChildren, StrictMode } from 'react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ThemeProvider, useTheme } from './theme-context.js';
-import type { ThemeOption } from './types.js';
+import type { ThemeOption, ThemePalette } from './types.js';
 
 /**
  * Derived, the way the provider derives it (`${storageKey}-runtime-palettes`),
@@ -12,6 +12,13 @@ import type { ThemeOption } from './types.js';
  */
 const DEFAULT_STORAGE_KEY = 'entifix-theme';
 const PALETTES_STYLE_ID = `${DEFAULT_STORAGE_KEY}-runtime-palettes`;
+
+// The three tokens a runtime palette must state (ADR 0025).
+const REQUIRED = {
+  'focus-ring': '#123456',
+  'border-control': '#654321',
+  selected: '#abcdef',
+} as const;
 
 const themes: ThemeOption[] = [
   { id: 'light', label: 'Light' },
@@ -29,6 +36,7 @@ const wrapper =
 beforeEach(() => {
   window.localStorage.clear();
   delete document.documentElement.dataset['theme'];
+  delete document.documentElement.dataset['density'];
 });
 
 afterEach(() => {
@@ -69,20 +77,55 @@ describe('ThemeProvider', () => {
     expect(document.documentElement.dataset['theme']).toBe('dark');
   });
 
-  it('persists the active theme', () => {
+  // Writing the default was the bug: under StrictMode it landed before the
+  // stored value was read back, and the stored theme was lost.
+  it('never writes a default to storage', () => {
     renderHook(() => useTheme(), {
-      wrapper: wrapper({ defaultTheme: 'dark' }),
+      wrapper: wrapper({ defaultTheme: 'dark', defaultDensity: 'compact' }),
     });
 
-    expect(window.localStorage.getItem('entifix-theme')).toBe('dark');
+    expect(window.localStorage.getItem('entifix-theme')).toBeNull();
+    expect(window.localStorage.getItem('entifix-theme-density')).toBeNull();
   });
 
-  it('namespaces persistence by the given storage key', () => {
-    renderHook(() => useTheme(), {
-      wrapper: wrapper({ storageKey: 'admin-theme', defaultTheme: 'dark' }),
+  it('namespaces a choice by the given storage key', () => {
+    const { result } = renderHook(() => useTheme(), {
+      wrapper: wrapper({ storageKey: 'admin-theme' }),
     });
 
+    act(() => result.current.setTheme('dark'));
+    act(() => result.current.setDensity('compact'));
+
     expect(window.localStorage.getItem('admin-theme')).toBe('dark');
+    expect(window.localStorage.getItem('admin-theme-density')).toBe('compact');
+  });
+
+  it('keeps a stored theme and density when mounted twice, as StrictMode does', () => {
+    window.localStorage.setItem('entifix-theme', 'dark');
+    window.localStorage.setItem('entifix-theme-density', 'compact');
+
+    const { result } = renderHook(() => useTheme(), {
+      wrapper: ({ children }: PropsWithChildren) => (
+        <StrictMode>
+          <ThemeProvider
+            themes={themes}
+            defaultTheme="light"
+            defaultDensity="comfortable"
+          >
+            {children}
+          </ThemeProvider>
+        </StrictMode>
+      ),
+    });
+
+    expect(result.current.theme).toBe('dark');
+    expect(result.current.density).toBe('compact');
+    expect(window.localStorage.getItem('entifix-theme')).toBe('dark');
+    expect(window.localStorage.getItem('entifix-theme-density')).toBe(
+      'compact',
+    );
+    expect(document.documentElement.dataset['theme']).toBe('dark');
+    expect(document.documentElement.dataset['density']).toBe('compact');
   });
 
   // Hydration runs in an effect on purpose: localStorage does not exist during
@@ -117,13 +160,85 @@ describe('ThemeProvider', () => {
     expect(window.localStorage.getItem('entifix-theme')).toBe('dark');
   });
 
+  describe('density', () => {
+    it('applies the default density, and reports it', () => {
+      const { result } = renderHook(() => useTheme(), {
+        wrapper: wrapper({ defaultDensity: 'compact' }),
+      });
+
+      expect(result.current.density).toBe('compact');
+      expect(document.documentElement.dataset['density']).toBe('compact');
+    });
+
+    it('leaves the document’s own density alone, and reports it, with no default', () => {
+      document.documentElement.dataset['density'] = 'compact';
+
+      const { result } = renderHook(() => useTheme(), { wrapper: wrapper() });
+
+      expect(result.current.density).toBe('compact');
+      expect(document.documentElement.dataset['density']).toBe('compact');
+    });
+
+    it('reports comfortable when nothing says otherwise', () => {
+      const { result } = renderHook(() => useTheme(), { wrapper: wrapper() });
+
+      expect(result.current.density).toBe('comfortable');
+      expect(document.documentElement.dataset['density']).toBeUndefined();
+    });
+
+    it('ignores a stored density it does not know', () => {
+      window.localStorage.setItem('entifix-theme-density', 'roomy');
+
+      const { result } = renderHook(() => useTheme(), {
+        wrapper: wrapper({ defaultDensity: 'comfortable' }),
+      });
+
+      expect(result.current.density).toBe('comfortable');
+    });
+
+    it('switches through setDensity, reflecting and persisting it', () => {
+      const { result } = renderHook(() => useTheme(), { wrapper: wrapper() });
+
+      act(() => result.current.setDensity('compact'));
+
+      expect(result.current.density).toBe('compact');
+      expect(document.documentElement.dataset['density']).toBe('compact');
+      expect(window.localStorage.getItem('entifix-theme-density')).toBe(
+        'compact',
+      );
+    });
+  });
+
+  it('still applies a choice when storage refuses it', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+
+    const { result } = renderHook(() => useTheme(), { wrapper: wrapper() });
+    act(() => result.current.setTheme('dark'));
+
+    expect(result.current.theme).toBe('dark');
+    expect(document.documentElement.dataset['theme']).toBe('dark');
+    vi.restoreAllMocks();
+  });
+
   describe('runtime palettes', () => {
+    it('must state the three tokens the contract holds against its surfaces', () => {
+      // @ts-expect-error — focus-ring, border-control and selected are required (ADR 0025)
+      const partial: ThemePalette = { primary: '#000' };
+      const complete: ThemePalette = { ...REQUIRED, primary: '#000' };
+      expect([partial, complete]).toHaveLength(2);
+    });
+
     // White-label palettes are injected last in the cascade so they override a
     // static preset defining the same tokens.
     it('injects a style element under the theme selector', () => {
       renderHook(() => useTheme(), {
         wrapper: wrapper({
-          palettes: { dark: { primary: '#000', accent: '#fff' } },
+          palettes: { dark: { ...REQUIRED, primary: '#000', accent: '#fff' } },
         }),
       });
 
@@ -137,11 +252,15 @@ describe('ThemeProvider', () => {
     // fresh one per mount would leave stale palettes stacked in <head>.
     it('reuses the existing style element rather than stacking them', () => {
       renderHook(() => useTheme(), {
-        wrapper: wrapper({ palettes: { dark: { primary: '#000' } } }),
+        wrapper: wrapper({
+          palettes: { dark: { ...REQUIRED, primary: '#000' } },
+        }),
       });
 
       renderHook(() => useTheme(), {
-        wrapper: wrapper({ palettes: { dark: { primary: '#111' } } }),
+        wrapper: wrapper({
+          palettes: { dark: { ...REQUIRED, primary: '#111' } },
+        }),
       });
 
       expect(document.querySelectorAll(`#${PALETTES_STYLE_ID}`)).toHaveLength(

@@ -83,9 +83,9 @@ function CommandRow({ option }: { option: CommandOption }) {
     <ComboboxOption
       value={option}
       className={cn(
-        'flex cursor-pointer items-baseline gap-2xs rounded-md px-2xs py-3xs',
+        'flex min-h-(--target-min) cursor-pointer items-baseline gap-2xs rounded-md px-2xs py-3xs',
         'text-step-sm text-content',
-        'data-focus:bg-surface',
+        'focus-ring data-focus:bg-surface data-focus:-outline-offset-2',
       )}
     >
       <span className="truncate">{option.label}</span>
@@ -273,12 +273,12 @@ export function CommandPalette({
       // Headless UI routes Escape here. Popping rather than closing is what
       // makes the stack feel like a stack; at the root the two are the same.
       onClose={pop}
-      className="inset-0 fixed z-50 flex items-start justify-center overflow-y-auto p-s pt-[12vh]"
+      className="inset-0 fixed z-(--z-palette) flex items-start justify-center overflow-y-auto p-s pt-(--overlay-offset-block)"
     >
-      <div aria-hidden className="inset-0 bg-black/40 fixed" />
+      <div aria-hidden className="inset-0 fixed bg-scrim" />
       <DialogPanel
         data-testid="command-palette"
-        className="relative w-full max-w-xl overflow-hidden rounded-lg border border-border bg-surface-elevated shadow-overlay"
+        className="relative w-full max-w-(--container-xl) overflow-hidden rounded-lg border border-border bg-surface-elevated shadow-overlay"
       >
         <DialogTitle className="sr-only">{labels.title}</DialogTitle>
 
@@ -307,14 +307,14 @@ export function CommandPalette({
               value={term}
               onChange={event => onTermChange(event.currentTarget.value)}
               onKeyDown={handleKeyDown}
-              className="flex-1 bg-transparent py-3xs text-step-1 text-content placeholder:text-content-muted focus:outline-none"
+              className="flex-1 rounded-sm bg-transparent py-3xs text-step-1 text-content focus-ring placeholder:text-content-muted"
             />
           </div>
 
           <ComboboxOptions
             static
             className={cn(
-              'max-h-[60vh] overflow-y-auto p-3xs',
+              'max-h-(--overlay-max-block) overflow-y-auto p-3xs',
               // The panel is a focus-managed CONTAINER, not a target: the ring
               // belongs on the row inside it.
               'focus:outline-none',

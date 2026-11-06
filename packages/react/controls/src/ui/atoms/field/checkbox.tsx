@@ -31,6 +31,28 @@ export interface CheckboxProps extends Omit<
 }
 
 /**
+ * The box is painted at 1rem and HIT at `--target-min` (WCAG 2.5.8, ADR 0025).
+ * The input itself is the target-sized element — an input renders no
+ * pseudo-element of its own until `appearance: none` hands its painting over,
+ * which is what this does — and a negative margin gives the extra back, so the
+ * layout still sees a 1rem box at any floor and compact density stays compact. The square,
+ * its tick and the indeterminate bar are drawn by `::before` and `::after`
+ * with `border-control` and the primary colour; the tick and the bar are
+ * borders, so forced colours keep them.
+ */
+const BOX = [
+  'relative size-(--target-min) shrink-0 cursor-pointer appearance-none rounded-sm focus-ring',
+  'disabled:cursor-not-allowed disabled:opacity-50',
+  // The painted square: 1rem, centred in the target whatever its floor.
+  'before:absolute before:inset-[calc((var(--target-min)-(--spacing(4)))/2)] before:rounded-sm before:border before:border-border-control before:bg-surface-elevated',
+  'checked:before:border-primary checked:before:bg-primary indeterminate:before:border-primary indeterminate:before:bg-primary',
+  // The tick: two borders of a rotated box.
+  'checked:after:absolute checked:after:inset-0 checked:after:m-auto checked:after:h-2.5 checked:after:w-1.5 checked:after:-translate-y-px checked:after:rotate-45 checked:after:border-r-2 checked:after:border-b-2 checked:after:border-primary-content',
+  // The bar: one border.
+  'indeterminate:after:absolute indeterminate:after:top-1/2 indeterminate:after:left-1/2 indeterminate:after:w-2 indeterminate:after:-translate-1/2 indeterminate:after:border-t-2 indeterminate:after:border-primary-content',
+].join(' ');
+
+/**
  * A checkbox, with its caption when it has one.
  *
  * Two shapes, and the difference is not cosmetic. With `label` it renders the
@@ -60,7 +82,7 @@ export function Checkbox({
     <input
       ref={ref}
       type="checkbox"
-      className={cn('size-4 accent-primary', label ? undefined : className)}
+      className={cn(BOX, label ? undefined : className)}
       {...props}
     />
   );

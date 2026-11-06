@@ -44,11 +44,11 @@ export function EntityLinkPicker<TTarget extends Entity>({
     <Dialog
       open={browse.isOpen}
       onClose={browse.close}
-      className="inset-0 fixed z-50 flex items-start justify-center overflow-y-auto p-s"
+      className="inset-0 fixed z-(--z-overlay) flex items-start justify-center overflow-y-auto p-s"
     >
       {/* Backdrop and panel are separate so a click outside closes the dialog
           without the table's own clicks bubbling into it. */}
-      <div aria-hidden className="inset-0 bg-black/40 fixed" />
+      <div aria-hidden className="inset-0 fixed bg-scrim" />
       <DialogPanel className="max-w-4xl relative w-full rounded-lg border border-border bg-surface p-s shadow-overlay">
         <div className="flex items-center justify-between gap-s">
           <DialogTitle className="text-step-1 font-semibold text-content">

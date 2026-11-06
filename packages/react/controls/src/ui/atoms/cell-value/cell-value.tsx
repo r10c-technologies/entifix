@@ -17,6 +17,8 @@ import {
   useLocale,
   useT,
 } from '../../../i18n/index.js';
+import { Money } from '../money/money.js';
+import { currencyOf } from '../money/money-math.js';
 
 /** Stand-in for an absent value, so an empty cell still reads as intentional. */
 const EMPTY = '—';
@@ -146,6 +148,11 @@ const NUMERIC_CLASS: Partial<Record<MetaAccessorType, string>> = {
 export interface CellValueProps {
   value: unknown;
   descriptor: EntityFieldDescriptor;
+  /**
+   * The record the value belongs to. A money member whose currency is another
+   * member of the record (`money.currencyMember`) reads it from here.
+   */
+  record?: Readonly<Record<string, unknown>>;
 }
 
 /**
@@ -153,14 +160,33 @@ export interface CellValueProps {
  * is what lets a table stay generic: a link, a date and a number all arrive as
  * "the value of an accessor", and only the descriptor decides how they read.
  */
-export function CellValue({ value, descriptor }: CellValueProps) {
+export function CellValue({ value, descriptor, record }: CellValueProps) {
   const t = useT();
   const formatters = useFormatters();
   const enumLabel = useEnumLabel();
   const locale = useLocale();
 
-  if (value === undefined || value === null) {
+  if (value === undefined || value === null || value === '') {
     return <span className="text-content-muted">{EMPTY}</span>;
+  }
+
+  // An amount reads as money in the reader's locale, never as the stored
+  // number. A draft holds it as a string, so a numeric string counts too. A
+  // currency the record does not carry leaves it a plain number rather than
+  // guessing one.
+  if (descriptor.money !== undefined) {
+    const amount = typeof value === 'number' ? value : Number(value);
+    const currency = currencyOf(descriptor.money, record);
+    if (currency !== undefined && Number.isFinite(amount)) {
+      return (
+        <Money
+          amount={amount}
+          currency={currency}
+          unit={descriptor.money.unit}
+          locale={locale}
+        />
+      );
+    }
   }
 
   const text = formatByType(

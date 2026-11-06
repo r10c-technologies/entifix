@@ -341,3 +341,63 @@ describe('CellValue — a link labelled by a localized member', () => {
     expect(screen.getByText('Pan')).toBeInTheDocument();
   });
 });
+
+describe('CellValue money', () => {
+  const money = (
+    format: EntityFieldDescriptor['money'],
+  ): EntityFieldDescriptor => ({ ...descriptor('number'), money: format });
+
+  it('prints a minor-unit amount as money in its fixed currency', () => {
+    render(
+      <CellValue
+        value={6499}
+        descriptor={money({ unit: 'minor', currency: 'GTQ' })}
+      />,
+    );
+    const cell = screen.getByText(/64,99/);
+    expect(cell.textContent).not.toMatch(/6499/);
+    expect(cell.className).toContain('tabular-nums');
+  });
+
+  it('reads the currency from the record, and a draft’s numeric string', () => {
+    render(
+      <CellValue
+        value="1250"
+        descriptor={money({ unit: 'minor', currencyMember: 'currency' })}
+        record={{ currency: 'KWD' }}
+      />,
+    );
+    expect(screen.getByText(/1,250/)).toBeInTheDocument();
+  });
+
+  it('stays a plain number when the record carries no currency', () => {
+    render(
+      <CellValue
+        value={6499}
+        descriptor={money({ unit: 'minor', currencyMember: 'currency' })}
+        record={{}}
+      />,
+    );
+    expect(screen.getByText('6499')).toBeInTheDocument();
+  });
+
+  it('stays as it is when the value is not a number', () => {
+    render(
+      <CellValue
+        value="n/a"
+        descriptor={money({ unit: 'minor', currency: 'GTQ' })}
+      />,
+    );
+    expect(screen.getByText('n/a')).toBeInTheDocument();
+  });
+
+  it('renders the placeholder for an empty draft value', () => {
+    render(
+      <CellValue
+        value=""
+        descriptor={money({ unit: 'minor', currency: 'GTQ' })}
+      />,
+    );
+    expect(screen.getByText(EMPTY)).toBeInTheDocument();
+  });
+});

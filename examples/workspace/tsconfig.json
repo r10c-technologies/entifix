@@ -32,6 +32,9 @@
       "path": "../../packages/ts/testing-unit"
     },
     {
+      "path": "../../packages/style"
+    },
+    {
       "path": "../../packages/react/integration"
     },
     {

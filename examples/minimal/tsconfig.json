@@ -36,6 +36,9 @@
       "path": "../../packages/ts/testing-auth"
     },
     {
+      "path": "../../packages/style"
+    },
+    {
       "path": "../../packages/ts/rest-client"
     },
     {

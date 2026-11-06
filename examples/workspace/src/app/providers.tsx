@@ -39,7 +39,11 @@ function Themed({ children }: PropsWithChildren) {
   );
   return (
     <EntifixQueryProvider>
-      <ThemeProvider themes={themes} defaultTheme="aurora">
+      <ThemeProvider
+        themes={themes}
+        defaultTheme="aurora"
+        defaultDensity="compact"
+      >
         <UiPreferencesProvider store={uiPreferences}>
           <ToastProvider>
             <PendingFlowsProvider

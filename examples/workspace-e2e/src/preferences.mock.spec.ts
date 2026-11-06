@@ -15,6 +15,14 @@ test('switches theme, density and language', async ({ page }) => {
   await page.getByRole('radio', { name: 'Cómoda' }).check();
   await expect(html).toHaveAttribute('data-density', 'comfortable');
 
+  // A choice survives a reload: the provider writes only what is chosen, so
+  // mounting again can never put the default back (entifix#187).
+  await page.reload();
+  await expect(html).toHaveAttribute('data-theme', 'sunset');
+  await expect(page.getByRole('radio', { name: 'Atardecer' })).toBeChecked();
+  await expect(html).toHaveAttribute('data-density', 'comfortable');
+  await expect(page.getByRole('radio', { name: 'Cómoda' })).toBeChecked();
+
   await page.getByRole('link', { name: 'English' }).click();
   await expect(page).toHaveURL(/\/en$/);
   await expect(

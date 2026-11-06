@@ -7,6 +7,7 @@ import {
   type EntityLinkSerialization,
   MetaAccessor,
   MetaAccessorType,
+  type MoneyFormat,
 } from '../meta-entities/meta-accessor/index.js';
 
 /**
@@ -61,6 +62,8 @@ export interface EntityFieldDescriptor {
   maxItems?: number;
   /** The `date` member this one may not precede. */
   notBefore?: string;
+  /** The member is an amount of money, read as this declares. `number` members only. */
+  money?: MoneyFormat;
   /** This member holds the parent record's id: the entity forms a tree. */
   parent?: boolean;
 }
@@ -187,6 +190,32 @@ function assertParentType(metaAccessor: MetaAccessor, type: MetaAccessorType) {
   );
 }
 
+/** Money is a reading of a number; any other member declaring it is a mistake. */
+function assertMoneyType(metaAccessor: MetaAccessor, type: MetaAccessorType) {
+  if (metaAccessor.money === undefined || type === 'number') return;
+  throw new Error(
+    `"${String(metaAccessor.name)}" is a ${type} and declares money — only a number member can be an amount.`,
+  );
+}
+
+/**
+ * A `currencyMember` must be a visible `string` member of the same entity: a
+ * hidden one never reaches the client, so the amount would print with no
+ * currency and nothing would say why.
+ */
+function assertCurrencyMembers(descriptors: readonly EntityFieldDescriptor[]) {
+  for (const descriptor of descriptors) {
+    const member = descriptor.money?.currencyMember;
+    if (member === undefined) continue;
+    const currency = descriptors.find(other => other.name === member);
+    if (currency?.type !== 'string') {
+      throw new Error(
+        `"${descriptor.name}" reads its currency from "${member}", which must be a visible string member of the entity.`,
+      );
+    }
+  }
+}
+
 /**
  * One parent member per entity. Two would be two trees over the same records,
  * and which one a table indents by would depend on declaration order.
@@ -244,6 +273,7 @@ function toDescriptor(
   assertNotQueryable(metaAccessor, type);
   assertItemCounts(metaAccessor, type);
   assertParentType(metaAccessor, type);
+  assertMoneyType(metaAccessor, type);
   // A localized member is queried one locale at a time (`name.en`), which
   // makes it as queryable as the text each locale holds.
   const isScalar = SCALAR_TYPES.includes(type) || type === 'localized';
@@ -270,6 +300,7 @@ function toDescriptor(
     minItems: metaAccessor.minItems,
     maxItems: metaAccessor.maxItems,
     notBefore: metaAccessor.notBefore,
+    ...(metaAccessor.money === undefined ? {} : { money: metaAccessor.money }),
     parent: metaAccessor.parent ?? false,
   };
 }
@@ -309,6 +340,7 @@ export function describeEntityColumns<TTarget extends object>(
     .map((metaAccessor, index) => toDescriptor(metaAccessor, index, sample))
     .sort((left, right) => left.order - right.order);
   assertNotBefore(descriptors);
+  assertCurrencyMembers(descriptors);
   assertOneParent(descriptors);
   return descriptors;
 }

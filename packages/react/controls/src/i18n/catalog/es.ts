@@ -114,9 +114,21 @@ export const controls = {
     applyAria: 'Aplicar orden',
     clearAria: 'Limpiar orden',
   },
+  alert: {
+    dismiss: 'Descartar',
+  },
+  quantity: {
+    decrease: 'Disminuir {{label}}',
+    increase: 'Aumentar {{label}}',
+  },
   tabs: {
     close: 'Cerrar {{label}}',
     new: 'Abrir una pestaña nueva',
+    list: 'Pestañas del espacio de trabajo',
+    withState: '{{label}}, {{state}}',
+    dirty: 'cambios sin guardar',
+    saving: 'guardando',
+    error: 'sin guardar',
   },
   /**
    * El editor de una relación. `search` es la búsqueda rápida y `browse` abre el

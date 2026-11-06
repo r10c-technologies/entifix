@@ -3,13 +3,14 @@
 import {
   ConfirmDialog,
   Tab,
+  TabPanel,
   TabStrip,
   TopBar,
   useT,
   useTranslateKey,
 } from '@entifix/react-controls';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useId, useState } from 'react';
 
 import { useDraftsState } from './drafts-state.js';
 import type { TabRegistry } from './tab-kind.js';
@@ -180,6 +181,13 @@ export function WorkspaceShell({
     );
   };
 
+  // Tab and panel ids: DOM ids, so derived from the tab's position under one
+  // per-shell prefix rather than from its param, which holds `:` and `#`.
+  const idBase = useId();
+  const panelId = `${idBase}-panel`;
+  const tabId = (index: number) => `${idBase}-tab-${index}`;
+  const activeIndex = tabs.findIndex(tab => tab.param === activeParam);
+
   const activeResolved = activeParam
     ? registry.resolve(activeParam, translate)
     : null;
@@ -207,9 +215,11 @@ export function WorkspaceShell({
       </TopBar>
 
       <TabStrip>
-        {tabs.map(tab => (
+        {tabs.map((tab, index) => (
           <Tab
             key={tab.param}
+            id={tabId(index)}
+            controls={panelId}
             // Re-derived from the registry rather than read back from the
             // store: the persisted title is whatever locale it was opened
             // in, so a locale switch would leave stale captions behind.
@@ -224,7 +234,15 @@ export function WorkspaceShell({
         ))}
       </TabStrip>
 
-      <div className="min-w-0 flex-1 p-m">{body}</div>
+      <TabPanel
+        id={panelId}
+        labelledBy={
+          !deadLink && activeIndex >= 0 ? tabId(activeIndex) : undefined
+        }
+        className="min-w-0 flex-1 p-m"
+      >
+        {body}
+      </TabPanel>
 
       {pendingClose && (
         <ConfirmDialog

@@ -38,6 +38,17 @@ const CELLS = {
 const cell = (name: keyof typeof CELLS): TestProjectInlineConfiguration => ({
   extends: true,
   plugins: [storybookTest({ configDir: path.join(root, '.storybook') })],
+  // The gate drives a real browser, so a story's `parameters.gate` (a
+  // viewport, forced colours) is entered for real here and is a no-op in
+  // `storybook dev` (`.storybook/gate-browser.ts`).
+  resolve: {
+    alias: [
+      {
+        find: /^\.\/gate-browser\.js$/,
+        replacement: path.join(root, '.storybook/gate-browser.vitest.ts'),
+      },
+    ],
+  },
   // Read by `.storybook/preview.ts` as its `initialGlobals`.
   define: {
     'import.meta.env.STORYBOOK_A11Y_CELL': JSON.stringify(CELLS[name]),
@@ -49,6 +60,13 @@ const cell = (name: keyof typeof CELLS): TestProjectInlineConfiguration => ({
       headless: true,
       provider: playwright(),
       instances: [{ browser: 'chromium' }],
+      commands: {
+        emulateForcedColors: async (context, active: boolean) => {
+          await context.page.emulateMedia({
+            forcedColors: active ? 'active' : 'none',
+          });
+        },
+      },
     },
   },
 });

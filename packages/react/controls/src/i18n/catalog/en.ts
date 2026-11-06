@@ -103,9 +103,21 @@ export const controls: EsControls = {
     applyAria: 'Apply sorting',
     clearAria: 'Clear sorting',
   },
+  alert: {
+    dismiss: 'Dismiss',
+  },
+  quantity: {
+    decrease: 'Decrease {{label}}',
+    increase: 'Increase {{label}}',
+  },
   tabs: {
     close: 'Close {{label}}',
     new: 'Open a new tab',
+    list: 'Workspace tabs',
+    withState: '{{label}}, {{state}}',
+    dirty: 'unsaved changes',
+    saving: 'saving',
+    error: 'not saved',
   },
   link: {
     search: 'Search {{field}}',

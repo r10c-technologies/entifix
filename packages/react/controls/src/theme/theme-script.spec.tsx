@@ -25,6 +25,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
   localStorage.clear();
   delete document.documentElement.dataset['theme'];
+  delete document.documentElement.dataset['density'];
 });
 
 describe('ThemeScript', () => {
@@ -32,6 +33,21 @@ describe('ThemeScript', () => {
     localStorage.setItem('entifix-theme', 'dark');
     runThemeScript();
     expect(painted()).toBe('dark');
+  });
+
+  it('paints a stored density, and leaves the served one when none is stored', () => {
+    document.documentElement.dataset['density'] = 'comfortable';
+    runThemeScript();
+    expect(document.documentElement.dataset['density']).toBe('comfortable');
+
+    localStorage.setItem('entifix-theme-density', 'compact');
+    runThemeScript();
+    expect(document.documentElement.dataset['density']).toBe('compact');
+
+    localStorage.setItem('entifix-theme-density', 'roomy');
+    document.documentElement.dataset['density'] = 'comfortable';
+    runThemeScript();
+    expect(document.documentElement.dataset['density']).toBe('comfortable');
   });
 
   it('paints and stores the first theme when nothing is stored', () => {

@@ -164,7 +164,26 @@ export interface MetaAccessorOptions {
    * nothing needs. Absent means a root.
    */
   parent?: boolean;
+  /**
+   * This `number` member is an amount of money, and how to read it: its
+   * currency, fixed or held by another member of the same record, and whether
+   * the number counts the currency's minor units (cents) or its major ones.
+   * Presentation only — the member is still a number to validation, queries
+   * and every adapter — so a table prints `Q64,99` rather than `6499`, and a
+   * form edits the major amount and writes back the stored one.
+   */
+  money?: MoneyFormat;
 }
+
+/**
+ * How a `number` member reads as money: `currency` fixed, or
+ * `currencyMember` naming the record's own ISO 4217 code member; `unit`
+ * whether the stored number counts minor units (`6499` for 64.99) or major.
+ */
+export type MoneyFormat = { readonly unit: 'minor' | 'major' } & (
+  | { readonly currency: string; readonly currencyMember?: never }
+  | { readonly currencyMember: string; readonly currency?: never }
+);
 
 export class MetaAccessor {
   //#region Properties
@@ -192,6 +211,7 @@ export class MetaAccessor {
   readonly maxItems?: number;
   readonly notBefore?: string;
   readonly parent?: boolean;
+  readonly money?: MoneyFormat;
 
   //#endregion
 
@@ -224,6 +244,7 @@ export class MetaAccessor {
     this.maxItems = options?.maxItems;
     this.notBefore = options?.notBefore;
     this.parent = options?.parent;
+    this.money = options?.money;
   }
   //#endregion
 

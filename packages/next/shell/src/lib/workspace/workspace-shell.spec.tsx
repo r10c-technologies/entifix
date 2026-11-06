@@ -98,9 +98,19 @@ describe('WorkspaceShell', () => {
     renderShell();
 
     expect(await screen.findByTestId('body')).toHaveTextContent('list product');
-    expect(
-      screen.getByRole('tab', { name: /product catalog/ }),
-    ).toBeInTheDocument();
+    const tab = screen.getByRole('tab', { name: /product catalog/ });
+    // The body is the tab's panel, labelled by the tab that shows it.
+    const panel = screen.getByRole('tabpanel', { name: /product catalog/ });
+    expect(tab).toHaveAttribute('aria-controls', panel.id);
+    expect(panel).toContainElement(screen.getByTestId('body'));
+  });
+
+  it('labels the panel with no tab while a dead link shows the fallback', async () => {
+    tabParam = 'operation:import';
+    renderShell();
+
+    await screen.findByTestId('fallback');
+    expect(screen.getByRole('tabpanel')).not.toHaveAttribute('aria-labelledby');
   });
 
   it('copies a deep link to the active tab', async () => {
@@ -219,9 +229,7 @@ describe('WorkspaceShell', () => {
     renderShell();
     await screen.findByTestId('body');
 
-    await user.click(
-      screen.getByRole('button', { name: 'Cerrar product catalog' }),
-    );
+    await user.click(screen.getByTitle('Cerrar product catalog'));
 
     await waitFor(() =>
       expect(
@@ -256,9 +264,7 @@ describe('WorkspaceShell', () => {
       useDraftsState.getState().setDraft('catalog:product', { name: 'x' });
     });
 
-    await user.click(
-      screen.getByRole('button', { name: 'Cerrar product catalog' }),
-    );
+    await user.click(screen.getByTitle('Cerrar product catalog'));
 
     expect(await screen.findByTestId('confirm-dialog')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Cancelar' }));
@@ -281,9 +287,7 @@ describe('WorkspaceShell', () => {
       useDraftsState.getState().setDraft('catalog:product', { name: 'x' });
     });
 
-    await user.click(
-      screen.getByRole('button', { name: 'Cerrar product catalog' }),
-    );
+    await user.click(screen.getByTitle('Cerrar product catalog'));
 
     await screen.findByTestId('confirm-dialog');
     await user.click(screen.getByRole('button', { name: 'Descartar' }));

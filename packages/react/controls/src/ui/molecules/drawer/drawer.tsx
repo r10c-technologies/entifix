@@ -38,15 +38,15 @@ export function Drawer({
   className,
 }: DrawerProps) {
   return (
-    <Dialog open={open} onClose={onClose} className="relative z-50">
-      <div aria-hidden className="inset-0 bg-black/40 fixed" />
+    <Dialog open={open} onClose={onClose} className="relative z-(--z-overlay)">
+      <div aria-hidden className="inset-0 fixed bg-scrim" />
       <div className="inset-0 fixed flex">
         <DialogPanel
           data-testid="drawer"
           className={cn(
             // 200ms is `--default-transition-duration`, the beat every other
             // transition in the system already uses.
-            'w-72 flex max-w-[85vw] flex-col gap-m overflow-y-auto border-r border-border bg-surface-elevated p-s transition duration-200',
+            'w-72 flex max-w-(--overlay-max-inline) flex-col gap-m overflow-y-auto border-r border-border bg-surface-elevated p-s transition duration-200',
             className,
           )}
         >
