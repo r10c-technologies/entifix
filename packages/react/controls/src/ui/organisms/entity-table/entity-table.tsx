@@ -17,11 +17,7 @@ import {
 import { Fragment, type ReactNode, useMemo, useRef, useState } from 'react';
 
 import { useErrorMessage, useT, useTranslateKey } from '../../../i18n/index.js';
-import {
-  OVERFLOW_GLYPH,
-  renderAnchor,
-  useCasesForSurface,
-} from '../../actions/index.js';
+import { renderAnchor, useCasesForSurface } from '../../actions/index.js';
 import { Button } from '../../atoms/button/index.js';
 import { CellValue } from '../../atoms/cell-value/index.js';
 import { Checkbox } from '../../atoms/field/index.js';
@@ -36,6 +32,11 @@ import {
   TableRow,
 } from '../../atoms/table/index.js';
 import { linkClassName } from '../../atoms/text/index.js';
+import {
+  ActionBar,
+  type ActionBarItem,
+  itemsForUseCases,
+} from '../../molecules/action-bar/index.js';
 import { BulkActionBar } from '../../molecules/bulk-action-bar/index.js';
 import { BulkResult } from '../../molecules/bulk-result/index.js';
 import { ColumnSettings } from '../../molecules/column-settings/index.js';
@@ -43,7 +44,6 @@ import { ConfirmDialog } from '../../molecules/confirm-dialog/index.js';
 import { EntityRecordCard } from '../../molecules/entity-record-card/index.js';
 import { FilterBuilder } from '../../molecules/filter-builder/index.js';
 import { LoadingBoundary } from '../../molecules/loading-boundary/index.js';
-import { Menu } from '../../molecules/menu/index.js';
 import { Pagination } from '../../molecules/pagination/index.js';
 import { SortBuilder } from '../../molecules/sort-builder/index.js';
 import { TableToolbar } from '../../molecules/table-toolbar/index.js';
@@ -239,8 +239,9 @@ export function EntityTable<TEntity extends Entity>({
     excluded: new Set<EntityId>(),
   };
 
-  const hasRowAction =
-    onSelect !== undefined || hrefFor !== undefined || hasRowMenu;
+  // Opening a record is its title's link, so a row needs an actions column
+  // only to pick it or to run a verb on it.
+  const hasRowAction = onSelect !== undefined || hasRowMenu;
   const columnCount =
     visibleColumns.length + (hasRowAction ? 1 : 0) + (selectable ? 1 : 0);
 
@@ -269,7 +270,15 @@ export function EntityTable<TEntity extends Entity>({
     ? 'opacity-60 transition-opacity duration-200 ease-smooth'
     : '';
 
-  const renderCell = (
+  /** The column a row reads *as*: the first non-identifier one it filled in. */
+  const titleColumn = (item: TEntity) =>
+    visibleColumns.find(column => {
+      if (column.type === 'id') return false;
+      const value = (item as Record<string, unknown>)[column.name];
+      return value != null && String(value) !== '';
+    });
+
+  const renderValue = (
     column: EntityTableColumn<TEntity>,
     item: TEntity,
   ): ReactNode =>
@@ -282,6 +291,28 @@ export function EntityTable<TEntity extends Entity>({
         record={item as Record<string, unknown>}
       />
     );
+
+  /**
+   * A cell, and the row's title cell is the record's link
+   * ([ADR 0026](../../../../../../../docs/adr/0026-actions-hierarchy-overflow-and-destructive-verbs.md)).
+   * A column of identical "Open" links named nothing, and a reader tabbing
+   * down it heard "Open" once per row; the title says which record it opens.
+   * A picker's rows are chosen, not opened, so they stay plain.
+   */
+  const renderCell = (
+    column: EntityTableColumn<TEntity>,
+    item: TEntity,
+  ): ReactNode => {
+    const value = renderValue(column, item);
+    if (hrefFor === undefined || onSelect !== undefined) return value;
+    if (titleColumn(item)?.name !== column.name) return value;
+    return renderLink({
+      href: hrefFor(item.id),
+      className: linkClassName,
+      children: value,
+      intent: { kind: 'open', id: item.id },
+    });
+  };
 
   /**
    * The row a shift-click ranges *from* — the last box the user actually
@@ -382,11 +413,7 @@ export function EntityTable<TEntity extends Entity>({
     //
     // The id remains the last resort, because a row with nothing rendered
     // still has to announce itself.
-    const named = visibleColumns.find(column => {
-      if (column.type === 'id') return false;
-      const value = (item as Record<string, unknown>)[column.name];
-      return value != null && String(value) !== '';
-    });
+    const named = titleColumn(item);
 
     return named
       ? String((item as Record<string, unknown>)[named.name])
@@ -443,39 +470,21 @@ export function EntityTable<TEntity extends Entity>({
 
   const rowMenu = (item: TEntity) =>
     hasRowMenu ? (
-      <Menu>
-        <Menu.Trigger aria-label={t('table.actions')}>
-          {OVERFLOW_GLYPH}
-        </Menu.Trigger>
-        <Menu.Items>
-          {rowUseCases.map(useCase => (
-            <Menu.Item
-              key={useCase.key}
-              tone={
-                useCase.confirm?.tone === 'destructive'
-                  ? 'destructive'
-                  : 'neutral'
-              }
-              onClick={() => invoke(useCase, { kind: 'row', item })}
-            >
-              {translateKey(useCase.labelKey)}
-            </Menu.Item>
-          ))}
-        </Menu.Items>
-      </Menu>
+      <ActionBar
+        surface="row-menu"
+        menuLabel={t('actions.forRecord', { record: rowLabel(item) })}
+        items={itemsForUseCases(rowUseCases, translateKey, useCase =>
+          invoke(useCase, { kind: 'row', item }),
+        )}
+      />
     ) : undefined;
 
   /**
-   * Selection wins over navigation: a picker's row must set the value, not send
-   * the user away from the form they came from.
-   *
-   * The row menu sits *beside* whichever of the two applies rather than
-   * replacing it — "open this record" and "run a verb on it" are both true at
-   * once, and folding the first into the menu would bury the action every row
-   * of a list exists for.
+   * A picker's Select, then the row's verbs. Opening the record is not here:
+   * it is the title's link.
    */
   const recordAction = (item: TEntity) => {
-    const primary = onSelect ? (
+    const pick = onSelect ? (
       <Button
         type="button"
         variant="secondary"
@@ -484,25 +493,55 @@ export function EntityTable<TEntity extends Entity>({
       >
         {t('table.select')}
       </Button>
-    ) : hrefFor ? (
-      renderLink({
-        href: hrefFor(item.id),
-        className: linkClassName,
-        children: t('table.open'),
-        intent: { kind: 'open', id: item.id },
-      })
     ) : undefined;
 
     const menu = rowMenu(item);
-    if (!menu) return primary;
+    if (!menu) return pick;
 
     return (
       <span className="flex items-center gap-2xs">
-        {primary}
+        {pick}
         {menu}
       </span>
     );
   };
+
+  /**
+   * "New" is the list's primary, and only where something can be created
+   * here: the entity is not one only a flow writes (`creatable: false`), and
+   * the caller may write it. A list that offered "New" to a reader who could
+   * never save opened a form with no Save on it.
+   */
+  const mayCreate =
+    newHref !== undefined &&
+    metaEntity.creatable &&
+    (metadata === undefined || metadata.actions.includes('write'));
+  const toolbarItems: ActionBarItem[] = itemsForUseCases(
+    toolbarUseCases,
+    translateKey,
+    useCase =>
+      invoke(useCase, { kind: 'selection', selection: everythingMatching }),
+    isBulkRunning,
+  );
+  const declaresToolbarPrimary = toolbarItems.some(
+    item => item.emphasis === 'primary',
+  );
+  const toolbarActions: ActionBarItem[] = [
+    ...(mayCreate
+      ? [
+          {
+            key: 'new',
+            label: t('table.new'),
+            emphasis: declaresToolbarPrimary
+              ? ('default' as const)
+              : ('primary' as const),
+            href: newHref,
+            intent: { kind: 'new' as const },
+          },
+        ]
+      : []),
+    ...toolbarItems,
+  ];
 
   /**
    * "No records" is a statement about the data; after a failed load it would be
@@ -528,36 +567,19 @@ export function EntityTable<TEntity extends Entity>({
         <TableToolbar
           start={
             <>
-              {newHref &&
-                renderLink({
-                  href: newHref,
-                  className: linkClassName,
-                  children: t('table.new'),
-                  intent: { kind: 'new' },
-                })}
-              {/* Collection-bound verbs that need no selection. They sit with
-                  `New` rather than in the bulk bar, because the bulk bar only
-                  exists while rows are ticked and these are always available. */}
+              {/* "New" and the collection-bound verbs that need no
+                  selection. They sit here rather than in the bulk bar,
+                  because the bulk bar only exists while rows are ticked and
+                  these are always available. */}
               <LoadingBoundary isLoading={isMetadataLoading} lines={0}>
                 <>
-                  {toolbarUseCases.map(useCase => (
-                    <Button
-                      key={useCase.key}
-                      type="button"
-                      variant={
-                        useCase.confirm?.tone === 'destructive'
-                          ? 'destructive'
-                          : 'secondary'
-                      }
-                      size="sm"
-                      disabled={isBulkRunning}
-                      onClick={() =>
-                        onBulkUseCase?.(useCase.key, everythingMatching)
-                      }
-                    >
-                      {translateKey(useCase.labelKey)}
-                    </Button>
-                  ))}
+                  {toolbarActions.length > 0 && (
+                    <ActionBar
+                      surface="table-toolbar"
+                      items={toolbarActions}
+                      renderLink={renderLink}
+                    />
+                  )}
                 </>
               </LoadingBoundary>
               {slots.toolbar}

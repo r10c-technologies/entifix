@@ -11,8 +11,8 @@ describe('fallbackI18nextTranslator', () => {
     const spanish = fallbackI18nextTranslator('es');
 
     expect(english.locale).toBe('en');
-    expect(english.t('controls', 'table.open')).toBe('Open');
-    expect(spanish.t('controls', 'table.open')).toBe('Abrir');
+    expect(english.t('controls', 'table.select')).toBe('Select');
+    expect(spanish.t('controls', 'table.select')).toBe('Seleccionar');
     expect(english.formatters.number(1234.5)).toBe(
       new Intl.NumberFormat('en').format(1234.5),
     );

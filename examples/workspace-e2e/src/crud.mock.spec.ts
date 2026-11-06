@@ -29,11 +29,11 @@ test('lists the seed, edits a record and shows the edit in the list', async ({
 
   await table.rows
     .filter({ hasText: 'Alan Turing' })
-    .getByRole('link', { name: 'Abrir' })
+    .getByRole('link', { name: 'Alan Turing' })
     .or(
       table.rows
         .filter({ hasText: 'Alan Turing' })
-        .getByRole('button', { name: 'Abrir' }),
+        .getByRole('button', { name: 'Alan Turing' }),
     )
     .click();
 

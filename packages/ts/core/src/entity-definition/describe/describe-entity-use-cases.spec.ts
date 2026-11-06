@@ -4,6 +4,7 @@ import {
   Entity,
   entity,
   EntityId,
+  extractMetaEntity,
   extractMetaUseCaseBinding,
   useCase,
 } from '../../index.js';
@@ -65,6 +66,43 @@ class ArchiveArticlesUC {}
 
 class NeverDecoratedUC {}
 
+@entity({ domain: 'catalog', key: 'ledger', creatable: false })
+class Ledger implements Entity {
+  #id?: EntityId;
+
+  @accessor({ type: 'id' })
+  get id(): EntityId {
+    return this.#id;
+  }
+  set id(value: EntityId) {
+    this.#id = value;
+  }
+}
+
+@useCase({
+  entity: Ledger,
+  key: 'settle',
+  binding: 'entity',
+  placement: 'context-dependent',
+  labelKey: 'entity:ledger.useCases.settle',
+  emphasis: 'primary',
+  priority: 1,
+  rowInline: true,
+  shortcut: 'Mod+Enter',
+})
+class SettleLedgerUC {}
+
+// The same verb over a selection is the same inline verb, not a second one.
+@useCase({
+  entity: Ledger,
+  key: 'settle',
+  binding: 'collection',
+  placement: 'context-dependent',
+  labelKey: 'entity:ledger.useCases.settle',
+  rowInline: true,
+})
+class SettleLedgersUC {}
+
 describe('useCase', () => {
   it('appends every declared use case to the entity, in declaration order', () => {
     expect(describeEntityUseCases(Article)).toEqual([
@@ -90,6 +128,37 @@ describe('useCase', () => {
         form: 'archive-reason',
       },
     ]);
+  });
+
+  it('carries the hierarchy a surface renders the verb in', () => {
+    expect(describeEntityUseCases(Ledger)[0]).toMatchObject({
+      emphasis: 'primary',
+      priority: 1,
+      rowInline: true,
+      shortcut: 'Mod+Enter',
+    });
+    expect(extractMetaUseCaseBinding(SettleLedgerUC).key).toBe('settle');
+    expect(extractMetaUseCaseBinding(SettleLedgersUC).binding).toBe(
+      'collection',
+    );
+  });
+
+  it('refuses a second verb shown inline on a row', () => {
+    expect(() =>
+      useCase({
+        entity: Ledger,
+        key: 'void',
+        binding: 'entity',
+        placement: 'context-dependent',
+        labelKey: 'entity:ledger.useCases.void',
+        rowInline: true,
+      })(class VoidLedgerUC {}, { metadata: {} } as ClassDecoratorContext),
+    ).toThrow(/rowInline, and so is "settle"/);
+  });
+
+  it('records whether a person may create the entity, true unless declared', () => {
+    expect(extractMetaEntity(Ledger).creatable).toBe(false);
+    expect(extractMetaEntity(Article).creatable).toBe(true);
   });
 
   it('never leaks a verb onto an entity that did not declare it', () => {

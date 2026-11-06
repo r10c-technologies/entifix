@@ -14,7 +14,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { type ReactNode, useMemo } from 'react';
 
 import { resetRepositories } from './adapters';
-import { customerCrud, invoiceCrud } from './cruds';
+import { customerCrud, invoiceCrud, paymentCrud } from './cruds';
 import { metadataSource } from './metadata';
 import { NEW_INVOICE_WIZARD_KEY } from './wizard/new-invoice-wizard';
 
@@ -45,6 +45,11 @@ export function ExampleChrome({ children }: { children: ReactNode }) {
             label: t('nav.invoices'),
             href: invoiceCrud.basePath,
             workspace: screenAddress({ type: 'master', key: 'invoice' }),
+          },
+          {
+            label: t('nav.payments'),
+            href: paymentCrud.basePath,
+            workspace: screenAddress({ type: 'master', key: 'payment' }),
           },
         ],
       },
@@ -102,6 +107,7 @@ export function ExampleChrome({ children }: { children: ReactNode }) {
       breadcrumbLabels={{
         customers: t('nav.customers'),
         invoices: t('nav.invoices'),
+        payments: t('nav.payments'),
         wizards: t('nav.newInvoice'),
       }}
       commandPalette={

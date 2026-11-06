@@ -16,7 +16,7 @@ function Probe({ ns }: { ns?: 'controls' | 'entity' }) {
     <dl>
       <dd data-testid="locale">{locale}</dd>
       <dd data-testid="translated">
-        {ns === 'entity' ? t('product-specification.label') : t('table.open')}
+        {ns === 'entity' ? t('product-specification.label') : t('table.select')}
       </dd>
       <dd data-testid="number">{formatters.number(1234.5)}</dd>
     </dl>
@@ -34,7 +34,7 @@ describe('I18nProvider', () => {
     );
 
     expect(screen.getByTestId('locale')).toHaveTextContent('en');
-    expect(screen.getByTestId('translated')).toHaveTextContent('Open');
+    expect(screen.getByTestId('translated')).toHaveTextContent('Select');
     expect(screen.getByTestId('number')).toHaveTextContent(
       new Intl.NumberFormat('en').format(1234.5),
     );
@@ -63,15 +63,15 @@ describe('I18nProvider', () => {
     );
 
     const translated = screen.getAllByTestId('translated');
-    expect(translated[0]).toHaveTextContent('Abrir');
-    expect(translated[1]).toHaveTextContent('Open');
+    expect(translated[0]).toHaveTextContent('Seleccionar');
+    expect(translated[1]).toHaveTextContent('Select');
   });
 
   it("renders the host's default when nobody mounted a provider", () => {
     render(<Probe />);
 
     expect(screen.getByTestId('locale')).toHaveTextContent('es');
-    expect(screen.getByTestId('translated')).toHaveTextContent('Abrir');
+    expect(screen.getByTestId('translated')).toHaveTextContent('Seleccionar');
     expect(screen.getByTestId('number')).toHaveTextContent(
       new Intl.NumberFormat('es').format(1234.5),
     );
@@ -93,8 +93,8 @@ describe('the no-provider fallback', () => {
   }
 
   it('resolves this package’s own copy, so a control speaks with no setup', () => {
-    render(<Bare k="table.open" />);
-    expect(screen.getByTestId('out')).toHaveTextContent('Abrir');
+    render(<Bare k="table.select" />);
+    expect(screen.getByTestId('out')).toHaveTextContent('Seleccionar');
   });
 
   it('answers with the bare key for a namespace nobody registered', () => {
@@ -134,14 +134,14 @@ describe('the no-provider fallback', () => {
   });
 
   it('stops at a key whose path runs through a string', () => {
-    // `table.open` is a sentence, so `table.open.deeper` has nowhere to go.
-    render(<Bare k="table.open.deeper" />);
-    expect(screen.getByTestId('out')).toHaveTextContent('table.open.deeper');
+    // `table.select` is a sentence, so `table.select.deeper` has nowhere to go.
+    render(<Bare k="table.select.deeper" />);
+    expect(screen.getByTestId('out')).toHaveTextContent('table.select.deeper');
   });
 
   it('falls back to the unsuffixed key when a count has no plural forms', () => {
-    render(<Bare k="table.open" params={{ count: 3 }} />);
-    expect(screen.getByTestId('out')).toHaveTextContent('Abrir');
+    render(<Bare k="table.select" params={{ count: 3 }} />);
+    expect(screen.getByTestId('out')).toHaveTextContent('Seleccionar');
   });
 
   it('leaves a placeholder the parameters do not name', () => {
@@ -166,14 +166,14 @@ describe('the no-provider fallback', () => {
       render(<Probe />);
 
       expect(screen.getByTestId('locale')).toHaveTextContent('en');
-      expect(screen.getByTestId('translated')).toHaveTextContent('Open');
+      expect(screen.getByTestId('translated')).toHaveTextContent('Select');
     });
 
     it('falls back to its own English for a locale it ships no copy for', () => {
       defineLocales({ locales: ['pt', 'en'], defaultLocale: 'pt' });
-      render(<Bare k="table.open" />);
+      render(<Bare k="table.select" />);
 
-      expect(screen.getByTestId('out')).toHaveTextContent('Open');
+      expect(screen.getByTestId('out')).toHaveTextContent('Select');
     });
   });
 });

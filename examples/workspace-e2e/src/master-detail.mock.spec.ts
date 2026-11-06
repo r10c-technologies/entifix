@@ -37,7 +37,7 @@ test('adds an owned row, saves, and finds it on the record again', async ({
   await page
     .getByRole('row')
     .filter({ hasText: 'INV-0002-A' })
-    .getByRole('link', { name: 'Abrir' })
+    .getByRole('link', { name: 'INV-0002-A' })
     .click();
   await expect(page.getByLabel('Número')).toHaveValue('INV-0002-A');
   await expect(page.getByLabel('Descripción')).toHaveCount(2);

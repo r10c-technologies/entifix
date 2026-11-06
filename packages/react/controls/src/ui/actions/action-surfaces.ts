@@ -54,7 +54,7 @@ const SURFACE_BY_CELL: Record<string, ActionSurface> = {
  * A constant rather than a literal in JSX, because `react/jsx-no-literals`
  * fails the build on written-in copy and is right to: it cannot tell a
  * typographic glyph from a forgotten Spanish string. The trigger's *name* is a
- * catalog key (`form.moreActions`, `table.actions`) — this is only the mark,
+ * catalog key (`actions.more`, `actions.forRecord`) — this is only the mark,
  * and it is never read aloud.
  */
 export const OVERFLOW_GLYPH = '\u22ef';

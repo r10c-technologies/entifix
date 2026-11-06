@@ -331,13 +331,16 @@ describe('EntityTable controls', () => {
   });
 
   describe('record links', () => {
-    it('adds an actions column when a record href is given', () => {
+    it('links each row from its title, with no actions column for navigation alone', () => {
       renderTable({ hrefFor: id => `/widget/${String(id)}` });
 
       expect(
-        screen.getByRole('columnheader', { name: 'Acciones' }),
-      ).toBeInTheDocument();
-      expect(screen.getAllByRole('link', { name: 'Abrir' })[0]).toHaveAttribute(
+        screen.queryByRole('columnheader', { name: 'Acciones' }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('link', { name: 'Abrir' }),
+      ).not.toBeInTheDocument();
+      expect(screen.getAllByRole('link')[0]).toHaveAttribute(
         'href',
         '/widget/widget-1',
       );
@@ -468,7 +471,7 @@ describe('EntityTable controls', () => {
       const { container } = renderTable({
         items: [],
         isLoading: true,
-        hrefFor: (id: EntityId) => `/widget/${String(id)}`,
+        onSelect: () => undefined,
       });
 
       expect(

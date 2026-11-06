@@ -5,6 +5,7 @@ import {
   MenuButton,
   MenuItem as HuiMenuItem,
   MenuItems,
+  MenuSeparator,
 } from '@headlessui/react';
 import type { ComponentPropsWithoutRef, ReactNode } from 'react';
 
@@ -132,7 +133,16 @@ function Link({ className, ...props }: ComponentPropsWithoutRef<'a'>) {
   );
 }
 
+/**
+ * A rule between groups of entries — before the destructive ones, so "do" and
+ * "destroy" are not one undifferentiated list.
+ */
+function Separator() {
+  return <MenuSeparator className="my-3xs h-px bg-border" />;
+}
+
 Menu.Trigger = Trigger;
 Menu.Items = Items;
 Menu.Item = Item;
 Menu.Link = Link;
+Menu.Separator = Separator;

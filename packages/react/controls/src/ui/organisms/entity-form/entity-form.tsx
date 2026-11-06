@@ -22,22 +22,22 @@ import {
   useT,
   useTranslateKey,
 } from '../../../i18n/index.js';
-import {
-  OVERFLOW_GLYPH,
-  renderAnchor,
-  useCasesForSurface,
-} from '../../actions/index.js';
+import { renderAnchor, useCasesForSurface } from '../../actions/index.js';
 import { Button, button } from '../../atoms/button/index.js';
 import { CellValue } from '../../atoms/cell-value/index.js';
 import { FieldControl } from '../../atoms/field-control/index.js';
 import { LocalizedFieldControl } from '../../atoms/localized-field-control/index.js';
 import { Skeleton } from '../../atoms/skeleton/index.js';
 import { Text } from '../../atoms/text/index.js';
+import {
+  ActionBar,
+  type ActionBarItem,
+  itemsForUseCases,
+} from '../../molecules/action-bar/index.js';
 import { Card } from '../../molecules/card/index.js';
 import { ConfirmDialog } from '../../molecules/confirm-dialog/index.js';
 import { EntityLinkInput } from '../../molecules/entity-link-input/index.js';
 import { LoadingBoundary } from '../../molecules/loading-boundary/index.js';
-import { Menu } from '../../molecules/menu/index.js';
 import { Stack } from '../../molecules/stack/index.js';
 import { cn } from '../../utils/cn.js';
 import { EntityDetailGrid } from '../entity-detail-grid/index.js';
@@ -90,15 +90,6 @@ const PICKABLE_TYPES: ReadonlySet<MetaAccessorType> = new Set<MetaAccessorType>(
  * It is presentational: the draft, its errors and the save/delete actions are
  * all props, so the same form hosts on a plain route and inside a workspace tab.
  */
-/**
- * How many verbs a surface shows before the rest fold into an overflow menu.
- *
- * Four, because that is roughly what fits beside a title at a laptop width
- * without the row wrapping — the same number Fiori's object-page header settles
- * on. It is a layout constant, not a policy: raising it does not grant anything.
- */
-const VISIBLE_ACTION_LIMIT = 4;
-
 /** A verb waiting on its confirmation — narrowed so `confirm` is not optional. */
 interface PendingConfirmation {
   key: string;
@@ -256,68 +247,67 @@ export function EntityForm<TEntity extends Entity>({
     onUseCase?.(descriptor.key);
   };
 
-  const useCaseButton = (descriptor: UseCaseDescriptor) => (
-    <Button
-      key={descriptor.key}
-      type="button"
-      variant={
-        descriptor.confirm?.tone === 'destructive' ? 'destructive' : 'secondary'
-      }
-      size={descriptor.placement === 'context-independent' ? 'sm' : 'md'}
-      disabled={busy}
-      onClick={() => invoke(descriptor)}
-    >
-      {/* A descriptor's labels are *runtime* catalog keys — they never resolve
-          at compile time, which is why a host's catalog check is what catches a
-          typo here rather than the type system. */}
-      {translateKey(descriptor.labelKey)}
-    </Button>
+  const headerItems = itemsForUseCases(
+    headerUseCases,
+    translateKey,
+    invoke,
+    busy,
   );
-
-  const useCaseMenuItem = (descriptor: UseCaseDescriptor) => (
-    <Menu.Item
-      key={descriptor.key}
-      tone={
-        descriptor.confirm?.tone === 'destructive' ? 'destructive' : 'neutral'
-      }
-      disabled={busy}
-      onClick={() => invoke(descriptor)}
-    >
-      {translateKey(descriptor.labelKey)}
-    </Menu.Item>
+  const footerItems = itemsForUseCases(
+    footerUseCases,
+    translateKey,
+    invoke,
+    busy,
   );
-
-  /**
-   * Four actions fit a row; twelve do not.
-   *
-   * So a surface renders its first {@link VISIBLE_ACTION_LIMIT} verbs as
-   * buttons and folds the rest behind one overflow trigger, in **declaration
-   * order** — the entity's author decided which verbs matter by writing them
-   * first, and a rule that sorted by anything else (alphabetical, destructive
-   * last) would reorder the row every time a verb was added.
-   *
-   * The split is only applied when there is something to fold: a fifth action
-   * is the point at which a menu is cheaper than a wider row, and a menu
-   * holding one entry is strictly worse than the button it replaced.
-   */
-  const withOverflow = (descriptors: UseCaseDescriptor[]) => {
-    if (descriptors.length <= VISIBLE_ACTION_LIMIT) {
-      return descriptors.map(useCaseButton);
-    }
-
-    const visible = descriptors.slice(0, VISIBLE_ACTION_LIMIT);
-    const folded = descriptors.slice(VISIBLE_ACTION_LIMIT);
-
-    return [
-      ...visible.map(useCaseButton),
-      <Menu key="overflow">
-        <Menu.Trigger aria-label={t('form.moreActions')}>
-          {OVERFLOW_GLYPH}
-        </Menu.Trigger>
-        <Menu.Items>{folded.map(useCaseMenuItem)}</Menu.Items>
-      </Menu>,
-    ];
-  };
+  // Save is the footer's primary unless the entity declared one of its own — a
+  // determining "Publish" is what that page is for, and Save steps aside.
+  const declaresFooterPrimary = footerItems.some(
+    item => item.emphasis === 'primary',
+  );
+  const footerActions: ActionBarItem[] = [
+    ...(may('write')
+      ? [
+          {
+            key: 'save',
+            label: isPending
+              ? t('form.pending')
+              : isSaving
+                ? t('form.saving')
+                : t('form.save'),
+            emphasis: declaresFooterPrimary
+              ? ('default' as const)
+              : ('primary' as const),
+            disabled: busy || resolvingLinks,
+            onSelect: () => onSubmit?.(draft),
+          },
+        ]
+      : []),
+    ...footerItems,
+    // Clone is the CRUD triple's, not a declared verb's: every entity can be
+    // copied, so giving it a `@useCase()` would mean declaring the same verb on
+    // all 28 of them. It needs `write`, because what it produces is a create.
+    ...(onClone && entity && may('write')
+      ? [
+          {
+            key: 'clone',
+            label: t('form.clone'),
+            disabled: busy,
+            onSelect: () => onClone(cloneEntityDraft(entityConstructor, draft)),
+          },
+        ]
+      : []),
+    ...(onDelete && may('delete')
+      ? [
+          {
+            key: 'delete',
+            label: isDeleting ? t('form.deleting') : t('form.delete'),
+            destructive: true,
+            disabled: busy,
+            onSelect: onDelete,
+          },
+        ]
+      : []),
+  ];
 
   return (
     <Card>
@@ -350,7 +340,9 @@ export function EntityForm<TEntity extends Entity>({
             )}
             <LoadingBoundary isLoading={isMetadataLoading} lines={0}>
               <>
-                {withOverflow(headerUseCases)}
+                {headerItems.length > 0 && (
+                  <ActionBar surface="form-header" items={headerItems} />
+                )}
                 {slots.headerActions}
               </>
             </LoadingBoundary>
@@ -426,47 +418,8 @@ export function EntityForm<TEntity extends Entity>({
         )}
 
         {editing && !embedded && (
-          <Stack direction="row" gap="xs">
-            {may('write') && (
-              <Button
-                type="button"
-                onClick={() => onSubmit?.(draft)}
-                disabled={busy || resolvingLinks}
-              >
-                {isPending
-                  ? t('form.pending')
-                  : isSaving
-                    ? t('form.saving')
-                    : t('form.save')}
-              </Button>
-            )}
-            {onDelete && may('delete') && (
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={onDelete}
-                disabled={busy}
-              >
-                {isDeleting ? t('form.deleting') : t('form.delete')}
-              </Button>
-            )}
-            {withOverflow(footerUseCases)}
-            {/* Clone is the CRUD triple's, not a declared verb's: every entity
-                can be copied, so giving it a `@useCase()` would mean declaring
-                the same verb on all 28 of them. It needs `write`, because what
-                it produces is a create. */}
-            {onClone && entity && may('write') && (
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={busy}
-                onClick={() =>
-                  onClone(cloneEntityDraft(entityConstructor, draft))
-                }
-              >
-                {t('form.clone')}
-              </Button>
-            )}
+          <Stack direction="row" gap="xs" align="center">
+            <ActionBar surface="form-footer" size="md" items={footerActions} />
             {slots.footerActions}
             {/* A link styled as a button, not a button inside a link: the old
                 nesting was two interactive elements for one action, and its

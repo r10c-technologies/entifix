@@ -32,7 +32,7 @@ test('a list tab opens a record, and its create form, as tabs', async ({
   await page
     .getByRole('row')
     .filter({ hasText: 'Ada Lovelace' })
-    .getByRole('link', { name: 'Abrir' })
+    .getByRole('link', { name: 'Ada Lovelace' })
     .click();
 
   await expect(page).toHaveURL(
@@ -63,7 +63,7 @@ test('a route host opens a record client-side', async ({ page }) => {
   await page
     .getByRole('row')
     .filter({ hasText: 'Alan Turing' })
-    .getByRole('link', { name: 'Abrir' })
+    .getByRole('link', { name: 'Alan Turing' })
     .click();
 
   await expect(page).toHaveURL(/\/es\/customers\/c-2$/);

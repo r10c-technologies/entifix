@@ -48,6 +48,21 @@ export const es = {
         resetDemoKeywords: 'reiniciar, semilla, datos',
       },
     },
+    payment: {
+      form: { editTitle: 'Pago', newTitle: 'Pago' },
+      label: 'Pago',
+      plural: 'Pagos',
+      fields: {
+        id: 'ID',
+        reference: 'Referencia',
+        invoice: 'Factura',
+        amount: 'Importe',
+        method: 'Método',
+      },
+      values: {
+        method: { card: 'Tarjeta', transfer: 'Transferencia' },
+      },
+    },
   },
   errors: {
     unexpected: 'Algo salió mal. Inténtalo de nuevo.',
@@ -62,6 +77,7 @@ export const es = {
     nav: {
       customers: 'Clientes',
       invoices: 'Facturas',
+      payments: 'Pagos',
       newInvoice: 'Nueva factura',
     },
     home: {

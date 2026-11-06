@@ -646,7 +646,9 @@ describe('the generated list page, opted into affordances', () => {
         expect(screen.getAllByText('Acme').length).toBeGreaterThan(0),
       );
 
-      await user.click(screen.getAllByRole('button', { name: 'Acciones' })[0]!);
+      await user.click(
+        screen.getAllByRole('button', { name: /^Acciones para / })[0]!,
+      );
       await user.click(
         screen.getByRole('menuitem', {
           name: 'product-brand.useCases.archive',
@@ -673,7 +675,9 @@ describe('the generated list page, opted into affordances', () => {
         expect(screen.getAllByText('Acme').length).toBeGreaterThan(0),
       );
 
-      await user.click(screen.getAllByRole('button', { name: 'Acciones' })[0]!);
+      await user.click(
+        screen.getAllByRole('button', { name: /^Acciones para / })[0]!,
+      );
       await user.click(
         screen.getByRole('menuitem', {
           name: 'product-brand.useCases.archive',
@@ -704,7 +708,9 @@ describe('the generated list page, opted into affordances', () => {
         expect(screen.getAllByText('Pending').length).toBeGreaterThan(0),
       );
 
-      await user.click(screen.getAllByRole('button', { name: 'Acciones' })[0]!);
+      await user.click(
+        screen.getAllByRole('button', { name: /^Acciones para / })[0]!,
+      );
       await user.click(
         screen.getByRole('menuitem', {
           name: 'product-brand.useCases.archive',
@@ -725,7 +731,7 @@ describe('the generated list page, opted into affordances', () => {
         expect(screen.getAllByText('Acme').length).toBeGreaterThan(0),
       );
       expect(
-        screen.queryAllByRole('button', { name: 'Acciones' }),
+        screen.queryAllByRole('button', { name: /^Acciones para / }),
       ).toHaveLength(0);
     });
   });
@@ -1763,7 +1769,9 @@ describe('the generated form, writing through a writer that answers both modes',
     await waitFor(() =>
       expect(screen.getAllByText('Acme').length).toBeGreaterThan(0),
     );
-    await user.click(screen.getAllByRole('button', { name: 'Acciones' })[0]!);
+    await user.click(
+      screen.getAllByRole('button', { name: /^Acciones para / })[0]!,
+    );
     await user.click(screen.getByRole('menuitem', { name: /retirar/i }));
     await flowWatched();
 

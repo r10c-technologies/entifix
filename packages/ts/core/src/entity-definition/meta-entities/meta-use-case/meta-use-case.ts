@@ -34,6 +34,44 @@ export interface UseCaseConfirm {
   tone: 'destructive' | 'neutral';
   /** Catalog key. Copy never lives in a descriptor. */
   messageKey: string;
+  /**
+   * Catalog key for the confirming button. Absent, the button repeats the
+   * verb's own label: a dialog that says "Confirm" makes the reader go back to
+   * the title to learn what they are agreeing to.
+   */
+  confirmLabelKey?: string;
+}
+
+/**
+ * How much weight a surface gives a verb. One `primary` per surface — the
+ * thing the surface is for — and every other verb `default`; a second primary
+ * on one surface throws when it renders
+ * ([ADR 0026](../../../../../../../docs/adr/0026-actions-hierarchy-overflow-and-destructive-verbs.md)).
+ */
+export type UseCaseEmphasis = 'primary' | 'default';
+
+/**
+ * The hierarchy a surface renders a verb in: its weight, its order among the
+ * secondaries, whether a row shows it inline, and the chord that reaches it.
+ */
+export interface UseCaseHierarchy {
+  emphasis?: UseCaseEmphasis;
+  /**
+   * Order among the surface's secondaries, lowest first; equal or absent keeps
+   * declaration order. The first three stay visible and the rest fold into
+   * "More actions".
+   */
+  priority?: number;
+  /**
+   * Shown on the row itself rather than only in its menu — at most one verb
+   * per entity, since a row with two inline buttons is a toolbar per row.
+   */
+  rowInline?: true;
+  /**
+   * A modifier chord, `Mod+Shift+P`: `Mod` is ⌘ on macOS and Ctrl elsewhere.
+   * Rendered as `aria-keyshortcuts` and listed in the command palette.
+   */
+  shortcut?: string;
 }
 
 /**
@@ -53,7 +91,7 @@ export interface UseCaseConfirm {
 export interface MetaUseCaseOptions<
   TKey extends string,
   TEntity extends Entity,
-> {
+> extends UseCaseHierarchy {
   entity: EntityConstructor<TEntity>;
   key: TKey;
   binding: UseCaseBinding;
@@ -125,6 +163,10 @@ export class MetaUseCase {
   readonly labelKey: string;
   readonly keywordsKey?: string;
   readonly confirm?: UseCaseConfirm;
+  readonly emphasis?: UseCaseEmphasis;
+  readonly priority?: number;
+  readonly rowInline?: true;
+  readonly shortcut?: string;
   readonly form?: string;
   readonly variants?: string;
   readonly recipe?: string;
@@ -143,6 +185,10 @@ export class MetaUseCase {
     this.labelKey = options.labelKey;
     this.keywordsKey = options.keywordsKey;
     this.confirm = options.confirm;
+    this.emphasis = options.emphasis;
+    this.priority = options.priority;
+    this.rowInline = options.rowInline;
+    this.shortcut = options.shortcut;
     this.form = options.form;
     this.variants = options.variants;
     this.recipe = options.recipe;

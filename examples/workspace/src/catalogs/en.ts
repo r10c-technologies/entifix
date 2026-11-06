@@ -43,6 +43,21 @@ export const en: ExampleCatalog = {
         resetDemoKeywords: 'reset, seed, data',
       },
     },
+    payment: {
+      form: { editTitle: 'Payment', newTitle: 'Payment' },
+      label: 'Payment',
+      plural: 'Payments',
+      fields: {
+        id: 'ID',
+        reference: 'Reference',
+        invoice: 'Invoice',
+        amount: 'Amount',
+        method: 'Method',
+      },
+      values: {
+        method: { card: 'Card', transfer: 'Transfer' },
+      },
+    },
   },
   errors: {
     unexpected: 'Something went wrong. Try again.',
@@ -57,6 +72,7 @@ export const en: ExampleCatalog = {
     nav: {
       customers: 'Customers',
       invoices: 'Invoices',
+      payments: 'Payments',
       newInvoice: 'New invoice',
     },
     home: {

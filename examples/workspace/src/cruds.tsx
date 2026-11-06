@@ -2,7 +2,7 @@
 
 import { type EntityRepositoryTag, loadUCFactory } from '@entifix/business';
 import { descendantsOf, type FilterGroup, hierarchyOf } from '@entifix/core';
-import { Customer, Invoice } from '@entifix/example-workspace-domain';
+import { Customer, Invoice, Payment } from '@entifix/example-workspace-domain';
 import { makeEntityCrud } from '@entifix/next-shell';
 import { entityQueryScope, useDataLoading } from '@entifix/react-integration';
 
@@ -100,4 +100,14 @@ export const invoiceCrud = makeEntityCrud<Invoice, ExampleAdapters>(Invoice, {
   useCases: 'invoiceVerbs',
 });
 
-export const CRUDS = [customerCrud, invoiceCrud] as const;
+/** A list with no "New": a payment is written when money arrives. */
+export const paymentCrud = makeEntityCrud<Payment, ExampleAdapters>(Payment, {
+  useAdapters: useExampleAdapters,
+  basePath: '/payments',
+  catalogKey: 'payment',
+  repository: 'payments',
+  hiddenFields: ['id'],
+  metadataSource,
+});
+
+export const CRUDS = [customerCrud, invoiceCrud, paymentCrud] as const;

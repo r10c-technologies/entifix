@@ -840,7 +840,9 @@ describe('EntityTable row menu', () => {
       onUseCase,
     });
 
-    await user.click(grid().getAllByRole('button', { name: 'Acciones' })[0]!);
+    await user.click(
+      grid().getAllByRole('button', { name: /^Acciones para / })[0]!,
+    );
     await user.click(
       screen.getByRole('menuitem', { name: 'gizmo.useCases.archive' }),
     );
@@ -860,7 +862,9 @@ describe('EntityTable row menu', () => {
       onUseCase,
     });
 
-    await user.click(grid().getAllByRole('button', { name: 'Acciones' })[0]!);
+    await user.click(
+      grid().getAllByRole('button', { name: /^Acciones para / })[0]!,
+    );
     await user.click(
       screen.getByRole('menuitem', { name: 'gizmo.useCases.archive' }),
     );
@@ -877,7 +881,9 @@ describe('EntityTable row menu', () => {
       onUseCase,
     });
 
-    await user.click(grid().getAllByRole('button', { name: 'Acciones' })[0]!);
+    await user.click(
+      grid().getAllByRole('button', { name: /^Acciones para / })[0]!,
+    );
     await user.click(
       screen.getByRole('menuitem', { name: 'gizmo.useCases.tag' }),
     );
@@ -893,22 +899,124 @@ describe('EntityTable row menu', () => {
       onUseCase: () => undefined,
     });
 
-    await user.click(grid().getAllByRole('button', { name: 'Acciones' })[0]!);
+    await user.click(
+      grid().getAllByRole('button', { name: /^Acciones para / })[0]!,
+    );
 
     expect(
       screen.getByRole('menuitem', { name: 'gizmo.useCases.duplicate' }),
     ).toBeInTheDocument();
   });
 
-  it('keeps the open link beside the menu', () => {
+  it('opens a record from its title, and names each row menu after its record', () => {
     renderTable({
       metadata: metadata(archive),
       onUseCase: () => undefined,
       hrefFor: (id: EntityId) => `/gizmo/${String(id)}`,
     });
 
-    expect(grid().getAllByRole('link', { name: 'Abrir' })).toHaveLength(
-      ITEMS.length,
+    expect(
+      grid().queryByRole('link', { name: 'Abrir' }),
+    ).not.toBeInTheDocument();
+    const triggers = grid().getAllByRole('button', { name: /^Acciones para / });
+    const names = triggers.map(trigger => trigger.getAttribute('aria-label'));
+    expect(new Set(names).size).toBe(ITEMS.length);
+    expect(grid().getAllByRole('link')).toHaveLength(ITEMS.length);
+  });
+});
+
+@entity({ key: 'receipt', creatable: false })
+class Receipt implements Entity {
+  #id?: EntityId;
+
+  @accessor({ type: 'id', label: 'ID' })
+  get id(): EntityId {
+    return this.#id;
+  }
+  set id(value: EntityId) {
+    this.#id = value;
+  }
+}
+
+describe('EntityTable "New" and the toolbar', () => {
+  beforeEach(() => window.localStorage.clear());
+
+  it('offers "New" as the primary to a caller who may write', () => {
+    renderTable({ showControls: true, newHref: '/gizmo/new' });
+
+    expect(screen.getByRole('link', { name: 'Nuevo' })).toHaveAttribute(
+      'href',
+      '/gizmo/new',
+    );
+  });
+
+  it('offers no "New" to a caller who may only read', () => {
+    renderTable({
+      showControls: true,
+      newHref: '/gizmo/new',
+      metadata: { actions: ['read'], useCases: [] },
+    });
+
+    expect(
+      screen.queryByRole('link', { name: 'Nuevo' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('offers no "New" on an entity no person creates', () => {
+    render(
+      <EntityTable<Receipt>
+        entityConstructor={Receipt}
+        items={[]}
+        newHref="/receipt/new"
+        {...pager}
+        totalItems={0}
+      />,
+    );
+
+    expect(
+      screen.queryByRole('link', { name: 'Nuevo' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('lets a declared primary take the toolbar, and "New" step aside', () => {
+    renderTable({
+      showControls: true,
+      newHref: '/gizmo/new',
+      metadata: metadata({
+        ...useCase('import', 'collection', 'context-independent'),
+        emphasis: 'primary',
+      }),
+      onBulkUseCase: () => undefined,
+    });
+
+    const toolbar = document.querySelector(
+      '[data-surface="table-toolbar"]',
+    ) as HTMLElement;
+    const [first] = within(toolbar).getAllByRole('button');
+    expect(first).toHaveAccessibleName('gizmo.useCases.import');
+    expect(within(toolbar).getByRole('link', { name: 'Nuevo' })).toBeVisible();
+  });
+
+  it('asks before a destructive toolbar verb acts on everything matching', async () => {
+    const onBulkUseCase = vi.fn();
+    const { user } = renderTable({
+      showControls: true,
+      metadata: metadata(
+        useCase('purge', 'collection', 'context-independent', 'destructive'),
+      ),
+      onBulkUseCase,
+    });
+
+    await user.click(
+      screen.getByRole('button', { name: 'gizmo.useCases.purge' }),
+    );
+    expect(onBulkUseCase).not.toHaveBeenCalled();
+    expect(screen.getByTestId('confirm-dialog')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Confirmar' }));
+    expect(onBulkUseCase).toHaveBeenCalledWith(
+      'purge',
+      expect.objectContaining({ mode: 'matching' }),
     );
   });
 });

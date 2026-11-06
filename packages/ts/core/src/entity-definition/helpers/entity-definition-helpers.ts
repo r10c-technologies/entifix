@@ -90,6 +90,16 @@ export function appendMetaUseCase<TEntity extends Entity>(
     );
   }
   const existing = (own[META_USE_CASE_KEY] as MetaUseCase[] | undefined) ?? [];
+  // A verb declared on a record and over a selection is one verb under one
+  // key, so only a different key makes a second inline verb.
+  const inline = existing.find(
+    declared => declared.rowInline && declared.key !== metaUseCase.key,
+  );
+  if (metaUseCase.rowInline && inline) {
+    throw new Error(
+      `Use case "${metaUseCase.key}" on ${target.name} is rowInline, and so is "${inline.key}": a row shows at most one verb inline.`,
+    );
+  }
   own[META_USE_CASE_KEY] = [...existing, metaUseCase];
 }
 

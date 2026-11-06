@@ -5,8 +5,11 @@
  * import a T3 package.
  */
 export const controls = {
+  actions: {
+    more: 'Más acciones',
+    forRecord: 'Acciones para {{record}}',
+  },
   table: {
-    open: 'Abrir',
     select: 'Seleccionar',
     actions: 'Acciones',
     new: 'Nuevo',
@@ -60,7 +63,6 @@ export const controls = {
     delete: 'Eliminar',
     deleting: 'Eliminando…',
     clone: 'Duplicar',
-    moreActions: 'Más acciones',
     back: 'Volver',
     loading: 'Cargando…',
     pending: 'Esperando al servidor…',

@@ -10,7 +10,7 @@ import {
   type EntityLinkSource,
 } from '@entifix/core';
 import { makeFormatters } from '@entifix/core';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ReactNode, useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
@@ -1060,50 +1060,58 @@ describe('EntityForm actions from served metadata', () => {
         labelKey: `entity:gadget.useCases.verb${index}`,
       }));
 
-    it('renders four actions as buttons with no overflow trigger', () => {
+    /** The header's wide arrangement — the one a container of `md` or more shows. */
+    const wide = () =>
+      within(
+        document.querySelector(
+          '[data-surface="form-header"] [data-arrangement="wide"]',
+        ) as HTMLElement,
+      );
+
+    it('renders three secondaries as buttons with no overflow trigger', () => {
       render(
         <Harness
           mode="edit"
-          metadata={{ actions: ['read', 'write'], useCases: many(4) }}
+          metadata={{ actions: ['read', 'write'], useCases: many(3) }}
           onUseCase={vi.fn()}
         />,
       );
 
       expect(
-        screen.getByRole('button', { name: 'gadget.useCases.verb3' }),
+        wide().getByRole('button', { name: 'gadget.useCases.verb2' }),
       ).toBeInTheDocument();
       expect(
-        screen.queryByRole('button', { name: 'Más acciones' }),
+        wide().queryByRole('button', { name: 'Más acciones' }),
       ).not.toBeInTheDocument();
     });
 
-    it('folds the fifth and beyond behind one trigger', async () => {
+    it('folds the fourth and beyond behind one trigger', async () => {
       render(
         <Harness
           mode="edit"
-          metadata={{ actions: ['read', 'write'], useCases: many(6) }}
+          metadata={{ actions: ['read', 'write'], useCases: many(5) }}
           onUseCase={vi.fn()}
         />,
       );
 
-      // The first four stay visible…
+      // The first three stay visible…
       expect(
-        screen.getByRole('button', { name: 'gadget.useCases.verb3' }),
+        wide().getByRole('button', { name: 'gadget.useCases.verb2' }),
       ).toBeInTheDocument();
       // …the rest are not buttons any more.
       expect(
-        screen.queryByRole('button', { name: 'gadget.useCases.verb4' }),
+        wide().queryByRole('button', { name: 'gadget.useCases.verb3' }),
       ).not.toBeInTheDocument();
 
       await userEvent.click(
-        screen.getByRole('button', { name: 'Más acciones' }),
+        wide().getByRole('button', { name: 'Más acciones' }),
       );
 
       expect(
-        screen.getByRole('menuitem', { name: 'gadget.useCases.verb4' }),
+        screen.getByRole('menuitem', { name: 'gadget.useCases.verb3' }),
       ).toBeInTheDocument();
       expect(
-        screen.getByRole('menuitem', { name: 'gadget.useCases.verb5' }),
+        screen.getByRole('menuitem', { name: 'gadget.useCases.verb4' }),
       ).toBeInTheDocument();
     });
 
@@ -1115,7 +1123,7 @@ describe('EntityForm actions from served metadata', () => {
           metadata={{
             actions: ['read', 'write'],
             useCases: [
-              ...many(4),
+              ...many(3),
               {
                 key: 'purge',
                 binding: 'entity' as const,
@@ -1126,6 +1134,7 @@ describe('EntityForm actions from served metadata', () => {
                   messageKey: 'entity:gadget.useCases.purgeConfirm',
                 },
               },
+              ...many(1).map(verb => ({ ...verb, key: 'last' })),
             ],
           }}
           onUseCase={onUseCase}
@@ -1133,7 +1142,7 @@ describe('EntityForm actions from served metadata', () => {
       );
 
       await userEvent.click(
-        screen.getByRole('button', { name: 'Más acciones' }),
+        wide().getByRole('button', { name: 'Más acciones' }),
       );
       await userEvent.click(
         screen.getByRole('menuitem', { name: 'gadget.useCases.purge' }),
@@ -1143,6 +1152,33 @@ describe('EntityForm actions from served metadata', () => {
       expect(onUseCase).not.toHaveBeenCalled();
       await userEvent.click(screen.getByRole('button', { name: 'Confirmar' }));
       expect(onUseCase).toHaveBeenCalledWith('purge');
+    });
+
+    it('lets a declared primary take the footer, and Save step aside', () => {
+      render(
+        <Harness
+          mode="edit"
+          metadata={{
+            actions: ['read', 'write'],
+            useCases: [
+              {
+                key: 'publish',
+                binding: 'entity' as const,
+                placement: 'determining' as const,
+                labelKey: 'entity:gadget.useCases.publish',
+                emphasis: 'primary' as const,
+              },
+            ],
+          }}
+          onUseCase={vi.fn()}
+        />,
+      );
+
+      const footer = document.querySelector(
+        '[data-surface="form-footer"]',
+      ) as HTMLElement;
+      const [first] = within(footer).getAllByRole('button');
+      expect(first).toHaveAccessibleName('gadget.useCases.publish');
     });
   });
 

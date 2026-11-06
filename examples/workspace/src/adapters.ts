@@ -9,7 +9,7 @@ import type { Invoice } from '@entifix/example-workspace-domain';
 import { makeInMemoryEntityRepository } from '@entifix/testing-unit';
 import { Context, Effect } from 'effect';
 
-import { customerInstances, invoiceInstances } from './seed';
+import { customerInstances, invoiceInstances, paymentInstances } from './seed';
 
 /**
  * Where every screen in this example reads and writes: two repositories held
@@ -30,12 +30,14 @@ import { customerInstances, invoiceInstances } from './seed';
 export const repositories = {
   customers: makeInMemoryEntityRepository(customerInstances() as Entity[]),
   invoices: makeInMemoryEntityRepository(invoiceInstances() as Entity[]),
+  payments: makeInMemoryEntityRepository(paymentInstances() as Entity[]),
 };
 
-/** Puts both repositories back to the seed. */
+/** Puts every repository back to the seed. */
 export const resetRepositories = (): void => {
   repositories.customers.seed(customerInstances() as Entity[]);
   repositories.invoices.seed(invoiceInstances() as Entity[]);
+  repositories.payments.seed(paymentInstances() as Entity[]);
 };
 
 /**
@@ -63,6 +65,7 @@ const invoiceVerbs: EntityUseCaseRunner = {
 export const exampleAdapters = {
   customers: Context.make(EntityRepositoryTag, repositories.customers),
   invoices: Context.make(EntityRepositoryTag, repositories.invoices),
+  payments: Context.make(EntityRepositoryTag, repositories.payments),
   invoiceVerbs,
 };
 

@@ -22,7 +22,9 @@ export function TableToolbar({
   return (
     <div className={cn('flex flex-col gap-2xs', className)}>
       <div className="flex flex-wrap items-center justify-between gap-2xs">
-        <div className="flex flex-wrap items-center gap-2xs">{start}</div>
+        <div className="min-w-0 flex flex-1 flex-wrap items-center gap-2xs">
+          {start}
+        </div>
         <div className="flex flex-wrap items-center gap-2xs">{end}</div>
       </div>
       {panel && (

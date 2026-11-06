@@ -7,8 +7,11 @@
 type EsControls = typeof import('./es.js').controls;
 
 export const controls: EsControls = {
+  actions: {
+    more: 'More actions',
+    forRecord: 'Actions for {{record}}',
+  },
   table: {
-    open: 'Open',
     select: 'Select',
     actions: 'Actions',
     new: 'New',
@@ -49,7 +52,6 @@ export const controls: EsControls = {
     delete: 'Delete',
     deleting: 'Deleting…',
     clone: 'Duplicate',
-    moreActions: 'More actions',
     back: 'Back',
     loading: 'Loading…',
     pending: 'Waiting for the server…',
