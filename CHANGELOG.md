@@ -1,3 +1,17 @@
+## 0.19.0 (2026-11-06)
+
+### 🚀 Features
+
+- ⚠️ **style:** tokens and atoms meet WCAG 2.2 AA ([#208](https://github.com/r10c-technologies/entifix/pull/208))
+
+### ⚠️ Breaking Changes
+
+- **style:** tokens and atoms meet WCAG 2.2 AA ([#208](https://github.com/r10c-technologies/entifix/pull/208))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.18.2 (2026-11-05)
 
 ### 🩹 Fixes
