@@ -93,6 +93,8 @@ const errors = {
     invalidQuery: 'La consulta no es válida.',
     unexpected: 'Error inesperado',
     unavailable: 'Servicio no disponible',
+    noActiveOrganization: 'Elija una organización para continuar.',
+    noActiveOrganizationAction: 'Elegir organización',
   },
   en: {
     unauthenticated: 'Not authenticated',
@@ -101,6 +103,8 @@ const errors = {
     invalidQuery: 'The query is not valid.',
     unexpected: 'Unexpected error',
     unavailable: 'Service unavailable',
+    noActiveOrganization: 'Choose an organization to continue.',
+    noActiveOrganizationAction: 'Choose organization',
   },
 } as const;
 

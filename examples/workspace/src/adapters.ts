@@ -11,6 +11,7 @@ import type { Invoice } from '@entifix/example-workspace-domain';
 import { makeInMemoryEntityRepository } from '@entifix/testing-unit';
 import { Context, Effect } from 'effect';
 
+import { hasOrganization, NoActiveOrganization } from './organization';
 import { customerInstances, invoiceInstances, paymentInstances } from './seed';
 
 /**
@@ -85,7 +86,14 @@ const invoiceVerbs: EntityUseCaseRunner = {
 };
 
 export const exampleAdapters = {
-  customers: Context.make(EntityRepositoryTag, repositories.customers),
+  // A tenant read: refused while no organization is chosen.
+  customers: Context.make(EntityRepositoryTag, {
+    ...repositories.customers,
+    load: request =>
+      hasOrganization()
+        ? repositories.customers.load(request)
+        : Effect.fail(new NoActiveOrganization()),
+  }),
   invoices: Context.make(EntityRepositoryTag, repositories.invoices),
   payments: Context.make(EntityRepositoryTag, repositories.payments),
   invoiceVerbs,

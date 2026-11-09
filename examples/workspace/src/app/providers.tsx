@@ -8,6 +8,7 @@ import {
   PendingFlowsProvider,
 } from '@entifix/next-shell';
 import {
+  ErrorActionsProvider,
   makeIndexedDbUiPreferencesState,
   type ThemeOption,
   ThemeProvider,
@@ -22,6 +23,11 @@ import {
   NoopPushChannel,
 } from '@entifix/react-integration';
 import { type PropsWithChildren, useMemo } from 'react';
+
+import { chooseOrganization } from '../organization';
+
+/** What a failure's code can offer: a refused tenant read, a way to choose. */
+const ERROR_ACTIONS = { noActiveOrganization: chooseOrganization };
 
 // Module scope: a new store per render would reopen the database each time.
 const uiPreferences = makeIndexedDbUiPreferencesState();
@@ -45,15 +51,17 @@ function Themed({ children }: PropsWithChildren) {
         defaultDensity="compact"
       >
         <UiPreferencesProvider store={uiPreferences}>
-          <ToastProvider>
-            <PendingFlowsProvider
-              scope={ANONYMOUS_WORKSPACE_SCOPE}
-              channel={NoopPushChannel}
-            >
-              {children}
-            </PendingFlowsProvider>
-            <ToastRegion />
-          </ToastProvider>
+          <ErrorActionsProvider actions={ERROR_ACTIONS}>
+            <ToastProvider>
+              <PendingFlowsProvider
+                scope={ANONYMOUS_WORKSPACE_SCOPE}
+                channel={NoopPushChannel}
+              >
+                {children}
+              </PendingFlowsProvider>
+              <ToastRegion />
+            </ToastProvider>
+          </ErrorActionsProvider>
         </UiPreferencesProvider>
       </ThemeProvider>
     </EntifixQueryProvider>

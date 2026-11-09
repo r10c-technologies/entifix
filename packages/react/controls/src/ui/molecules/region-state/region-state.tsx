@@ -1,9 +1,9 @@
 'use client';
 
-import { isCategory } from '@entifix/core';
 import type { ReactNode } from 'react';
 
 import { useErrorMessage, useT } from '../../../i18n/index.js';
+import { useErrorAction } from '../../actions/error-actions.js';
 import { Alert } from '../../atoms/alert/index.js';
 import { Button } from '../../atoms/button/index.js';
 import { EmptyState } from '../empty-state/index.js';
@@ -62,28 +62,46 @@ export function RegionState({
 }: RegionStateProps) {
   const t = useT();
   const errorMessage = useErrorMessage();
+  const errorAction = useErrorAction();
   // Read inside a sentence, so as a common noun: "sus facturas".
   const noun = plural.toLocaleLowerCase();
 
   if (error !== undefined) {
+    // The host's next step for this code — "Choose organization" — when it
+    // registered one and its catalog names it.
+    const next = errorAction(error);
     return (
       <Alert
         tone="danger"
         data-testid="region-state-error"
         action={
-          onRetry === undefined ? undefined : (
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={onRetry}
-            >
-              {t('state.retry')}
-            </Button>
+          next === undefined && onRetry === undefined ? undefined : (
+            <span className="flex flex-wrap gap-3xs">
+              {next !== undefined && (
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  onClick={next.onAction}
+                >
+                  {next.label}
+                </Button>
+              )}
+              {onRetry !== undefined && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={onRetry}
+                >
+                  {t('state.retry')}
+                </Button>
+              )}
+            </span>
           )
         }
       >
-        {isCategory('forbidden')(error)
+        {error.code === 'forbidden'
           ? t('state.forbidden', { plural: noun })
           : errorMessage(error)}
         {hasStaleData && ` ${t('state.stale')}`}

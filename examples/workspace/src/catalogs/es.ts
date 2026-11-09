@@ -75,6 +75,8 @@ export const es = {
     unexpected: 'Algo salió mal. Inténtalo de nuevo.',
     network: 'No se pudo conectar.',
     notFound: 'No se encontró el registro.',
+    noActiveOrganization: 'Elija una organización para ver sus registros.',
+    noActiveOrganizationAction: 'Elegir organización',
   },
   app: {
     brand: 'entifix · workspace',

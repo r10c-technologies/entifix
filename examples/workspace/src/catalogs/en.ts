@@ -70,6 +70,8 @@ export const en: ExampleCatalog = {
     unexpected: 'Something went wrong. Try again.',
     network: 'Could not connect.',
     notFound: 'The record was not found.',
+    noActiveOrganization: 'Choose an organization to see its records.',
+    noActiveOrganizationAction: 'Choose organization',
   },
   app: {
     brand: 'entifix · workspace',

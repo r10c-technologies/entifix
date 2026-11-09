@@ -12,6 +12,7 @@ import {
 } from 'react';
 
 import { useErrorMessage, useT } from '../../../i18n/index.js';
+import { useErrorAction } from '../../actions/error-actions.js';
 import { Alert, type AlertTone } from '../../atoms/alert/index.js';
 import { Button } from '../../atoms/button/index.js';
 import { cn } from '../../utils/cn.js';
@@ -160,7 +161,16 @@ function ToastItem({
 }) {
   const t = useT();
   const message = useErrorMessage();
-  const { action } = toast;
+  const errorAction = useErrorAction();
+  // A failure with no action of its own offers the host's next step for its
+  // code, when there is one.
+  const next =
+    toast.tone === 'failure' ? errorAction(toast.failure) : undefined;
+  const action =
+    toast.action ??
+    (next === undefined
+      ? undefined
+      : { label: next.label, onAction: next.onAction });
   return (
     <Alert
       tone={ALERT_TONE[toast.tone]}

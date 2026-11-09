@@ -116,3 +116,28 @@ test('an undo verb acts at once, and Undo puts it back', async ({ page }) => {
   await page.getByRole('button', { name: 'Deshacer' }).click();
   await expect(row).toContainText('Borrador');
 });
+
+/**
+ * A refused read offers the host's next step for its code (ADR 0028): a list
+ * asked for before an organization is chosen says so, and offers to choose.
+ */
+test('a refused read offers its way out', async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  failOnPageErrors(page);
+  await context.addCookies([
+    { name: 'example-organization', value: 'none', url: baseURL as string },
+  ]);
+  await page.goto('/es/customers');
+
+  const alert = page.getByTestId('region-state-error');
+  await expect(alert).toHaveText(
+    /Elija una organización para ver sus registros\./,
+  );
+  await alert.getByRole('button', { name: 'Elegir organización' }).click();
+
+  await new EntityTablePage(page).waitForRows();
+  await expect(page.getByTestId('region-state-error')).toHaveCount(0);
+});
