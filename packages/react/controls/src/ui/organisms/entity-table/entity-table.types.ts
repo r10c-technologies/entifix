@@ -30,7 +30,10 @@ export interface EntityTableColumn<
   virtual?: boolean;
 }
 
-/** Breakpoint at and above which the table renders as a grid, not as cards. */
+/**
+ * A fixed width, read against the table's own container, at and above which
+ * it renders as a grid rather than as cards: `sm` 40rem, `md` 48rem, `lg` 64rem.
+ */
 export type EntityTablePivotBreakpoint = 'sm' | 'md' | 'lg';
 
 export interface EntityTableProps<TEntity extends Entity> {
@@ -101,7 +104,12 @@ export interface EntityTableProps<TEntity extends Entity> {
   preferencesKey?: string;
   /** Hide the toolbar (columns, filters, sorting) — a bare listing. */
   showControls?: boolean;
-  /** Viewport width at which rows stop pivoting into cards. Default `md`. */
+  /**
+   * Overrides where rows stop pivoting into cards. By default that is where
+   * the visible columns fit side by side in the table's own container — the
+   * sum of each member's `minWidth`, or its type's — so a table in a split
+   * view, a drawer or a wizard step switches by the room it actually has.
+   */
   pivotBreakpoint?: EntityTablePivotBreakpoint;
 
   /** The filtering currently applied, seeding the filter panel so it shows

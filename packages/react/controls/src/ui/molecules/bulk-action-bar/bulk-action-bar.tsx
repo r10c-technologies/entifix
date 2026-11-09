@@ -92,6 +92,10 @@ export function BulkActionBar({
 
       {useCases.length > 0 && (
         <ActionBar
+          // A size container takes no width from its content, so in a bar
+          // that wraps it would shrink to nothing and its buttons would spill
+          // over Clear. A basis makes the bar wrap first.
+          className="basis-64"
           surface="bulk-bar"
           items={itemsForUseCases(useCases, translateKey, onUseCase, busy)}
         />

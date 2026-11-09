@@ -316,3 +316,173 @@ describe('facet counts', () => {
     expect(screen.getByRole('option', { name: 'Sí (2)' })).toBeVisible();
   });
 });
+
+describe('a declared card title', () => {
+  @entity({ key: 'badge' })
+  class Badge implements Entity {
+    #id?: EntityId;
+    #code?: string;
+    #name?: string;
+
+    @accessor({ type: 'id', label: 'ID' })
+    get id(): EntityId {
+      return this.#id;
+    }
+    set id(value: EntityId) {
+      this.#id = value;
+    }
+
+    @accessor({ type: 'string', label: 'Code', card: 'hidden' })
+    get code(): string | undefined {
+      return this.#code;
+    }
+    set code(value: string | undefined) {
+      this.#code = value;
+    }
+
+    @accessor({ type: 'string', label: 'Name', card: 'title', minWidth: 30 })
+    get name(): string | undefined {
+      return this.#name;
+    }
+    set name(value: string | undefined) {
+      this.#name = value;
+    }
+  }
+
+  it('links the declared title, and keeps a hidden member off the card', () => {
+    const badge = new Badge();
+    badge.id = 'b-1';
+    badge.code = 'B1';
+    badge.name = 'Gold';
+    const { container } = render(
+      <EntityTable<Badge>
+        {...baseProps}
+        entityConstructor={Badge}
+        items={[badge]}
+        totalItems={1}
+        hrefFor={id => `/badges/${String(id)}`}
+      />,
+    );
+
+    const card = screen.getByRole('article', { name: 'Gold' });
+    expect(within(card).getByRole('link', { name: 'Gold' })).toBeVisible();
+    expect(within(card).queryByText('B1')).not.toBeInTheDocument();
+    // The grid links the same column: the row reads as its title.
+    expect(
+      within(screen.getByRole('table')).getByRole('link', { name: 'Gold' }),
+    ).toBeVisible();
+    // ID 6 + Code 10 + Name 30 = 46rem, held by `@3xl` (48rem).
+    expect(container.innerHTML).toContain('@3xl/entity-table:hidden');
+  });
+});
+
+describe('card roles', () => {
+  @entity({ key: 'contact' })
+  class Contact implements Entity {
+    #values: Record<string, string | undefined> = {};
+    #id?: EntityId;
+
+    @accessor({ type: 'id', label: 'ID' })
+    get id(): EntityId {
+      return this.#id;
+    }
+    set id(value: EntityId) {
+      this.#id = value;
+    }
+
+    @accessor({ type: 'string', label: 'Name' })
+    get name() {
+      return this.#values['name'];
+    }
+    set name(value) {
+      this.#values['name'] = value;
+    }
+
+    @accessor({ type: 'string', label: 'Email', card: 'subtitle' })
+    get email() {
+      return this.#values['email'];
+    }
+    set email(value) {
+      this.#values['email'] = value;
+    }
+
+    @accessor({ type: 'enum', label: 'Tier', enumValues: ['gold'] })
+    get tier() {
+      return this.#values['tier'];
+    }
+    set tier(value) {
+      this.#values['tier'] = value;
+    }
+
+    @accessor({ type: 'string', label: 'City' })
+    get city() {
+      return this.#values['city'];
+    }
+    set city(value) {
+      this.#values['city'] = value;
+    }
+
+    @accessor({ type: 'string', label: 'Phone' })
+    get phone() {
+      return this.#values['phone'];
+    }
+    set phone(value) {
+      this.#values['phone'] = value;
+    }
+
+    @accessor({ type: 'string', label: 'Fax' })
+    get fax() {
+      return this.#values['fax'];
+    }
+    set fax(value) {
+      this.#values['fax'] = value;
+    }
+
+    @accessor({ type: 'string', label: 'Zone' })
+    get zone() {
+      return this.#values['zone'];
+    }
+    set zone(value) {
+      this.#values['zone'] = value;
+    }
+
+    @accessor({ type: 'string', label: 'Note', card: 'meta' })
+    get note() {
+      return this.#values['note'];
+    }
+    set note(value) {
+      this.#values['note'] = value;
+    }
+  }
+
+  it('reads a subtitle, the first enum as a badge, and at most three undeclared meta lines', () => {
+    const contact = new Contact();
+    contact.id = 'c-1';
+    Object.assign(contact, {
+      name: 'Ada',
+      email: 'ada@example.com',
+      tier: 'gold',
+      city: 'Guatemala',
+      phone: '555',
+      fax: '556',
+      zone: '10',
+      note: 'VIP',
+    });
+    render(
+      <EntityTable<Contact>
+        {...baseProps}
+        entityConstructor={Contact}
+        items={[contact]}
+        totalItems={1}
+      />,
+    );
+
+    const card = screen.getByRole('article', { name: 'Ada' });
+    expect(card).toHaveTextContent('ada@example.com');
+    expect(within(card).getByText('gold')).toBeInTheDocument();
+    const terms = within(card)
+      .getAllByRole('term')
+      .map(term => term.textContent);
+    expect(terms).toEqual(['City', 'Phone', 'Fax', 'Note']);
+  });
+});

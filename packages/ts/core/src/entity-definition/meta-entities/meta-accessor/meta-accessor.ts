@@ -173,7 +173,25 @@ export interface MetaAccessorOptions {
    * form edits the major amount and writes back the stored one.
    */
   money?: MoneyFormat;
+  /**
+   * The narrowest this member's column reads at, in `rem`. A table whose
+   * visible columns no longer fit side by side becomes a list of cards, so the
+   * sum of these is where it switches. Undeclared, the member's type decides.
+   * Presentation only.
+   */
+  minWidth?: number;
+  /**
+   * The part this member plays on a record's card: its `title` — the heading
+   * that links to the record — a `subtitle` under it, a `badge`, a line of
+   * `meta`, or `hidden` from the card. Undeclared, the record's first
+   * filled-in member is the title, an id is hidden, the first enum is the
+   * badge and up to three more members are meta. Presentation only.
+   */
+  card?: CardRole;
 }
+
+/** The part a member plays on a record's card. */
+export type CardRole = 'title' | 'subtitle' | 'badge' | 'meta' | 'hidden';
 
 /**
  * How a `number` member reads as money: `currency` fixed, or
@@ -212,6 +230,8 @@ export class MetaAccessor {
   readonly notBefore?: string;
   readonly parent?: boolean;
   readonly money?: MoneyFormat;
+  readonly minWidth?: number;
+  readonly card?: CardRole;
 
   //#endregion
 
@@ -245,6 +265,8 @@ export class MetaAccessor {
     this.notBefore = options?.notBefore;
     this.parent = options?.parent;
     this.money = options?.money;
+    this.minWidth = options?.minWidth;
+    this.card = options?.card;
   }
   //#endregion
 

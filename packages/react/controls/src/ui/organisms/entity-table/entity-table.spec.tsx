@@ -7,7 +7,7 @@ import {
   EntityLink,
 } from '@entifix/core';
 import { makeFormatters } from '@entifix/core';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Effect } from 'effect';
 import type { ReactNode } from 'react';
@@ -552,12 +552,12 @@ describe('EntityTable controls', () => {
     // guess during SSR and correct after mount — a hydration mismatch on every
     // page load.
     it.each([
-      ['sm', 'hidden sm:block', 'sm:hidden'],
-      ['md', 'hidden md:block', 'md:hidden'],
-      ['lg', 'hidden lg:block', 'lg:hidden'],
+      ['sm', '2xl'],
+      ['md', '3xl'],
+      ['lg', '5xl'],
     ] as const)(
-      'renders both layouts at the %s breakpoint',
-      (breakpoint, grid, cards) => {
+      'switches at the %s width when declared, read against its own container',
+      (breakpoint, size) => {
         const { container } = render(
           <EntityTable<Widget>
             entityConstructor={Widget}
@@ -567,14 +567,36 @@ describe('EntityTable controls', () => {
           />,
         );
 
-        expect(
-          container.querySelector(
-            `.${grid.replace(' ', '.').replace(':', '\\:')}`,
-          ),
-        ).toBeTruthy();
-        expect(container.innerHTML).toContain(cards);
+        expect(container.innerHTML).toContain(
+          `hidden @${size}/entity-table:block`,
+        );
+        expect(container.innerHTML).toContain(`@${size}/entity-table:hidden`);
       },
     );
+
+    // ID 6 + Name 10 + Units in stock 6 + Brand 10 = 32rem: `@lg`.
+    it('switches where its visible columns fit, by default', () => {
+      const { container } = renderTable();
+
+      expect(container.innerHTML).toContain('hidden @lg/entity-table:block');
+    });
+
+    it('renders its cards as a list of articles, each named by its linked heading', () => {
+      renderTable({ hrefFor: id => `/widgets/${String(id)}` });
+
+      const [list] = screen.getAllByRole('list');
+      const card = within(list as HTMLElement).getByRole('article', {
+        name: 'Sprocket',
+      });
+      const heading = within(card).getByRole('heading', { level: 3 });
+      expect(within(heading).getByRole('link')).toHaveAttribute(
+        'href',
+        '/widgets/widget-1',
+      );
+      // The id is hidden from the card; the rest are meta.
+      expect(within(card).queryByText('widget-1')).not.toBeInTheDocument();
+      expect(within(card).getByText('Units in stock')).toBeInTheDocument();
+    });
 
     it('renders each row twice — once per layout', () => {
       renderTable();

@@ -225,6 +225,9 @@
   --overlay-offset-block: 12vh;
   --overlay-max-inline: 85vw;
   --overlay-max-block: 60vh;
+  /* How tall a table's scroll region may grow before its rows scroll under
+     its sticky header. */
+  --table-max-block: 80dvh;
 
   /* One em of the surrounding text: a skeleton line stands in for a line of
      text at that text's own size, whatever scale it is set in. */

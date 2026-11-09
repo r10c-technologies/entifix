@@ -42,7 +42,7 @@ test('filtering says how many results are left', async ({ page }) => {
 test('a list taller than its region is reachable by Tab', async ({ page }) => {
   failOnPageErrors(page);
   // A short viewport holds the region to fewer rows than the list has.
-  await page.setViewportSize({ width: 1024, height: 150 });
+  await page.setViewportSize({ width: 1600, height: 150 });
   await page.goto('/es/customers');
   await new EntityTablePage(page).waitForRows();
 

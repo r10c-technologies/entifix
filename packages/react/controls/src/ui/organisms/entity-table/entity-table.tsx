@@ -64,29 +64,19 @@ import { SortBuilder } from '../../molecules/sort-builder/index.js';
 import { TableToolbar } from '../../molecules/table-toolbar/index.js';
 import type {
   EntityTableColumn,
-  EntityTablePivotBreakpoint,
   EntityTableProps,
 } from './entity-table.types.js';
 import { readEntityTableSlots } from './entity-table-slots.js';
 import { shownTreeRows, TreeCell, treeRows } from './entity-table-tree.js';
 import { nextHeaderSorting, sortKeys } from './header-sort.js';
+import {
+  ACTIONS_WIDTH,
+  pivotClasses,
+  pivotWidth,
+  SELECTION_WIDTH,
+} from './pivot.js';
 import { useEntityTableColumns } from './use-entity-table-columns.js';
 import { useResultAnnouncement } from './use-result-announcement.js';
-
-/**
- * The grid and the card list are both rendered, and CSS picks one. A JS
- * breakpoint hook would have to guess during SSR and correct after mount —
- * a hydration mismatch on every page load. Classes are written out in full
- * because Tailwind cannot see a class name that is concatenated at runtime.
- */
-const PIVOT_CLASS: Record<
-  EntityTablePivotBreakpoint,
-  { grid: string; cards: string }
-> = {
-  sm: { grid: 'hidden sm:block', cards: 'sm:hidden' },
-  md: { grid: 'hidden md:block', cards: 'md:hidden' },
-  lg: { grid: 'hidden lg:block', cards: 'lg:hidden' },
-};
 
 type Panel = 'none' | 'filters' | 'sorting';
 
@@ -99,6 +89,9 @@ type Panel = 'none' | 'filters' | 'sorting';
  * content that arrives below the fold anyway.
  */
 const SKELETON_ROW_CAP = 5;
+
+/** How many members a card shows as meta when none declares a `card` role. */
+const UNDECLARED_META_CAP = 3;
 
 /**
  * A table that builds itself from an entity's metadata: columns, labels, value
@@ -142,7 +135,7 @@ export function EntityTable<TEntity extends Entity>({
   onSelect,
   preferencesKey,
   showControls = true,
-  pivotBreakpoint = 'md',
+  pivotBreakpoint,
   filtering,
   sorting,
   onFilteringChange,
@@ -177,8 +170,6 @@ export function EntityTable<TEntity extends Entity>({
       items[0],
       `entity-table:${preferencesKey ?? metaEntity.key ?? metaEntity.name}`,
     );
-
-  const pivot = PIVOT_CLASS[pivotBreakpoint];
 
   // A picker's table is choosing *one* value; a multi-selection there would
   // offer a set to a form member that holds a single reference, and the two
@@ -237,6 +228,19 @@ export function EntityTable<TEntity extends Entity>({
     visibleColumns.length + (hasRowAction ? 1 : 0) + (selectable ? 1 : 0);
 
   /**
+   * The grid and the cards are both rendered, and a container query on the
+   * table's own box picks one — at the width its visible columns need. A
+   * viewport breakpoint was wrong inside a split view, a drawer or a wizard
+   * step, and a JS measurement would guess during SSR and correct after mount.
+   */
+  const pivot = pivotClasses(
+    pivotWidth(
+      visibleColumns,
+      (selectable ? SELECTION_WIDTH : 0) + (hasRowAction ? ACTIONS_WIDTH : 0),
+      pivotBreakpoint,
+    ),
+  );
+  /**
    * The first load has nothing to show and is held with a skeleton; a refetch
    * already has rows, so it keeps them and only marks the region busy. Splitting
    * the two is what stops every pagination click flashing grey.
@@ -266,6 +270,39 @@ export function EntityTable<TEntity extends Entity>({
       return value != null && String(value) !== '';
     });
 
+  /** The column that links to the record: one declared `card: 'title'`, else the row's title. */
+  const declaredTitle = visibleColumns.find(column => column.card === 'title');
+  const linkColumn = (item: TEntity) => declaredTitle ?? titleColumn(item);
+
+  /**
+   * What a record's card shows, by each member's declared `card` role or the
+   * default: an id is hidden, the first enum is the badge, and up to
+   * {@link UNDECLARED_META_CAP} more members are meta — a card is a summary,
+   * and the grid holds the rest.
+   */
+  const firstEnum = visibleColumns.find(
+    column => column.card === undefined && column.type === 'enum',
+  );
+  const roleOf = (column: EntityTableColumn<TEntity>) =>
+    column.card ??
+    (column.type === 'id' ? 'hidden' : column === firstEnum ? 'badge' : 'meta');
+  const cardParts = (item: TEntity) => {
+    const title = linkColumn(item);
+    const rest = visibleColumns.filter(column => column !== title);
+    let undeclared = 0;
+    return {
+      title,
+      subtitle: rest.find(column => roleOf(column) === 'subtitle'),
+      badges: rest.filter(column => roleOf(column) === 'badge'),
+      meta: rest.filter(column => {
+        if (roleOf(column) !== 'meta') return false;
+        if (column.card !== undefined) return true;
+        undeclared += 1;
+        return undeclared <= UNDECLARED_META_CAP;
+      }),
+    };
+  };
+
   const renderValue = (
     column: EntityTableColumn<TEntity>,
     item: TEntity,
@@ -293,7 +330,7 @@ export function EntityTable<TEntity extends Entity>({
   ): ReactNode => {
     const value = renderValue(column, item);
     if (hrefFor === undefined || onSelect !== undefined) return value;
-    if (titleColumn(item)?.name !== column.name) return value;
+    if (linkColumn(item)?.name !== column.name) return value;
     return renderLink({
       href: hrefFor(item.id),
       className: linkClassName,
@@ -675,7 +712,7 @@ export function EntityTable<TEntity extends Entity>({
   );
 
   return (
-    <div className="flex flex-col gap-s">
+    <div className="@container/entity-table flex flex-col gap-s">
       {/*
         One announcement for the whole table, not one per layout. Both the grid
         and the card list are always in the DOM — CSS picks which is visible —
@@ -819,7 +856,7 @@ export function EntityTable<TEntity extends Entity>({
             rows; the scroll padding keeps a focused row out from under it. */}
         <Table
           caption={caption}
-          containerClassName="max-h-[80dvh] scroll-pt-12"
+          containerClassName="max-h-(--table-max-block) scroll-pt-12"
         >
           <TableHead>
             {slots.header ? (
@@ -930,39 +967,78 @@ export function EntityTable<TEntity extends Entity>({
         </Table>
       </div>
 
-      {/* Narrow viewports: the same columns pivoted into cards. */}
-      <div className={`${pivot.cards} flex flex-col gap-2xs`} aria-busy={busy}>
+      {/* Narrow containers: the same columns pivoted into a list of cards. */}
+      <div className={pivot.cards} aria-busy={busy}>
         {/* The card pivot gets card-shaped placeholders, not a bare shimmer
             block: the border, radius and padding are the geometry here. */}
         {showSkeleton &&
-          (customSkeleton ??
-            skeletonRows.map(row => (
-              <EntityRecordCard
-                key={row}
-                columns={visibleColumns}
-                renderCell={() => <Skeleton shape="line" className="w-24" />}
-              />
-            )))}
+          (customSkeleton ?? (
+            <ul role="list" className="m-0 p-0 flex list-none flex-col gap-2xs">
+              {skeletonRows.map(row => (
+                <li key={row}>
+                  <EntityRecordCard
+                    title={<Skeleton shape="line" className="w-32" />}
+                    meta={visibleColumns.slice(1).map(column => ({
+                      key: column.name,
+                      label: column.label,
+                      value: <Skeleton shape="line" className="w-24" />,
+                    }))}
+                  />
+                </li>
+              ))}
+            </ul>
+          ))}
         {!isLoading && items.length === 0 && (
           <p className="text-step-sm text-content-muted">{emptyMessage}</p>
         )}
-        {shown.map(({ item }, index) => (
-          <EntityRecordCard
-            key={String(item.id ?? index)}
-            columns={visibleColumns}
-            // The card is handed the resolved columns themselves, so the
-            // narrow layout goes through the exact same renderers as the grid.
-            renderCell={column =>
-              renderCell(column as EntityTableColumn<TEntity>, item)
-            }
-            leading={
-              selectionState
-                ? selectionCell(item, index, selectionState)
-                : undefined
-            }
-            actions={recordAction(item)}
-          />
-        ))}
+        {shown.length > 0 && (
+          <ul role="list" className="m-0 p-0 flex list-none flex-col gap-2xs">
+            {shown.map(({ item, depth }, index) => {
+              const parts = cardParts(item);
+              return (
+                <li
+                  key={String(item.id ?? index)}
+                  // A tree's card says how deep it sits, as its row does.
+                  aria-level={treeKeys === undefined ? undefined : depth + 1}
+                  style={
+                    treeKeys === undefined
+                      ? undefined
+                      : { marginInlineStart: `${depth * 1.5}rem` }
+                  }
+                >
+                  <EntityRecordCard
+                    // The same renderers as the grid, so the two layouts agree.
+                    title={
+                      parts.title === undefined
+                        ? rowLabel(item)
+                        : renderCell(parts.title, item)
+                    }
+                    subtitle={
+                      parts.subtitle === undefined
+                        ? undefined
+                        : renderCell(parts.subtitle, item)
+                    }
+                    badges={parts.badges.map(column => ({
+                      key: column.name,
+                      value: renderCell(column, item),
+                    }))}
+                    meta={parts.meta.map(column => ({
+                      key: column.name,
+                      label: column.header ?? column.label,
+                      value: renderCell(column, item),
+                    }))}
+                    leading={
+                      selectionState
+                        ? selectionCell(item, index, selectionState)
+                        : undefined
+                    }
+                    actions={recordAction(item)}
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </div>
 
       <Pagination
