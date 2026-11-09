@@ -219,6 +219,11 @@ export const controls: EsControls = {
     isNull: 'is empty',
     isNotNull: 'is not empty',
   },
+  density: {
+    label: 'Density',
+    comfortable: 'Comfortable',
+    compact: 'Compact',
+  },
   theme: {
     label: 'Theme',
   },

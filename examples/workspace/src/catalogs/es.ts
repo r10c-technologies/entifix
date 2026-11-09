@@ -104,6 +104,9 @@ export const es = {
       confirmMessage:
         'Dejará de recibir los envíos desde hoy. Para volver tendrá que suscribirse de nuevo.',
     },
+    account: {
+      guest: 'Invitado',
+    },
     preferences: {
       density: 'Densidad',
       compact: 'Compacta',

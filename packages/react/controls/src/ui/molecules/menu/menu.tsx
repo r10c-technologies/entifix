@@ -7,7 +7,7 @@ import {
   MenuItems,
   MenuSeparator,
 } from '@headlessui/react';
-import type { ComponentPropsWithoutRef, ReactNode } from 'react';
+import { type ComponentPropsWithoutRef, type ReactNode, useId } from 'react';
 
 import { cn } from '../../utils/cn.js';
 
@@ -141,8 +141,68 @@ function Separator() {
   return <MenuSeparator className="my-3xs h-px bg-border" />;
 }
 
+/**
+ * A named set of entries — "Tema", "Densidad" — so a choice among them is
+ * announced with what it chooses. The heading is shown, and names the group.
+ */
+function Group({ label, children }: { label: string; children: ReactNode }) {
+  const id = useId();
+  return (
+    <div role="group" aria-labelledby={id} className="py-3xs">
+      <p
+        id={id}
+        className="m-0 px-2xs py-3xs text-step-xs font-semibold text-content-muted"
+      >
+        {label}
+      </p>
+      {children}
+    </div>
+  );
+}
+
+export interface MenuRadioProps extends Omit<
+  ComponentPropsWithoutRef<'button'>,
+  'role'
+> {
+  /** Whether this is the option in effect. */
+  checked: boolean;
+}
+
+/**
+ * One option of a {@link Group} where exactly one holds: a `menuitemradio`,
+ * its state in `aria-checked` and in a visible mark rather than colour alone.
+ */
+function Radio({ checked, className, children, ...props }: MenuRadioProps) {
+  return (
+    <HuiMenuItem
+      as="button"
+      // Headless UI names every item `menuitem` and lets no prop change it;
+      // the role is set on the element once it mounts, which keeps the
+      // menu's own keyboard handling, and React never writes it back because
+      // the prop it renders never changes.
+      ref={(node: HTMLButtonElement | null) =>
+        node?.setAttribute('role', 'menuitemradio')
+      }
+      aria-checked={checked}
+      className={cn(
+        'flex min-h-(--target-min) w-full items-center gap-2xs rounded-md px-2xs py-3xs text-step-sm text-content',
+        'focus-ring data-focus:bg-surface data-focus:-outline-offset-2',
+        className,
+      )}
+      {...props}
+    >
+      <span aria-hidden="true" className="shrink-0">
+        {checked ? '●' : '○'}
+      </span>
+      {children}
+    </HuiMenuItem>
+  );
+}
+
 Menu.Trigger = Trigger;
 Menu.Items = Items;
 Menu.Item = Item;
 Menu.Link = Link;
 Menu.Separator = Separator;
+Menu.Group = Group;
+Menu.Radio = Radio;

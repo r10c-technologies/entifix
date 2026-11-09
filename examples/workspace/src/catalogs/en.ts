@@ -99,6 +99,9 @@ export const en: ExampleCatalog = {
       confirmMessage:
         'Deliveries stop today. To come back you will have to subscribe again.',
     },
+    account: {
+      guest: 'Guest',
+    },
     preferences: {
       density: 'Density',
       compact: 'Compact',

@@ -260,6 +260,11 @@ export const controls = {
     isNull: 'está vacío',
     isNotNull: 'no está vacío',
   },
+  density: {
+    label: 'Densidad',
+    comfortable: 'Cómoda',
+    compact: 'Compacta',
+  },
   theme: {
     label: 'Tema',
   },

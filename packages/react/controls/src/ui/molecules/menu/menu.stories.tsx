@@ -54,3 +54,34 @@ export const Keyboard: Story = {
     await expect(indicatorContrast(active, menu)).toBeGreaterThanOrEqual(3);
   },
 };
+
+/**
+ * An account menu's appearance choices, both groups open: a `menuitemradio`
+ * per option, the one in effect checked and marked.
+ */
+export const AppearanceGroups: Story = {
+  render: () => (
+    <Menu>
+      <Menu.Trigger>◕ Ada</Menu.Trigger>
+      <Menu.Items>
+        <Menu.Group label="Tema">
+          <Menu.Radio checked>Aurora</Menu.Radio>
+          <Menu.Radio checked={false}>Medianoche</Menu.Radio>
+        </Menu.Group>
+        <Menu.Group label="Densidad">
+          <Menu.Radio checked={false}>Cómoda</Menu.Radio>
+          <Menu.Radio checked>Compacta</Menu.Radio>
+        </Menu.Group>
+      </Menu.Items>
+    </Menu>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: /Ada/ }));
+    const page = within(canvasElement.ownerDocument.body);
+    await expect(page.getAllByRole('group')).toHaveLength(2);
+    await expect(
+      page.getByRole('menuitemradio', { name: 'Aurora' }),
+    ).toHaveAttribute('aria-checked', 'true');
+  },
+};

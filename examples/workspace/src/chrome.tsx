@@ -3,6 +3,7 @@
 import { screenAddress } from '@entifix/authz';
 import { Invoice } from '@entifix/example-workspace-domain';
 import {
+  AccountMenu,
   BackOfficeShell,
   CommandPaletteHost,
   type NavSection,
@@ -110,6 +111,11 @@ export function ExampleChrome({ children }: { children: ReactNode }) {
         payments: t('nav.payments'),
         wizards: t('nav.newInvoice'),
       }}
+      // The example has no session, so its account menu holds only the
+      // reader's appearance: theme and density.
+      accountMenu={
+        <AccountMenu label={t('account.guest')} items={[]} hideSignOut />
+      }
       commandPalette={
         <CommandPaletteHost
           commands={commands}

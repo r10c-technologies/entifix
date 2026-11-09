@@ -8,6 +8,7 @@ import {
   PendingFlowsProvider,
 } from '@entifix/next-shell';
 import {
+  type Density,
   ErrorActionsProvider,
   makeIndexedDbUiPreferencesState,
   type ThemeOption,
@@ -50,7 +51,16 @@ const ERROR_ACTIONS = { noActiveOrganization: chooseOrganization };
 const uiPreferences = makeIndexedDbUiPreferencesState();
 
 /** Below `I18nProvider`, so the theme captions resolve in the active locale. */
-function Themed({ children }: PropsWithChildren) {
+/** What the layout rendered the page in, read from the reader's cookies. */
+interface Appearance {
+  readonly theme: string;
+  readonly density: Density | undefined;
+}
+
+function Themed({
+  appearance,
+  children,
+}: PropsWithChildren<{ appearance: Appearance }>) {
   const t = useT('controls');
   const themes = useMemo<ThemeOption[]>(
     () => [
@@ -66,6 +76,8 @@ function Themed({ children }: PropsWithChildren) {
         themes={themes}
         defaultTheme="aurora"
         defaultDensity="compact"
+        initialTheme={appearance.theme}
+        initialDensity={appearance.density}
       >
         <UiPreferencesProvider store={uiPreferences}>
           <ErrorActionsProvider actions={ERROR_ACTIONS}>
@@ -98,11 +110,12 @@ function Themed({ children }: PropsWithChildren) {
  */
 export function Providers({
   locale,
+  appearance,
   children,
-}: PropsWithChildren<{ locale: Locale }>) {
+}: PropsWithChildren<{ locale: Locale; appearance: Appearance }>) {
   return (
     <I18nProvider locale={locale}>
-      <Themed>{children}</Themed>
+      <Themed appearance={appearance}>{children}</Themed>
     </I18nProvider>
   );
 }

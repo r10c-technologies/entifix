@@ -1,8 +1,12 @@
+import { Unavailable } from '@entifix/core';
 import { act, render, renderHook, screen } from '@testing-library/react';
+import { Effect } from 'effect';
 import { type PropsWithChildren, StrictMode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ThemeProvider, useTheme } from './theme-context.js';
+import { UiPreferencesProvider } from '../preferences/ui-preferences-context.js';
+import type { UiPreferencesState } from '../preferences/ui-preferences-state.js';
+import { ThemeProvider, useOptionalTheme, useTheme } from './theme-context.js';
 import type { ThemeOption, ThemePalette } from './types.js';
 
 /**
@@ -11,6 +15,23 @@ import type { ThemeOption, ThemePalette } from './types.js';
  * `storageKey` look for a style element that was never going to exist.
  */
 const DEFAULT_STORAGE_KEY = 'entifix-theme';
+
+/** The document's cookies, as a spec reads and sets them. */
+const setCookie = (name: string, value: string) => {
+  document.cookie = `${name}=${value}; path=/`;
+};
+const cookie = (name: string): string | null =>
+  document.cookie
+    .split('; ')
+    .find(pair => pair.startsWith(`${name}=`))
+    ?.slice(name.length + 1) ?? null;
+const clearCookies = () => {
+  for (const pair of document.cookie.split('; ')) {
+    const name = pair.split('=')[0];
+    if (name) document.cookie = `${name}=; path=/; max-age=0`;
+  }
+};
+
 const PALETTES_STYLE_ID = `${DEFAULT_STORAGE_KEY}-runtime-palettes`;
 
 // The three tokens a runtime palette must state (ADR 0025).
@@ -34,12 +55,13 @@ const wrapper =
   );
 
 beforeEach(() => {
-  window.localStorage.clear();
+  clearCookies();
   delete document.documentElement.dataset['theme'];
   delete document.documentElement.dataset['density'];
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   document.getElementById(PALETTES_STYLE_ID)?.remove();
 });
 
@@ -84,8 +106,8 @@ describe('ThemeProvider', () => {
       wrapper: wrapper({ defaultTheme: 'dark', defaultDensity: 'compact' }),
     });
 
-    expect(window.localStorage.getItem('entifix-theme')).toBeNull();
-    expect(window.localStorage.getItem('entifix-theme-density')).toBeNull();
+    expect(cookie('entifix-theme')).toBeNull();
+    expect(cookie('entifix-theme-density')).toBeNull();
   });
 
   it('namespaces a choice by the given storage key', () => {
@@ -96,13 +118,13 @@ describe('ThemeProvider', () => {
     act(() => result.current.setTheme('dark'));
     act(() => result.current.setDensity('compact'));
 
-    expect(window.localStorage.getItem('admin-theme')).toBe('dark');
-    expect(window.localStorage.getItem('admin-theme-density')).toBe('compact');
+    expect(cookie('admin-theme')).toBe('dark');
+    expect(cookie('admin-theme-density')).toBe('compact');
   });
 
   it('keeps a stored theme and density when mounted twice, as StrictMode does', () => {
-    window.localStorage.setItem('entifix-theme', 'dark');
-    window.localStorage.setItem('entifix-theme-density', 'compact');
+    setCookie('entifix-theme', 'dark');
+    setCookie('entifix-theme-density', 'compact');
 
     const { result } = renderHook(() => useTheme(), {
       wrapper: ({ children }: PropsWithChildren) => (
@@ -120,19 +142,17 @@ describe('ThemeProvider', () => {
 
     expect(result.current.theme).toBe('dark');
     expect(result.current.density).toBe('compact');
-    expect(window.localStorage.getItem('entifix-theme')).toBe('dark');
-    expect(window.localStorage.getItem('entifix-theme-density')).toBe(
-      'compact',
-    );
+    expect(cookie('entifix-theme')).toBe('dark');
+    expect(cookie('entifix-theme-density')).toBe('compact');
     expect(document.documentElement.dataset['theme']).toBe('dark');
     expect(document.documentElement.dataset['density']).toBe('compact');
   });
 
-  // Hydration runs in an effect on purpose: localStorage does not exist during
-  // SSR, so the server renders the default and the client corrects after mount.
-  // Reading it during render would be a hydration mismatch.
+  // For a host with no server to read the cookie: it renders the default and
+  // the client corrects after mount. Reading it during render would be a
+  // hydration mismatch.
   it('adopts a previously stored preference on mount', () => {
-    window.localStorage.setItem('entifix-theme', 'dark');
+    setCookie('entifix-theme', 'dark');
 
     const { result } = renderHook(() => useTheme(), { wrapper: wrapper() });
 
@@ -143,7 +163,7 @@ describe('ThemeProvider', () => {
     ['an unknown theme id', 'solarized'],
     ['no stored value at all', null],
   ])('ignores %s in storage', (_label, stored) => {
-    if (stored !== null) window.localStorage.setItem('entifix-theme', stored);
+    if (stored !== null) setCookie('entifix-theme', stored);
 
     const { result } = renderHook(() => useTheme(), { wrapper: wrapper() });
 
@@ -157,7 +177,7 @@ describe('ThemeProvider', () => {
 
     expect(result.current.theme).toBe('dark');
     expect(document.documentElement.dataset['theme']).toBe('dark');
-    expect(window.localStorage.getItem('entifix-theme')).toBe('dark');
+    expect(cookie('entifix-theme')).toBe('dark');
   });
 
   describe('density', () => {
@@ -187,7 +207,7 @@ describe('ThemeProvider', () => {
     });
 
     it('ignores a stored density it does not know', () => {
-      window.localStorage.setItem('entifix-theme-density', 'roomy');
+      setCookie('entifix-theme-density', 'roomy');
 
       const { result } = renderHook(() => useTheme(), {
         wrapper: wrapper({ defaultDensity: 'comfortable' }),
@@ -203,26 +223,31 @@ describe('ThemeProvider', () => {
 
       expect(result.current.density).toBe('compact');
       expect(document.documentElement.dataset['density']).toBe('compact');
-      expect(window.localStorage.getItem('entifix-theme-density')).toBe(
-        'compact',
-      );
+      expect(cookie('entifix-theme-density')).toBe('compact');
     });
   });
 
-  it('still applies a choice when storage refuses it', () => {
-    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
-      throw new Error('blocked');
+  it('still applies a choice when cookies are refused', () => {
+    // An own property shadows the document's cookie accessor; deleting it
+    // brings the accessor back.
+    Object.defineProperty(document, 'cookie', {
+      configurable: true,
+      get: () => {
+        throw new Error('blocked');
+      },
+      set: () => {
+        throw new Error('blocked');
+      },
     });
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-      throw new Error('blocked');
-    });
+    try {
+      const { result } = renderHook(() => useTheme(), { wrapper: wrapper() });
+      act(() => result.current.setTheme('dark'));
 
-    const { result } = renderHook(() => useTheme(), { wrapper: wrapper() });
-    act(() => result.current.setTheme('dark'));
-
-    expect(result.current.theme).toBe('dark');
-    expect(document.documentElement.dataset['theme']).toBe('dark');
-    vi.restoreAllMocks();
+      expect(result.current.theme).toBe('dark');
+      expect(document.documentElement.dataset['theme']).toBe('dark');
+    } finally {
+      delete (document as { cookie?: string }).cookie;
+    }
   });
 
   describe('runtime palettes', () => {
@@ -282,6 +307,63 @@ describe('ThemeProvider', () => {
   });
 });
 
+describe('ThemeProvider and the server', () => {
+  it('starts on what the server rendered, so nothing changes after load', () => {
+    const { result } = renderHook(() => useTheme(), {
+      wrapper: wrapper({ initialTheme: 'dark', initialDensity: 'compact' }),
+    });
+
+    expect(result.current.theme).toBe('dark');
+    expect(result.current.density).toBe('compact');
+  });
+
+  it('copies a choice to the UI-preferences port', async () => {
+    const write = vi.fn(() => Effect.void);
+    const store = {
+      read: () => Effect.succeed(undefined),
+      write,
+      remove: () => Effect.void,
+    } as unknown as UiPreferencesState;
+    const { result } = renderHook(() => useTheme(), {
+      wrapper: ({ children }: PropsWithChildren) => (
+        <UiPreferencesProvider store={store}>
+          <ThemeProvider themes={themes}>{children}</ThemeProvider>
+        </UiPreferencesProvider>
+      ),
+    });
+
+    act(() => result.current.setTheme('dark'));
+    act(() => result.current.setDensity('compact'));
+
+    expect(write).toHaveBeenCalledWith('theme', 'dark');
+    expect(write).toHaveBeenCalledWith('density', 'compact');
+  });
+
+  it('shrugs off a port that cannot store it', async () => {
+    const store = {
+      read: () => Effect.succeed(undefined),
+      write: () => Effect.fail(new Unavailable({})),
+      remove: () => Effect.void,
+    } as unknown as UiPreferencesState;
+    const { result } = renderHook(() => useTheme(), {
+      wrapper: ({ children }: PropsWithChildren) => (
+        <UiPreferencesProvider store={store}>
+          <ThemeProvider themes={themes}>{children}</ThemeProvider>
+        </UiPreferencesProvider>
+      ),
+    });
+
+    await act(async () => result.current.setTheme('dark'));
+    expect(result.current.theme).toBe('dark');
+  });
+});
+
+describe('useOptionalTheme', () => {
+  it('answers null outside a provider rather than failing', () => {
+    expect(renderHook(() => useOptionalTheme()).result.current).toBeNull();
+  });
+});
+
 describe('useTheme', () => {
   // Without a provider there is no `data-theme` to flip, so a component using
   // the hook would silently render unthemed.
@@ -302,5 +384,35 @@ describe('useTheme', () => {
     );
 
     expect(screen.getByText('dark')).toBeInTheDocument();
+  });
+});
+
+describe('ThemeProvider on a page already in its theme', () => {
+  it('writes nothing to the document', () => {
+    document.documentElement.dataset['theme'] = 'dark';
+    document.documentElement.dataset['density'] = 'compact';
+    const changes: string[] = [];
+    const observer = new MutationObserver(records => {
+      for (const record of records) changes.push(String(record.attributeName));
+    });
+    observer.observe(document.documentElement, { attributes: true });
+
+    renderHook(() => useTheme(), {
+      wrapper: ({ children }: PropsWithChildren) => (
+        <ThemeProvider
+          themes={themes}
+          initialTheme="dark"
+          initialDensity="compact"
+        >
+          {children}
+        </ThemeProvider>
+      ),
+    });
+
+    expect(observer.takeRecords().map(record => record.attributeName)).toEqual(
+      [],
+    );
+    expect(changes).toEqual([]);
+    observer.disconnect();
   });
 });
