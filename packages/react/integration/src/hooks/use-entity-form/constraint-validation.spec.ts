@@ -10,10 +10,25 @@ import {
 import { describe, expect, it } from 'vitest';
 
 import {
-  DEFAULT_VALIDATION_MESSAGES,
   type EntityDraftMessages,
   validateEntityDraft,
+  validationMessagesFrom,
 } from './use-entity-form.helpers.js';
+
+/**
+ * Answers a catalog key as the key and its parameters, `:`-joined — or the
+ * `defaultValue` when one is offered — so a spec can read which sentence a
+ * rule asked for without a catalog.
+ */
+const keyEcho = (key: string, params?: Record<string, unknown>): string =>
+  params?.['defaultValue'] !== undefined
+    ? String(params['defaultValue'])
+    : [
+        key.replace(/^controls:/, ''),
+        ...Object.values(params ?? {}).map(String),
+      ].join(':');
+
+const KEY_MESSAGES = validationMessagesFrom(keyEcho);
 
 class Step {
   @accessor({ type: 'string' })
@@ -64,7 +79,7 @@ class Trip implements Entity {
 const descriptors = describeEntityColumns(Trip);
 
 const messages: EntityDraftMessages = {
-  ...DEFAULT_VALIDATION_MESSAGES,
+  ...KEY_MESSAGES,
   minItems: (field, count) => `${field} needs ${count}`,
   maxItems: (field, count) => `${field} takes ${count}`,
   notBefore: (field, other) => `${field} before ${other}`,
@@ -120,13 +135,9 @@ describe('validateEntityDraft — declared constraints', () => {
   });
 
   it('spells its defaults as catalog keys', () => {
-    expect(DEFAULT_VALIDATION_MESSAGES.minItems('Tags', 1)).toBe(
-      'validation.minItems:Tags:1',
-    );
-    expect(DEFAULT_VALIDATION_MESSAGES.maxItems('Tags', 2)).toBe(
-      'validation.maxItems:Tags:2',
-    );
-    expect(DEFAULT_VALIDATION_MESSAGES.notBefore('End', 'Start')).toBe(
+    expect(KEY_MESSAGES.minItems('Tags', 1)).toBe('validation.minItems:Tags:1');
+    expect(KEY_MESSAGES.maxItems('Tags', 2)).toBe('validation.maxItems:Tags:2');
+    expect(KEY_MESSAGES.notBefore('End', 'Start')).toBe(
       'validation.notBefore:End:Start',
     );
   });

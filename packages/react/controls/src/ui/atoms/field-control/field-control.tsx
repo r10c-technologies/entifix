@@ -23,6 +23,7 @@ export interface FieldControlProps {
   'aria-labelledby'?: string;
   'aria-describedby'?: string;
   'aria-invalid'?: boolean;
+  'aria-required'?: boolean;
   /**
    * The draft value as a string — the shape a native input round-trips. A form
    * holds its whole draft as `Record<string, string>` and reconstructs typed

@@ -634,22 +634,41 @@ export function composeEntityFormErrors({
   };
 }
 
+/** Resolves a catalog key, with its parameters, in the reader's language. */
+export type TranslateKey = (
+  key: string,
+  params?: Record<string, unknown>,
+) => string;
+
 /**
- * What a caller who supplies no {@link ValidationMessages} gets: the catalog key
- * itself, with the field appended.
- *
- * Honest rather than English — there is no catalog in this package to resolve
- * against — and visible enough in a form that a host notices it has wired no
- * copy. It sits beside the validator rather than in `.types.ts`, which this
- * repository keeps type-only.
+ * The form's validation sentences, from the `controls` catalog's
+ * `validation.*` copy. Built from the caller's translator because this package
+ * holds no catalog, and a key must never reach the screen (ADR 0028): the
+ * controls package's `useTranslateKey` answers from its own catalog even with
+ * no i18n library installed. `count` doubles as the plural selector, so
+ * `minItems` reads "1 item" and "2 items".
  */
-export const DEFAULT_VALIDATION_MESSAGES: EntityDraftMessages = {
-  required: field => `validation.required:${field}`,
-  number: field => `validation.number:${field}`,
-  date: field => `validation.date:${field}`,
-  option: field => `validation.option:${field}`,
-  minItems: (field, count) => `validation.minItems:${field}:${count}`,
-  maxItems: (field, count) => `validation.maxItems:${field}:${count}`,
-  notBefore: (field, other) => `validation.notBefore:${field}:${other}`,
-  locale: (field, locale) => `validation.locale:${field}:${locale}`,
-};
+export function validationMessagesFrom(
+  translateKey: TranslateKey,
+): EntityDraftMessages {
+  const say =
+    (failure: 'required' | 'number' | 'date' | 'option') => (field: string) =>
+      translateKey(`controls:validation.${failure}`, { field });
+  return {
+    required: say('required'),
+    number: say('number'),
+    date: say('date'),
+    option: say('option'),
+    minItems: (field, count) =>
+      translateKey('controls:validation.minItems', { field, count }),
+    maxItems: (field, count) =>
+      translateKey('controls:validation.maxItems', { field, count }),
+    notBefore: (field, other) =>
+      translateKey('controls:validation.notBefore', { field, other }),
+    locale: (field, locale) =>
+      translateKey('controls:validation.locale', {
+        field,
+        locale: locale.toUpperCase(),
+      }),
+  };
+}

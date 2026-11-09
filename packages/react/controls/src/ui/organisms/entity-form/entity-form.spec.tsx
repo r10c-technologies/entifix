@@ -1401,3 +1401,79 @@ describe('the built-in Delete', () => {
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   });
 });
+
+describe('the form as a form (ADR 0028)', () => {
+  it('saves on Enter in a field', async () => {
+    const onSubmit = vi.fn();
+    render(<Harness mode="edit" onSubmit={onSubmit} />);
+
+    await userEvent.type(screen.getByLabelText('Code'), 'G-1{Enter}');
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'G-1' }),
+    );
+  });
+
+  it('saves nothing on Enter while a save is in flight', async () => {
+    const onSubmit = vi.fn();
+    render(<Harness mode="edit" isSaving onSubmit={onSubmit} />);
+
+    await userEvent.type(screen.getByLabelText('Code'), '{Enter}');
+
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('marks a required field before anyone submits', () => {
+    render(<Harness mode="edit" onSubmit={vi.fn()} />);
+
+    expect(screen.getByLabelText('Code')).toHaveAttribute(
+      'aria-required',
+      'true',
+    );
+    expect(
+      screen.getByText('Los campos marcados con * son obligatorios.'),
+    ).toBeVisible();
+  });
+
+  it('moves focus to a summary of links after a refused save, one per invalid field', async () => {
+    function Refusing() {
+      const [errors, setErrors] = useState<Record<string, string>>({});
+      return (
+        <Harness
+          mode="edit"
+          errors={errors}
+          onSubmit={() => setErrors({ code: 'Code es obligatorio' })}
+        />
+      );
+    }
+    render(<Refusing />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    const summary = screen.getByTestId('entity-form-error-summary');
+    expect(summary).toHaveFocus();
+    expect(summary).toHaveAccessibleName('Revise 1 campo antes de guardar');
+    const [link] = within(summary).getAllByRole('link');
+    expect(within(summary).getAllByRole('link')).toHaveLength(1);
+
+    const code = screen.getByLabelText('Code');
+    expect(code).toHaveAttribute('aria-invalid', 'true');
+    expect(code).toHaveAccessibleDescription('Code es obligatorio');
+
+    await userEvent.click(link as HTMLElement);
+    expect(code).toHaveFocus();
+
+    // Typing leaves the error standing; focus stays where the reader is.
+    await userEvent.type(code, 'x');
+    expect(code).toHaveFocus();
+  });
+
+  it('reads a record as a description list', () => {
+    render(<Harness mode="read" entity={makeGadget()} />);
+
+    expect(screen.getAllByRole('term').map(term => term.textContent)).toContain(
+      'Code',
+    );
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+  });
+});

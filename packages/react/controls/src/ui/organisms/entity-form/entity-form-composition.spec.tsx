@@ -178,8 +178,11 @@ describe('EntityForm — an entity that owns rows', () => {
     );
 
     expect(screen.getByText('SKU es obligatorio')).toBeInTheDocument();
-    // The field's own message still belongs to the field row, not the grid.
-    expect(screen.getByText('Referencia es obligatoria')).toBeInTheDocument();
+    // The field's own message still belongs to the field row, not the grid,
+    // and the summary above the fields links to it.
+    expect(screen.getByLabelText('Referencia')).toHaveAccessibleDescription(
+      'Referencia es obligatoria',
+    );
   });
 
   it('reads an unreadable draft value as no rows', () => {

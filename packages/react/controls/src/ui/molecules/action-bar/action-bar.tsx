@@ -56,6 +56,12 @@ export interface ActionBarItem {
   /** What the link means, for a host that answers navigation itself. */
   readonly intent?: NavigationIntent;
   readonly onSelect?: () => void;
+  /**
+   * Submits the form the bar sits in — a form's Save — so Enter in a field
+   * saves too. As a button it leaves the act to the form's submit handler; in
+   * a menu, where a menu item cannot submit, it runs `onSelect`.
+   */
+  readonly submit?: boolean;
 }
 
 export interface ActionBarProps {
@@ -174,7 +180,7 @@ export function ActionBar({
     item.href === undefined ? (
       <Button
         key={item.key}
-        type="button"
+        type={item.submit ? 'submit' : 'button'}
         variant={item.destructive ? 'destructive' : variant}
         size={size}
         disabled={item.disabled}
@@ -183,7 +189,7 @@ export function ActionBar({
             ? undefined
             : ariaKeyShortcuts(item.shortcut)
         }
-        onClick={item.onSelect}
+        onClick={item.submit ? undefined : item.onSelect}
       >
         {item.label}
       </Button>

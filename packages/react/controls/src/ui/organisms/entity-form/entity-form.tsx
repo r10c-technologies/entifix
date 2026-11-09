@@ -15,7 +15,7 @@ import {
   readRowDrafts,
   type UseCaseDescriptor,
 } from '@entifix/core';
-import { type ReactNode, useId, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useId, useRef, useState } from 'react';
 
 import {
   useEntityNoun,
@@ -288,6 +288,27 @@ export function EntityForm<TEntity extends Entity>({
     invoke,
     busy,
   );
+  /**
+   * A save attempt. Counted, so a refused one moves focus to the error summary
+   * once — not again on every keystroke that leaves an error standing.
+   */
+  const [attempt, setAttempt] = useState(0);
+  const save = () => {
+    setAttempt(current => current + 1);
+    onSubmit?.(draft);
+  };
+  const summary = useRef<HTMLDivElement>(null);
+  const summaryId = useId();
+  const invalid = editing
+    ? fields.filter(field => errors?.[field.name] !== undefined)
+    : [];
+  const focusedAttempt = useRef(0);
+  useEffect(() => {
+    if (attempt === focusedAttempt.current || invalid.length === 0) return;
+    focusedAttempt.current = attempt;
+    summary.current?.focus();
+  }, [attempt, invalid.length]);
+
   // Save is the footer's primary unless the entity declared one of its own — a
   // determining "Publish" is what that page is for, and Save steps aside.
   const declaresFooterPrimary = footerItems.some(
@@ -307,7 +328,8 @@ export function EntityForm<TEntity extends Entity>({
               ? ('default' as const)
               : ('primary' as const),
             disabled: busy || resolvingLinks,
-            onSelect: () => onSubmit?.(draft),
+            submit: true,
+            onSelect: save,
           },
         ]
       : []),
@@ -338,143 +360,213 @@ export function EntityForm<TEntity extends Entity>({
       : []),
   ];
 
-  return (
-    <Card>
-      <Stack gap="s">
-        {/* An embedded form brings only its fields: the heading and the action
+  // A real form while editing, so Enter in a field saves; an embedded one
+  // belongs to its host's flow, and a caller who may not write has no Save.
+  const asForm = editing && !embedded && may('write');
+  const rows = fields.map(field => (
+    <FieldRow
+      key={field.name}
+      field={field}
+      entity={entity}
+      draft={draft}
+      value={readDraftString(draft, field.name)}
+      editing={editing}
+      error={editing ? errors?.[field.name] : undefined}
+      setField={setField}
+      linkSource={linkSources?.[field.name]}
+      onLinkChange={onLinkChange}
+      id={`${formId}-${field.name}`}
+    />
+  ));
+
+  const body = (
+    <Stack gap="s">
+      {/* An embedded form brings only its fields: the heading and the action
             row belong to whatever is hosting it — a wizard step sits under the
             wizard's own heading and advances with the wizard's own footer, so
             rendering a second of each is two controls for one job. */}
-        {!embedded && (
-          <Stack direction="row" gap="xs" align="center">
-            <Text
-              as="h2"
-              ref={heading}
-              tabIndex={-1}
-              step={1}
-              weight="semibold"
-              className="focus-ring"
-            >
-              {/* `entity` is undefined while the record is still in flight, so
+      {!embedded && (
+        <Stack direction="row" gap="xs" align="center">
+          <Text
+            as="h2"
+            ref={heading}
+            tabIndex={-1}
+            step={1}
+            weight="semibold"
+            className="focus-ring"
+          >
+            {/* `entity` is undefined while the record is still in flight, so
                 testing it alone made a loading edit form announce itself as
                 "New" for as long as the fetch took, then relabel when the
                 record landed. A form that is loading is never a create. */}
-              {title ??
-                (entity || isLoading ? t('form.details') : t('form.new'))}
-            </Text>
-            {/* The built-in toggle only appears when the form owns its mode and
+            {title ?? (entity || isLoading ? t('form.details') : t('form.new'))}
+          </Text>
+          {/* The built-in toggle only appears when the form owns its mode and
               there is a record to view — a create form has nothing to read. */}
-            {modeProp === undefined && entity && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={toggleMode}
-              >
-                {editing ? t('form.view') : t('form.edit')}
-              </Button>
-            )}
-            <LoadingBoundary isLoading={isMetadataLoading} lines={0}>
-              <>
-                {headerItems.length > 0 && (
-                  <ActionBar surface="form-header" items={headerItems} />
-                )}
-                {slots.headerActions}
-              </>
-            </LoadingBoundary>
-          </Stack>
-        )}
+          {modeProp === undefined && entity && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={toggleMode}
+            >
+              {editing ? t('form.view') : t('form.edit')}
+            </Button>
+          )}
+          <LoadingBoundary isLoading={isMetadataLoading} lines={0}>
+            <>
+              {headerItems.length > 0 && (
+                <ActionBar surface="form-header" items={headerItems} />
+              )}
+              {slots.headerActions}
+            </>
+          </LoadingBoundary>
+        </Stack>
+      )}
 
-        {/* One announcement for the form; the shimmer below is aria-hidden. */}
-        <span role="status" aria-live="polite" className="sr-only">
-          {isLoading ? t('form.loading') : ''}
-        </span>
+      {/* One announcement for the form; the shimmer below is aria-hidden. */}
+      <span role="status" aria-live="polite" className="sr-only">
+        {isLoading ? t('form.loading') : ''}
+      </span>
 
-        <RegionState
-          plural={entityNoun(metaEntity, 'plural')}
-          error={error}
-          onRetry={onRetry}
-          // Only a load that can be retried leaves an out-of-date record; a
-          // failed save leaves what the reader typed, which is current.
-          hasStaleData={entity !== undefined && onRetry !== undefined}
-        />
+      <RegionState
+        plural={entityNoun(metaEntity, 'plural')}
+        error={error}
+        onRetry={onRetry}
+        // Only a load that can be retried leaves an out-of-date record; a
+        // failed save leaves what the reader typed, which is current.
+        hasStaleData={entity !== undefined && onRetry !== undefined}
+      />
 
-        {/* The placeholder *replaces* the rows rather than sitting above them.
+      {/* A refused save, as one summary of links to what needs fixing: the
+            only alert in the form, and where focus goes after the attempt. */}
+      {invalid.length > 0 && (
+        <div
+          ref={summary}
+          tabIndex={-1}
+          role="alert"
+          aria-labelledby={summaryId}
+          data-testid="entity-form-error-summary"
+          className="rounded-lg border-l-4 border-danger bg-danger-subtle px-s py-xs text-step-sm text-content focus-ring"
+        >
+          <p id={summaryId} className="m-0 font-semibold">
+            {t('form.errorSummary', { count: invalid.length })}
+          </p>
+          <ul className="m-0 ps-s">
+            {invalid.map(field => (
+              <li key={field.name}>
+                <a
+                  href={`#${formId}-${field.name}`}
+                  // The content colour: primary on the danger surface misses
+                  // 4.5:1.
+                  className="font-medium text-content underline underline-offset-2 focus-ring"
+                  onClick={event => {
+                    event.preventDefault();
+                    document.getElementById(`${formId}-${field.name}`)?.focus();
+                  }}
+                >
+                  {errors?.[field.name]}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {editing && fields.some(field => field.required && !field.readonly) && (
+        <Text step={-1} tone="muted">
+          {t('form.requiredHint')}
+        </Text>
+      )}
+
+      {/* The placeholder *replaces* the rows rather than sitting above them.
             Rendering both meant a shimmer stacked on a full set of empty fields,
             which is two loading signals for one region and twice the height the
             loaded form settles at. */}
-        {showSkeleton
-          ? (customSkeleton ??
-            fields.map(field => (
-              <Stack key={field.name} gap="3xs">
-                <Skeleton shape="line" className="w-24" />
-                <Skeleton className="h-9 w-full" />
-              </Stack>
-            )))
-          : fields.map(field => (
-              <FieldRow
-                key={field.name}
-                field={field}
-                entity={entity}
-                draft={draft}
-                value={readDraftString(draft, field.name)}
-                editing={editing}
-                error={editing ? errors?.[field.name] : undefined}
-                setField={setField}
-                linkSource={linkSources?.[field.name]}
-                onLinkChange={onLinkChange}
-                id={`${formId}-${field.name}`}
-              />
-            ))}
+      {showSkeleton
+        ? (customSkeleton ??
+          fields.map(field => (
+            <Stack key={field.name} gap="3xs">
+              <Skeleton shape="line" className="w-24" />
+              <Skeleton className="h-9 w-full" />
+            </Stack>
+          )))
+        : editing
+          ? rows
+          : // Read mode is a description list: a label points at nothing
+            // when there is no control, and a term and its value is what
+            // the pair is.
+            rows.length > 0 && (
+              <dl className="m-0 flex flex-col gap-s">{rows}</dl>
+            )}
 
-        {/* The rows the record owns, full width and below every field. Each
+      {/* The rows the record owns, full width and below every field. Each
             grid is handed the *whole* error map and picks out the keys naming
             its own member, so a record owning two collections needs no
             bookkeeping here. */}
-        {ownedCollections.map(field => (
-          <EntityDetailGrid
-            key={field.name}
-            descriptor={field}
-            rows={readRowDrafts(draft[field.name])}
-            onRowsChange={rows => setField(field.name, rows)}
-            errors={editing ? errors : undefined}
-            editing={editing}
-            isLoading={isLoading}
-            skeleton={skeleton}
-          />
-        ))}
+      {ownedCollections.map(field => (
+        <EntityDetailGrid
+          key={field.name}
+          descriptor={field}
+          rows={readRowDrafts(draft[field.name])}
+          onRowsChange={rows => setField(field.name, rows)}
+          errors={editing ? errors : undefined}
+          editing={editing}
+          isLoading={isLoading}
+          skeleton={skeleton}
+        />
+      ))}
 
-        {/* A cross-field rule has no row to sit under, so it sits with the
+      {/* A cross-field rule has no row to sit under, so it sits with the
             actions it blocks. */}
-        {editing && formError && (
-          <span role="alert" className="text-step-sm text-danger">
-            {formError}
-          </span>
-        )}
+      {editing && formError && (
+        <span role="alert" className="text-step-sm text-danger">
+          {formError}
+        </span>
+      )}
 
-        {editing && !embedded && (
-          <Stack direction="row" gap="xs" align="center">
-            <ActionBar surface="form-footer" size="md" items={footerActions} />
-            {slots.footerActions}
-            {/* A link styled as a button, not a button inside a link: the old
+      {editing && !embedded && (
+        <Stack direction="row" gap="xs" align="center">
+          <ActionBar surface="form-footer" size="md" items={footerActions} />
+          {slots.footerActions}
+          {/* A link styled as a button, not a button inside a link: the old
                 nesting was two interactive elements for one action, and its
                 `disabled` stopped nothing, because the anchor around it still
                 navigated. While busy the link is inert instead. */}
-            {backHref &&
-              renderLink({
-                href: backHref,
-                className: cn(
-                  button({ variant: 'ghost' }),
-                  busy && 'pointer-events-none opacity-50',
-                ),
-                children: t('form.back'),
-                intent: { kind: 'back' },
-              })}
-          </Stack>
-        )}
+          {backHref &&
+            renderLink({
+              href: backHref,
+              className: cn(
+                button({ variant: 'ghost' }),
+                busy && 'pointer-events-none opacity-50',
+              ),
+              children: t('form.back'),
+              intent: { kind: 'back' },
+            })}
+        </Stack>
+      )}
 
-        {slots.rest}
-      </Stack>
+      {slots.rest}
+    </Stack>
+  );
+
+  return (
+    <Card>
+      {asForm ? (
+        <form
+          noValidate
+          // Enter submits through Save, the form's default button, which is
+          // disabled while a save is in flight — so a busy form stays put.
+          onSubmit={event => {
+            event.preventDefault();
+            save();
+          }}
+        >
+          {body}
+        </form>
+      ) : (
+        body
+      )}
 
       {verbs.dialog}
     </Card>
@@ -613,6 +705,8 @@ function FieldRow<TEntity extends Entity>({
   onLinkChange,
   id,
 }: FieldRowProps<TEntity>) {
+  const t = useT();
+  const errorId = `${id}-error`;
   const readNode: ReactNode = field.readRender ? (
     field.readRender(entity)
   ) : (
@@ -679,23 +773,46 @@ function FieldRow<TEntity extends Entity>({
         onChange={next => setField(field.name, next)}
         id={id}
         record={draft}
+        aria-invalid={error !== undefined || undefined}
+        aria-describedby={error === undefined ? undefined : errorId}
+        aria-required={field.required || undefined}
       />
     );
   }
 
-  const ownsLabel =
-    editing && field.type === 'boolean' && !field.render && !field.virtual;
+  if (!editing)
+    return (
+      <div className="flex flex-col gap-3xs">
+        <dt className="text-step-sm text-content-muted">{field.label}</dt>
+        <dd className="m-0">{control}</dd>
+      </div>
+    );
+
+  const ownsLabel = field.type === 'boolean' && !field.render && !field.virtual;
+  // Marked before anyone submits, not discovered after.
+  const marked = field.required && !field.readonly;
 
   return (
     <Stack gap="3xs">
       {!ownsLabel && (
-        <label htmlFor={id} className="text-step-sm text-content-muted">
-          {field.label}
-        </label>
+        // The marker sits beside the label, not in it: the name stays the
+        // field's own, and `aria-required` is what says it to a reader.
+        <span className="flex items-baseline gap-3xs">
+          <label htmlFor={id} className="text-step-sm text-content-muted">
+            {field.label}
+          </label>
+          {marked && (
+            <span aria-hidden="true" className="text-step-sm text-danger">
+              {t('form.requiredMarker')}
+            </span>
+          )}
+        </span>
       )}
       {control}
+      {/* Not an alert of its own: the summary above the fields is the one
+          announcement, and this is what the control's description reads. */}
       {error && (
-        <span role="alert" className="text-step-sm text-danger">
+        <span id={errorId} className="text-step-sm text-danger">
           {error}
         </span>
       )}

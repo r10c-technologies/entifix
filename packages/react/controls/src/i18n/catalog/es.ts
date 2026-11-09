@@ -75,6 +75,11 @@ export const controls = {
     back: 'Volver',
     loading: 'Cargando…',
     pending: 'Esperando al servidor…',
+    /** El resumen de un guardado rechazado: toma el foco, enlaza cada campo. */
+    errorSummary_one: 'Revise {{count}} campo antes de guardar',
+    errorSummary_other: 'Revise {{count}} campos antes de guardar',
+    requiredHint: 'Los campos marcados con * son obligatorios.',
+    requiredMarker: '*',
   },
   /**
    * Lo que dice una región cuando no muestra su contenido (ADR 0028): qué

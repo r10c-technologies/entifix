@@ -11,11 +11,26 @@ import {
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
-  DEFAULT_VALIDATION_MESSAGES,
   restoreEntityDraft,
   seedEntityDraft,
   validateEntityDraft,
+  validationMessagesFrom,
 } from './use-entity-form.helpers.js';
+
+/**
+ * Answers a catalog key as the key and its parameters, `:`-joined — or the
+ * `defaultValue` when one is offered — so a spec can read which sentence a
+ * rule asked for without a catalog.
+ */
+const keyEcho = (key: string, params?: Record<string, unknown>): string =>
+  params?.['defaultValue'] !== undefined
+    ? String(params['defaultValue'])
+    : [
+        key.replace(/^controls:/, ''),
+        ...Object.values(params ?? {}).map(String),
+      ].join(':');
+
+const KEY_MESSAGES = validationMessagesFrom(keyEcho);
 
 @entity({ key: 'dish' })
 class Dish implements Entity {
@@ -86,15 +101,15 @@ describe('a localized member in the form', () => {
       validateEntityDraft(
         descriptors,
         { id: 'd-1', name: name as never, note: note as never },
-        DEFAULT_VALIDATION_MESSAGES,
+        KEY_MESSAGES,
       );
 
     expect(validate({ en: '', es: ' ' }, { en: '', es: '' })).toEqual({
       name: 'validation.required:Name',
     });
     expect(validate({ en: 'Soup', es: '' }, { en: '', es: 'Nota' })).toEqual({
-      name: 'validation.locale:Name:es',
-      note: 'validation.locale:Note:en',
+      name: 'validation.locale:Name:ES',
+      note: 'validation.locale:Note:EN',
     });
     expect(validate({ en: 'Soup', es: 'Sopa' }, {})).toEqual({});
   });
@@ -110,8 +125,6 @@ describe('a localized member in the form', () => {
   });
 
   it('words a missing locale as a catalog key by default', () => {
-    expect(DEFAULT_VALIDATION_MESSAGES.locale('Name', 'es')).toBe(
-      'validation.locale:Name:es',
-    );
+    expect(KEY_MESSAGES.locale('Name', 'es')).toBe('validation.locale:Name:ES');
   });
 });

@@ -876,8 +876,13 @@ describe('the generated form', () => {
     // The field by its catalog word — `Nombre`, from `labelKey` — not the
     // accessor's English `label` inside a Spanish sentence (#22).
     await waitFor(() =>
-      expect(screen.getByText('Nombre es obligatorio')).toBeVisible(),
+      expect(screen.getByLabelText('Nombre')).toHaveAccessibleDescription(
+        'Nombre es obligatorio',
+      ),
     );
+    // No message on the form is a catalog key the copy never reached.
+    for (const message of screen.getAllByText(/obligatori/))
+      expect(message.textContent).not.toMatch(/^[\w.]+:/);
   });
 
   // `entity` is undefined until the record lands, so testing it alone titled a

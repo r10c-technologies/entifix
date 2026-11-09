@@ -13,10 +13,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   composeEntityFormErrors,
-  DEFAULT_VALIDATION_MESSAGES,
   readFieldErrors,
   restoreEntityDraft,
   seedEntityDraft,
+  validationMessagesFrom,
 } from './use-entity-form.helpers.js';
 import type {
   UseEntityFormOptions,
@@ -57,7 +57,6 @@ export function useEntityForm<TEntity extends Entity>({
   fields,
   schema,
   validate,
-  validationMessages,
   translateKey,
   onSubmit,
 }: UseEntityFormOptions<TEntity>): UseEntityFormResult {
@@ -94,19 +93,13 @@ export function useEntityForm<TEntity extends Entity>({
     seedEntityLinkSelection(descriptors, entity),
   );
 
-  // Supplied by the caller, and that is the seam.
-  //
-  // ⚠️ This used to reach into react-i18next and `@entifix/i18n` directly,
-  // because both React packages are T3 and the tier register declares no
-  // sideways import of the controls package that owns the `controls`
-  // catalog. The effect was that anyone taking the integration hooks also took
-  // i18next and a Spanish catalog — the composition defect the tier register
-  // was written to catch. The one real caller, `entity-crud-form.tsx`, sits a
-  // tier up where `useT('controls')` is reachable, so it resolves the four
-  // sentences and hands them over.
+  // Built from the caller's translator: this package holds no catalog, and a
+  // tier-3 hook reaching for i18next would make everyone who takes it take
+  // i18next too. The controls package's translator answers from its own
+  // catalog with no i18n library at all, so a key never reaches the screen.
   const messages = useMemo(
-    () => validationMessages ?? DEFAULT_VALIDATION_MESSAGES,
-    [validationMessages],
+    () => validationMessagesFrom(translateKey),
+    [translateKey],
   );
 
   // A schema's message is authored as a catalog key (`validation.minLength`),
@@ -125,7 +118,7 @@ export function useEntityForm<TEntity extends Entity>({
   // type inside the validator rather than from these descriptors.
   const labelFor = useCallback(
     (descriptor: EntityFieldDescriptor) =>
-      descriptor.labelKey !== undefined && translateKey !== undefined
+      descriptor.labelKey !== undefined
         ? translateKey(descriptor.labelKey, { defaultValue: descriptor.label })
         : descriptor.label,
     [translateKey],
@@ -133,7 +126,6 @@ export function useEntityForm<TEntity extends Entity>({
 
   const translateIssue = useCallback(
     (message: string, field: string | undefined) => {
-      if (translateKey === undefined) return message;
       const descriptor = descriptors.find(entry => entry.name === field);
       return translateKey(message, {
         defaultValue: message,
