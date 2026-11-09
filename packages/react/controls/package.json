@@ -56,9 +56,9 @@
     "@storybook/addon-vitest": "^10.6.5",
     "@storybook/react-vite": "^10.6.5",
     "effect": "4.0.7",
-    "i18next": "26.6.0",
+    "i18next": "26.7.2",
     "react": "19.3.1",
-    "react-i18next": "17.1.10",
+    "react-i18next": "17.1.13",
     "storybook": "^10.6.5"
   },
   "nx": {

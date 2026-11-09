@@ -54,7 +54,7 @@
     "@entifix/business": "workspace:*",
     "@entifix/core": "workspace:*",
     "@swc/helpers": "0.5.23",
-    "jose": "6.2.14"
+    "jose": "6.2.15"
   },
   "devDependencies": {
     "@entifix/testing-unit": "workspace:*",

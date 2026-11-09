@@ -66,7 +66,7 @@
     "next": ">=16"
   },
   "devDependencies": {
-    "i18next": "26.6.0",
+    "i18next": "26.7.2",
     "next": "16.4.3"
   },
   "peerDependenciesMeta": {
