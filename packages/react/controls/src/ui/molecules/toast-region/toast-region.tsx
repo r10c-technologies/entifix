@@ -5,13 +5,17 @@ import {
   type ReactNode,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
 } from 'react';
 
 import { useErrorMessage, useT } from '../../../i18n/index.js';
+import { useErrorAction } from '../../actions/error-actions.js';
+import { Alert, type AlertTone } from '../../atoms/alert/index.js';
 import { Button } from '../../atoms/button/index.js';
+import { cn } from '../../utils/cn.js';
 
 /**
  * A failure as {@link useErrorMessage} renders it: a typed failure carries its
@@ -19,43 +23,119 @@ import { Button } from '../../atoms/button/index.js';
  */
 export type ToastFailure = Parameters<ReturnType<typeof useErrorMessage>>[0];
 
-/** One failure waiting in the region, under the id it was shown with. */
-export interface FailureToast {
-  readonly id: number;
-  readonly failure: ToastFailure;
+/**
+ * What a toast reports
+ * ([ADR 0028](../../../../../../../docs/adr/0028-states-an-organism-must-render.md)):
+ * a write that worked, one that can still be taken back, something worth
+ * knowing, or a failure. Only a failure interrupts.
+ */
+export type ToastTone = 'success' | 'undo' | 'info' | 'failure';
+
+/** The one thing a toast offers to do about what it reports. */
+export interface ToastAction {
+  /** The button's text, already in the reader's language. */
+  readonly label: string;
+  readonly onAction: () => void;
 }
 
+/**
+ * A toast to show. A failure carries the failure itself, rendered through the
+ * same {@link useErrorMessage} a form's error slot uses; every other tone
+ * carries a sentence already in the reader's language. An `undo` toast without
+ * its Undo would be a success toast, so the type asks for the action.
+ */
+export type ToastInput =
+  | {
+      readonly tone: 'success' | 'info';
+      readonly message: string;
+      readonly action?: ToastAction;
+    }
+  | {
+      readonly tone: 'undo';
+      readonly message: string;
+      readonly action: ToastAction;
+    }
+  | {
+      readonly tone: 'failure';
+      readonly failure: ToastFailure;
+      readonly action?: ToastAction;
+    };
+
+/** One toast waiting in the region, under the id it was shown with. */
+export type Toast = ToastInput & { readonly id: number };
+
 export interface Toasts {
-  /** The failures shown, oldest first. */
-  readonly failures: readonly FailureToast[];
-  /** Shows a failure until it is dismissed, and answers its id. */
-  readonly showFailure: (failure: ToastFailure) => number;
+  /** The toasts shown, oldest first. */
+  readonly toasts: readonly Toast[];
+  /** Shows a toast, and answers its id. */
+  readonly show: (toast: ToastInput) => number;
   readonly dismiss: (id: number) => void;
 }
 
+/**
+ * How long a toast that is neither a failure nor offers an action stays, in
+ * milliseconds. A failure stays until it is dismissed: it reports something
+ * that already happened, often after the screen that started it was left, and
+ * a message that times out is one a slow reader never gets. A toast with an
+ * action stays too, for the same reader.
+ */
+export const TOAST_TIMEOUT_MS = 8000;
+
 const ToastContext = createContext<Toasts | undefined>(undefined);
+
+export interface ToastProviderProps {
+  readonly children: ReactNode;
+  /** How long a success, undo or info toast stays. */
+  readonly timeoutMs?: number;
+}
 
 /**
  * Holds the toasts one host shows. Mounted once, above everything that can
  * fail asynchronously, with a {@link ToastRegion} somewhere inside it.
  */
-export function ToastProvider({ children }: { readonly children: ReactNode }) {
-  const [failures, setFailures] = useState<readonly FailureToast[]>([]);
+export function ToastProvider({
+  children,
+  timeoutMs = TOAST_TIMEOUT_MS,
+}: ToastProviderProps) {
+  const [toasts, setToasts] = useState<readonly Toast[]>([]);
   const next = useRef(0);
+  const timers = useRef(new Map<number, ReturnType<typeof setTimeout>>());
 
-  const showFailure = useCallback((failure: ToastFailure) => {
-    next.current += 1;
-    const id = next.current;
-    setFailures(shown => [...shown, { id, failure }]);
-    return id;
-  }, []);
   const dismiss = useCallback((id: number) => {
-    setFailures(shown => shown.filter(toast => toast.id !== id));
+    clearTimeout(timers.current.get(id));
+    timers.current.delete(id);
+    setToasts(shown => shown.filter(toast => toast.id !== id));
+  }, []);
+
+  const show = useCallback(
+    (toast: ToastInput) => {
+      next.current += 1;
+      const id = next.current;
+      setToasts(shown => [...shown, { ...toast, id }]);
+      // A failure stays until it is dismissed, and so does a toast that
+      // offers an action: Undo on a timer is a time limit on the reader's
+      // only way back (WCAG 2.2.1). The rest say their piece and go.
+      if (toast.tone !== 'failure' && toast.action === undefined)
+        timers.current.set(
+          id,
+          setTimeout(() => dismiss(id), timeoutMs),
+        );
+      return id;
+    },
+    [dismiss, timeoutMs],
+  );
+
+  useEffect(() => {
+    const pending = timers.current;
+    return () => {
+      for (const timer of pending.values()) clearTimeout(timer);
+      pending.clear();
+    };
   }, []);
 
   const value = useMemo(
-    () => ({ failures, showFailure, dismiss }),
-    [failures, showFailure, dismiss],
+    () => ({ toasts, show, dismiss }),
+    [toasts, show, dismiss],
   );
   return (
     <ToastContext.Provider value={value}>{children}</ToastContext.Provider>
@@ -64,46 +144,121 @@ export function ToastProvider({ children }: { readonly children: ReactNode }) {
 
 /**
  * The {@link ToastProvider} above, or `undefined` outside one: a caller with
- * no region to show a failure in keeps it where it can, rather than having it
- * vanish.
+ * no region to show a toast in keeps what it has to say where it can, rather
+ * than having it vanish.
  */
 export const useToasts = (): Toasts | undefined => useContext(ToastContext);
 
+const ALERT_TONE: Readonly<Record<ToastTone, AlertTone>> = {
+  success: 'success',
+  undo: 'info',
+  info: 'info',
+  failure: 'danger',
+};
+
+function ToastItem({
+  toast,
+  onDismiss,
+}: {
+  readonly toast: Toast;
+  readonly onDismiss: () => void;
+}) {
+  const t = useT();
+  const message = useErrorMessage();
+  const errorAction = useErrorAction();
+  // A failure with no action of its own offers the host's next step for its
+  // code, when there is one.
+  const next =
+    toast.tone === 'failure' ? errorAction(toast.failure) : undefined;
+  const action =
+    toast.action ??
+    (next === undefined
+      ? undefined
+      : { label: next.label, onAction: next.onAction });
+  return (
+    <Alert
+      tone={ALERT_TONE[toast.tone]}
+      data-toast-tone={toast.tone}
+      className="pointer-events-auto bg-surface shadow-overlay"
+      action={
+        <div className="flex gap-3xs">
+          {action !== undefined && (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                action.onAction();
+                onDismiss();
+              }}
+            >
+              {action.label}
+            </Button>
+          )}
+          <Button type="button" variant="ghost" onClick={onDismiss}>
+            {t('toast.dismiss')}
+          </Button>
+        </div>
+      }
+    >
+      {toast.tone === 'failure' ? message(toast.failure) : toast.message}
+    </Alert>
+  );
+}
+
 /**
- * Where a host's toasts render: each failure in the reader's language,
- * through the same {@link useErrorMessage} a form's error slot uses, so an
- * asynchronous failure reads exactly as a synchronous one would.
+ * Where a host's toasts render, each through {@link Alert}: a failure is
+ * `role="alert"` and every other tone `role="status"`.
  *
- * A failure stays until it is dismissed. It reports something that already
- * happened, often after the screen that started it was left, and a message
- * that times out is one a slow reader never gets.
+ * ⚠️ **An empty region takes no room and no clicks.** It stays mounted, so a
+ * toast lands in a region that already exists, but at zero size and with
+ * `pointer-events: none` — a fixed box that kept its padding once covered two
+ * focused links and swallowed clicks (WCAG 2.4.11). While toasts show, the
+ * document's bottom scroll padding is the region's height, so a control
+ * focused by keyboard scrolls clear of it. F6 moves focus into the region.
  */
 export function ToastRegion() {
   const toasts = useToasts();
   const t = useT();
-  const message = useErrorMessage();
+  const region = useRef<HTMLElement>(null);
+  const shown = toasts?.toasts ?? [];
+  const count = shown.length;
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (count === 0) {
+      root.style.removeProperty('scroll-padding-bottom');
+      return;
+    }
+    // The region renders whenever a toast can: the ref is set by now.
+    const node = region.current as HTMLElement;
+    root.style.setProperty('scroll-padding-bottom', `${node.offsetHeight}px`);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'F6') return;
+      event.preventDefault();
+      node.focus();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [count]);
 
   if (toasts === undefined) return null;
   return (
     <section
+      ref={region}
       aria-label={t('toast.region')}
-      className="bottom-0 right-0 max-w-md fixed z-(--z-toast) flex w-full flex-col gap-xs p-s"
+      tabIndex={-1}
+      data-testid="toast-region"
+      className={cn(
+        'bottom-0 right-0 pointer-events-none fixed z-(--z-toast) flex flex-col gap-xs focus-ring',
+        count === 0 ? 'size-0 overflow-hidden' : 'max-w-md w-full p-s',
+      )}
     >
-      {toasts.failures.map(({ id, failure }) => (
-        <div
-          key={id}
-          role="alert"
-          className="flex items-start gap-xs rounded-lg border border-danger bg-surface p-xs shadow-overlay"
-        >
-          <p className="flex-1 text-step-sm text-danger">{message(failure)}</p>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => toasts.dismiss(id)}
-          >
-            {t('toast.dismiss')}
-          </Button>
-        </div>
+      {shown.map(toast => (
+        <ToastItem
+          key={toast.id}
+          toast={toast}
+          onDismiss={() => toasts.dismiss(toast.id)}
+        />
       ))}
     </section>
   );

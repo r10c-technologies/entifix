@@ -23,6 +23,7 @@ export interface FieldControlProps {
   'aria-labelledby'?: string;
   'aria-describedby'?: string;
   'aria-invalid'?: boolean;
+  'aria-required'?: boolean;
   /**
    * The draft value as a string — the shape a native input round-trips. A form
    * holds its whole draft as `Record<string, string>` and reconstructs typed
@@ -140,6 +141,8 @@ export function FieldControl({
     <TextInput
       id={id}
       {...aria}
+      // What the field is for, so a browser can fill it (WCAG 1.3.5).
+      autoComplete={descriptor.autocomplete}
       type={INPUT_TYPE[descriptor.type] ?? 'text'}
       value={value}
       disabled={disabled}

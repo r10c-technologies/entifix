@@ -8,6 +8,8 @@ import {
   PendingFlowsProvider,
 } from '@entifix/next-shell';
 import {
+  type Density,
+  ErrorActionsProvider,
   makeIndexedDbUiPreferencesState,
   type ThemeOption,
   ThemeProvider,
@@ -19,15 +21,46 @@ import {
 import { I18nProvider } from '@entifix/react-controls/i18next';
 import {
   EntifixQueryProvider,
-  NoopPushChannel,
+  type InMemoryPushChannel,
+  makeInMemoryPushChannel,
 } from '@entifix/react-integration';
 import { type PropsWithChildren, useMemo } from 'react';
+
+import { chooseOrganization } from '../organization';
+
+/**
+ * The tab's push channel. This example has no server to push from, so it is
+ * the in-memory one, connected at once — and reachable from the page as
+ * `window.examplePush`, so a reader or a journey can drop the stream and watch
+ * the workspace say live updates are paused.
+ */
+const pushChannel = makeInMemoryPushChannel();
+pushChannel.connect();
+
+declare global {
+  interface Window {
+    examplePush?: InMemoryPushChannel;
+  }
+}
+if (typeof window !== 'undefined') window.examplePush = pushChannel;
+
+/** What a failure's code can offer: a refused tenant read, a way to choose. */
+const ERROR_ACTIONS = { noActiveOrganization: chooseOrganization };
 
 // Module scope: a new store per render would reopen the database each time.
 const uiPreferences = makeIndexedDbUiPreferencesState();
 
 /** Below `I18nProvider`, so the theme captions resolve in the active locale. */
-function Themed({ children }: PropsWithChildren) {
+/** What the layout rendered the page in, read from the reader's cookies. */
+interface Appearance {
+  readonly theme: string;
+  readonly density: Density | undefined;
+}
+
+function Themed({
+  appearance,
+  children,
+}: PropsWithChildren<{ appearance: Appearance }>) {
   const t = useT('controls');
   const themes = useMemo<ThemeOption[]>(
     () => [
@@ -43,17 +76,21 @@ function Themed({ children }: PropsWithChildren) {
         themes={themes}
         defaultTheme="aurora"
         defaultDensity="compact"
+        initialTheme={appearance.theme}
+        initialDensity={appearance.density}
       >
         <UiPreferencesProvider store={uiPreferences}>
-          <ToastProvider>
-            <PendingFlowsProvider
-              scope={ANONYMOUS_WORKSPACE_SCOPE}
-              channel={NoopPushChannel}
-            >
-              {children}
-            </PendingFlowsProvider>
-            <ToastRegion />
-          </ToastProvider>
+          <ErrorActionsProvider actions={ERROR_ACTIONS}>
+            <ToastProvider>
+              <PendingFlowsProvider
+                scope={ANONYMOUS_WORKSPACE_SCOPE}
+                channel={pushChannel}
+              >
+                {children}
+              </PendingFlowsProvider>
+              <ToastRegion />
+            </ToastProvider>
+          </ErrorActionsProvider>
         </UiPreferencesProvider>
       </ThemeProvider>
     </EntifixQueryProvider>
@@ -73,11 +110,12 @@ function Themed({ children }: PropsWithChildren) {
  */
 export function Providers({
   locale,
+  appearance,
   children,
-}: PropsWithChildren<{ locale: Locale }>) {
+}: PropsWithChildren<{ locale: Locale; appearance: Appearance }>) {
   return (
     <I18nProvider locale={locale}>
-      <Themed>{children}</Themed>
+      <Themed appearance={appearance}>{children}</Themed>
     </I18nProvider>
   );
 }

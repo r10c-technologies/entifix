@@ -4,7 +4,9 @@ import type {
   UseCaseBinding,
   UseCaseCell,
   UseCaseConfirm,
+  UseCaseHierarchy,
   UseCasePlacement,
+  UseCaseReversible,
 } from '../meta-entities/meta-use-case/index.js';
 
 /**
@@ -15,7 +17,7 @@ import type {
  * It carries no `entity`: this is the shape that goes over the wire from
  * `GET /api/<entity>/$metadata`, where the entity is already the address.
  */
-export interface UseCaseDescriptor {
+export interface UseCaseDescriptor extends UseCaseHierarchy {
   /** The verb. Also the third segment of the permission guarding it. */
   key: string;
   binding: UseCaseBinding;
@@ -25,6 +27,10 @@ export interface UseCaseDescriptor {
   labelKey: string;
   keywordsKey?: string;
   confirm?: UseCaseConfirm;
+  /** How a destructive verb is made safe — see `UseCaseReversible`. */
+  reversible?: UseCaseReversible;
+  /** The verb Undo runs, by key. */
+  inverse?: string;
   form?: string;
   /** The named variant set this verb resolves between. */
   variants?: string;
@@ -69,6 +75,12 @@ export function describeEntityUseCases<TEntity extends Entity>(
     labelKey: metaUseCase.labelKey,
     keywordsKey: metaUseCase.keywordsKey,
     confirm: metaUseCase.confirm,
+    reversible: metaUseCase.reversible,
+    inverse: metaUseCase.inverse,
+    emphasis: metaUseCase.emphasis,
+    priority: metaUseCase.priority,
+    rowInline: metaUseCase.rowInline,
+    shortcut: metaUseCase.shortcut,
     form: metaUseCase.form,
     variants: metaUseCase.variants,
     recipe: metaUseCase.recipe,

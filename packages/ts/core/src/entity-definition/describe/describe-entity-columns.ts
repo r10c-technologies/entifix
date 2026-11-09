@@ -3,6 +3,7 @@ import { EntityCollectionLink } from '../links/entity-collection-link/index.js';
 import { EntityLink } from '../links/entity-link/index.js';
 import { assertBounds } from '../meta-entities/bounds.js';
 import {
+  type CardRole,
   type ChildConstructor,
   type EntityLinkSerialization,
   MetaAccessor,
@@ -64,6 +65,12 @@ export interface EntityFieldDescriptor {
   notBefore?: string;
   /** The member is an amount of money, read as this declares. `number` members only. */
   money?: MoneyFormat;
+  /** The narrowest the member's column reads at, in `rem`, when declared. */
+  minWidth?: number;
+  /** The part the member plays on a record's card, when declared. */
+  card?: CardRole;
+  /** The member's HTML autofill token, when declared. */
+  autocomplete?: string;
   /** This member holds the parent record's id: the entity forms a tree. */
   parent?: boolean;
 }
@@ -198,6 +205,16 @@ function assertMoneyType(metaAccessor: MetaAccessor, type: MetaAccessorType) {
   );
 }
 
+/** A width is a positive length; zero or less would never switch layouts. */
+function assertMinWidth(metaAccessor: MetaAccessor) {
+  const { minWidth } = metaAccessor;
+  if (minWidth === undefined || (Number.isFinite(minWidth) && minWidth > 0))
+    return;
+  throw new Error(
+    `"${String(metaAccessor.name)}" declares minWidth ${String(minWidth)} — a column's narrowest width is a positive number of rem.`,
+  );
+}
+
 /**
  * A `currencyMember` must be a visible `string` member of the same entity: a
  * hidden one never reaches the client, so the amount would print with no
@@ -274,6 +291,7 @@ function toDescriptor(
   assertItemCounts(metaAccessor, type);
   assertParentType(metaAccessor, type);
   assertMoneyType(metaAccessor, type);
+  assertMinWidth(metaAccessor);
   // A localized member is queried one locale at a time (`name.en`), which
   // makes it as queryable as the text each locale holds.
   const isScalar = SCALAR_TYPES.includes(type) || type === 'localized';
@@ -301,6 +319,13 @@ function toDescriptor(
     maxItems: metaAccessor.maxItems,
     notBefore: metaAccessor.notBefore,
     ...(metaAccessor.money === undefined ? {} : { money: metaAccessor.money }),
+    ...(metaAccessor.minWidth === undefined
+      ? {}
+      : { minWidth: metaAccessor.minWidth }),
+    ...(metaAccessor.card === undefined ? {} : { card: metaAccessor.card }),
+    ...(metaAccessor.autocomplete === undefined
+      ? {}
+      : { autocomplete: metaAccessor.autocomplete }),
     parent: metaAccessor.parent ?? false,
   };
 }

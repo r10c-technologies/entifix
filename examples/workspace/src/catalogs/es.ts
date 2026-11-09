@@ -40,12 +40,34 @@ export const es = {
         unitPrice: 'Precio unitario',
       },
       values: {
-        status: { draft: 'Borrador', issued: 'Emitida' },
+        status: { draft: 'Borrador', issued: 'Emitida', void: 'Anulada' },
       },
       useCases: {
         issue: 'Emitir',
         resetDemo: 'Restablecer los datos de ejemplo',
         resetDemoKeywords: 'reiniciar, semilla, datos',
+        void: 'Anular',
+        voidConfirm: 'Deja de contar como pendiente.',
+        voided: 'Factura anulada.',
+        reopen: 'Reabrir',
+        purgeDrafts: 'Eliminar borradores',
+        purgeDraftsConfirm:
+          'Se eliminan de forma definitiva todos los borradores de esta lista.',
+      },
+    },
+    payment: {
+      form: { editTitle: 'Pago', newTitle: 'Pago' },
+      label: 'Pago',
+      plural: 'Pagos',
+      fields: {
+        id: 'ID',
+        reference: 'Referencia',
+        invoice: 'Factura',
+        amount: 'Importe',
+        method: 'Método',
+      },
+      values: {
+        method: { card: 'Tarjeta', transfer: 'Transferencia' },
       },
     },
   },
@@ -53,6 +75,8 @@ export const es = {
     unexpected: 'Algo salió mal. Inténtalo de nuevo.',
     network: 'No se pudo conectar.',
     notFound: 'No se encontró el registro.',
+    noActiveOrganization: 'Elija una organización para ver sus registros.',
+    noActiveOrganizationAction: 'Elegir organización',
   },
   app: {
     brand: 'entifix · workspace',
@@ -62,12 +86,26 @@ export const es = {
     nav: {
       customers: 'Clientes',
       invoices: 'Facturas',
+      payments: 'Pagos',
       newInvoice: 'Nueva factura',
     },
     home: {
       title: 'Un workspace sin backend',
       body: 'Todo lo que ves corre en esta pestaña sobre un repositorio en memoria. Los borradores sobreviven a una recarga; los registros guardados vuelven a los datos de ejemplo.',
       openWorkspace: 'Abrir el workspace',
+    },
+    subscription: {
+      title: 'Suscripción',
+      active: 'Su suscripción está activa.',
+      ended: 'Su suscripción terminó.',
+      end: 'Dar de baja',
+      keep: 'Conservar',
+      confirmTitle: '¿Dar de baja la suscripción?',
+      confirmMessage:
+        'Dejará de recibir los envíos desde hoy. Para volver tendrá que suscribirse de nuevo.',
+    },
+    account: {
+      guest: 'Invitado',
     },
     preferences: {
       density: 'Densidad',

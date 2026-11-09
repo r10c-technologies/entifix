@@ -2,6 +2,7 @@
 
 import type { Formatters, Locale } from '@entifix/core';
 import {
+  defaultLocale,
   type Entity,
   EntityCollectionLink,
   type EntityFieldDescriptor,
@@ -19,14 +20,15 @@ import {
 } from '../../../i18n/index.js';
 import { Money } from '../money/money.js';
 import { currencyOf } from '../money/money-math.js';
+import { Skeleton } from '../skeleton/index.js';
 
 /** Stand-in for an absent value, so an empty cell still reads as intentional. */
 const EMPTY = '—';
 
 /**
- * A link reads as its target's label when the target is loaded (embedded or
- * resolved), and as the bare foreign key when it is not — the same cell markup
- * covers both shapes a relation can arrive in.
+ * A link reads as its target's label once the target is loaded (embedded or
+ * resolved). Never as its id: a key is not a name, and showing one fails the
+ * reader who came to see which record it is (#200).
  */
 function entityLabel(
   target: Entity | undefined,
@@ -46,10 +48,9 @@ function formatLink(
   linkLabelProperty: string,
   locale: Locale,
 ): string {
-  return (
-    entityLabel(link.value, linkLabelProperty, locale) ??
-    (link.id == null ? EMPTY : String(link.id))
-  );
+  return link.id == null
+    ? EMPTY
+    : (entityLabel(link.value, linkLabelProperty, locale) ?? EMPTY);
 }
 
 function formatCollectionLink(
@@ -57,17 +58,9 @@ function formatCollectionLink(
   linkLabelProperty: string,
   locale: Locale,
 ): string {
-  const loaded = link.values;
-  if (loaded !== undefined) {
-    return loaded
-      .map(
-        (target, index) =>
-          entityLabel(target, linkLabelProperty, locale) ??
-          String(target.id ?? link.ids[index] ?? ''),
-      )
-      .join(', ');
-  }
-  return link.ids.map(String).join(', ');
+  return (link.values ?? [])
+    .map(target => entityLabel(target, linkLabelProperty, locale) ?? EMPTY)
+    .join(', ');
 }
 
 /**
@@ -189,6 +182,19 @@ export function CellValue({ value, descriptor, record }: CellValueProps) {
     }
   }
 
+  // A relation whose target has not arrived yet holds its place with a
+  // skeleton — the id is all it has, and the id is not what it means.
+  if (
+    (value instanceof EntityLink &&
+      value.id != null &&
+      value.value === undefined) ||
+    (value instanceof EntityCollectionLink &&
+      value.ids.length > 0 &&
+      value.values === undefined)
+  ) {
+    return <Skeleton shape="line" className="w-16" />;
+  }
+
   const text = formatByType(
     value,
     descriptor.type,
@@ -205,6 +211,16 @@ export function CellValue({ value, descriptor, record }: CellValueProps) {
 
   if (text === '') {
     return <span className="text-content-muted">{EMPTY}</span>;
+  }
+
+  // Text the reader's locale lacks falls back to the default locale's, and is
+  // marked as that language, so it is read in its own voice (WCAG 3.1.2).
+  if (
+    descriptor.type === 'localized' &&
+    isLocalizedText(value) &&
+    (value[locale] ?? '') === ''
+  ) {
+    return <span lang={defaultLocale()}>{text}</span>;
   }
 
   return (

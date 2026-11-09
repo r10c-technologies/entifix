@@ -1,4 +1,8 @@
-import type { ComponentPropsWithoutRef, ElementType } from 'react';
+import type {
+  ComponentProps,
+  ComponentPropsWithoutRef,
+  ElementType,
+} from 'react';
 
 import { cn } from '../../utils/cn.js';
 
@@ -60,7 +64,7 @@ const CLAMP_CLASS: Record<Clamp, string> = {
   4: 'line-clamp-4',
 };
 
-export interface TextProps extends ComponentPropsWithoutRef<'p'> {
+export interface TextProps extends ComponentProps<'p'> {
   /** Fluid type step (Utopia). Defaults to body (0). */
   step?: Step;
   /** Font weight. */

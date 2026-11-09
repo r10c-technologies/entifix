@@ -18,7 +18,7 @@ import {
   type EntityDraftStore,
   useEntityForm,
 } from '@entifix/react-integration';
-import { useEffect, useMemo } from 'react';
+import { useEffect } from 'react';
 
 import type {
   EntityCatalogKey,
@@ -26,7 +26,6 @@ import type {
 } from './make-entity-crud.types.js';
 import { useEntityAffordances } from './use-entity-affordances.js';
 import { useEntityLinkSources } from './use-entity-link-sources.js';
-import { validationMessagesFor } from './validation-messages.js';
 
 export interface EntityCrudFormProps<TEntity extends Entity> {
   readonly entityConstructor: EntityConstructor<TEntity>;
@@ -41,9 +40,13 @@ export interface EntityCrudFormProps<TEntity extends Entity> {
   readonly isPending?: boolean;
   readonly isDeleting?: boolean;
   readonly error?: EntifixFailure;
+  /** Loads the record again — offered as Retry on a failed load. */
+  readonly onRetry?: () => void;
   readonly onSave: (entity: TEntity) => void;
   /** Omitted for a create — there is nothing to delete yet. */
   readonly onDelete?: () => void;
+  /** How Delete is made safe — see `EntityCrudOptions.delete`. */
+  readonly deletePolicy?: 'confirm' | 'undo' | 'typed';
   readonly backHref: string;
   /** Renders the Back link; see `useCrudRenderLink`. */
   readonly renderLink?: RenderLink;
@@ -88,8 +91,10 @@ export function EntityCrudForm<TEntity extends Entity>({
   isPending = false,
   isDeleting = false,
   error,
+  onRetry,
   onSave,
   onDelete,
+  deletePolicy,
   backHref,
   renderLink,
   draft,
@@ -97,10 +102,6 @@ export function EntityCrudForm<TEntity extends Entity>({
   onUseCase,
 }: EntityCrudFormProps<TEntity>) {
   const et = useT('entity');
-  const ct = useT('controls');
-
-  // `controls` copy, resolved here and handed down; see validationMessagesFor.
-  const validationMessages = useMemo(() => validationMessagesFor(ct), [ct]);
 
   // A runtime-key translator, so a message names the field by its catalog word
   // (`labelKey`) and a schema's keyed message resolves at all. Without it both
@@ -110,7 +111,6 @@ export function EntityCrudForm<TEntity extends Entity>({
   const form = useEntityForm<TEntity>({
     entityConstructor,
     entity,
-    validationMessages,
     translateKey,
     draft,
     onSubmit: values =>
@@ -187,6 +187,7 @@ export function EntityCrudForm<TEntity extends Entity>({
       formError={form.formError}
       onSubmit={form.submit}
       onDelete={onDelete}
+      deletePolicy={deletePolicy}
       {...affordances}
       onUseCase={onUseCase}
       isLoading={isLoading}
@@ -194,6 +195,7 @@ export function EntityCrudForm<TEntity extends Entity>({
       isPending={isPending}
       isDeleting={isDeleting}
       error={error}
+      onRetry={onRetry}
       backHref={backHref}
       renderLink={renderLink}
       // `entity` is undefined until the record lands, so testing it alone

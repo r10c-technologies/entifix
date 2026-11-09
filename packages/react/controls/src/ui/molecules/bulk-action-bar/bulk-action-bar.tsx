@@ -5,6 +5,7 @@ import type { UseCaseDescriptor } from '@entifix/core';
 import { useT, useTranslateKey } from '../../../i18n/index.js';
 import { Button } from '../../atoms/button/index.js';
 import { cn } from '../../utils/cn.js';
+import { ActionBar, itemsForUseCases } from '../action-bar/index.js';
 
 export interface BulkActionBarProps {
   /** How many rows the action would touch. */
@@ -89,24 +90,16 @@ export function BulkActionBar({
         </Button>
       )}
 
-      {useCases.map(descriptor => (
-        <Button
-          key={descriptor.key}
-          type="button"
-          variant={
-            descriptor.confirm?.tone === 'destructive'
-              ? 'destructive'
-              : 'secondary'
-          }
-          size="sm"
-          disabled={busy}
-          onClick={() => onUseCase(descriptor)}
-        >
-          {/* A descriptor's label is a *runtime* catalog key — the type system
-              cannot see a typo here, a host's catalog check is what does. */}
-          {translateKey(descriptor.labelKey)}
-        </Button>
-      ))}
+      {useCases.length > 0 && (
+        <ActionBar
+          // A size container takes no width from its content, so in a bar
+          // that wraps it would shrink to nothing and its buttons would spill
+          // over Clear. A basis makes the bar wrap first.
+          className="basis-64"
+          surface="bulk-bar"
+          items={itemsForUseCases(useCases, translateKey, onUseCase, busy)}
+        />
+      )}
 
       <Button
         type="button"

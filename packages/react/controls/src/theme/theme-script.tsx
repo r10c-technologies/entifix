@@ -1,3 +1,4 @@
+import { THEME_COOKIE } from './theme-cookie.js';
 import type { ThemeOption } from './types.js';
 
 export interface ThemeScriptProps {
@@ -5,7 +6,7 @@ export interface ThemeScriptProps {
   themes: readonly ThemeOption[];
   /** Painted when nothing valid is stored; the first theme otherwise. */
   defaultTheme?: string;
-  /** The key `ThemeProvider` stores the choice under. */
+  /** The cookie `ThemeProvider` keeps the choice in. */
   storageKey?: string;
   /** For a Content-Security-Policy that allows inline scripts by nonce. */
   nonce?: string;
@@ -17,18 +18,20 @@ export interface ThemeScriptProps {
  * in <head>: it runs ahead of any stylesheet applying and long before React
  * hydrates.
  *
- * A stored choice wins; otherwise `defaultTheme`, which is then stored too, so
- * the script and `ThemeProvider` agree on what the page was first painted in.
- * A stored density is applied the same way; with none stored the document's
- * own `data-density` stands. A page whose
- * storage cannot be read is left unthemed, as it would be without the script.
+ * For a host with no server to read the theme cookie — a static export. One
+ * that has a server renders the attributes from `readThemeCookies` instead,
+ * and needs no script at all.
+ *
+ * The stored choice wins; otherwise `defaultTheme`. A stored density is
+ * applied the same way; with none stored the document's own `data-density`
+ * stands. Nothing is written: only a choice is ever stored.
  *
  * Render it from a server component; it ships no client code.
  */
 export function ThemeScript({
   themes,
   defaultTheme,
-  storageKey = 'entifix-theme',
+  storageKey = THEME_COOKIE,
   nonce,
 }: ThemeScriptProps) {
   const ids = themes.map(theme => theme.id);
@@ -37,13 +40,19 @@ export function ThemeScript({
   try {
     var themes = ${JSON.stringify(ids)};
     var key = ${JSON.stringify(storageKey)};
-    var theme = window.localStorage.getItem(key);
-    if (themes.indexOf(theme) === -1) {
-      theme = ${JSON.stringify(fallback)};
-      window.localStorage.setItem(key, theme);
-    }
+    var read = function (name) {
+      var pairs = document.cookie.split('; ');
+      for (var i = 0; i < pairs.length; i++) {
+        var at = pairs[i].indexOf('=');
+        if (pairs[i].slice(0, at) === name)
+          return decodeURIComponent(pairs[i].slice(at + 1));
+      }
+      return null;
+    };
+    var theme = read(key);
+    if (themes.indexOf(theme) === -1) theme = ${JSON.stringify(fallback)};
     document.documentElement.dataset.theme = theme;
-    var density = window.localStorage.getItem(key + '-density');
+    var density = read(key + '-density');
     if (density === 'comfortable' || density === 'compact') {
       document.documentElement.dataset.density = density;
     }

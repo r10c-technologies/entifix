@@ -8,7 +8,11 @@ import { isActive, SidebarNav } from './sidebar-nav.js';
 
 let pathname: string | null = '/catalog/product';
 
-vi.mock('next/navigation', () => ({ usePathname: () => pathname }));
+const push = vi.fn();
+vi.mock('next/navigation', () => ({
+  usePathname: () => pathname,
+  useRouter: () => ({ push }),
+}));
 vi.mock('next/link', () => ({
   default: ({ href, children, ...rest }: ComponentProps<'a'>) => (
     <a href={href} {...rest}>
@@ -115,61 +119,57 @@ describe('SidebarNav', () => {
     ).toBeInTheDocument();
   });
 
-  it('offers both "open where" choices, without hover', () => {
+  it('offers both "open where" choices behind one menu per item', async () => {
     render(<SidebarNav sections={sections} />);
     const nav = screen.getByRole('navigation', { name: 'Principal' });
 
+    await userEvent.click(
+      within(nav).getByRole('button', { name: 'Opciones de Categories' }),
+    );
     expect(
-      within(nav).getByRole('link', {
-        name: 'Abrir Categories en el espacio de trabajo',
-      }),
-    ).toHaveAttribute('href', '/es/workspace?tab=master%3Aproduct-category');
-    expect(
-      within(nav).getByRole('link', {
-        name: 'Abrir Categories en una pestaña nueva',
-      }),
+      screen.getByRole('menuitem', { name: 'Abrir en una pestaña nueva' }),
     ).toHaveAttribute('target', '_blank');
+    await userEvent.click(
+      screen.getByRole('menuitem', {
+        name: 'Abrir en el espacio de trabajo',
+      }),
+    );
+    expect(push).toHaveBeenCalledWith(
+      '/es/workspace?tab=master%3Aproduct-category',
+    );
   });
 
-  it('offers a new browser tab even for an item with no workspace address', () => {
+  it('offers a new browser tab even for an item with no workspace address', async () => {
     // Not every destination can be a workspace tab; every one can be a browser
     // tab, and middle-click was the only way to get one before.
     render(<SidebarNav sections={sections} />);
     const nav = screen.getByRole('navigation', { name: 'Principal' });
 
+    await userEvent.click(
+      within(nav).getByRole('button', { name: 'Opciones de Products' }),
+    );
     expect(
-      within(nav).queryByRole('link', {
-        name: 'Abrir Products en el espacio de trabajo',
+      screen.queryByRole('menuitem', {
+        name: 'Abrir en el espacio de trabajo',
       }),
     ).toBeNull();
     expect(
-      within(nav).getByRole('link', {
-        name: 'Abrir Products en una pestaña nueva',
-      }),
+      screen.getByRole('menuitem', { name: 'Abrir en una pestaña nueva' }),
     ).toBeInTheDocument();
   });
 
-  it('drops both affordances when collapsed, leaving the icon column', () => {
+  it('drops the item menu when collapsed, leaving the icon column', () => {
     render(<SidebarNav sections={sections} collapsed />);
     const nav = screen.getByRole('navigation', { name: 'Principal' });
 
-    expect(
-      within(nav).queryByRole('link', {
-        name: 'Abrir Categories en el espacio de trabajo',
-      }),
-    ).toBeNull();
-    expect(
-      within(nav).queryByRole('link', {
-        name: 'Abrir Categories en una pestaña nueva',
-      }),
-    ).toBeNull();
+    expect(within(nav).queryByRole('button')).toBeNull();
   });
 
   it('renders a plain heading when no group toggle is supplied', () => {
     render(<SidebarNav sections={sections} />);
     const nav = screen.getByRole('navigation', { name: 'Principal' });
 
-    expect(within(nav).queryByRole('button')).toBeNull();
+    expect(within(nav).queryByRole('button', { expanded: true })).toBeNull();
     expect(within(nav).getByText('Catalog')).toBeInTheDocument();
   });
 

@@ -1,6 +1,8 @@
 import type { WizardStepStatus } from '@entifix/core';
 import type { ReactNode } from 'react';
 
+import type { RegionStateError } from '../../molecules/region-state/index.js';
+
 /**
  * One step as the stepper shows it.
  *
@@ -67,6 +69,13 @@ export interface WizardProps {
    * a resolution the caller never gets.
    */
   isSubmitting?: boolean;
+  /**
+   * The submit failed. Shown above the footer, with every answer kept, so
+   * the reader can try again without re-entering anything.
+   */
+  error?: RegionStateError;
+  /** Submits again — what a failed submit offers as Retry. */
+  onRetry?: () => void;
 
   /**
    * What was already decided, shown when a half-finished wizard is resumed.

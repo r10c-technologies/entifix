@@ -1,3 +1,4 @@
+import { ThemeProvider } from '@entifix/react-controls';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -116,5 +117,61 @@ describe('AccountMenu', () => {
         expect.objectContaining({ method: 'POST' }),
       ),
     );
+  });
+});
+
+describe('AccountMenu appearance', () => {
+  const themes = [
+    { id: 'aurora', label: 'Aurora' },
+    { id: 'midnight', label: 'Medianoche' },
+  ];
+  const withTheme = (props: Partial<Parameters<typeof AccountMenu>[0]> = {}) =>
+    render(
+      <ThemeProvider themes={themes} defaultDensity="compact">
+        <AccountMenu label="ada@example.com" items={items} {...props} />
+      </ThemeProvider>,
+    );
+
+  it('chooses a theme and a density from the menu', async () => {
+    withTheme();
+    await userEvent.click(
+      screen.getByRole('button', { name: 'ada@example.com' }),
+    );
+    await userEvent.click(
+      screen.getByRole('menuitemradio', { name: 'Medianoche' }),
+    );
+    expect(document.documentElement.dataset['theme']).toBe('midnight');
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'ada@example.com' }),
+    );
+    expect(
+      screen.getByRole('menuitemradio', { name: 'Medianoche' }),
+    ).toHaveAttribute('aria-checked', 'true');
+    await userEvent.click(
+      screen.getByRole('menuitemradio', { name: 'Cómoda' }),
+    );
+    expect(document.documentElement.dataset['density']).toBe('comfortable');
+  });
+
+  it('hides either choice, and Sign out, on request', async () => {
+    withTheme({ hideTheme: true, hideDensity: true, hideSignOut: true });
+    await userEvent.click(
+      screen.getByRole('button', { name: 'ada@example.com' }),
+    );
+
+    expect(screen.queryByRole('group')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('menuitem', { name: 'Cerrar sesión' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('offers no appearance outside a theme provider', async () => {
+    renderMenu();
+    await userEvent.click(
+      screen.getByRole('button', { name: 'ada@example.com' }),
+    );
+
+    expect(screen.queryByRole('group')).not.toBeInTheDocument();
   });
 });

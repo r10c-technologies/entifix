@@ -243,7 +243,13 @@ export const accessibleJsx = {
       },
     },
   },
-  rules: jsxA11y.flatConfigs.strict.rules,
+  rules: {
+    ...jsxA11y.flatConfigs.strict.rules,
+    // A `ul` styled `list-style: none` loses its list role in Safari, so a
+    // list of cards says `role="list"` on purpose — the one redundant role
+    // that is not redundant (ADR 0027).
+    'jsx-a11y/no-redundant-roles': ['error', { ul: ['list'] }],
+  },
 };
 
 export default [
@@ -384,6 +390,9 @@ export default [
             '⊞',
             '◕',
             '◉',
+            '⋯',
+            '●',
+            '○',
           ],
         },
       ],

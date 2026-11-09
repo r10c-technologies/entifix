@@ -18,6 +18,7 @@ describePushChannelContract('makeInMemoryPushChannel', () => {
     connect: () => channel.connect(),
     push: (topics, event) => channel.emit(topics as PushTopic[], event),
     resync: topics => channel.resync(topics as PushTopic[]),
+    drop: state => channel.drop(state),
   };
 });
 
@@ -46,6 +47,9 @@ describe('NoopPushChannel', () => {
     NoopPushChannel.subscribe('entity:x', listener)();
     NoopPushChannel.onConnect(listener)();
     NoopPushChannel.onResync(listener)();
+    NoopPushChannel.onConnectionChange(listener)();
+    NoopPushChannel.reconnect();
+    expect(NoopPushChannel.connection()).toBe('open');
     expect(listener).not.toHaveBeenCalled();
   });
 });

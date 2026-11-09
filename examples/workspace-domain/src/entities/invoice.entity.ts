@@ -2,7 +2,7 @@ import { accessor, type Entity, entity, type EntityId } from '@entifix/core';
 
 import { InvoiceLine } from './invoice-line.js';
 
-export const INVOICE_STATUSES = ['draft', 'issued'] as const;
+export const INVOICE_STATUSES = ['draft', 'issued', 'void'] as const;
 export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
 
 /**

@@ -13,12 +13,27 @@ import { describe, expect, it } from 'vitest';
 
 import {
   composeEntityFormErrors,
-  DEFAULT_VALIDATION_MESSAGES,
   type EntityDraftMessages,
   restoreEntityDraft,
   seedEntityDraft,
   validateEntityDraft,
+  validationMessagesFrom,
 } from './use-entity-form.helpers.js';
+
+/**
+ * Answers a catalog key as the key and its parameters, `:`-joined — or the
+ * `defaultValue` when one is offered — so a spec can read which sentence a
+ * rule asked for without a catalog.
+ */
+const keyEcho = (key: string, params?: Record<string, unknown>): string =>
+  params?.['defaultValue'] !== undefined
+    ? String(params['defaultValue'])
+    : [
+        key.replace(/^controls:/, ''),
+        ...Object.values(params ?? {}).map(String),
+      ].join(':');
+
+const KEY_MESSAGES = validationMessagesFrom(keyEcho);
 
 class Line {
   #sku = '';
@@ -315,22 +330,13 @@ describe('restoreEntityDraft — owned collections', () => {
   });
 });
 
-describe('DEFAULT_VALIDATION_MESSAGES', () => {
-  // What an adopter who has wired no copy sees. Honest rather than English:
-  // there is no catalog in this package to resolve against, and a visible key
-  // is what tells a host it has not supplied one.
-  it('renders each failure as its own catalog key', () => {
-    expect(DEFAULT_VALIDATION_MESSAGES.required('Código')).toBe(
-      'validation.required:Código',
-    );
-    expect(DEFAULT_VALIDATION_MESSAGES.number('Stock')).toBe(
-      'validation.number:Stock',
-    );
-    expect(DEFAULT_VALIDATION_MESSAGES.date('Released')).toBe(
-      'validation.date:Released',
-    );
-    expect(DEFAULT_VALIDATION_MESSAGES.option('Tier')).toBe(
-      'validation.option:Tier',
-    );
+describe('validationMessagesFrom', () => {
+  // Each rule asks the `controls` catalog for its own sentence, naming the
+  // field — the echo shows the key and the parameters it was asked with.
+  it('asks the controls catalog for each failure, naming the field', () => {
+    expect(KEY_MESSAGES.required('Código')).toBe('validation.required:Código');
+    expect(KEY_MESSAGES.number('Stock')).toBe('validation.number:Stock');
+    expect(KEY_MESSAGES.date('Released')).toBe('validation.date:Released');
+    expect(KEY_MESSAGES.option('Tier')).toBe('validation.option:Tier');
   });
 });

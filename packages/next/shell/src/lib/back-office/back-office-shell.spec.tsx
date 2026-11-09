@@ -4,9 +4,13 @@ import type { ComponentProps } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { BackOfficeShell } from './back-office-shell.js';
+import { useBreadcrumbLabel } from './breadcrumb-labels.js';
 import type { NavSection } from './nav.js';
 
-vi.mock('next/navigation', () => ({ usePathname: () => '/catalog/product' }));
+vi.mock('next/navigation', () => ({
+  usePathname: () => '/catalog/product',
+  useRouter: () => ({ push: vi.fn() }),
+}));
 vi.mock('next/link', () => ({
   default: ({ href, children, ...rest }: ComponentProps<'a'>) => (
     <a href={href} {...rest}>
@@ -223,5 +227,48 @@ describe('BackOfficeShell, at a narrow viewport', () => {
     expect(
       window.localStorage.getItem('entifix-ui:back-office:sidebar-collapsed'),
     ).toBeNull();
+  });
+});
+
+describe('BackOfficeShell skip link', () => {
+  it('is the first stop, and lands on the content', () => {
+    renderShell();
+
+    const [first] = screen.getAllByRole('link');
+    expect(first).toHaveAccessibleName('Saltar al contenido');
+    expect(first).toHaveAttribute('href', '#main-content');
+    expect(screen.getByRole('main')).toHaveAttribute('id', 'main-content');
+  });
+});
+
+describe('BackOfficeShell breadcrumbs for a record', () => {
+  function Named({ label }: { label: string | undefined }) {
+    useBreadcrumbLabel('product', label);
+    return null;
+  }
+
+  it('reads a segment as the record a page names, and a placeholder while it loads', () => {
+    const { rerender, unmount } = render(
+      <BackOfficeShell nav={nav} brand="Acme">
+        <Named label={undefined} />
+      </BackOfficeShell>,
+    );
+    const crumbs = () =>
+      within(screen.getByRole('navigation', { name: 'Ruta de navegación' }));
+    expect(crumbs().getByText('…')).toBeInTheDocument();
+
+    rerender(
+      <BackOfficeShell nav={nav} brand="Acme">
+        <Named label="Sprocket" />
+      </BackOfficeShell>,
+    );
+    expect(crumbs().getByText('Sprocket')).toBeInTheDocument();
+    unmount();
+  });
+
+  it('does nothing outside a shell', () => {
+    render(<Named label="Sprocket" />);
+
+    expect(screen.queryByText('Sprocket')).not.toBeInTheDocument();
   });
 });

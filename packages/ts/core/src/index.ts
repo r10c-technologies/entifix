@@ -34,6 +34,7 @@ export * from './idempotency/index.js';
 export * from './query/fold.js';
 export * from './query/in-memory-query.js';
 export * from './rsql/index.js';
+export * from './shortcut/chord.js';
 export * from './types/BulkOutcome.js';
 export * from './types/Entity.js';
 export * from './types/EntityAction.js';

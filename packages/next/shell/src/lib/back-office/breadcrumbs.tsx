@@ -9,6 +9,7 @@ import {
 import { usePathname } from 'next/navigation';
 
 import { LocaleLink } from '../i18n/index.js';
+import { useBreadcrumbLabels } from './breadcrumb-labels.js';
 
 export interface BackOfficeBreadcrumbsProps {
   /** Map a path segment to an already-translated label; unmapped segments are
@@ -53,7 +54,14 @@ export function BackOfficeBreadcrumbs({
   const t = useT('shell');
   const controls = useT();
   const pathname = usePathname() ?? '/';
-  const items = buildCrumbs(pathname, labels, t('breadcrumbs.home'));
+  // What the page knows about its own segments — a record's name — over what
+  // the host mapped; an id never reads as a crumb.
+  const pageLabels = useBreadcrumbLabels();
+  const items = buildCrumbs(
+    pathname,
+    { ...labels, ...pageLabels },
+    t('breadcrumbs.home'),
+  );
 
   return (
     <Breadcrumbs

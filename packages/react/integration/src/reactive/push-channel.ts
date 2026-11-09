@@ -51,7 +51,20 @@ export interface PushChannel {
   onConnect(listener: () => void): () => void;
   /** Runs when the server asks for subscribed topics to be read again. */
   onResync(listener: ResyncListener): () => void;
+  /**
+   * Where the stream stands, as a reader should be told: `open`, or a drop —
+   * `reconnecting` while the transport retries on its own, `closed` once it
+   * has given up. A stream still opening for the first time is `open`.
+   */
+  connection(): PushConnection;
+  /** Runs whenever {@link PushChannel.connection} changes. */
+  onConnectionChange(listener: () => void): () => void;
+  /** Opens the stream again now, rather than waiting on the transport. */
+  reconnect(): void;
 }
+
+/** Where a push channel's stream stands (ADR 0028). */
+export type PushConnection = 'open' | 'reconnecting' | 'closed';
 
 export class PushChannelTag extends Context.Service<
   PushChannelTag,
@@ -67,6 +80,9 @@ export const NoopPushChannel: PushChannel = {
   subscribe: () => () => undefined,
   onConnect: () => () => undefined,
   onResync: () => () => undefined,
+  connection: () => 'open',
+  onConnectionChange: () => () => undefined,
+  reconnect: () => undefined,
 };
 
 export interface InMemoryPushChannel extends PushChannel {
@@ -78,6 +94,8 @@ export interface InMemoryPushChannel extends PushChannel {
   resync(topics: readonly PushTopic[]): void;
   /** The topics something is subscribed to, sorted. */
   topics(): readonly PushTopic[];
+  /** Drops the stream, as a network does: retrying, or given up. */
+  drop(state: Exclude<PushConnection, 'open'>): void;
 }
 
 /**
@@ -94,5 +112,10 @@ export function makeInMemoryPushChannel(): InMemoryPushChannel {
     connect: router.connected,
     resync: router.resync,
     topics: router.topics,
+    connection: router.connection,
+    onConnectionChange: router.onConnectionChange,
+    // In memory there is nothing to reopen: reconnecting is connecting.
+    reconnect: router.connected,
+    drop: router.disconnected,
   };
 }

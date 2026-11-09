@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -58,5 +58,36 @@ describe('Menu', () => {
     const billing = screen.getByText('Billing');
 
     expect(billing).toHaveAttribute('aria-disabled', 'true');
+  });
+});
+
+describe('Menu radio groups', () => {
+  it('names the group and marks the option in effect', async () => {
+    const choose = vi.fn();
+    render(
+      <Menu>
+        <Menu.Trigger>Cuenta</Menu.Trigger>
+        <Menu.Items>
+          <Menu.Group label="Tema">
+            <Menu.Radio checked onClick={() => choose('aurora')}>
+              Aurora
+            </Menu.Radio>
+            <Menu.Radio checked={false} onClick={() => choose('midnight')}>
+              Medianoche
+            </Menu.Radio>
+          </Menu.Group>
+        </Menu.Items>
+      </Menu>,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Cuenta' }));
+
+    const group = screen.getByRole('group', { name: 'Tema' });
+    expect(
+      within(group).getByRole('menuitemradio', { name: 'Aurora' }),
+    ).toHaveAttribute('aria-checked', 'true');
+    await userEvent.click(
+      within(group).getByRole('menuitemradio', { name: 'Medianoche' }),
+    );
+    expect(choose).toHaveBeenCalledWith('midnight');
   });
 });

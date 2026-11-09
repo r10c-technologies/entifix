@@ -4,7 +4,6 @@ import {
   expectAccessible,
   expectFocusKept,
   expectNoNewViolations,
-  LOST_UNTIL,
 } from './a11y';
 import { expect, failOnPageErrors, test } from './support';
 
@@ -29,11 +28,11 @@ test('lists the seed, edits a record and shows the edit in the list', async ({
 
   await table.rows
     .filter({ hasText: 'Alan Turing' })
-    .getByRole('link', { name: 'Abrir' })
+    .getByRole('link', { name: 'Alan Turing' })
     .or(
       table.rows
         .filter({ hasText: 'Alan Turing' })
-        .getByRole('button', { name: 'Abrir' }),
+        .getByRole('button', { name: 'Alan Turing' }),
     )
     .click();
 
@@ -44,8 +43,12 @@ test('lists the seed, edits a record and shows the edit in the list', async ({
   await page.getByRole('button', { name: 'Guardar' }).click();
 
   await expect(page).toHaveURL(/\/es\/customers$/);
+  await expect(page.getByTestId('toast-region').getByRole('status')).toHaveText(
+    /Se guardó Alan M\. Turing\./,
+  );
   await table.waitForRows();
-  await expectFocusKept(page, { lostUntil: LOST_UNTIL });
+  await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
+  await expectFocusKept(page);
   expect(await table.columnValues('Nombre')).toContain('Alan M. Turing');
 });
 
@@ -99,4 +102,23 @@ test('offers no parent from the customer’s own subtree', async ({ page }) => {
     'Alan Turing',
     'Grace Hopper',
   ]);
+});
+
+/** Mod+S saves with the caret still in the field (ADR 0026). */
+test('a record saves on Mod+S', async ({ page }) => {
+  failOnPageErrors(page);
+  await page.goto('/es/customers');
+  const table = new EntityTablePage(page);
+  await table.waitForRows();
+  await page.getByRole('link', { name: 'Grace Hopper' }).click();
+
+  const name = page.getByLabel('Nombre');
+  await expect(name).toHaveValue('Grace Hopper');
+  await name.fill('Grace B. Hopper');
+  await name.press('ControlOrMeta+s');
+
+  await expect(page).toHaveURL(/\/es\/customers$/);
+  await expect(page.getByTestId('toast-region').getByRole('status')).toHaveText(
+    /Se guardó Grace B\. Hopper\./,
+  );
 });

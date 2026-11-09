@@ -62,7 +62,6 @@ export * from './ui/molecules/nav-menu/index.js';
 export * from './ui/molecules/pagination/index.js';
 export * from './ui/molecules/segmented-control/index.js';
 export * from './ui/molecules/segmented-nav/index.js';
-export * from './ui/molecules/split-button/index.js';
 export * from './ui/molecules/split-view/index.js';
 export * from './ui/molecules/stack/index.js';
 export * from './ui/molecules/tab-strip/index.js';

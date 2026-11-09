@@ -2,10 +2,12 @@
 
 import {
   ConfirmDialog,
+  HotkeyScopeProvider,
   Tab,
   TabPanel,
   TabStrip,
   TopBar,
+  useLiveUpdates,
   useT,
   useTranslateKey,
 } from '@entifix/react-controls';
@@ -54,6 +56,7 @@ export function WorkspaceShell({
   emptyState,
 }: WorkspaceShellProps) {
   const t = useT('shell');
+  const live = useLiveUpdates();
   // Tab captions are catalog keys carried in a registry, not authored copy.
   const translate = useTranslateKey();
   const searchParams = useSearchParams();
@@ -199,7 +202,7 @@ export function WorkspaceShell({
 
   return (
     <div className="min-w-0 flex flex-1 flex-col">
-      <TopBar>
+      <TopBar connection={live.connection} onReconnect={live.reconnect}>
         <TopBar.Actions>
           {activeParam && (
             <button
@@ -241,7 +244,12 @@ export function WorkspaceShell({
         }
         className="min-w-0 flex-1 p-m"
       >
-        {body}
+        {/* The tab's shortcuts are its own: bound while it is the tab shown. */}
+        <HotkeyScopeProvider
+          value={{ id: `tab:${activeParam ?? ''}`, active: true }}
+        >
+          {body}
+        </HotkeyScopeProvider>
       </TabPanel>
 
       {pendingClose && (

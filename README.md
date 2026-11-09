@@ -154,6 +154,14 @@ A screen is held to the same standard by `@entifix/testing-e2e/a11y`: axe
 against a committed baseline that can only shrink, and a scripted keyboard walk
 for what axe cannot see. Every journey of `example-workspace-e2e` calls both.
 
+The conformance report is [`docs/accessibility/openacr.yaml`](docs/accessibility/openacr.yaml),
+in GSA's OpenACR format: every WCAG 2.2 A and AA criterion — what EN 301 549
+V4.1.1 rests on — with its level, how it was established, and the axe rules the
+gate runs against it. It speaks for what these packages render, never for a
+host's own pages or its identity provider's sign-in. It is generated from
+`tools/docs/src/openacr/assessment.ts` and checked against the schema by
+`pnpm nx test @entifix/docs-check`, which fails when it is out of date.
+
 No lint configuration is published. A host that renders these controls applies
 the same rules to its own JSX, with the same component mapping, so that a
 `<Button onClick>` is checked as the `<button>` it renders:
@@ -179,7 +187,12 @@ export default [
         },
       },
     },
-    rules: jsxA11y.flatConfigs.strict.rules,
+    rules: {
+      ...jsxA11y.flatConfigs.strict.rules,
+      // A list of cards keeps `role="list"`: `list-style: none` drops the
+      // list role in Safari.
+      'jsx-a11y/no-redundant-roles': ['error', { ul: ['list'] }],
+    },
   },
 ];
 ```

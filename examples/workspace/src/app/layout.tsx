@@ -4,17 +4,15 @@ import './global.css';
 import '../i18n';
 
 import { getRequestLocale, getServerT } from '@entifix/next-i18n/server';
-import { ThemeScript } from '@entifix/react-controls';
+import { readThemeCookies } from '@entifix/next-shell/server';
+import { cookies } from 'next/headers';
 import type { ReactNode } from 'react';
 
 import { fontVariables } from './fonts';
 import { Providers } from './providers';
 
-/** The ids `Providers` registers; captions do not matter before paint. */
-const THEME_IDS = ['aurora', 'sunset', 'midnight'].map(id => ({
-  id,
-  label: id,
-}));
+/** The theme ids `Providers` registers. */
+const THEME_IDS = ['aurora', 'sunset', 'midnight'];
 
 export async function generateMetadata() {
   const t = await getServerT('app');
@@ -27,21 +25,26 @@ export default async function RootLayout({
   children: ReactNode;
 }) {
   const locale = await getRequestLocale();
+  // The reader's theme and density, rendered with the page: nothing repaints
+  // once it has loaded.
+  const appearance = readThemeCookies(await cookies(), {
+    themes: THEME_IDS,
+    defaultTheme: 'aurora',
+    defaultDensity: 'compact',
+  });
   return (
     <html
       lang={locale}
-      data-theme="aurora"
+      data-theme={appearance.theme}
       data-scale="fixed"
-      data-density="compact"
+      data-density={appearance.density}
       className={fontVariables}
       suppressHydrationWarning
     >
-      <head>
-        {/* A stored theme and density are painted before React hydrates. */}
-        <ThemeScript themes={THEME_IDS} defaultTheme="aurora" />
-      </head>
       <body>
-        <Providers locale={locale}>{children}</Providers>
+        <Providers locale={locale} appearance={appearance}>
+          {children}
+        </Providers>
       </body>
     </html>
   );

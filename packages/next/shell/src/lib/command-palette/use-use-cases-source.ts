@@ -11,6 +11,7 @@ import {
   parseKeywords,
 } from '@entifix/core';
 import {
+  shortcutLabel,
   useCasesForSurface,
   useT,
   useTranslateKey,
@@ -104,6 +105,10 @@ function useUseCasesSource(
             : translateKey(descriptor.keywordsKey),
         ),
         run,
+        // Listed with its shortcut, so the palette teaches the chord.
+        ...(descriptor.shortcut === undefined
+          ? {}
+          : { hint: shortcutLabel(descriptor.shortcut) }),
         ...(descriptor.confirm === undefined
           ? {}
           : {

@@ -2,7 +2,7 @@
 
 Hooks that connect entities to data. It puts TanStack Query and TanStack Form over the entity adapters from `@entifix/business`, so a record, a page of records or a save is one hook — and the adapter behind it, REST or anything else, is supplied once through `createAdaptersContext`.
 
-It also carries the draft model a form edits, schema-based validation, link resolution, wizard state, and reactive invalidation when a write elsewhere settles.
+It also carries the draft model a form edits, schema-based validation, link resolution, wizard state, and reactive invalidation when a write elsewhere settles. `useEntityForm` takes a `translateKey` and speaks its validation in the `controls` catalog's words, so a key never reaches the screen; `useFacetCounts` counts a filter's choices; `usePushConnection` says whether the push stream is open, reconnecting or closed.
 
 ## Install
 
@@ -12,12 +12,12 @@ pnpm add @entifix/react-integration @tanstack/react-form @tanstack/react-query e
 
 ## Entry points
 
-| Import                                    | What it holds                                                                                                                                                                        |
-| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `@entifix/react-integration`              | `EntifixQueryProvider`, `useEntityRecord`, `useEntityForm`, `useEntityMutation`, `useWizard`, `useReactiveInvalidation`, `useTransactionSettlement`                                  |
-| `@entifix/react-integration/url-query`    | `defineUrlQuery`, `anyOf`, `containing`, `inAnyYear`: the query string read as a load request (filter, sort and page), with no React — for a server component parsing `searchParams` |
-| `@entifix/react-integration/url`          | `useUrlState`, `useEntityLoad`, `useUrlFilter`: a filter kept in the query string, answered by `loadAllUCFactory` over an `EntitySource`. No TanStack                                |
-| `@entifix/react-integration/event-source` | `makeEventSourceReactiveChannel`, the browser transport behind `ReactiveChannelTag` — imported by the composition root that picks it, never by a component                           |
+| Import                                    | What it holds                                                                                                                                                                              |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `@entifix/react-integration`              | `EntifixQueryProvider`, `useEntityRecord`, `useEntityForm`, `useEntityMutation`, `useWizard`, `useReactiveInvalidation`, `useTransactionSettlement`, `useFacetCounts`, `usePushConnection` |
+| `@entifix/react-integration/url-query`    | `defineUrlQuery`, `anyOf`, `containing`, `inAnyYear`: the query string read as a load request (filter, sort and page), with no React — for a server component parsing `searchParams`       |
+| `@entifix/react-integration/url`          | `useUrlState`, `useEntityLoad`, `useUrlFilter`: a filter kept in the query string, answered by `loadAllUCFactory` over an `EntitySource`. No TanStack                                      |
+| `@entifix/react-integration/event-source` | `makeEventSourceReactiveChannel`, the browser transport behind `ReactiveChannelTag` — imported by the composition root that picks it, never by a component                                 |
 
 ---
 

@@ -43,10 +43,7 @@ import {
  * Binding both, plus a permanently visible trigger, is what makes the collision
  * a non-issue: whichever a given browser swallows, two other ways in remain.
  */
-const HOTKEYS = [
-  { key: 'k', mod: true },
-  { key: 'p', mod: true, shift: true },
-] as const;
+const HOTKEYS = ['Mod+K', 'Mod+Shift+P'];
 
 export interface CommandPaletteHostProps {
   /**

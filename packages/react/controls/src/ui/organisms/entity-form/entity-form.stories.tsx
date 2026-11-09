@@ -3,10 +3,12 @@ import {
   type Entity,
   entity,
   type EntityId,
+  Unavailable,
   type UseCaseDescriptor,
 } from '@entifix/core';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
+import { expect, userEvent, within } from 'storybook/test';
 
 import { EntityForm } from './entity-form.js';
 
@@ -109,6 +111,54 @@ export const Editing: Story = { render: () => <Demo mode="edit" /> };
 export const Loading: Story = {
   render: () => (
     <EntityForm<StoryGadget> entityConstructor={StoryGadget} isLoading />
+  ),
+};
+
+/** A save refused for an empty name: one summary of links, holding focus. */
+function RefusedDemo() {
+  const [values, setValues] = useState<Record<string, string>>({
+    id: 'g-1',
+    name: '',
+    code: 'SPR-001',
+    stock: '1200',
+  });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  return (
+    <EntityForm<StoryGadget>
+      entityConstructor={StoryGadget}
+      entity={GADGET}
+      values={values}
+      errors={errors}
+      mode="edit"
+      onFieldChange={(name, value) =>
+        setValues(current => ({ ...current, [name]: value }))
+      }
+      onSubmit={() => setErrors({ name: 'Name is required' })}
+    />
+  );
+}
+
+export const RefusedSave: Story = {
+  render: () => <RefusedDemo />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(
+      canvas.getAllByRole('button', { name: 'Guardar' })[0] as HTMLElement,
+    );
+    const summary = canvas.getByTestId('entity-form-error-summary');
+    await expect(summary).toHaveFocus();
+    await expect(within(summary).getAllByRole('link')).toHaveLength(1);
+  },
+};
+
+/** A record that failed to load: what went wrong, and Retry. */
+export const LoadError: Story = {
+  render: () => (
+    <EntityForm<StoryGadget>
+      entityConstructor={StoryGadget}
+      error={new Unavailable({})}
+      onRetry={() => undefined}
+    />
   ),
 };
 

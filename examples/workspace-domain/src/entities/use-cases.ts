@@ -32,3 +32,51 @@ export class IssueInvoiceUC {}
   keywordsKey: 'entity:invoice.useCases.resetDemoKeywords',
 })
 export class ResetDemoUC {}
+
+/**
+ * Voids one invoice, from its row. Destructive, and reversible by Undo: it
+ * acts at once, and the toast that says so offers Undo, which runs `reopen`.
+ */
+@useCase({
+  entity: Invoice,
+  key: 'void',
+  binding: 'entity',
+  placement: 'context-dependent',
+  labelKey: 'entity:invoice.useCases.void',
+  confirm: {
+    tone: 'destructive',
+    messageKey: 'entity:invoice.useCases.voidConfirm',
+    doneKey: 'entity:invoice.useCases.voided',
+  },
+  reversible: 'undo',
+  inverse: 'reopen',
+})
+export class VoidInvoiceUC {}
+
+/** Puts a voided invoice back to draft — what Undo on `void` runs. */
+@useCase({
+  entity: Invoice,
+  key: 'reopen',
+  binding: 'entity',
+  placement: 'context-dependent',
+  labelKey: 'entity:invoice.useCases.reopen',
+})
+export class ReopenInvoiceUC {}
+
+/**
+ * Deletes every draft the list's filter matches, from the toolbar. It acts on
+ * the whole collection with no selection, which is exactly why it asks first.
+ */
+@useCase({
+  entity: Invoice,
+  key: 'purge-drafts',
+  binding: 'collection',
+  placement: 'context-independent',
+  labelKey: 'entity:invoice.useCases.purgeDrafts',
+  confirm: {
+    tone: 'destructive',
+    messageKey: 'entity:invoice.useCases.purgeDraftsConfirm',
+  },
+  reversible: 'confirm',
+})
+export class PurgeDraftInvoicesUC {}

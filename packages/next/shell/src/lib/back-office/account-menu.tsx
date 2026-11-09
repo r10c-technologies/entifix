@@ -1,6 +1,11 @@
 'use client';
 
-import { Menu, useT } from '@entifix/react-controls';
+import {
+  type Density,
+  Menu,
+  useOptionalTheme,
+  useT,
+} from '@entifix/react-controls';
 import { useState } from 'react';
 
 import type { AccountLink } from '../session/account-links.js';
@@ -18,7 +23,18 @@ export interface AccountMenuProps {
   readonly signOutEndpoint?: string;
   /** Fallback destination if logout answers without one. */
   readonly signOutRedirect?: string;
+  /** Omits Sign out — for a host with no session to end. */
+  readonly hideSignOut?: boolean;
+  /**
+   * Omits the theme choice. Shown by default whenever a `ThemeProvider` is
+   * above, which is where the themes come from.
+   */
+  readonly hideTheme?: boolean;
+  /** Omits the density choice. */
+  readonly hideDensity?: boolean;
 }
+
+const DENSITIES: readonly Density[] = ['comfortable', 'compact'];
 
 /**
  * The top-bar account menu.
@@ -37,8 +53,15 @@ export function AccountMenu({
   items,
   signOutEndpoint = '/api/auth/logout',
   signOutRedirect = '/',
+  hideSignOut = false,
+  hideTheme = false,
+  hideDensity = false,
 }: AccountMenuProps) {
   const t = useT('shell');
+  const controls = useT();
+  // Theme and density are the reader's to choose, from the menu that is
+  // theirs; the provider keeps the choice where the next page is rendered.
+  const theme = useOptionalTheme();
   const [pending, setPending] = useState(false);
 
   const signOut = async () => {
@@ -77,9 +100,37 @@ export function AccountMenu({
             {t(item.labelKey)}
           </Menu.Link>
         ))}
-        <Menu.Item onClick={signOut} disabled={pending}>
-          {t('account.signOut')}
-        </Menu.Item>
+        {theme !== null && !hideTheme && (
+          <Menu.Group label={controls('theme.label')}>
+            {theme.themes.map(option => (
+              <Menu.Radio
+                key={option.id}
+                checked={theme.theme === option.id}
+                onClick={() => theme.setTheme(option.id)}
+              >
+                {option.label}
+              </Menu.Radio>
+            ))}
+          </Menu.Group>
+        )}
+        {theme !== null && !hideDensity && (
+          <Menu.Group label={controls('density.label')}>
+            {DENSITIES.map(option => (
+              <Menu.Radio
+                key={option}
+                checked={theme.density === option}
+                onClick={() => theme.setDensity(option)}
+              >
+                {controls(`density.${option}`)}
+              </Menu.Radio>
+            ))}
+          </Menu.Group>
+        )}
+        {!hideSignOut && (
+          <Menu.Item onClick={signOut} disabled={pending}>
+            {t('account.signOut')}
+          </Menu.Item>
+        )}
       </Menu.Items>
     </Menu>
   );

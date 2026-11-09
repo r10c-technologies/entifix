@@ -10,19 +10,29 @@ import {
   type FilterGroup,
   hierarchyOf,
   isSelected,
+  queryPropertyFor,
   selectionSize,
   toggleSelected,
   type UseCaseDescriptor,
 } from '@entifix/core';
-import { Fragment, type ReactNode, useMemo, useRef, useState } from 'react';
-
-import { useErrorMessage, useT, useTranslateKey } from '../../../i18n/index.js';
 import {
-  OVERFLOW_GLYPH,
-  renderAnchor,
-  useCasesForSurface,
-} from '../../actions/index.js';
-import { Button } from '../../atoms/button/index.js';
+  Fragment,
+  type ReactNode,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+
+import {
+  useEntityNoun,
+  useLocale,
+  useT,
+  useTranslateKey,
+} from '../../../i18n/index.js';
+import { renderAnchor, useCasesForSurface } from '../../actions/index.js';
+import { useVerbInvoker } from '../../actions/use-verb-invoker.js';
+import { Button, button } from '../../atoms/button/index.js';
 import { CellValue } from '../../atoms/cell-value/index.js';
 import { Checkbox } from '../../atoms/field/index.js';
 import { Skeleton } from '../../atoms/skeleton/index.js';
@@ -36,40 +46,37 @@ import {
   TableRow,
 } from '../../atoms/table/index.js';
 import { linkClassName } from '../../atoms/text/index.js';
+import {
+  ActionBar,
+  type ActionBarItem,
+  itemsForUseCases,
+} from '../../molecules/action-bar/index.js';
 import { BulkActionBar } from '../../molecules/bulk-action-bar/index.js';
 import { BulkResult } from '../../molecules/bulk-result/index.js';
 import { ColumnSettings } from '../../molecules/column-settings/index.js';
-import { ConfirmDialog } from '../../molecules/confirm-dialog/index.js';
 import { EntityRecordCard } from '../../molecules/entity-record-card/index.js';
 import { FilterBuilder } from '../../molecules/filter-builder/index.js';
+import { FilterChips } from '../../molecules/filter-chips/index.js';
 import { LoadingBoundary } from '../../molecules/loading-boundary/index.js';
-import { Menu } from '../../molecules/menu/index.js';
 import { Pagination } from '../../molecules/pagination/index.js';
+import { RegionState } from '../../molecules/region-state/index.js';
 import { SortBuilder } from '../../molecules/sort-builder/index.js';
 import { TableToolbar } from '../../molecules/table-toolbar/index.js';
 import type {
   EntityTableColumn,
-  EntityTablePivotBreakpoint,
   EntityTableProps,
 } from './entity-table.types.js';
 import { readEntityTableSlots } from './entity-table-slots.js';
 import { shownTreeRows, TreeCell, treeRows } from './entity-table-tree.js';
+import { nextHeaderSorting, sortKeys } from './header-sort.js';
+import {
+  ACTIONS_WIDTH,
+  pivotClasses,
+  pivotWidth,
+  SELECTION_WIDTH,
+} from './pivot.js';
 import { useEntityTableColumns } from './use-entity-table-columns.js';
-
-/**
- * The grid and the card list are both rendered, and CSS picks one. A JS
- * breakpoint hook would have to guess during SSR and correct after mount —
- * a hydration mismatch on every page load. Classes are written out in full
- * because Tailwind cannot see a class name that is concatenated at runtime.
- */
-const PIVOT_CLASS: Record<
-  EntityTablePivotBreakpoint,
-  { grid: string; cards: string }
-> = {
-  sm: { grid: 'hidden sm:block', cards: 'sm:hidden' },
-  md: { grid: 'hidden md:block', cards: 'md:hidden' },
-  lg: { grid: 'hidden lg:block', cards: 'lg:hidden' },
-};
+import { useResultAnnouncement } from './use-result-announcement.js';
 
 type Panel = 'none' | 'filters' | 'sorting';
 
@@ -82,6 +89,9 @@ type Panel = 'none' | 'filters' | 'sorting';
  * content that arrives below the fold anyway.
  */
 const SKELETON_ROW_CAP = 5;
+
+/** How many members a card shows as meta when none declares a `card` role. */
+const UNDECLARED_META_CAP = 3;
 
 /**
  * A table that builds itself from an entity's metadata: columns, labels, value
@@ -125,17 +135,19 @@ export function EntityTable<TEntity extends Entity>({
   onSelect,
   preferencesKey,
   showControls = true,
-  pivotBreakpoint = 'md',
+  pivotBreakpoint,
   filtering,
   sorting,
   onFilteringChange,
   onSortingChange,
+  facets,
   selection,
   onSelectionChange,
   metadata,
   isMetadataLoading = false,
   onBulkUseCase,
   onUseCase,
+  onRetry,
   bulkOutcomes,
   onBulkDismiss,
   onBulkRetry,
@@ -146,38 +158,10 @@ export function EntityTable<TEntity extends Entity>({
   // A descriptor's label is a runtime catalog key — the typed gate cannot see
   // it, which is why a host's catalog check is what catches a typo.
   const translateKey = useTranslateKey();
-  const errorMessage = useErrorMessage();
+  const entityNoun = useEntityNoun();
   const metaEntity = extractMetaEntity(entityConstructor);
   const slots = readEntityTableSlots<TEntity>(children);
   const [panel, setPanel] = useState<Panel>('none');
-
-  /**
-   * A verb waiting to be confirmed, and what it will act on.
-   *
-   * ⚠️ **The table had no confirmation flow at all** until a change moved a
-   * destructive verb onto it. It read `confirm.tone` — only to pick a tone for
-   * a button or a menu item — and then fired on the first click. `unpublish` is
-   * declared `destructive`, so a verb reachable from a row menu without this
-   * would have been a one-click unpublish with a red label explaining what had
-   * already happened.
-   *
-   * The state holds the confirmation itself rather than the descriptor, so the
-   * dialog cannot open for a verb that never asked for one — the same shape
-   * `EntityForm` uses, and for the same reason.
-   *
-   * It carries the **target** too, which the form's does not need: a form has
-   * one record and a table has a row or a selection, and those run through two
-   * different handlers with two different payloads.
-   */
-  const [pending, setPending] = useState<
-    | {
-        key: string;
-        labelKey: string;
-        confirm: NonNullable<UseCaseDescriptor['confirm']>;
-        target: PendingTarget<TEntity>;
-      }
-    | undefined
-  >(undefined);
 
   const { columns, visibleColumns, hidden, setPersonalization } =
     useEntityTableColumns<TEntity>(
@@ -186,8 +170,6 @@ export function EntityTable<TEntity extends Entity>({
       items[0],
       `entity-table:${preferencesKey ?? metaEntity.key ?? metaEntity.name}`,
     );
-
-  const pivot = PIVOT_CLASS[pivotBreakpoint];
 
   // A picker's table is choosing *one* value; a multi-selection there would
   // offer a set to a form member that holds a single reference, and the two
@@ -239,18 +221,31 @@ export function EntityTable<TEntity extends Entity>({
     excluded: new Set<EntityId>(),
   };
 
-  const hasRowAction =
-    onSelect !== undefined || hrefFor !== undefined || hasRowMenu;
+  // Opening a record is its title's link, so a row needs an actions column
+  // only to pick it or to run a verb on it.
+  const hasRowAction = onSelect !== undefined || hasRowMenu;
   const columnCount =
     visibleColumns.length + (hasRowAction ? 1 : 0) + (selectable ? 1 : 0);
 
+  /**
+   * The grid and the cards are both rendered, and a container query on the
+   * table's own box picks one — at the width its visible columns need. A
+   * viewport breakpoint was wrong inside a split view, a drawer or a wizard
+   * step, and a JS measurement would guess during SSR and correct after mount.
+   */
+  const pivot = pivotClasses(
+    pivotWidth(
+      visibleColumns,
+      (selectable ? SELECTION_WIDTH : 0) + (hasRowAction ? ACTIONS_WIDTH : 0),
+      pivotBreakpoint,
+    ),
+  );
   /**
    * The first load has nothing to show and is held with a skeleton; a refetch
    * already has rows, so it keeps them and only marks the region busy. Splitting
    * the two is what stops every pagination click flashing grey.
    */
   const isFirstLoad = isLoading && items.length === 0;
-  const isRefetching = isLoading && items.length > 0;
 
   /** `true`/omitted → the built-in default; a node → that node; `false` → none. */
   const customSkeleton = typeof skeleton === 'boolean' ? undefined : skeleton;
@@ -261,15 +256,54 @@ export function EntityTable<TEntity extends Entity>({
   );
 
   /**
-   * The refetch hint, and it is deliberately the only one: rows stay readable
-   * and simply dim, because a second skeleton over live data would be two
-   * loading signals in one region.
+   * A refetch keeps its rows at full contrast and marks them `aria-busy`:
+   * dimming them through opacity took the text under the contrast a reader
+   * needs, on every page change.
    */
-  const busyClass = isRefetching
-    ? 'opacity-60 transition-opacity duration-200 ease-smooth'
-    : '';
+  const busy = isLoading || undefined;
 
-  const renderCell = (
+  /** The column a row reads *as*: the first non-identifier one it filled in. */
+  const titleColumn = (item: TEntity) =>
+    visibleColumns.find(column => {
+      if (column.type === 'id') return false;
+      const value = (item as Record<string, unknown>)[column.name];
+      return value != null && String(value) !== '';
+    });
+
+  /** The column that links to the record: one declared `card: 'title'`, else the row's title. */
+  const declaredTitle = visibleColumns.find(column => column.card === 'title');
+  const linkColumn = (item: TEntity) => declaredTitle ?? titleColumn(item);
+
+  /**
+   * What a record's card shows, by each member's declared `card` role or the
+   * default: an id is hidden, the first enum is the badge, and up to
+   * {@link UNDECLARED_META_CAP} more members are meta — a card is a summary,
+   * and the grid holds the rest.
+   */
+  const firstEnum = visibleColumns.find(
+    column => column.card === undefined && column.type === 'enum',
+  );
+  const roleOf = (column: EntityTableColumn<TEntity>) =>
+    column.card ??
+    (column.type === 'id' ? 'hidden' : column === firstEnum ? 'badge' : 'meta');
+  const cardParts = (item: TEntity) => {
+    const title = linkColumn(item);
+    const rest = visibleColumns.filter(column => column !== title);
+    let undeclared = 0;
+    return {
+      title,
+      subtitle: rest.find(column => roleOf(column) === 'subtitle'),
+      badges: rest.filter(column => roleOf(column) === 'badge'),
+      meta: rest.filter(column => {
+        if (roleOf(column) !== 'meta') return false;
+        if (column.card !== undefined) return true;
+        undeclared += 1;
+        return undeclared <= UNDECLARED_META_CAP;
+      }),
+    };
+  };
+
+  const renderValue = (
     column: EntityTableColumn<TEntity>,
     item: TEntity,
   ): ReactNode =>
@@ -282,6 +316,28 @@ export function EntityTable<TEntity extends Entity>({
         record={item as Record<string, unknown>}
       />
     );
+
+  /**
+   * A cell, and the row's title cell is the record's link
+   * ([ADR 0026](../../../../../../../docs/adr/0026-actions-hierarchy-overflow-and-destructive-verbs.md)).
+   * A column of identical "Open" links named nothing, and a reader tabbing
+   * down it heard "Open" once per row; the title says which record it opens.
+   * A picker's rows are chosen, not opened, so they stay plain.
+   */
+  const renderCell = (
+    column: EntityTableColumn<TEntity>,
+    item: TEntity,
+  ): ReactNode => {
+    const value = renderValue(column, item);
+    if (hrefFor === undefined || onSelect !== undefined) return value;
+    if (linkColumn(item)?.name !== column.name) return value;
+    return renderLink({
+      href: hrefFor(item.id),
+      className: linkClassName,
+      children: value,
+      intent: { kind: 'open', id: item.id },
+    });
+  };
 
   /**
    * The row a shift-click ranges *from* — the last box the user actually
@@ -382,11 +438,7 @@ export function EntityTable<TEntity extends Entity>({
     //
     // The id remains the last resort, because a row with nothing rendered
     // still has to announce itself.
-    const named = visibleColumns.find(column => {
-      if (column.type === 'id') return false;
-      const value = (item as Record<string, unknown>)[column.name];
-      return value != null && String(value) !== '';
-    });
+    const named = titleColumn(item);
 
     return named
       ? String((item as Record<string, unknown>)[named.name])
@@ -424,58 +476,61 @@ export function EntityTable<TEntity extends Entity>({
     else onBulkUseCase?.(key, target.selection);
   };
 
+  /**
+   * Every verb on the table goes through here — the row menu, the bulk bar and
+   * the toolbar — so none reaches a destructive verb around its confirmation,
+   * its typed check or its Undo.
+   */
+  const verbs = useVerbInvoker<PendingTarget<TEntity>>({
+    run: runTarget,
+    busy: isBulkRunning,
+    served: metadata?.useCases,
+  });
+
   const invoke = (
     useCase: UseCaseDescriptor,
     target: PendingTarget<TEntity>,
   ) => {
-    const confirm = useCase.confirm;
-    if (confirm) {
-      setPending({
-        key: useCase.key,
-        labelKey: useCase.labelKey,
-        confirm,
+    if (target.kind === 'row') {
+      verbs.invoke({
+        descriptor: useCase,
         target,
+        object: rowLabel(target.item),
+        count: 1,
       });
       return;
     }
-    runTarget(useCase.key, target);
+    const count = selectionSize(target.selection);
+    verbs.invoke({
+      descriptor: useCase,
+      target,
+      object: t('confirm.selection', {
+        count,
+        label: entityNoun(metaEntity),
+        plural: entityNoun(metaEntity, 'plural'),
+      }),
+      count,
+      matching: target.selection.mode === 'matching',
+    });
   };
 
   const rowMenu = (item: TEntity) =>
     hasRowMenu ? (
-      <Menu>
-        <Menu.Trigger aria-label={t('table.actions')}>
-          {OVERFLOW_GLYPH}
-        </Menu.Trigger>
-        <Menu.Items>
-          {rowUseCases.map(useCase => (
-            <Menu.Item
-              key={useCase.key}
-              tone={
-                useCase.confirm?.tone === 'destructive'
-                  ? 'destructive'
-                  : 'neutral'
-              }
-              onClick={() => invoke(useCase, { kind: 'row', item })}
-            >
-              {translateKey(useCase.labelKey)}
-            </Menu.Item>
-          ))}
-        </Menu.Items>
-      </Menu>
+      <ActionBar
+        surface="row-menu"
+        menuLabel={t('actions.forRecord', { record: rowLabel(item) })}
+        items={itemsForUseCases(rowUseCases, translateKey, useCase =>
+          invoke(useCase, { kind: 'row', item }),
+        )}
+      />
     ) : undefined;
 
   /**
-   * Selection wins over navigation: a picker's row must set the value, not send
-   * the user away from the form they came from.
-   *
-   * The row menu sits *beside* whichever of the two applies rather than
-   * replacing it — "open this record" and "run a verb on it" are both true at
-   * once, and folding the first into the menu would bury the action every row
-   * of a list exists for.
+   * A picker's Select, then the row's verbs. Opening the record is not here:
+   * it is the title's link.
    */
   const recordAction = (item: TEntity) => {
-    const primary = onSelect ? (
+    const pick = onSelect ? (
       <Button
         type="button"
         variant="secondary"
@@ -484,35 +539,173 @@ export function EntityTable<TEntity extends Entity>({
       >
         {t('table.select')}
       </Button>
-    ) : hrefFor ? (
-      renderLink({
-        href: hrefFor(item.id),
-        className: linkClassName,
-        children: t('table.open'),
-        intent: { kind: 'open', id: item.id },
-      })
     ) : undefined;
 
     const menu = rowMenu(item);
-    if (!menu) return primary;
+    if (!menu) return pick;
 
     return (
       <span className="flex items-center gap-2xs">
-        {primary}
+        {pick}
         {menu}
       </span>
     );
   };
 
   /**
-   * "No records" is a statement about the data; after a failed load it would be
-   * a lie about it. The distinction matters most to the user who is deciding
-   * whether their catalog is empty or their backend is down.
+   * "New" is the list's primary, and only where something can be created
+   * here: the entity is not one only a flow writes (`creatable: false`), and
+   * the caller may write it. A list that offered "New" to a reader who could
+   * never save opened a form with no Save on it.
    */
-  const emptyMessage = error ? t('table.error') : t('table.empty');
+  const mayCreate =
+    newHref !== undefined &&
+    metaEntity.creatable &&
+    (metadata === undefined || metadata.actions.includes('write'));
+  const toolbarItems: ActionBarItem[] = itemsForUseCases(
+    toolbarUseCases,
+    translateKey,
+    useCase =>
+      invoke(useCase, { kind: 'selection', selection: everythingMatching }),
+    isBulkRunning,
+  );
+  const declaresToolbarPrimary = toolbarItems.some(
+    item => item.emphasis === 'primary',
+  );
+  const toolbarActions: ActionBarItem[] = [
+    ...(mayCreate
+      ? [
+          {
+            key: 'new',
+            label: t('table.new'),
+            emphasis: declaresToolbarPrimary
+              ? ('default' as const)
+              : ('primary' as const),
+            href: newHref,
+            intent: { kind: 'new' as const },
+          },
+        ]
+      : []),
+    ...toolbarItems,
+  ];
+
+  const locale = useLocale();
+  const panelId = useId();
+  const keys = sortKeys(sorting, columns);
+  const activeFilters = filtering?.values.length ?? 0;
+  const results = t('table.results', { count: totalItems });
+
+  /**
+   * What the status region says once a filter, a sort or a page has settled —
+   * debounced, and silent on the first load.
+   */
+  const announcement = useResultAnnouncement(
+    !isLoading,
+    totalItems === 0 && activeFilters > 0
+      ? t('table.noResultsFiltered')
+      : results,
+    JSON.stringify([filtering, sorting, currentPage, pageSize]),
+  );
+
+  /** The caption: what the table holds, how many, and in what order. */
+  const primaryKey = keys[0];
+  const primaryColumn =
+    primaryKey === undefined
+      ? undefined
+      : columns.find(column => column.name === primaryKey.member);
+  const caption =
+    primaryKey === undefined || primaryColumn === undefined
+      ? t('table.caption', {
+          entity: entityNoun(metaEntity, 'plural'),
+          results,
+        })
+      : t('table.captionSorted', {
+          entity: entityNoun(metaEntity, 'plural'),
+          results,
+          column: primaryColumn.label,
+          direction: t(
+            primaryKey.type === 'asc' ? 'sort.ascending' : 'sort.descending',
+          ),
+        });
+
+  /**
+   * A column's header: its name, and — for a sortable one — a button that
+   * cycles it ascending → descending → unsorted, with Shift adding it as the
+   * next key. Only the primary key carries `aria-sort`.
+   */
+  const headerCell = (column: EntityTableColumn<TEntity>) => {
+    const label = column.header ?? column.label;
+    if (!column.sortable || onSortingChange === undefined)
+      return <TableHeaderCell key={column.name}>{label}</TableHeaderCell>;
+    const position = keys.findIndex(key => key.member === column.name);
+    const type = keys[position]?.type;
+    return (
+      <TableHeaderCell
+        key={column.name}
+        aria-sort={
+          position === 0
+            ? type === 'asc'
+              ? 'ascending'
+              : 'descending'
+            : undefined
+        }
+      >
+        <button
+          type="button"
+          className="inline-flex min-h-(--target-min) items-center gap-3xs rounded-sm focus-ring hover:text-content"
+          onClick={event =>
+            onSortingChange(
+              nextHeaderSorting<TEntity>(
+                keys,
+                {
+                  member: column.name,
+                  property: queryPropertyFor(column, locale),
+                },
+                event.shiftKey,
+              ),
+            )
+          }
+        >
+          {label}
+          <span aria-hidden="true">
+            {type === 'asc' ? '▲' : type === 'desc' ? '▼' : '↕'}
+          </span>
+          {keys.length > 1 && position >= 0 && (
+            <span aria-hidden="true" className="text-step-sm">
+              {position + 1}
+            </span>
+          )}
+        </button>
+      </TableHeaderCell>
+    );
+  };
+
+  /** A panel toggle: its state said by `aria-expanded`, and its count shown. */
+  const panelToggle = (which: Exclude<Panel, 'none'>, count: number) => (
+    <Button
+      type="button"
+      variant={panel === which ? 'primary' : 'secondary'}
+      size="sm"
+      aria-expanded={panel === which}
+      aria-controls={panelId}
+      onClick={() => setPanel(current => (current === which ? 'none' : which))}
+    >
+      {t(which === 'filters' ? 'table.filters' : 'table.sorting')}
+      {count > 0 && (
+        // Its name stays "Filters": the chips say which filters, and a count
+        // in the name would change it under the reader with every filter.
+        <span
+          aria-hidden="true"
+          className="ms-3xs rounded-full bg-surface px-3xs text-step-sm text-content"
+        >
+          {count}
+        </span>
+      )}
+    </Button>
+  );
 
   return (
-    <div className="flex flex-col gap-s">
+    <div className="@container/entity-table flex flex-col gap-s">
       {/*
         One announcement for the whole table, not one per layout. Both the grid
         and the card list are always in the DOM — CSS picks which is visible —
@@ -521,43 +714,26 @@ export function EntityTable<TEntity extends Entity>({
         only thing that carries the news.
       */}
       <span role="status" aria-live="polite" className="sr-only">
-        {isFirstLoad ? t('table.loading') : ''}
+        {isFirstLoad ? t('table.loading') : announcement}
       </span>
 
       {showControls && (
         <TableToolbar
           start={
             <>
-              {newHref &&
-                renderLink({
-                  href: newHref,
-                  className: linkClassName,
-                  children: t('table.new'),
-                  intent: { kind: 'new' },
-                })}
-              {/* Collection-bound verbs that need no selection. They sit with
-                  `New` rather than in the bulk bar, because the bulk bar only
-                  exists while rows are ticked and these are always available. */}
+              {/* "New" and the collection-bound verbs that need no
+                  selection. They sit here rather than in the bulk bar,
+                  because the bulk bar only exists while rows are ticked and
+                  these are always available. */}
               <LoadingBoundary isLoading={isMetadataLoading} lines={0}>
                 <>
-                  {toolbarUseCases.map(useCase => (
-                    <Button
-                      key={useCase.key}
-                      type="button"
-                      variant={
-                        useCase.confirm?.tone === 'destructive'
-                          ? 'destructive'
-                          : 'secondary'
-                      }
-                      size="sm"
-                      disabled={isBulkRunning}
-                      onClick={() =>
-                        onBulkUseCase?.(useCase.key, everythingMatching)
-                      }
-                    >
-                      {translateKey(useCase.labelKey)}
-                    </Button>
-                  ))}
+                  {toolbarActions.length > 0 && (
+                    <ActionBar
+                      surface="table-toolbar"
+                      items={toolbarActions}
+                      renderLink={renderLink}
+                    />
+                  )}
                 </>
               </LoadingBoundary>
               {slots.toolbar}
@@ -565,30 +741,8 @@ export function EntityTable<TEntity extends Entity>({
           }
           end={
             <>
-              <Button
-                type="button"
-                variant={panel === 'filters' ? 'primary' : 'secondary'}
-                size="sm"
-                onClick={() =>
-                  setPanel(current =>
-                    current === 'filters' ? 'none' : 'filters',
-                  )
-                }
-              >
-                {t('table.filters')}
-              </Button>
-              <Button
-                type="button"
-                variant={panel === 'sorting' ? 'primary' : 'secondary'}
-                size="sm"
-                onClick={() =>
-                  setPanel(current =>
-                    current === 'sorting' ? 'none' : 'sorting',
-                  )
-                }
-              >
-                {t('table.sorting')}
-              </Button>
+              {panelToggle('filters', activeFilters)}
+              {panelToggle('sorting', keys.length)}
               <ColumnSettings
                 columns={columns}
                 hidden={hidden}
@@ -596,10 +750,15 @@ export function EntityTable<TEntity extends Entity>({
               />
             </>
           }
+          panelId={panelId}
           panel={
             panel === 'filters' ? (
               <FilterBuilder<TEntity>
+                // Remounted when the filtering changes from outside — a chip
+                // removed — so its rows show what is in effect.
+                key={JSON.stringify(filtering ?? null)}
                 descriptors={columns.filter(column => column.filterable)}
+                facets={facets}
                 value={filtering}
                 onChange={(applied: FilterGroup<TEntity>) =>
                   onFilteringChange?.(applied)
@@ -615,6 +774,14 @@ export function EntityTable<TEntity extends Entity>({
               />
             ) : undefined
           }
+        />
+      )}
+
+      {showControls && onFilteringChange !== undefined && (
+        <FilterChips<TEntity>
+          descriptors={columns.filter(column => column.filterable)}
+          value={filtering}
+          onChange={onFilteringChange}
         />
       )}
 
@@ -646,21 +813,7 @@ export function EntityTable<TEntity extends Entity>({
         />
       )}
 
-      {pending && (
-        <ConfirmDialog
-          open
-          tone={pending.confirm.tone}
-          title={translateKey(pending.labelKey)}
-          message={translateKey(pending.confirm.messageKey)}
-          busy={isBulkRunning}
-          onCancel={() => setPending(undefined)}
-          onConfirm={() => {
-            const { key, target } = pending;
-            setPending(undefined);
-            runTarget(key, target);
-          }}
-        />
-      )}
+      {verbs.dialog}
 
       {bulkOutcomes && bulkOutcomes.length > 0 && onBulkDismiss && (
         <BulkResult
@@ -680,19 +833,50 @@ export function EntityTable<TEntity extends Entity>({
         are rows: a refetch that fails leaves the previous page on screen, and
         without this the user would read stale data as current.
       */}
-      {error && (
-        <p
-          role="alert"
-          data-testid="entity-table-error"
-          className="rounded-sm border border-danger bg-danger-subtle px-s py-2xs text-step-sm text-danger"
-        >
-          {errorMessage(error)}
-        </p>
-      )}
+      {/*
+        One state for the region, outside both layouts (ADR 0028): a failed
+        load with Retry — and the rows from before it marked as possibly out of
+        date — or an empty answer, which says whether a filter emptied it.
+      */}
+      <RegionState
+        plural={entityNoun(metaEntity, 'plural')}
+        isLoading={isLoading}
+        error={error}
+        onRetry={onRetry}
+        hasStaleData={items.length > 0}
+        isEmpty={items.length === 0}
+        isFiltered={activeFilters > 0}
+        onClearFilters={
+          onFilteringChange === undefined
+            ? undefined
+            : () =>
+                onFilteringChange({
+                  // Only offered under a filter, so there is one to keep the
+                  // logic of.
+                  operator: (filtering as FilterGroup<TEntity>).operator,
+                  values: [],
+                })
+        }
+        emptyAction={
+          mayCreate
+            ? renderLink({
+                href: newHref as string,
+                className: button({ variant: 'primary' }),
+                children: t('table.new'),
+                intent: { kind: 'new' },
+              })
+            : undefined
+        }
+      />
 
       {/* Wide viewports: a grid. */}
-      <div className={`${pivot.grid} ${busyClass}`}>
-        <Table>
+      <div className={pivot.grid} aria-busy={busy}>
+        {/* Held to most of the viewport so the header can stick above the
+            rows; the scroll padding keeps a focused row out from under it. */}
+        <Table
+          caption={caption}
+          containerClassName="max-h-(--table-max-block) scroll-pt-12"
+        >
           <TableHead>
             {slots.header ? (
               slots.header.render(visibleColumns)
@@ -714,18 +898,14 @@ export function EntityTable<TEntity extends Entity>({
                     />
                   </TableHeaderCell>
                 )}
-                {visibleColumns.map(column => (
-                  <TableHeaderCell key={column.name}>
-                    {column.header ?? column.label}
-                  </TableHeaderCell>
-                ))}
+                {visibleColumns.map(headerCell)}
                 {hasRowAction && (
                   <TableHeaderCell>{t('table.actions')}</TableHeaderCell>
                 )}
               </tr>
             )}
           </TableHead>
-          <TableBody aria-busy={isLoading || undefined}>
+          <TableBody>
             {/* Skeleton rows rather than the word "Loading", and one per column
                 rather than a single full-width blob: the placeholder occupies
                 the real grid, so the swap to rows shifts nothing sideways.
@@ -757,11 +937,6 @@ export function EntityTable<TEntity extends Entity>({
                   </TableRow>
                 ))
               ))}
-            {!isLoading && items.length === 0 && (
-              <TableMessageRow colSpan={columnCount}>
-                {emptyMessage}
-              </TableMessageRow>
-            )}
             {shown.map(({ item, depth, hasChildren }, index) =>
               slots.row ? (
                 // A Fragment carries the key without wrapping the custom row in
@@ -806,42 +981,75 @@ export function EntityTable<TEntity extends Entity>({
         </Table>
       </div>
 
-      {/* Narrow viewports: the same columns pivoted into cards. */}
-      <div
-        className={`${pivot.cards} flex flex-col gap-2xs ${busyClass}`}
-        aria-busy={isLoading || undefined}
-      >
+      {/* Narrow containers: the same columns pivoted into a list of cards. */}
+      <div className={pivot.cards} aria-busy={busy}>
         {/* The card pivot gets card-shaped placeholders, not a bare shimmer
             block: the border, radius and padding are the geometry here. */}
         {showSkeleton &&
-          (customSkeleton ??
-            skeletonRows.map(row => (
-              <EntityRecordCard
-                key={row}
-                columns={visibleColumns}
-                renderCell={() => <Skeleton shape="line" className="w-24" />}
-              />
-            )))}
-        {!isLoading && items.length === 0 && (
-          <p className="text-step-sm text-content-muted">{emptyMessage}</p>
+          (customSkeleton ?? (
+            <ul role="list" className="m-0 p-0 flex list-none flex-col gap-2xs">
+              {skeletonRows.map(row => (
+                <li key={row}>
+                  <EntityRecordCard
+                    title={<Skeleton shape="line" className="w-32" />}
+                    meta={visibleColumns.slice(1).map(column => ({
+                      key: column.name,
+                      label: column.label,
+                      value: <Skeleton shape="line" className="w-24" />,
+                    }))}
+                  />
+                </li>
+              ))}
+            </ul>
+          ))}
+        {shown.length > 0 && (
+          <ul role="list" className="m-0 p-0 flex list-none flex-col gap-2xs">
+            {shown.map(({ item, depth }, index) => {
+              const parts = cardParts(item);
+              return (
+                <li
+                  key={String(item.id ?? index)}
+                  // A tree's card says how deep it sits, as its row does.
+                  aria-level={treeKeys === undefined ? undefined : depth + 1}
+                  style={
+                    treeKeys === undefined
+                      ? undefined
+                      : { marginInlineStart: `${depth * 1.5}rem` }
+                  }
+                >
+                  <EntityRecordCard
+                    // The same renderers as the grid, so the two layouts agree.
+                    title={
+                      parts.title === undefined
+                        ? rowLabel(item)
+                        : renderCell(parts.title, item)
+                    }
+                    subtitle={
+                      parts.subtitle === undefined
+                        ? undefined
+                        : renderCell(parts.subtitle, item)
+                    }
+                    badges={parts.badges.map(column => ({
+                      key: column.name,
+                      value: renderCell(column, item),
+                    }))}
+                    meta={parts.meta.map(column => ({
+                      key: column.name,
+                      label: column.header ?? column.label,
+                      value: renderCell(column, item),
+                    }))}
+                    leading={
+                      selectionState
+                        ? selectionCell(item, index, selectionState)
+                        : undefined
+                    }
+                    actions={recordAction(item)}
+                  />
+                </li>
+              );
+            })}
+          </ul>
         )}
-        {shown.map(({ item }, index) => (
-          <EntityRecordCard
-            key={String(item.id ?? index)}
-            columns={visibleColumns}
-            // The card is handed the resolved columns themselves, so the
-            // narrow layout goes through the exact same renderers as the grid.
-            renderCell={column =>
-              renderCell(column as EntityTableColumn<TEntity>, item)
-            }
-            leading={
-              selectionState
-                ? selectionCell(item, index, selectionState)
-                : undefined
-            }
-            actions={recordAction(item)}
-          />
-        ))}
       </div>
 
       <Pagination

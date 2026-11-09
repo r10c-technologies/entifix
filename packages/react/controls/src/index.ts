@@ -23,6 +23,7 @@ export * from './ui/layout/cover/index.js';
 export * from './ui/layout/grid/index.js';
 export * from './ui/layout/sidebar/index.js';
 export * from './ui/layout/switcher/index.js';
+export * from './ui/molecules/action-bar/index.js';
 export * from './ui/molecules/breadcrumbs/index.js';
 export * from './ui/molecules/bulk-action-bar/index.js';
 export * from './ui/molecules/bulk-result/index.js';
@@ -36,15 +37,16 @@ export * from './ui/molecules/entity-link-input/index.js';
 export * from './ui/molecules/entity-link-picker/index.js';
 export * from './ui/molecules/entity-record-card/index.js';
 export * from './ui/molecules/filter-builder/index.js';
+export * from './ui/molecules/filter-chips/index.js';
 export * from './ui/molecules/loading-boundary/index.js';
 export * from './ui/molecules/media-gallery/index.js';
 export * from './ui/molecules/menu/index.js';
 export * from './ui/molecules/nav-menu/index.js';
 export * from './ui/molecules/pagination/index.js';
+export * from './ui/molecules/region-state/index.js';
 export * from './ui/molecules/segmented-control/index.js';
 export * from './ui/molecules/segmented-nav/index.js';
 export * from './ui/molecules/sort-builder/index.js';
-export * from './ui/molecules/split-button/index.js';
 export * from './ui/molecules/split-view/index.js';
 export * from './ui/molecules/stack/index.js';
 export * from './ui/molecules/tab-strip/index.js';
@@ -62,5 +64,13 @@ export * from './ui/utils/active-section/index.js';
 export * from './ui/utils/cn.js';
 export * from './ui/utils/fold-script/index.js';
 export * from './ui/utils/keep-section/index.js';
+export * from './ui/utils/live-updates.js';
 export * from './ui/utils/media-query/index.js';
-export * from './ui/utils/use-hotkey.js';
+export { useFocusOnArrival } from './ui/utils/use-focus-on-arrival.js';
+export {
+  type HotkeyOptions,
+  type HotkeyScope,
+  HotkeyScopeProvider,
+  PAGE_SCOPE,
+  useHotkey,
+} from './ui/utils/use-hotkey.js';

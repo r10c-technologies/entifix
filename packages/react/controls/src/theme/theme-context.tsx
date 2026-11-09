@@ -1,5 +1,6 @@
 'use client';
 
+import { Effect } from 'effect';
 import {
   createContext,
   type PropsWithChildren,
@@ -10,6 +11,8 @@ import {
   useState,
 } from 'react';
 
+import { useUiPreferencesState } from '../preferences/ui-preferences-context.js';
+import { densityCookie, THEME_COOKIE } from './theme-cookie.js';
 import type {
   Density,
   ThemeContextValue,
@@ -31,10 +34,20 @@ export interface ThemeProviderProps extends PropsWithChildren {
    */
   defaultDensity?: Density;
   /**
-   * localStorage key — namespace it per app so apps don't clobber each other.
-   * The density is stored beside it, under `${storageKey}-density`.
+   * The cookie the theme is kept in — namespace it per app so apps don't
+   * clobber each other. The density is kept beside it, under
+   * `${storageKey}-density`. A cookie rather than local storage, so a server
+   * can read the choice and render `data-theme` and `data-density` with the
+   * page: no paint in the wrong palette before a script corrects it.
    */
   storageKey?: string;
+  /**
+   * The theme and density the server read from those cookies and rendered
+   * the page in (`readThemeCookies` in `@entifix/next-shell/server`). Given,
+   * the provider starts there and nothing changes after the page loads.
+   */
+  initialTheme?: string;
+  initialDensity?: Density;
   /**
    * Runtime palettes for brands not shipped as CSS presets (multi-tenant /
    * white-label). Keyed by theme id; injected as `[data-theme='id']{…}` vars
@@ -49,17 +62,26 @@ const isDensity = (value: unknown): value is Density =>
   DENSITIES.includes(value as Density);
 
 /** Storage that may be absent or refuse (a private window, blocked site data). */
-function read(key: string): string | null {
+/** A year: a preference outlives a session. */
+const COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+
+/** A first-party cookie's value, or `null` when it is not set. */
+function readCookie(name: string): string | null {
   try {
-    return window.localStorage.getItem(key);
+    for (const pair of document.cookie.split('; ')) {
+      const at = pair.indexOf('=');
+      if (pair.slice(0, at) === name)
+        return decodeURIComponent(pair.slice(at + 1));
+    }
   } catch {
-    return null;
+    // A sandboxed document refuses cookies; nothing was stored, then.
   }
+  return null;
 }
 
-function write(key: string, value: string) {
+function writeCookie(name: string, value: string) {
   try {
-    window.localStorage.setItem(key, value);
+    document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${COOKIE_MAX_AGE}; samesite=lax`;
   } catch {
     // Nothing to remember it in; the choice still applies to this page.
   }
@@ -84,17 +106,20 @@ export function ThemeProvider({
   themes,
   defaultTheme,
   defaultDensity,
-  storageKey = 'entifix-theme',
+  storageKey = THEME_COOKIE,
   palettes,
+  initialTheme,
+  initialDensity,
 }: ThemeProviderProps) {
-  const initial = defaultTheme ?? themes[0]?.id ?? '';
+  const initial = initialTheme ?? defaultTheme ?? themes[0]?.id ?? '';
   const [theme, setThemeState] = useState<string>(initial);
-  const densityKey = `${storageKey}-density`;
+  const densityKey = densityCookie(storageKey);
   // `undefined` until a density is stored, chosen or defaulted: the document's
   // own `data-density` stands until then.
   const [density, setDensityState] = useState<Density | undefined>(
-    defaultDensity,
+    initialDensity ?? defaultDensity,
   );
+  const preferences = useUiPreferencesState();
 
   const isKnown = useCallback(
     (value: unknown): value is string =>
@@ -102,19 +127,19 @@ export function ThemeProvider({
     [themes],
   );
 
-  // Hydrate from a previously stored preference on mount. This intentionally
-  // runs in an effect (not a lazy initializer): localStorage is unavailable
-  // during SSR, so the server renders `initial` and the client corrects after
-  // mount — reading it in render would cause a hydration mismatch. It only
-  // reads, so running twice changes nothing.
+  // Read the stored choice on mount, for a host that could not: a static
+  // export has no server to read the cookie, so it renders `initial` and the
+  // client corrects after mount. Reading in render would mismatch hydration.
+  // Where the server read it, `initial` already is the stored choice and this
+  // changes nothing. It only reads, so running twice changes nothing.
   useEffect(() => {
-    const stored = read(storageKey);
+    const stored = readCookie(storageKey);
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot SSR-safe hydration, see comment above
     if (isKnown(stored)) setThemeState(stored);
     // A stored density wins; otherwise the default, otherwise whatever the
     // document was served with, so the context never reports a density the
     // page is not in.
-    const storedDensity = read(densityKey);
+    const storedDensity = readCookie(densityKey);
     const served = document.documentElement.dataset.density;
     if (isDensity(storedDensity)) setDensityState(storedDensity);
     else if (defaultDensity === undefined && isDensity(served)) {
@@ -147,27 +172,44 @@ export function ThemeProvider({
 
   // Reflect the active theme and density onto the document. Storage is not
   // touched here — see the ⚠️ above.
+  //
+  // Written only when it differs: a page the server rendered in the stored
+  // theme is already right, and even a write of the same value is a change
+  // something watching the document would see.
   useEffect(() => {
-    document.documentElement.dataset.theme = theme;
+    const root = document.documentElement;
+    if (root.dataset.theme !== theme) root.dataset.theme = theme;
   }, [theme]);
   useEffect(() => {
-    if (density !== undefined)
-      document.documentElement.dataset.density = density;
+    const root = document.documentElement;
+    if (density !== undefined && root.dataset.density !== density)
+      root.dataset.density = density;
   }, [density]);
 
+  // The cookie is what the next page is rendered in; the UI-preferences port
+  // gets a copy, so a host that keeps preferences server-side has them too.
+  const remember = useCallback(
+    (cookie: string, key: 'theme' | 'density', value: string) => {
+      writeCookie(cookie, value);
+      void Effect.runPromise(preferences.write(key, value)).catch(
+        () => undefined,
+      );
+    },
+    [preferences],
+  );
   const setTheme = useCallback(
     (next: string) => {
       setThemeState(next);
-      write(storageKey, next);
+      remember(storageKey, 'theme', next);
     },
-    [storageKey],
+    [storageKey, remember],
   );
   const setDensity = useCallback(
     (next: Density) => {
       setDensityState(next);
-      write(densityKey, next);
+      remember(densityKey, 'density', next);
     },
-    [densityKey],
+    [densityKey, remember],
   );
 
   const value = useMemo<ThemeContextValue>(
@@ -185,6 +227,10 @@ export function ThemeProvider({
     <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
   );
 }
+
+/** The theme context, or `null` outside a {@link ThemeProvider}. */
+export const useOptionalTheme = (): ThemeContextValue | null =>
+  useContext(ThemeContext);
 
 export function useTheme(): ThemeContextValue {
   const ctx = useContext(ThemeContext);

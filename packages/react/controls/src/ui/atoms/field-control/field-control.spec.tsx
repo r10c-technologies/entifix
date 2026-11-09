@@ -43,6 +43,21 @@ describe('FieldControl', () => {
     expect(onChange).toHaveBeenCalledWith('A');
   });
 
+  it('says what a field is for when the member declares it', () => {
+    render(
+      <FieldControl
+        descriptor={descriptor('string', { autocomplete: 'email' })}
+        value=""
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('textbox')).toHaveAttribute(
+      'autocomplete',
+      'email',
+    );
+  });
+
   it('uses a numeric input for a number member', () => {
     render(
       <FieldControl

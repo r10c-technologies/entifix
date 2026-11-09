@@ -5,16 +5,17 @@
  * import a T3 package.
  */
 export const controls = {
+  actions: {
+    more: 'Más acciones',
+    forRecord: 'Acciones para {{record}}',
+  },
   table: {
-    open: 'Abrir',
     select: 'Seleccionar',
     actions: 'Acciones',
     new: 'Nuevo',
     filters: 'Filtros',
     sorting: 'Orden',
     loading: 'Cargando…',
-    empty: 'Sin registros',
-    error: 'No se pudieron cargar los registros',
     /**
      * La columna de selección. `selectRow` nombra la fila porque una casilla
      * sin etiqueta visible sólo se anuncia por su `aria-label`, y repetir el
@@ -34,6 +35,17 @@ export const controls = {
     selectedCount_one: '{{count}} seleccionado',
     selectedCount_other: '{{count}} seleccionados',
     clearSelection: 'Limpiar selección',
+    /**
+     * Lo que dice la región de estado tras filtrar, ordenar o cambiar de
+     * página — nunca en la primera carga, que el lector pidió al llegar.
+     */
+    results_one: '{{count}} resultado',
+    results_other: '{{count}} resultados',
+    noResultsFiltered: 'Sin resultados para estos filtros',
+    /** El `caption` de la tabla: qué contiene, cuántos y en qué orden. */
+    caption: '{{entity}} · {{results}}',
+    captionSorted:
+      '{{entity}} · {{results}} · ordenado por {{column}}, {{direction}}',
   },
   /**
    * Una acción sobre una selección. El resultado es por fila, nunca un aviso
@@ -60,17 +72,38 @@ export const controls = {
     delete: 'Eliminar',
     deleting: 'Eliminando…',
     clone: 'Duplicar',
-    moreActions: 'Más acciones',
     back: 'Volver',
     loading: 'Cargando…',
     pending: 'Esperando al servidor…',
+    /** El resumen de un guardado rechazado: toma el foco, enlaza cada campo. */
+    errorSummary_one: 'Revise {{count}} campo antes de guardar',
+    errorSummary_other: 'Revise {{count}} campos antes de guardar',
+    requiredHint: 'Los campos marcados con * son obligatorios.',
+    requiredMarker: '*',
+  },
+  /**
+   * Lo que dice una región cuando no muestra su contenido (ADR 0028): qué
+   * pasó, qué hacer, sin culpar a nadie y sin códigos.
+   */
+  state: {
+    retry: 'Reintentar',
+    forbidden: 'No tiene permiso para ver {{plural}}.',
+    stale: 'Lo que se muestra puede estar desactualizado.',
+    noResults: 'No hay {{plural}} que coincidan con estos filtros.',
+    clearFilters: 'Limpiar filtros',
+    empty: 'Aquí aparecerán sus {{plural}}.',
+    saved: 'Se guardó {{object}}.',
   },
   pagination: {
     label: 'Páginas',
     summary: 'Página {{current}} de {{total}} · {{items}} registros',
     rows: 'Filas',
+    first: 'Primera',
     previous: 'Anterior',
     next: 'Siguiente',
+    last: 'Última',
+    /** Lo que se anuncia al cambiar de página. */
+    page: 'Página {{current}} de {{total}}',
   },
   columns: {
     title: 'Columnas',
@@ -96,6 +129,11 @@ export const controls = {
     remove: 'Quitar filtro',
     applyAria: 'Aplicar filtros',
     clearAria: 'Limpiar filtros',
+    applied: 'Filtros aplicados',
+    removeChip: 'Quitar filtro: {{filter}}',
+    clearAll: 'Limpiar todo',
+    /** Una opción con cuántos registros la tienen: «Borrador (3)». */
+    withCount: '{{label}} ({{count}})',
   },
   sort: {
     by: 'Ordenar por',
@@ -222,6 +260,11 @@ export const controls = {
     isNull: 'está vacío',
     isNotNull: 'no está vacío',
   },
+  density: {
+    label: 'Densidad',
+    comfortable: 'Cómoda',
+    compact: 'Compacta',
+  },
   theme: {
     label: 'Tema',
   },
@@ -244,7 +287,24 @@ export const controls = {
   confirm: {
     confirm: 'Confirmar',
     cancel: 'Cancelar',
-    title: 'Confirmar',
+    question: '¿{{verb}} {{object}}?',
+    verbCount_one: '{{verb}}',
+    verbCount_other: '{{verb}} {{count}}',
+    selection_one: '{{count}} {{label}}',
+    selection_other: '{{count}} {{plural}}',
+    typeToConfirm: 'Escriba {{expected}} para confirmar',
+    done: 'Hecho: {{verb}}, {{object}}.',
+    undo: 'Deshacer',
+    deleteMessage: 'Se elimina de forma definitiva.',
+    deleted: 'Se eliminó {{object}}.',
+  },
+  /** Las actualizaciones en vivo: se dicen al caer y al volver, nada más. */
+  live: {
+    reconnecting: 'Actualizaciones en vivo en pausa — reconectando',
+    stopped: 'Actualizaciones en vivo detenidas',
+    reconnect: 'Reconectar',
+    resumed: 'Actualizaciones en vivo reanudadas',
+    waiting: 'Esperando la conexión…',
   },
   toast: {
     region: 'Notificaciones',

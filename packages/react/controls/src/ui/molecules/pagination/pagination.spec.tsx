@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -54,25 +54,82 @@ describe('Pagination', () => {
     expect(onPageChange).toHaveBeenCalledWith(3);
   });
 
-  it('disables Previous on the first page', () => {
+  it('marks Previous unavailable on the first page', () => {
     renderPagination({ currentPage: 1 });
 
-    expect(screen.getByRole('button', { name: 'Anterior' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Siguiente' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Anterior' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    expect(
+      screen.getByRole('button', { name: 'Siguiente' }),
+    ).not.toHaveAttribute('aria-disabled');
   });
 
-  it('disables Next on the last page', () => {
+  it('marks Next unavailable on the last page', () => {
     renderPagination({ currentPage: 4 });
 
-    expect(screen.getByRole('button', { name: 'Siguiente' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Anterior' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Siguiente' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    expect(
+      screen.getByRole('button', { name: 'Anterior' }),
+    ).not.toHaveAttribute('aria-disabled');
   });
 
-  it('disables both when there is a single page', () => {
+  it('marks both unavailable when there is a single page', () => {
     renderPagination({ currentPage: 1, totalItems: 3 });
 
-    expect(screen.getByRole('button', { name: 'Anterior' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Siguiente' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Anterior' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    expect(screen.getByRole('button', { name: 'Siguiente' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+  });
+
+  it('jumps to the first and the last page', async () => {
+    const user = userEvent.setup();
+    const { onPageChange } = renderPagination();
+
+    await user.click(screen.getByRole('button', { name: 'Primera' }));
+    await user.click(screen.getByRole('button', { name: 'Última' }));
+
+    expect(onPageChange.mock.calls).toEqual([[1], [4]]);
+  });
+
+  it('keeps an unavailable end focusable and does nothing on it', async () => {
+    const user = userEvent.setup();
+    const { onPageChange } = renderPagination({ currentPage: 1 });
+
+    const first = screen.getByRole('button', { name: 'Primera' });
+    await user.click(first);
+    fireEvent.click(first);
+
+    expect(first).toBeEnabled();
+    expect(onPageChange).not.toHaveBeenCalled();
+  });
+
+  it('is a navigation landmark that announces a page change, not the first page', async () => {
+    const user = userEvent.setup();
+    const { rerender, onPageChange } = renderPagination();
+
+    expect(screen.getByRole('navigation', { name: 'Páginas' })).toBeVisible();
+    expect(screen.getByRole('status')).toHaveTextContent('');
+
+    await user.click(screen.getByRole('button', { name: 'Siguiente' }));
+    rerender(
+      <Pagination
+        currentPage={3}
+        pageSize={10}
+        totalItems={35}
+        onPageChange={onPageChange}
+      />,
+    );
+    expect(screen.getByRole('status')).toHaveTextContent('Página 3 de 4');
   });
 
   describe('the page-size selector', () => {

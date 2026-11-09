@@ -52,6 +52,13 @@ export interface MetaEntityOptions {
   cardinality?: EntityCardinality;
   /** Named shapes the entity is published in, by view name. */
   views?: Readonly<Record<string, EntityViewOptions>>;
+  /**
+   * `false` for an entity no person creates — one only ever written by a flow,
+   * such as an order a checkout opens. A list of it offers no "New", whatever
+   * the caller holds; absent, it offers one to a caller who may write it
+   * ([ADR 0026](../../../../../../../docs/adr/0026-actions-hierarchy-overflow-and-destructive-verbs.md)).
+   */
+  creatable?: boolean;
 }
 
 export class MetaEntity {
@@ -63,6 +70,7 @@ export class MetaEntity {
   readonly pluralKey?: string;
   readonly cardinality?: EntityCardinality;
   readonly views?: Readonly<Record<string, EntityViewOptions>>;
+  readonly creatable: boolean;
   //#endregion
 
   //#region Constructors
@@ -75,6 +83,7 @@ export class MetaEntity {
     assertBounds(`${name}'s cardinality`, options?.cardinality);
     this.cardinality = options?.cardinality;
     this.views = options?.views;
+    this.creatable = options?.creatable ?? true;
   }
   //#endregion
 

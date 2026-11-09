@@ -17,19 +17,10 @@ import type { Page } from '@playwright/test';
 export const BASELINE = join(__dirname, 'a11y-baseline.json');
 
 /**
- * The keyboard walk's limits, ratcheted like the baseline (ADR 0024). The
- * shell has no skip link yet and the sidebar comes before `main`, so the walk
- * counts raw stops; r10c-technologies/entifix#199 adds the skip link and one
- * Tab stop per navigation group, and tightens both to the targets.
+ * The keyboard walk's limits, at their defaults (ADR 0024): the skip link is
+ * the first stop, and the first stop inside `main` after it is within three.
  */
-export const WALK: WalkOptions = { skipLink: false, mainIndexMax: 10 };
-
-/**
- * A generated form drops focus to `<body>` after it saves or hands off, so a
- * write that does is marked with this until r10c-technologies/entifix#194
- * moves focus to the region's heading.
- */
-export const LOST_UNTIL = 'r10c-technologies/entifix#194';
+export const WALK: WalkOptions = {};
 
 /** The screen gate: axe against the baseline, then the keyboard walk. */
 export const expectAccessible = async (page: Page, screen: string) => {

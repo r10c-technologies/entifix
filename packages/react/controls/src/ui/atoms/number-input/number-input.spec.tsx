@@ -148,3 +148,21 @@ describe('QuantityInput', () => {
       expect(button).toBeDisabled();
   });
 });
+
+describe('QuantityInput in a server form', () => {
+  it('posts the count under its name, as typed, with no script involved', () => {
+    render(
+      <form aria-label="cart">
+        <QuantityInput
+          label="Cantidad"
+          name="quantity"
+          value={2}
+          onChange={() => undefined}
+        />
+      </form>,
+    );
+
+    const form = screen.getByRole('form', { name: 'cart' }) as HTMLFormElement;
+    expect(new FormData(form).get('quantity')).toBe('2');
+  });
+});

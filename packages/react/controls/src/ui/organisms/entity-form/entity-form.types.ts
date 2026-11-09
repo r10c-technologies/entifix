@@ -107,6 +107,12 @@ export interface EntityFormProps<TEntity extends Entity> {
 
   onSubmit?: (draft: EntityDraft) => void;
   onDelete?: () => void;
+  /**
+   * How the built-in Delete is made safe: `confirm` (the default) asks in an
+   * alert dialog, `typed` asks for the record's name first, and `undo` deletes
+   * at once — the host offers Undo, since only it can put the record back.
+   */
+  deletePolicy?: 'confirm' | 'typed' | 'undo';
 
   /**
    * What this caller may do with the entity, as served by
@@ -174,6 +180,8 @@ export interface EntityFormProps<TEntity extends Entity> {
   isDeleting?: boolean;
   /** The failure of the last load/save, shown as an alert. */
   error?: EntifixFailure;
+  /** Loads the record again — what a failed load offers as Retry. */
+  onRetry?: () => void;
 
   /** Link to return to, rendered as a `Back` action. Omit to hide it. */
   backHref?: string;

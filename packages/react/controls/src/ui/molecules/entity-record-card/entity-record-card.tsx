@@ -1,65 +1,109 @@
-import type { ReactNode } from 'react';
+import { type ReactNode, useId } from 'react';
 
 import { cn } from '../../utils/cn.js';
 
-export interface EntityRecordCardColumn {
-  name: string;
-  label: string;
+/** One line of a card: a member's label and its value. */
+export interface EntityRecordCardMeta {
+  key: string;
+  label: ReactNode;
+  value: ReactNode;
 }
 
 export interface EntityRecordCardProps {
-  columns: readonly EntityRecordCardColumn[];
-  /** Renders one column's cell. Supplied by the caller so a card and a table
-   *  row stay in agreement about custom renderers. */
-  renderCell: (column: EntityRecordCardColumn) => ReactNode;
-  /** Optional trailing actions (a link to the record, …). */
-  actions?: ReactNode;
   /**
-   * Rendered above the fields — the card's equivalent of a leading column.
-   *
-   * A selection box goes here rather than beside the actions because it is not
-   * an action on the record: it decides whether the record is *in the set* the
-   * actions will run over, and putting the two in one row reads as a third
-   * button.
+   * The record's heading — what it is read as, usually a link to it. A link
+   * here is stretched over the whole card, so the card is one target.
+   */
+  title: ReactNode;
+  /** A line under the heading. */
+  subtitle?: ReactNode;
+  /** Short values beside the heading — a status. */
+  badges?: readonly { key: string; value: ReactNode }[];
+  /** The record's other members, as a description list. */
+  meta: readonly EntityRecordCardMeta[];
+  /**
+   * Above the heading: a selection box. It is not an action on the record —
+   * it decides whether the record is *in the set* the actions run over — so it
+   * does not sit with them.
    */
   leading?: ReactNode;
+  /** Above the heading, at the end: the record's menu. */
+  actions?: ReactNode;
   className?: string;
 }
 
 /**
- * A record pivoted from a row into a label/value stack. This is the narrow
- * viewport form of a table row: at phone widths a horizontal scroll hides most
- * columns, whereas stacking keeps every visible column readable.
+ * A record pivoted from a row into a card: the narrow form of a table row,
+ * where a horizontal scroll would hide most columns.
+ *
+ * An `article` named by its `h3`, so a reader can move card by card with the
+ * heading keys and hears what each record is. The title's link is stretched
+ * over the card; the selection box and the menu sit above it, so they stay
+ * their own targets.
  */
 export function EntityRecordCard({
-  columns,
-  renderCell,
-  actions,
+  title,
+  subtitle,
+  badges = [],
+  meta,
   leading,
+  actions,
   className,
 }: EntityRecordCardProps) {
+  const titleId = useId();
+
   return (
-    <div
+    <article
+      aria-labelledby={titleId}
       className={cn(
-        'rounded-xl border border-border bg-surface-elevated p-s text-content shadow-edge',
+        'relative rounded-xl border border-border bg-surface-elevated p-s text-content shadow-edge focus-within:border-primary',
         className,
       )}
     >
-      {leading && <div className="mb-2xs flex">{leading}</div>}
-      <dl className="flex flex-col gap-2xs">
-        {columns.map(column => (
-          <div
-            key={column.name}
-            className="flex items-baseline justify-between gap-2xs"
-          >
-            <dt className="tracking-wide text-step-xs text-content-muted uppercase">
-              {column.label}
-            </dt>
-            <dd className="text-right text-step-sm">{renderCell(column)}</dd>
+      {(leading !== undefined || actions !== undefined) && (
+        <div className="relative z-1 mb-2xs flex items-center justify-between gap-2xs">
+          <div className="flex">{leading}</div>
+          <div className="flex">{actions}</div>
+        </div>
+      )}
+      <div className="flex flex-wrap items-baseline justify-between gap-2xs">
+        <h3
+          id={titleId}
+          className="m-0 [&_a]:after:inset-0 text-step-0 font-semibold [&_a]:after:absolute [&_a]:after:content-['']"
+        >
+          {title}
+        </h3>
+        {badges.length > 0 && (
+          <div className="flex flex-wrap gap-3xs">
+            {badges.map(badge => (
+              <span
+                key={badge.key}
+                className="rounded-full border border-border px-2xs text-step-sm"
+              >
+                {badge.value}
+              </span>
+            ))}
           </div>
-        ))}
-      </dl>
-      {actions && <div className="mt-2xs flex justify-end">{actions}</div>}
-    </div>
+        )}
+      </div>
+      {subtitle !== undefined && (
+        <p className="m-0 text-step-sm text-content-muted">{subtitle}</p>
+      )}
+      {meta.length > 0 && (
+        <dl className="mt-2xs flex flex-col gap-2xs">
+          {meta.map(line => (
+            <div
+              key={line.key}
+              className="flex items-baseline justify-between gap-2xs"
+            >
+              <dt className="tracking-wide text-step-xs text-content-muted uppercase">
+                {line.label}
+              </dt>
+              <dd className="m-0 text-right text-step-sm">{line.value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+    </article>
   );
 }

@@ -2,6 +2,8 @@
 
 export * from './lib/back-office/index.js';
 export * from './lib/command-palette/index.js';
+// A Server Action form that asks first; its guard ships from `/server`.
+export * from './lib/confirm-action/index.js';
 export * from './lib/crud/index.js';
 export * from './lib/i18n/index.js';
 // The browser half of record search: a typed `fetch` and the shapes it returns.

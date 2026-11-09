@@ -15,6 +15,13 @@ export interface QuantityInputProps {
   step?: number;
   disabled?: boolean;
   id?: string;
+  /**
+   * Posts the count with the form it sits in, under this name — a server
+   * action's form works without JavaScript, where the field is the only part
+   * a reader can change, so the field itself carries it. The server clamps
+   * what it receives: a typed value is only clamped here once committed.
+   */
+  name?: string;
   className?: string;
 }
 
@@ -38,6 +45,7 @@ export function QuantityInput({
   step = 1,
   disabled = false,
   id,
+  name,
   className,
 }: QuantityInputProps) {
   const t = useT();
@@ -90,6 +98,7 @@ export function QuantityInput({
       </button>
       <input
         id={id}
+        name={name}
         type="text"
         role="spinbutton"
         inputMode="numeric"

@@ -4,6 +4,8 @@ import {
   Invoice,
   InvoiceLine,
   type InvoiceStatus,
+  Payment,
+  type PaymentMethod,
 } from '@entifix/example-workspace-domain';
 
 /**
@@ -94,3 +96,23 @@ export const invoiceInstances = (): Invoice[] =>
       lines: lines.map(line => Object.assign(new InvoiceLine(), line)),
     }),
   );
+
+/** Money that arrived: written by the payment, never typed into a form. */
+export const PAYMENT_SEED: ReadonlyArray<{
+  id: string;
+  reference: string;
+  invoiceId: string;
+  amount: number;
+  method: PaymentMethod;
+}> = [
+  {
+    id: 'p-1',
+    reference: 'PAY-0001',
+    invoiceId: 'i-1',
+    amount: 1200,
+    method: 'transfer',
+  },
+];
+
+export const paymentInstances = (): Payment[] =>
+  PAYMENT_SEED.map(data => Object.assign(new Payment(), data));

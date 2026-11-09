@@ -1,6 +1,7 @@
 # 26. Actions: one primary, an overflow, and a destructive verb that declares how it is undone
 
-- Status: Proposed
+- Status: Accepted
+- Revised: 2026-11-09 — as built in #189–#201: "New" renders unless the entity declares `creatable: false`, and only for a caller whose served actions include `write`; Mod+Enter answers a form footer's declared primary; ActionBar binds the shortcuts it advertises, and a row advertises none
 - Date: 2026-11-05
 - Area: ui
 - Read when: adding a verb to an entity, a screen shows a row of equal-weight buttons, a delete or cancel happens in one click, "New" appears where nothing can be created, a toolbar or bulk verb acts on every matching row, a Server Action needs a confirmation without JavaScript, or about to add a keyboard shortcut
@@ -81,9 +82,10 @@ Server Actions post a form, and `Button` is a client component.
     inside its own confirmation.
   - It sits last, after a separator.
   - When it is a main function of its surface it is never folded into the menu.
-- **"New" on a list** is a primary button. It renders only when the entity
-  declares a create verb **and** the verified principal may create it. An
-  entity created only by a flow shows no "New".
+- **"New" on a list** is a primary button. It renders unless the entity
+  declares `@entity({ creatable: false })`, and only for a caller whose served
+  `$metadata` actions include `write`. An entity created only by a flow
+  declares `creatable: false` and shows no "New".
 - **Every verb goes through `invoke()`** on every surface, the toolbar
   included, so `confirm` and `reversible` cannot be bypassed.
 - **Row actions.**
@@ -139,11 +141,11 @@ boundaries:
   shortcut. That is the discovery path.
 - **The defaults the shell binds:**
 
-  | Chord     | Action                |
-  | --------- | --------------------- |
-  | Mod+K     | palette               |
-  | Mod+S     | save                  |
-  | Mod+Enter | the surface's primary |
+  | Chord     | Action                    |
+  | --------- | ------------------------- |
+  | Mod+K     | palette                   |
+  | Mod+S     | save                      |
+  | Mod+Enter | a form's declared primary |
 
   Anything else is a descriptor's `shortcut`.
 

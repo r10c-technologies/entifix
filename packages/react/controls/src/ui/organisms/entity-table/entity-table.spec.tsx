@@ -7,7 +7,7 @@ import {
   EntityLink,
 } from '@entifix/core';
 import { makeFormatters } from '@entifix/core';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Effect } from 'effect';
 import type { ReactNode } from 'react';
@@ -137,7 +137,7 @@ describe('EntityTable', () => {
     expect(screen.getAllByText('Acme').length).toBeGreaterThan(0);
   });
 
-  it('renders a foreign-key link as its id when the target is not loaded', () => {
+  it('holds a skeleton, never the id, for a link whose target is not loaded', () => {
     const widget = makeWidget();
     widget.brand.setValue(undefined);
     widget.brand.setId('brand-9');
@@ -146,7 +146,7 @@ describe('EntityTable', () => {
       <EntityTable entityConstructor={Widget} items={[widget]} {...pager} />,
     );
 
-    expect(screen.getAllByText('brand-9').length).toBeGreaterThan(0);
+    expect(screen.queryByText('brand-9')).not.toBeInTheDocument();
   });
 
   it('lets a slot override a column', () => {
@@ -174,7 +174,7 @@ describe('EntityTable', () => {
       />,
     );
 
-    expect(screen.getAllByText('Sin registros').length).toBeGreaterThan(0);
+    expect(screen.getByText('Aquí aparecerán sus widget.')).toBeVisible();
   });
 });
 
@@ -331,13 +331,16 @@ describe('EntityTable controls', () => {
   });
 
   describe('record links', () => {
-    it('adds an actions column when a record href is given', () => {
+    it('links each row from its title, with no actions column for navigation alone', () => {
       renderTable({ hrefFor: id => `/widget/${String(id)}` });
 
       expect(
-        screen.getByRole('columnheader', { name: 'Acciones' }),
-      ).toBeInTheDocument();
-      expect(screen.getAllByRole('link', { name: 'Abrir' })[0]).toHaveAttribute(
+        screen.queryByRole('columnheader', { name: 'Acciones' }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('link', { name: 'Abrir' }),
+      ).not.toBeInTheDocument();
+      expect(screen.getAllByRole('link')[0]).toHaveAttribute(
         'href',
         '/widget/widget-1',
       );
@@ -447,6 +450,9 @@ describe('EntityTable controls', () => {
       const { container } = renderTable({ isLoading: true });
 
       expect(container.querySelectorAll('[aria-busy="true"]').length).toBe(2);
+      // Busy, and still at full contrast: no dimming through opacity.
+      for (const region of container.querySelectorAll('[aria-busy="true"]'))
+        expect(region.className).not.toMatch(/opacity/);
     });
 
     // The placeholder occupies the real grid: one shimmer per visible column,
@@ -468,7 +474,7 @@ describe('EntityTable controls', () => {
       const { container } = renderTable({
         items: [],
         isLoading: true,
-        hrefFor: (id: EntityId) => `/widget/${String(id)}`,
+        onSelect: () => undefined,
       });
 
       expect(
@@ -495,10 +501,47 @@ describe('EntityTable controls', () => {
       expect(screen.queryAllByTestId('skeleton')).toHaveLength(0);
     });
 
-    it('reports an empty result set', () => {
-      renderTable({ items: [], totalItems: 0 });
+    it('reports an empty result set once, offering the first record', () => {
+      renderTable({ items: [], totalItems: 0, newHref: '/widgets/new' });
 
-      expect(screen.getAllByText('Sin registros').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Aquí aparecerán sus widget.')).toHaveLength(
+        1,
+      );
+      expect(screen.getAllByRole('link', { name: 'Nuevo' })).toHaveLength(2);
+    });
+
+    it('offers Clear filters when a filter emptied it', async () => {
+      const onFilteringChange = vi.fn();
+      const { user } = renderTable({
+        items: [],
+        totalItems: 0,
+        filtering: {
+          operator: 'or',
+          values: [{ property: 'name', operator: 'eq', value: 'x' }],
+        },
+        onFilteringChange,
+      });
+
+      await user.click(screen.getByRole('button', { name: 'Limpiar filtros' }));
+      expect(onFilteringChange).toHaveBeenCalledWith({
+        operator: 'or',
+        values: [],
+      });
+    });
+
+    it('offers no Clear filters where it cannot change them', () => {
+      renderTable({
+        items: [],
+        totalItems: 0,
+        filtering: {
+          operator: 'and',
+          values: [{ property: 'name', operator: 'eq', value: 'x' }],
+        },
+      });
+
+      expect(
+        screen.queryByRole('button', { name: 'Limpiar filtros' }),
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -519,10 +562,20 @@ describe('EntityTable controls', () => {
     it('does not claim the result set is empty', () => {
       renderTable({ items: [], totalItems: 0, error: unreachable });
 
-      expect(screen.queryByText('Sin registros')).not.toBeInTheDocument();
       expect(
-        screen.getAllByText('No se pudieron cargar los registros').length,
-      ).toBeGreaterThan(0);
+        screen.queryByText('Aquí aparecerán sus widget.'),
+      ).not.toBeInTheDocument();
+    });
+
+    it('retries the load', async () => {
+      const onRetry = vi.fn();
+      const { user } = renderTable({ error: unreachable, onRetry });
+
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'Lo que se muestra puede estar desactualizado.',
+      );
+      await user.click(screen.getByRole('button', { name: 'Reintentar' }));
+      expect(onRetry).toHaveBeenCalledOnce();
     });
 
     // A refetch that fails leaves the previous page on screen; without the
@@ -546,12 +599,12 @@ describe('EntityTable controls', () => {
     // guess during SSR and correct after mount — a hydration mismatch on every
     // page load.
     it.each([
-      ['sm', 'hidden sm:block', 'sm:hidden'],
-      ['md', 'hidden md:block', 'md:hidden'],
-      ['lg', 'hidden lg:block', 'lg:hidden'],
+      ['sm', '2xl'],
+      ['md', '3xl'],
+      ['lg', '5xl'],
     ] as const)(
-      'renders both layouts at the %s breakpoint',
-      (breakpoint, grid, cards) => {
+      'switches at the %s width when declared, read against its own container',
+      (breakpoint, size) => {
         const { container } = render(
           <EntityTable<Widget>
             entityConstructor={Widget}
@@ -561,14 +614,36 @@ describe('EntityTable controls', () => {
           />,
         );
 
-        expect(
-          container.querySelector(
-            `.${grid.replace(' ', '.').replace(':', '\\:')}`,
-          ),
-        ).toBeTruthy();
-        expect(container.innerHTML).toContain(cards);
+        expect(container.innerHTML).toContain(
+          `hidden @${size}/entity-table:block`,
+        );
+        expect(container.innerHTML).toContain(`@${size}/entity-table:hidden`);
       },
     );
+
+    // ID 6 + Name 10 + Units in stock 6 + Brand 10 = 32rem: `@lg`.
+    it('switches where its visible columns fit, by default', () => {
+      const { container } = renderTable();
+
+      expect(container.innerHTML).toContain('hidden @lg/entity-table:block');
+    });
+
+    it('renders its cards as a list of articles, each named by its linked heading', () => {
+      renderTable({ hrefFor: id => `/widgets/${String(id)}` });
+
+      const [list] = screen.getAllByRole('list');
+      const card = within(list as HTMLElement).getByRole('article', {
+        name: 'Sprocket',
+      });
+      const heading = within(card).getByRole('heading', { level: 3 });
+      expect(within(heading).getByRole('link')).toHaveAttribute(
+        'href',
+        '/widgets/widget-1',
+      );
+      // The id is hidden from the card; the rest are meta.
+      expect(within(card).queryByText('widget-1')).not.toBeInTheDocument();
+      expect(within(card).getByText('Units in stock')).toBeInTheDocument();
+    });
 
     it('renders each row twice — once per layout', () => {
       renderTable();

@@ -10,16 +10,23 @@ import {
   type EntityLinkSource,
 } from '@entifix/core';
 import { makeFormatters } from '@entifix/core';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ReactNode, useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { RenderLinkProps } from '../../actions/index.js';
+import { LiveUpdatesProvider } from '../../utils/live-updates.js';
 import { EntityForm } from './entity-form.js';
 import type { EntityFormField, EntityFormProps } from './entity-form.types.js';
 import { EntityActions, EntityField } from './entity-form-slots.js';
 import { resolveEntityFormFields } from './use-entity-form-fields.js';
+
+/** The dialog's confirming button: named for the verb it runs, so found by place. */
+const confirmButton = () =>
+  within(screen.getByTestId('confirm-dialog'))
+    .getAllByRole('button')
+    .at(-1) as HTMLElement;
 
 @entity({ key: 'gadget-brand' })
 class GadgetBrand implements Entity {
@@ -696,9 +703,17 @@ describe('EntityForm', () => {
     // from assistive tech.
     expect(screen.getAllByTestId('skeleton').length).toBeGreaterThan(0);
     expect(screen.getByRole('status')).toHaveTextContent('Cargando…');
-    expect(screen.getByTestId('entity-form-error')).toHaveTextContent(
+    expect(screen.getByTestId('region-state-error')).toHaveTextContent(
       'Servicio no disponible',
     );
+  });
+
+  it('retries a failed load', async () => {
+    const onRetry = vi.fn();
+    render(<Harness error={new Unavailable({})} onRetry={onRetry} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
+    expect(onRetry).toHaveBeenCalledOnce();
   });
 
   // The defect this replaced: the shimmer used to render *beside* the field
@@ -958,7 +973,7 @@ describe('EntityForm actions from served metadata', () => {
     expect(onUseCase).not.toHaveBeenCalled();
     expect(screen.getByTestId('confirm-dialog')).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Confirmar' }));
+    await userEvent.click(confirmButton());
     expect(onUseCase).toHaveBeenCalledWith('revoke-sessions');
   });
 
@@ -1060,50 +1075,58 @@ describe('EntityForm actions from served metadata', () => {
         labelKey: `entity:gadget.useCases.verb${index}`,
       }));
 
-    it('renders four actions as buttons with no overflow trigger', () => {
+    /** The header's wide arrangement — the one a container of `md` or more shows. */
+    const wide = () =>
+      within(
+        document.querySelector(
+          '[data-surface="form-header"] [data-arrangement="wide"]',
+        ) as HTMLElement,
+      );
+
+    it('renders three secondaries as buttons with no overflow trigger', () => {
       render(
         <Harness
           mode="edit"
-          metadata={{ actions: ['read', 'write'], useCases: many(4) }}
+          metadata={{ actions: ['read', 'write'], useCases: many(3) }}
           onUseCase={vi.fn()}
         />,
       );
 
       expect(
-        screen.getByRole('button', { name: 'gadget.useCases.verb3' }),
+        wide().getByRole('button', { name: 'gadget.useCases.verb2' }),
       ).toBeInTheDocument();
       expect(
-        screen.queryByRole('button', { name: 'Más acciones' }),
+        wide().queryByRole('button', { name: 'Más acciones' }),
       ).not.toBeInTheDocument();
     });
 
-    it('folds the fifth and beyond behind one trigger', async () => {
+    it('folds the fourth and beyond behind one trigger', async () => {
       render(
         <Harness
           mode="edit"
-          metadata={{ actions: ['read', 'write'], useCases: many(6) }}
+          metadata={{ actions: ['read', 'write'], useCases: many(5) }}
           onUseCase={vi.fn()}
         />,
       );
 
-      // The first four stay visible…
+      // The first three stay visible…
       expect(
-        screen.getByRole('button', { name: 'gadget.useCases.verb3' }),
+        wide().getByRole('button', { name: 'gadget.useCases.verb2' }),
       ).toBeInTheDocument();
       // …the rest are not buttons any more.
       expect(
-        screen.queryByRole('button', { name: 'gadget.useCases.verb4' }),
+        wide().queryByRole('button', { name: 'gadget.useCases.verb3' }),
       ).not.toBeInTheDocument();
 
       await userEvent.click(
-        screen.getByRole('button', { name: 'Más acciones' }),
+        wide().getByRole('button', { name: 'Más acciones' }),
       );
 
       expect(
-        screen.getByRole('menuitem', { name: 'gadget.useCases.verb4' }),
+        screen.getByRole('menuitem', { name: 'gadget.useCases.verb3' }),
       ).toBeInTheDocument();
       expect(
-        screen.getByRole('menuitem', { name: 'gadget.useCases.verb5' }),
+        screen.getByRole('menuitem', { name: 'gadget.useCases.verb4' }),
       ).toBeInTheDocument();
     });
 
@@ -1115,7 +1138,7 @@ describe('EntityForm actions from served metadata', () => {
           metadata={{
             actions: ['read', 'write'],
             useCases: [
-              ...many(4),
+              ...many(3),
               {
                 key: 'purge',
                 binding: 'entity' as const,
@@ -1126,6 +1149,7 @@ describe('EntityForm actions from served metadata', () => {
                   messageKey: 'entity:gadget.useCases.purgeConfirm',
                 },
               },
+              ...many(1).map(verb => ({ ...verb, key: 'last' })),
             ],
           }}
           onUseCase={onUseCase}
@@ -1133,7 +1157,7 @@ describe('EntityForm actions from served metadata', () => {
       );
 
       await userEvent.click(
-        screen.getByRole('button', { name: 'Más acciones' }),
+        wide().getByRole('button', { name: 'Más acciones' }),
       );
       await userEvent.click(
         screen.getByRole('menuitem', { name: 'gadget.useCases.purge' }),
@@ -1141,8 +1165,35 @@ describe('EntityForm actions from served metadata', () => {
 
       // A folded verb is still a verb: the confirmation is not skipped.
       expect(onUseCase).not.toHaveBeenCalled();
-      await userEvent.click(screen.getByRole('button', { name: 'Confirmar' }));
+      await userEvent.click(confirmButton());
       expect(onUseCase).toHaveBeenCalledWith('purge');
+    });
+
+    it('lets a declared primary take the footer, and Save step aside', () => {
+      render(
+        <Harness
+          mode="edit"
+          metadata={{
+            actions: ['read', 'write'],
+            useCases: [
+              {
+                key: 'publish',
+                binding: 'entity' as const,
+                placement: 'determining' as const,
+                labelKey: 'entity:gadget.useCases.publish',
+                emphasis: 'primary' as const,
+              },
+            ],
+          }}
+          onUseCase={vi.fn()}
+        />,
+      );
+
+      const footer = document.querySelector(
+        '[data-surface="form-footer"]',
+      ) as HTMLElement;
+      const [first] = within(footer).getAllByRole('button');
+      expect(first).toHaveAccessibleName('gadget.useCases.publish');
     });
   });
 
@@ -1287,5 +1338,176 @@ describe('a localized member', () => {
     // The spec catalogs default to Spanish.
     expect(screen.getByText('Sopa')).toBeInTheDocument();
     expect(screen.queryByText('Soup')).not.toBeInTheDocument();
+  });
+});
+
+describe('the built-in Delete', () => {
+  it('asks first, naming the record, and deletes only once confirmed', async () => {
+    const onDelete = vi.fn();
+    render(
+      <Harness mode="edit" initial={{ code: 'G-1' }} onDelete={onDelete} />,
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Eliminar' }));
+
+    expect(onDelete).not.toHaveBeenCalled();
+    expect(screen.getByRole('alertdialog')).toHaveAccessibleName(
+      '¿Eliminar G-1?',
+    );
+    await userEvent.click(confirmButton());
+    expect(onDelete).toHaveBeenCalledOnce();
+  });
+
+  it('names the entity when the record has nothing filled in', async () => {
+    render(<Harness mode="edit" onDelete={vi.fn()} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Eliminar' }));
+
+    expect(screen.getByRole('alertdialog')).toHaveAccessibleName(
+      '¿Eliminar gadget?',
+    );
+  });
+
+  it('asks for the record’s name under the typed policy', async () => {
+    render(
+      <Harness
+        mode="edit"
+        initial={{ code: 'G-1' }}
+        deletePolicy="typed"
+        onDelete={vi.fn()}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Eliminar' }));
+
+    expect(
+      screen.getByLabelText('Escriba G-1 para confirmar'),
+    ).toBeInTheDocument();
+  });
+
+  it('deletes at once under the undo policy, leaving Undo to the host', async () => {
+    const onDelete = vi.fn();
+    render(
+      <Harness
+        mode="edit"
+        initial={{ code: 'G-1' }}
+        deletePolicy="undo"
+        onDelete={onDelete}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Eliminar' }));
+
+    expect(onDelete).toHaveBeenCalledOnce();
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  });
+});
+
+describe('the form as a form (ADR 0028)', () => {
+  it('saves on Enter in a field', async () => {
+    const onSubmit = vi.fn();
+    render(<Harness mode="edit" onSubmit={onSubmit} />);
+
+    await userEvent.type(screen.getByLabelText('Code'), 'G-1{Enter}');
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'G-1' }),
+    );
+  });
+
+  it('saves nothing on Enter while a save is in flight', async () => {
+    const onSubmit = vi.fn();
+    render(<Harness mode="edit" isSaving onSubmit={onSubmit} />);
+
+    await userEvent.type(screen.getByLabelText('Code'), '{Enter}');
+
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('marks a required field before anyone submits', () => {
+    render(<Harness mode="edit" onSubmit={vi.fn()} />);
+
+    expect(screen.getByLabelText('Code')).toHaveAttribute(
+      'aria-required',
+      'true',
+    );
+    expect(
+      screen.getByText('Los campos marcados con * son obligatorios.'),
+    ).toBeVisible();
+  });
+
+  it('moves focus to a summary of links after a refused save, one per invalid field', async () => {
+    function Refusing() {
+      const [errors, setErrors] = useState<Record<string, string>>({});
+      return (
+        <Harness
+          mode="edit"
+          errors={errors}
+          onSubmit={() => setErrors({ code: 'Code es obligatorio' })}
+        />
+      );
+    }
+    render(<Refusing />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    const summary = screen.getByTestId('entity-form-error-summary');
+    expect(summary).toHaveFocus();
+    expect(summary).toHaveAccessibleName('Revise 1 campo antes de guardar');
+    const [link] = within(summary).getAllByRole('link');
+    expect(within(summary).getAllByRole('link')).toHaveLength(1);
+
+    const code = screen.getByLabelText('Code');
+    expect(code).toHaveAttribute('aria-invalid', 'true');
+    expect(code).toHaveAccessibleDescription('Code es obligatorio');
+
+    await userEvent.click(link as HTMLElement);
+    expect(code).toHaveFocus();
+
+    // Typing leaves the error standing; focus stays where the reader is.
+    await userEvent.type(code, 'x');
+    expect(code).toHaveFocus();
+  });
+
+  it('reads a record as a description list', () => {
+    render(<Harness mode="read" entity={makeGadget()} />);
+
+    expect(screen.getAllByRole('term').map(term => term.textContent)).toContain(
+      'Code',
+    );
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+  });
+});
+
+describe('a pending write while live updates are down', () => {
+  it('says it is waiting for the connection', () => {
+    render(
+      <LiveUpdatesProvider value={{ connection: 'reconnecting' }}>
+        <Harness mode="edit" isPending onSubmit={vi.fn()} />
+      </LiveUpdatesProvider>,
+    );
+
+    expect(
+      screen.getAllByRole('button', { name: 'Esperando la conexión…' }).length,
+    ).toBeGreaterThan(0);
+  });
+});
+
+describe('the form’s shortcuts (ADR 0026)', () => {
+  it('saves on Mod+S with the caret in a field, and says so on Save', async () => {
+    const onSubmit = vi.fn();
+    render(<Harness mode="edit" onSubmit={onSubmit} />);
+
+    await userEvent.type(
+      screen.getByLabelText('Code'),
+      'G-2{Control>}s{/Control}',
+    );
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'G-2' }),
+    );
+    expect(
+      screen.getAllByRole('button', { name: 'Guardar' })[0],
+    ).toHaveAttribute('aria-keyshortcuts', 'Control+S Meta+S');
   });
 });

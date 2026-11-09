@@ -10,7 +10,11 @@ import { makeFormatters } from '@entifix/core';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
+import { installSpecCatalogs } from '../../../i18n/spec-support/catalogs.js';
+import { I18nProvider } from '../../../i18next/index.js';
 import { CellValue } from './cell-value.js';
+
+installSpecCatalogs();
 
 const EMPTY = '—';
 
@@ -139,8 +143,8 @@ describe('CellValue', () => {
   });
 
   describe('to-one links', () => {
-    // The same cell markup covers both shapes a relation can arrive in: a
-    // loaded target reads as its label, an unresolved one as its foreign key.
+    // A loaded target reads as its label; one still resolving holds its place
+    // with a skeleton. Never the id: a key is not a name (#200).
     it('renders a loaded target’s label', () => {
       renderCell(
         new EntityLink(Brand, { value: new Brand('b-1', 'Acme') }),
@@ -150,10 +154,11 @@ describe('CellValue', () => {
       expect(screen.getByText('Acme')).toBeInTheDocument();
     });
 
-    it('renders the foreign key when the target is not loaded', () => {
+    it('holds a skeleton, never the id, while the target resolves', () => {
       renderCell(new EntityLink(Brand, { id: 'b-1' }), 'link');
 
-      expect(screen.getByText('b-1')).toBeInTheDocument();
+      expect(screen.getByTestId('skeleton')).toBeInTheDocument();
+      expect(screen.queryByText('b-1')).not.toBeInTheDocument();
     });
 
     it('honours a custom label property', () => {
@@ -166,14 +171,14 @@ describe('CellValue', () => {
       expect(screen.getByText('b-1')).toBeInTheDocument();
     });
 
-    it('falls back to the foreign key when the label property is absent', () => {
+    it('reads as empty, not as its id, when the target carries no label', () => {
       renderCell(
         new EntityLink(Brand, { value: new Brand('b-1', 'Acme') }),
         'link',
         'missing',
       );
 
-      expect(screen.getByText('b-1')).toBeInTheDocument();
+      expect(screen.getByText(EMPTY)).toBeInTheDocument();
     });
 
     it('renders a placeholder for an empty link', () => {
@@ -201,38 +206,24 @@ describe('CellValue', () => {
       expect(screen.getByText('Acme, Globex')).toBeInTheDocument();
     });
 
-    it('joins foreign keys when the targets are not loaded', () => {
+    it('holds a skeleton while the targets resolve', () => {
       renderCell(
         new EntityCollectionLink(Brand, { ids: ['b-1', 'b-2'] }),
         'linkCollection',
       );
 
-      expect(screen.getByText('b-1, b-2')).toBeInTheDocument();
+      expect(screen.getByTestId('skeleton')).toBeInTheDocument();
+      expect(screen.queryByText(/b-1/)).not.toBeInTheDocument();
     });
 
-    it('falls back to a loaded target’s id when it carries no label', () => {
+    it('reads a loaded target with no label as empty, not as its id', () => {
       renderCell(
         new EntityCollectionLink(Brand, { values: [new Brand('b-1', '')] }),
         'linkCollection',
         'missing',
       );
 
-      expect(screen.getByText('b-1')).toBeInTheDocument();
-    });
-
-    it('falls back to the positional id when a loaded target has neither', () => {
-      const link = new EntityCollectionLink(Brand, { ids: ['b-9'] });
-      link.setValues([new Brand(undefined, '')]);
-      link.setIds(['b-9']);
-
-      render(
-        <CellValue
-          value={link}
-          descriptor={descriptor('linkCollection', 'missing')}
-        />,
-      );
-
-      expect(screen.getByText('b-9')).toBeInTheDocument();
+      expect(screen.getByText(EMPTY)).toBeInTheDocument();
     });
 
     // A loaded target with neither a label, an id, nor a positional id has
@@ -311,6 +302,25 @@ describe('CellValue — a localized member', () => {
   it('falls back to the default locale, then to the placeholder', () => {
     renderCell({ en: 'Soup' }, 'localized');
     expect(screen.getByText('—')).toBeInTheDocument();
+  });
+
+  it('marks text read in another language as that language', () => {
+    render(
+      <I18nProvider locale="en">
+        <CellValue
+          value={{ es: 'Sopa' }}
+          descriptor={descriptor('localized')}
+        />
+      </I18nProvider>,
+    );
+
+    expect(screen.getByText('Sopa')).toHaveAttribute('lang', 'es');
+  });
+
+  it('marks nothing read in the reader’s own language', () => {
+    renderCell({ es: 'Sopa' }, 'localized');
+
+    expect(screen.getByText('Sopa')).not.toHaveAttribute('lang');
   });
 
   it('renders the placeholder for a value that is not a text per locale', () => {

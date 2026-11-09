@@ -26,7 +26,7 @@ test('creates, edits and deletes a book through the whole stack', async ({
   const row = page.getByRole('row').filter({ hasText: title });
   await expect(row).toBeVisible();
 
-  await row.getByRole('link', { name: 'Abrir' }).click();
+  await row.getByRole('link', { name: title }).click();
   await expect(page.getByLabel('Título')).toHaveValue(title);
   await page.getByLabel('Estado').selectOption('lent');
   await page.getByRole('button', { name: 'Guardar' }).click();
@@ -39,7 +39,7 @@ test('creates, edits and deletes a book through the whole stack', async ({
   await page
     .getByRole('row')
     .filter({ hasText: title })
-    .getByRole('link', { name: 'Abrir' })
+    .getByRole('link', { name: title })
     .click();
   await page.getByRole('button', { name: 'Eliminar' }).click();
 

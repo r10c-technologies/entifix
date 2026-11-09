@@ -37,6 +37,7 @@ class Account implements Entity {
     tone: 'destructive',
     messageKey: 'entity:account.useCases.suspendConfirm',
   },
+  reversible: 'confirm',
 })
 class SuspendAccountUC {
   static run() {
@@ -69,6 +70,7 @@ describe('makeEntityMetadataEnvelope', () => {
           tone: 'destructive',
           messageKey: 'entity:account.useCases.suspendConfirm',
         },
+        reversible: 'confirm',
         form: undefined,
       },
     ]);

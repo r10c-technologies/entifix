@@ -1,4 +1,4 @@
-import { expectAccessible, expectFocusKept, LOST_UNTIL } from './a11y';
+import { expectAccessible, expectFocusKept } from './a11y';
 import { expect, failOnPageErrors, test } from './support';
 
 /**
@@ -30,14 +30,16 @@ test('adds an owned row, saves, and finds it on the record again', async ({
 
   // Saving returns to the list tab, which reads the repository again.
   await expect(page).toHaveURL(/tab=master%3Ainvoice$/);
-  await expect(page.getByRole('cell', { name: 'INV-0002-A' })).toBeVisible();
-  await expectFocusKept(page, { lostUntil: LOST_UNTIL });
+  await expect(
+    page.getByRole('cell', { name: 'INV-0002-A', exact: true }),
+  ).toBeVisible();
+  await expectFocusKept(page);
 
   // Reopened from the list row, which opens the record's tab in place.
   await page
     .getByRole('row')
     .filter({ hasText: 'INV-0002-A' })
-    .getByRole('link', { name: 'Abrir' })
+    .getByRole('link', { name: 'INV-0002-A' })
     .click();
   await expect(page.getByLabel('Número')).toHaveValue('INV-0002-A');
   await expect(page.getByLabel('Descripción')).toHaveCount(2);

@@ -408,6 +408,17 @@ beforeEach(() => {
   };
 });
 
+/**
+ * Clicks a record page's action, and answers its confirmation when it asks
+ * one — Delete does, as every destructive verb must (ADR 0026).
+ */
+async function press(user: ReturnType<typeof userEvent.setup>, name: string) {
+  await user.click(screen.getByRole('button', { name }));
+  const dialog = screen.queryByRole('alertdialog');
+  if (dialog !== null)
+    await user.click(within(dialog).getByRole('button', { name }));
+}
+
 describe('makeEntityCrud, at factory time', () => {
   // The catalog key and `@entity({ key })` are the same string by convention, so
   // a drifted one is invisible: the form renders, titled after another entity.
@@ -646,7 +657,9 @@ describe('the generated list page, opted into affordances', () => {
         expect(screen.getAllByText('Acme').length).toBeGreaterThan(0),
       );
 
-      await user.click(screen.getAllByRole('button', { name: 'Acciones' })[0]!);
+      await user.click(
+        screen.getAllByRole('button', { name: /^Acciones para / })[0]!,
+      );
       await user.click(
         screen.getByRole('menuitem', {
           name: 'product-brand.useCases.archive',
@@ -673,7 +686,9 @@ describe('the generated list page, opted into affordances', () => {
         expect(screen.getAllByText('Acme').length).toBeGreaterThan(0),
       );
 
-      await user.click(screen.getAllByRole('button', { name: 'Acciones' })[0]!);
+      await user.click(
+        screen.getAllByRole('button', { name: /^Acciones para / })[0]!,
+      );
       await user.click(
         screen.getByRole('menuitem', {
           name: 'product-brand.useCases.archive',
@@ -704,7 +719,9 @@ describe('the generated list page, opted into affordances', () => {
         expect(screen.getAllByText('Pending').length).toBeGreaterThan(0),
       );
 
-      await user.click(screen.getAllByRole('button', { name: 'Acciones' })[0]!);
+      await user.click(
+        screen.getAllByRole('button', { name: /^Acciones para / })[0]!,
+      );
       await user.click(
         screen.getByRole('menuitem', {
           name: 'product-brand.useCases.archive',
@@ -725,7 +742,7 @@ describe('the generated list page, opted into affordances', () => {
         expect(screen.getAllByText('Acme').length).toBeGreaterThan(0),
       );
       expect(
-        screen.queryAllByRole('button', { name: 'Acciones' }),
+        screen.queryAllByRole('button', { name: /^Acciones para / }),
       ).toHaveLength(0);
     });
   });
@@ -859,8 +876,13 @@ describe('the generated form', () => {
     // The field by its catalog word — `Nombre`, from `labelKey` — not the
     // accessor's English `label` inside a Spanish sentence (#22).
     await waitFor(() =>
-      expect(screen.getByText('Nombre es obligatorio')).toBeVisible(),
+      expect(screen.getByLabelText('Nombre')).toHaveAccessibleDescription(
+        'Nombre es obligatorio',
+      ),
     );
+    // No message on the form is a catalog key the copy never reached.
+    for (const message of screen.getAllByText(/obligatori/))
+      expect(message.textContent).not.toMatch(/^[\w.]+:/);
   });
 
   // `entity` is undefined until the record lands, so testing it alone titled a
@@ -1133,7 +1155,7 @@ describe('the generated form', () => {
       expect(screen.getByLabelText(/nombre/i)).toHaveValue('Acme'),
     );
 
-    await user.click(screen.getByRole('button', { name: button }));
+    await press(user, button);
 
     await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
     // Locale-prefixed: an unprefixed href still resolves, but the middleware
@@ -1160,7 +1182,7 @@ describe('the generated form', () => {
       expect(screen.getByLabelText(/nombre/i)).toHaveValue('Acme'),
     );
 
-    await user.click(screen.getByRole('button', { name: button }));
+    await press(user, button);
 
     await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
     expect(invalidate).toHaveBeenCalledWith({
@@ -1188,7 +1210,7 @@ describe('the generated form', () => {
         expect(screen.getByLabelText(/nombre/i)).toHaveValue('Acme'),
       );
 
-      await user.click(screen.getByRole('button', { name: button }));
+      await press(user, button);
 
       await waitFor(() =>
         expect(nav.toList).toHaveBeenCalledWith('product-brand'),
@@ -1209,10 +1231,10 @@ describe('the generated form', () => {
     );
     repositories.brand.failNext(new Unavailable({ dependency: 'unreachable' }));
 
-    await user.click(screen.getByRole('button', { name: button }));
+    await press(user, button);
 
     await waitFor(() =>
-      expect(screen.getByTestId(/form-error$/)).toBeInTheDocument(),
+      expect(screen.getByTestId('region-state-error')).toBeInTheDocument(),
     );
     expect(push).not.toHaveBeenCalled();
   });
@@ -1238,7 +1260,7 @@ describe('the generated form', () => {
     await user.click(screen.getByRole('button', { name: 'Guardar' }));
     await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
 
-    await user.click(screen.getByRole('button', { name: 'Eliminar' }));
+    await press(user, 'Eliminar');
     await waitFor(() => expect(onDeleted).toHaveBeenCalledTimes(1));
     expect(push).not.toHaveBeenCalled();
   });
@@ -1283,7 +1305,7 @@ describe('the generated form', () => {
       expect(screen.getByLabelText(/nombre/i)).toHaveValue('Acme'),
     );
 
-    await user.click(screen.getByRole('button', { name: 'Eliminar' }));
+    await press(user, 'Eliminar');
 
     await waitFor(() => expect(store.clear).toHaveBeenCalledTimes(1));
   });
@@ -1307,7 +1329,7 @@ describe('the generated form', () => {
     await user.click(screen.getByRole('button', { name: 'Guardar' }));
 
     await waitFor(() =>
-      expect(screen.getByTestId(/form-error$/)).toBeInTheDocument(),
+      expect(screen.getByTestId('region-state-error')).toBeInTheDocument(),
     );
     expect(store.clear).not.toHaveBeenCalled();
   });
@@ -1605,7 +1627,7 @@ describe('the generated form, writing through a writer that answers both modes',
     expect(alerts).toHaveLength(1);
     expect(alerts[0]).toHaveTextContent(/ya estaba retirado/i);
     expect(screen.getByLabelText(/nombre/i)).toHaveValue('Hooli');
-    expect(screen.queryByTestId(/form-error$/)).toBeNull();
+    expect(screen.queryByTestId('region-state-error')).toBeNull();
     expect(screen.getByRole('button', { name: 'Guardar' })).not.toBeDisabled();
     expect(draft.clear).not.toHaveBeenCalled();
     expect(push).not.toHaveBeenCalled();
@@ -1663,7 +1685,7 @@ describe('the generated form, writing through a writer that answers both modes',
     const first = renderWithFlows(<writtenBrandCrud.SingleViewPage />);
 
     await loaded();
-    await user.click(screen.getByRole('button', { name: 'Eliminar' }));
+    await press(user, 'Eliminar');
     await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
     expect(writeDelete).toHaveBeenCalledWith('b-1');
     first.leave();
@@ -1673,7 +1695,7 @@ describe('the generated form, writing through a writer that answers both modes',
       <writtenBrandCrud.SingleViewPage />,
     );
     await loaded();
-    await user.click(screen.getByRole('button', { name: 'Eliminar' }));
+    await press(user, 'Eliminar');
     await flowWatched();
     act(() => channel.emit(['flow:f-1'], flowEvent('flow.completed')));
 
@@ -1692,7 +1714,7 @@ describe('the generated form, writing through a writer that answers both modes',
     await waitFor(() =>
       expect(screen.getByLabelText(/nombre/i)).toHaveValue('Acme'),
     );
-    await user.click(screen.getByRole('button', { name: 'Eliminar' }));
+    await press(user, 'Eliminar');
     await flowWatched();
     leave();
     act(() => channel.emit(['flow:f-1'], flowEvent('flow.completed')));
@@ -1763,7 +1785,9 @@ describe('the generated form, writing through a writer that answers both modes',
     await waitFor(() =>
       expect(screen.getAllByText('Acme').length).toBeGreaterThan(0),
     );
-    await user.click(screen.getAllByRole('button', { name: 'Acciones' })[0]!);
+    await user.click(
+      screen.getAllByRole('button', { name: /^Acciones para / })[0]!,
+    );
     await user.click(screen.getByRole('menuitem', { name: /retirar/i }));
     await flowWatched();
 
@@ -1798,5 +1822,185 @@ describe('the generated form, writing through a writer that answers both modes',
         </PendingFlowsProvider>,
       ),
     ).toThrow(/inside a ToastProvider/);
+  });
+});
+
+describe('the generated Delete (ADR 0026)', () => {
+  const undoCrud = makeEntityCrud<Brand, TestAdapters>(Brand, {
+    useAdapters,
+    basePath: '/catalog/product-brand',
+    catalogKey: 'product-brand',
+    repository: 'brandRest',
+    hiddenFields: ['id', 'code'],
+    delete: 'undo',
+  });
+  const undoThroughWriterCrud = makeEntityCrud<Brand, TestAdapters>(Brand, {
+    useAdapters,
+    basePath: '/catalog/product-brand',
+    catalogKey: 'product-brand',
+    repository: 'brandRest',
+    hiddenFields: ['id', 'code'],
+    write: 'brandWrite',
+    delete: 'undo',
+  });
+
+  const withToasts = (page: ReactElement) =>
+    render(
+      <EntifixQueryProvider>
+        <ToastProvider>
+          {page}
+          <ToastRegion />
+        </ToastProvider>
+      </EntifixQueryProvider>,
+    );
+
+  it('confirms, announces the deletion by name, and focuses the list heading', async () => {
+    slug = 'b-1';
+    const user = userEvent.setup();
+    const { unmount } = withToasts(<brandCrud.SingleViewPage />);
+    await waitFor(() =>
+      expect(screen.getByLabelText(/nombre/i)).toHaveValue('Acme'),
+    );
+
+    await press(user, 'Eliminar');
+
+    await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
+    expect(
+      within(screen.getByTestId('toast-region')).getByRole('status'),
+    ).toHaveTextContent('Se eliminó Acme.');
+    unmount();
+
+    renderPage(<brandCrud.ListPage />);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveFocus();
+  });
+
+  it('announces a save by name', async () => {
+    slug = 'b-1';
+    const user = userEvent.setup();
+    withToasts(<brandCrud.SingleViewPage />);
+    await waitFor(() =>
+      expect(screen.getByLabelText(/nombre/i)).toHaveValue('Acme'),
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
+    expect(
+      within(screen.getByTestId('toast-region')).getByRole('status'),
+    ).toHaveTextContent('Se guardó Acme.');
+  });
+
+  it('retries a record that failed to load', async () => {
+    slug = 'b-1';
+    repositories.brand.failNext(new Unavailable({}));
+    const user = userEvent.setup();
+    renderPage(<brandCrud.SingleViewPage />);
+
+    await user.click(await screen.findByRole('button', { name: 'Reintentar' }));
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/nombre/i)).toHaveValue('Acme'),
+    );
+  });
+
+  it('retries a list that failed to load', async () => {
+    repositories.brand.failNext(new Unavailable({}));
+    const user = userEvent.setup();
+    renderPage(<brandCrud.ListPage />);
+
+    await user.click(await screen.findByRole('button', { name: 'Reintentar' }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Reintentar' })).toBeNull(),
+    );
+    expect(screen.getAllByText('Acme').length).toBeGreaterThan(0);
+  });
+
+  it('leaves focus where the reader put it', () => {
+    render(<button type="button">Pestaña</button>);
+    screen.getByRole('button', { name: 'Pestaña' }).focus();
+    renderPage(<brandCrud.ListPage />);
+
+    expect(screen.getByRole('heading', { level: 1 })).not.toHaveFocus();
+  });
+
+  it('deletes at once under undo, and Undo saves the record back', async () => {
+    slug = 'b-1';
+    const user = userEvent.setup();
+    withToasts(<undoCrud.SingleViewPage />);
+    await waitFor(() =>
+      expect(screen.getByLabelText(/nombre/i)).toHaveValue('Acme'),
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Eliminar' }));
+    await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(repositories.brand.items).toHaveLength(0);
+
+    await user.click(screen.getByRole('button', { name: 'Deshacer' }));
+    await waitFor(() => expect(repositories.brand.items).toHaveLength(1));
+  });
+
+  it('names the entity when the deleted record has nothing filled in to name it by', async () => {
+    slug = 'b-2';
+    repositories.brand.seed([makeBrand('b-2', '')]);
+    const user = userEvent.setup();
+    withToasts(<undoCrud.SingleViewPage />);
+    await waitFor(() =>
+      expect(screen.getByLabelText(/nombre/i)).toHaveValue(''),
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Eliminar' }));
+
+    await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
+    expect(
+      within(screen.getByTestId('toast-region')).getByRole('status'),
+    ).toHaveTextContent('Se eliminó Marca.');
+  });
+
+  it('shows a failed Undo where every failure is shown', async () => {
+    slug = 'b-1';
+    writeDelete.mockResolvedValue(settled(undefined));
+    writeSave.mockRejectedValue(new Error('the store refused it'));
+    const user = userEvent.setup();
+    withToasts(<undoThroughWriterCrud.SingleViewPage />);
+    await waitFor(() =>
+      expect(screen.getByLabelText(/nombre/i)).toHaveValue('Acme'),
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Eliminar' }));
+    await user.click(await screen.findByRole('button', { name: 'Deshacer' }));
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+  });
+});
+
+describe('the generated list’s links (#200)', () => {
+  it('names the record an id refers to, never its id', async () => {
+    const product = new Product('Widget');
+    product.id = 'p-1';
+    product.brandId = 'b-1';
+    const orphan = new Product('Gizmo');
+    orphan.id = 'p-2';
+    orphan.brandId = 'b-404';
+    const bare = new Product('Gadget');
+    bare.id = 'p-3';
+    repositories.product = makeInMemoryEntityRepository([
+      product,
+      orphan,
+      bare,
+    ] as Entity[]);
+
+    renderPage(<productCrud.ListPage />);
+
+    await screen.findAllByText('Widget');
+    await waitFor(() =>
+      expect(screen.getAllByText('Acme').length).toBeGreaterThan(0),
+    );
+    // Never the key: an id with no record, and no id, both read as empty.
+    expect(screen.queryByText('b-1')).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.queryByText('b-404')).not.toBeInTheDocument(),
+    );
   });
 });

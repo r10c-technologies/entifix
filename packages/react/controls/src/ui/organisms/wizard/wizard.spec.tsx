@@ -1,3 +1,4 @@
+import { Unavailable } from '@entifix/core';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
@@ -279,5 +280,17 @@ describe('focus', () => {
     expect(document.activeElement).toBe(
       screen.getByRole('heading', { name: 'Resumen' }),
     );
+  });
+});
+
+describe('Wizard failure', () => {
+  it('keeps the step and offers Retry when the submit failed', async () => {
+    const onRetry = vi.fn();
+    renderWizard({ error: new Unavailable({}), onRetry });
+
+    expect(screen.getByText('cuerpo del paso')).toBeVisible();
+    expect(screen.getByRole('alert')).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
+    expect(onRetry).toHaveBeenCalledOnce();
   });
 });

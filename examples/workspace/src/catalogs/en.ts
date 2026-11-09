@@ -35,12 +35,34 @@ export const en: ExampleCatalog = {
         unitPrice: 'Unit price',
       },
       values: {
-        status: { draft: 'Draft', issued: 'Issued' },
+        status: { draft: 'Draft', issued: 'Issued', void: 'Void' },
       },
       useCases: {
         issue: 'Issue',
         resetDemo: 'Reset the example data',
         resetDemoKeywords: 'reset, seed, data',
+        void: 'Void',
+        voidConfirm: 'It stops counting as owed.',
+        voided: 'Invoice voided.',
+        reopen: 'Reopen',
+        purgeDrafts: 'Delete drafts',
+        purgeDraftsConfirm:
+          'Every draft invoice in this list is deleted for good.',
+      },
+    },
+    payment: {
+      form: { editTitle: 'Payment', newTitle: 'Payment' },
+      label: 'Payment',
+      plural: 'Payments',
+      fields: {
+        id: 'ID',
+        reference: 'Reference',
+        invoice: 'Invoice',
+        amount: 'Amount',
+        method: 'Method',
+      },
+      values: {
+        method: { card: 'Card', transfer: 'Transfer' },
       },
     },
   },
@@ -48,6 +70,8 @@ export const en: ExampleCatalog = {
     unexpected: 'Something went wrong. Try again.',
     network: 'Could not connect.',
     notFound: 'The record was not found.',
+    noActiveOrganization: 'Choose an organization to see its records.',
+    noActiveOrganizationAction: 'Choose organization',
   },
   app: {
     brand: 'entifix · workspace',
@@ -57,12 +81,26 @@ export const en: ExampleCatalog = {
     nav: {
       customers: 'Customers',
       invoices: 'Invoices',
+      payments: 'Payments',
       newInvoice: 'New invoice',
     },
     home: {
       title: 'A workspace with no backend',
       body: 'Everything here runs in this tab over an in-memory repository. Drafts survive a reload; saved records go back to the example data.',
       openWorkspace: 'Open the workspace',
+    },
+    subscription: {
+      title: 'Subscription',
+      active: 'Your subscription is active.',
+      ended: 'Your subscription has ended.',
+      end: 'Unsubscribe',
+      keep: 'Keep it',
+      confirmTitle: 'Unsubscribe?',
+      confirmMessage:
+        'Deliveries stop today. To come back you will have to subscribe again.',
+    },
+    account: {
+      guest: 'Guest',
     },
     preferences: {
       density: 'Density',

@@ -21,6 +21,19 @@ import {
 } from './use-entity-form.helpers.js';
 import { useEntityForm } from './use-entity-form.js';
 
+/**
+ * Answers a catalog key as the key and its parameters, `:`-joined — or the
+ * `defaultValue` when one is offered — so a spec can read which sentence a
+ * rule asked for without a catalog.
+ */
+const keyEcho = (key: string, params?: Record<string, unknown>): string =>
+  params?.['defaultValue'] !== undefined
+    ? String(params['defaultValue'])
+    : [
+        key.replace(/^controls:/, ''),
+        ...Object.values(params ?? {}).map(String),
+      ].join(':');
+
 @entity({ key: 'gadget-brand' })
 class GadgetBrand implements Entity {
   #id?: EntityId;
@@ -282,11 +295,6 @@ const MESSAGES = {
 };
 
 /**
- * The same four sentences in Spanish, supplied the way the real caller supplies
- * them — `entity-crud-form.tsx` resolves them with `useT('controls')` and hands
- * them over. This hook no longer reads a catalog itself.
- */
-/**
  * Stands in for the controls package's `useTranslateKey`, which is what the one
  * real caller passes. A schema message is a catalog key, so resolving it is the
  * host's job now.
@@ -294,6 +302,14 @@ const MESSAGES = {
 const SPANISH_KEYS: Record<string, string> = {
   'validation.minLength': '{{field}} es demasiado corto',
   'validation.pattern': '{{field}} no tiene el formato correcto',
+  'controls:validation.required': '{{field}} es obligatorio',
+  'controls:validation.number': '{{field}} debe ser un número',
+  'controls:validation.date': '{{field}} debe ser una fecha',
+  'controls:validation.option': '{{field}} no es una opción válida',
+  'controls:validation.minItems': '{{field}} necesita {{count}}',
+  'controls:validation.maxItems': '{{field}} admite {{count}}',
+  'controls:validation.notBefore': '{{field}} antes de {{other}}',
+  'controls:validation.locale': '{{field}} sin {{locale}}',
 };
 
 const translateKey = (
@@ -302,18 +318,9 @@ const translateKey = (
 ): string => {
   const text = SPANISH_KEYS[key];
   if (text === undefined) return String(params?.['defaultValue'] ?? key);
-  return text.replace('{{field}}', String(params?.['field'] ?? ''));
-};
-
-const SPANISH: typeof MESSAGES = {
-  required: field => `${field} es obligatorio`,
-  number: field => `${field} debe ser un número`,
-  date: field => `${field} debe ser una fecha`,
-  option: field => `${field} no es una opción válida`,
-  minItems: (field, count) => `${field} necesita ${count}`,
-  maxItems: (field, count) => `${field} admite ${count}`,
-  notBefore: (field, other) => `${field} antes de ${other}`,
-  locale: (field, locale) => `${field} sin ${locale}`,
+  return text.replace(/\{\{(\w+)\}\}/g, (_, name: string) =>
+    String(params?.[name] ?? ''),
+  );
 };
 
 describe('validateEntityDraft', () => {
@@ -552,6 +559,7 @@ describe('useEntityForm', () => {
   it('seeds its values from the entity', () => {
     const { result } = renderHook(() =>
       useEntityForm({
+        translateKey: keyEcho,
         entityConstructor: Gadget,
         entity: makeGadget(),
         onSubmit: vi.fn(),
@@ -565,6 +573,7 @@ describe('useEntityForm', () => {
   it('layers a persisted draft over the record it was written from', () => {
     const { result } = renderHook(() =>
       useEntityForm({
+        translateKey: keyEcho,
         entityConstructor: Gadget,
         entity: makeGadget(),
         draft: draftStore({ code: 'DRAFT' }),
@@ -585,6 +594,7 @@ describe('useEntityForm', () => {
   it('drops draft keys the entity no longer declares', () => {
     const { result } = renderHook(() =>
       useEntityForm({
+        translateKey: keyEcho,
         entityConstructor: Gadget,
         entity: makeGadget(),
         draft: draftStore({ code: 'DRAFT', retired: 'yes' }),
@@ -599,6 +609,7 @@ describe('useEntityForm', () => {
   it('keeps the seeded value for a member the draft never held', () => {
     const { result } = renderHook(() =>
       useEntityForm({
+        translateKey: keyEcho,
         entityConstructor: Gadget,
         entity: makeGadget(),
         draft: draftStore({ code: 'DRAFT' }),
@@ -619,6 +630,7 @@ describe('useEntityForm', () => {
     const store = draftStore();
     const { result } = renderHook(() =>
       useEntityForm({
+        translateKey: keyEcho,
         entityConstructor: Gadget,
         entity: makeGadget(),
         draft: store,
@@ -639,6 +651,7 @@ describe('useEntityForm', () => {
     const store = draftStore();
     renderHook(() =>
       useEntityForm({
+        translateKey: keyEcho,
         entityConstructor: Gadget,
         entity: makeGadget(),
         draft: store,
@@ -658,6 +671,7 @@ describe('useEntityForm', () => {
     const store = draftStore({ code: 'DRAFT' });
     const { result } = renderHook(() =>
       useEntityForm({
+        translateKey: keyEcho,
         entityConstructor: Gadget,
         entity: makeGadget(),
         draft: store,
@@ -678,6 +692,7 @@ describe('useEntityForm', () => {
     const store = draftStore();
     const { result } = renderHook(() =>
       useEntityForm({
+        translateKey: keyEcho,
         entityConstructor: Gadget,
         entity: makeGadget(),
         draft: store,
@@ -698,6 +713,7 @@ describe('useEntityForm', () => {
   it('ignores a draft value that is not a string', () => {
     const { result } = renderHook(() =>
       useEntityForm({
+        translateKey: keyEcho,
         entityConstructor: Gadget,
         entity: makeGadget(),
         // What a draft written by an older shape can hold: the store guarantees
@@ -721,6 +737,7 @@ describe('useEntityForm', () => {
 
     const { result } = renderHook(() =>
       useEntityForm({
+        translateKey: keyEcho,
         entityConstructor: Gadget,
         entity: gadget,
         onSubmit: vi.fn(),
@@ -733,6 +750,7 @@ describe('useEntityForm', () => {
   it('holds no selection for a relation that arrived as a bare key', () => {
     const { result } = renderHook(() =>
       useEntityForm({
+        translateKey: keyEcho,
         entityConstructor: Gadget,
         entity: makeGadget(),
         onSubmit: vi.fn(),
@@ -750,6 +768,7 @@ describe('useEntityForm', () => {
 
     const { result } = renderHook(() =>
       useEntityForm({
+        translateKey: keyEcho,
         entityConstructor: Gadget,
         entity: makeGadget(),
         onSubmit: vi.fn(),
@@ -765,6 +784,7 @@ describe('useEntityForm', () => {
   it('empties the draft key when a relation is cleared', () => {
     const { result } = renderHook(() =>
       useEntityForm({
+        translateKey: keyEcho,
         entityConstructor: Gadget,
         entity: makeGadget(),
         onSubmit: vi.fn(),
@@ -786,6 +806,7 @@ describe('useEntityForm', () => {
 
     const { result } = renderHook(() =>
       useEntityForm({
+        translateKey: keyEcho,
         entityConstructor: Gadget,
         entity: makeGadget(),
         onSubmit: vi.fn(),
@@ -809,6 +830,7 @@ describe('useEntityForm', () => {
 
     const { result } = renderHook(() =>
       useEntityForm({
+        translateKey: keyEcho,
         entityConstructor: Gadget,
         entity: makeGadget(),
         onSubmit: vi.fn(),
@@ -827,6 +849,7 @@ describe('useEntityForm', () => {
 
     const { result } = renderHook(() =>
       useEntityForm({
+        translateKey: keyEcho,
         entityConstructor: Gadget,
         entity: makeGadget(),
         onSubmit: vi.fn(),
@@ -842,6 +865,7 @@ describe('useEntityForm', () => {
   it('updates a field and marks the form dirty', () => {
     const { result } = renderHook(() =>
       useEntityForm({
+        translateKey: keyEcho,
         entityConstructor: Gadget,
         entity: makeGadget(),
         onSubmit: vi.fn(),
@@ -859,7 +883,7 @@ describe('useEntityForm', () => {
   it('localizes every metadata-derived message', async () => {
     const { result } = renderHook(() =>
       useEntityForm({
-        validationMessages: SPANISH,
+        translateKey,
         entityConstructor: Gadget,
         entity: makeGadget(),
         onSubmit: vi.fn(),
@@ -880,20 +904,22 @@ describe('useEntityForm', () => {
     });
   });
 
-  // The wording is the caller's now, so the hook must use what it was handed
-  // rather than anything of its own.
-  it('uses the messages it was handed', async () => {
+  // The wording is the controls catalog's, asked for through the translator
+  // the caller handed over — never anything of the hook's own.
+  it('asks its translator for the controls catalog sentence', async () => {
     const { result } = renderHook(() =>
       useEntityForm({
         entityConstructor: Gadget,
-        validationMessages: MESSAGES,
+        translateKey: keyEcho,
         onSubmit: vi.fn(),
       }),
     );
 
     await act(async () => result.current.submit());
 
-    expect(result.current.errors).toEqual({ code: 'Code is required' });
+    expect(result.current.errors).toEqual({
+      code: 'validation.required:Code',
+    });
   });
 
   // A schema issue whose path names no member of this entity: the resolver is
@@ -925,6 +951,7 @@ describe('useEntityForm', () => {
   it('renders a schema message as authored when no resolver is supplied', async () => {
     const { result } = renderHook(() =>
       useEntityForm({
+        translateKey: keyEcho,
         entityConstructor: Gadget,
         entity: makeGadget(),
         schema: schemaOf([{ message: 'Code is too short', path: ['code'] }]),
@@ -941,7 +968,11 @@ describe('useEntityForm', () => {
   // who has wired no copy sees.
   it('renders the catalog key when no messages are supplied', async () => {
     const { result } = renderHook(() =>
-      useEntityForm({ entityConstructor: Gadget, onSubmit: vi.fn() }),
+      useEntityForm({
+        translateKey: keyEcho,
+        entityConstructor: Gadget,
+        onSubmit: vi.fn(),
+      }),
     );
 
     await act(async () => result.current.submit());
@@ -957,7 +988,11 @@ describe('useEntityForm', () => {
   it('resolves false when validation refused the submit', async () => {
     const onSubmit = vi.fn();
     const { result } = renderHook(() =>
-      useEntityForm({ entityConstructor: Gadget, onSubmit }),
+      useEntityForm({
+        translateKey: keyEcho,
+        entityConstructor: Gadget,
+        onSubmit,
+      }),
     );
 
     let went: boolean | undefined;
@@ -972,7 +1007,11 @@ describe('useEntityForm', () => {
   it('resolves true once the submit actually ran', async () => {
     const onSubmit = vi.fn();
     const { result } = renderHook(() =>
-      useEntityForm({ entityConstructor: Gadget, onSubmit }),
+      useEntityForm({
+        translateKey: keyEcho,
+        entityConstructor: Gadget,
+        onSubmit,
+      }),
     );
 
     act(() => result.current.setField('code', 'G-9'));
@@ -989,7 +1028,11 @@ describe('useEntityForm', () => {
   it('answers afresh each time, so a fixed field reports true on the retry', async () => {
     const onSubmit = vi.fn();
     const { result } = renderHook(() =>
-      useEntityForm({ entityConstructor: Gadget, onSubmit }),
+      useEntityForm({
+        translateKey: keyEcho,
+        entityConstructor: Gadget,
+        onSubmit,
+      }),
     );
 
     let first: boolean | undefined;
@@ -1014,6 +1057,7 @@ describe('useEntityForm', () => {
     const onSubmit = vi.fn();
     const { result } = renderHook(() =>
       useEntityForm({
+        translateKey: keyEcho,
         entityConstructor: Gadget,
         entity: makeGadget(),
         fields: ['stock'],
@@ -1033,7 +1077,7 @@ describe('useEntityForm', () => {
   it('still reports a rule that belongs to a member it does own', async () => {
     const { result } = renderHook(() =>
       useEntityForm({
-        validationMessages: SPANISH,
+        translateKey,
         entityConstructor: Gadget,
         fields: ['code', 'stock'],
         onSubmit: vi.fn(),
@@ -1050,7 +1094,7 @@ describe('useEntityForm', () => {
     const { result } = renderHook(() =>
       useEntityForm({
         entityConstructor: Gadget,
-        validationMessages: SPANISH,
+        translateKey,
         onSubmit,
       }),
     );
@@ -1068,6 +1112,7 @@ describe('useEntityForm', () => {
     const onSubmit = vi.fn();
     const { result } = renderHook(() =>
       useEntityForm({
+        translateKey: keyEcho,
         entityConstructor: Gadget,
         entity: makeGadget(),
         onSubmit,
@@ -1143,7 +1188,6 @@ describe('useEntityForm', () => {
     const { result } = renderHook(() =>
       useEntityForm({
         entityConstructor: Labelled,
-        validationMessages: SPANISH,
         translateKey: translate,
         onSubmit: vi.fn(),
       }),
@@ -1160,7 +1204,7 @@ describe('useEntityForm', () => {
       useEntityForm({
         entityConstructor: Gadget,
         entity: makeGadget(),
-        validationMessages: SPANISH,
+        translateKey,
         onSubmit: vi.fn(),
       }),
     );
@@ -1191,6 +1235,7 @@ describe('useEntityForm', () => {
   it('falls back to the literal message of an unkeyed issue', async () => {
     const { result } = renderHook(() =>
       useEntityForm({
+        translateKey: keyEcho,
         entityConstructor: Gadget,
         entity: makeGadget(),
         schema: schemaOf([{ message: 'Sin catálogo', path: ['code'] }]),
@@ -1207,6 +1252,7 @@ describe('useEntityForm', () => {
     const onSubmit = vi.fn();
     const { result } = renderHook(() =>
       useEntityForm({
+        translateKey: keyEcho,
         entityConstructor: Gadget,
         entity: makeGadget(),
         // A cross-field rule names no field, so it carries its own key (or, as

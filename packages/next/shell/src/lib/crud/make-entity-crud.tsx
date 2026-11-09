@@ -2,6 +2,7 @@
 
 import {
   deleteUCFactory,
+  type EntityFacetCounterTag,
   EntityIdTag,
   type EntityRepositoryTag,
   EntityTag,
@@ -30,12 +31,20 @@ import {
   settled,
   type UseCaseDescriptor,
 } from '@entifix/core';
-import { EntityTable, useCasesForSurface } from '@entifix/react-controls';
+import {
+  EntityColumn,
+  EntityTable,
+  useCasesForSurface,
+  useFocusOnArrival,
+  useT,
+  useToasts,
+} from '@entifix/react-controls';
 import {
   entityQueryScope,
   type OptimisticMutation,
   useDataLoading,
   useEntityRecord,
+  useFacetCounts,
   useOptimisticMutation,
 } from '@entifix/react-integration';
 import { useQueryClient } from '@tanstack/react-query';
@@ -43,6 +52,7 @@ import { Cause, Context, Effect, Exit } from 'effect';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useRef } from 'react';
 
+import { useBreadcrumbLabel } from '../back-office/breadcrumb-labels.js';
 import { useLocaleHref } from '../i18n/index.js';
 import { useEntityNavHost } from '../workspace/entity-nav.js';
 import { EntityCrudForm } from './entity-crud-form.js';
@@ -57,6 +67,7 @@ import { CATALOG_NEW_SLUG, slugToEntityId } from './slug.js';
 import { useCrudRenderLink } from './use-crud-render-link.js';
 import { useEntityAffordances } from './use-entity-affordances.js';
 import { useEntityBulk } from './use-entity-bulk.js';
+import { LinkLabelCell, useLinkLabels } from './use-link-labels.js';
 
 /** What a picker defaults to reading off its target. */
 const TARGET_NAME_PROPERTY = 'name';
@@ -234,6 +245,8 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     metadata,
     useCases,
     write,
+    delete: deletePolicy = 'confirm',
+    facets,
   } = options;
 
   if (givenMetadataSource !== undefined && metadata !== undefined) {
@@ -279,6 +292,9 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
       `${entityConstructor.name} must declare labelKey and pluralKey on @entity() to be generated`,
     );
   }
+  // Narrowed once, for the closures below that TypeScript cannot follow.
+  const labelKey: string = entityLabelKey;
+  const pluralKey: string = entityPluralKey;
 
   // Computed once: a descriptor is a property of the class, so nothing about it
   // depends on the record being edited. `linkLabelProperty`/`linkSearchProperty`
@@ -289,6 +305,28 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
   // disagree about which entity they mean.
   const entityName = envelopeEntityName(entityConstructor);
   const descriptors = describeEntityColumns(entityConstructor);
+  /** The members a filter panel offers choices for, and so counts. */
+  const facetMembers = descriptors
+    .filter(
+      descriptor =>
+        descriptor.filterable &&
+        (descriptor.type === 'enum' || descriptor.type === 'boolean'),
+    )
+    .map(({ name, key }) => ({ name, key }));
+  /** A record as the reader knows it: its first shown member that is filled in. */
+  const recordLabelOf = (record: TEntity | undefined): string | undefined => {
+    const named = descriptors.find(descriptor => {
+      if (descriptor.type === 'id' || hiddenFields.includes(descriptor.name))
+        return false;
+      const value = (record as Record<string, unknown> | undefined)?.[
+        descriptor.name
+      ];
+      return value != null && String(value) !== '';
+    });
+    return named === undefined
+      ? undefined
+      : String((record as Record<string, unknown>)[named.name]);
+  };
   const linkPlans = links.map(link => {
     const descriptor = descriptors.find(entry => entry.name === link.field);
     if (descriptor === undefined) {
@@ -329,6 +367,34 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
       queryKey: scope,
       ...(pageSize === undefined ? {} : { initialPageSize: pageSize }),
       ...(initialFiltering === undefined ? {} : { initialFiltering }),
+    });
+
+    // A member that holds another record's id reads as that record's name.
+    const linkLabel = useLinkLabels(
+      linkPlans.map(plan => ({
+        field: plan.field,
+        entityConstructor: plan.entityConstructor,
+        labelProperty: plan.descriptor.linkLabelProperty,
+        ctx: crudContextOf(adapters, plan.repository),
+      })),
+      pager.items,
+    );
+    const linkColumns = linkPlans.map(plan => (
+      <EntityColumn<TEntity>
+        key={plan.field}
+        field={plan.field}
+        render={item => <LinkLabelCell label={linkLabel(plan.field, item)} />}
+      />
+    ));
+
+    const facetCounts = useFacetCounts<TEntity>({
+      ctx:
+        facets === undefined
+          ? undefined
+          : (adapters[facets] as Context.Context<EntityFacetCounterTag>),
+      members: facetMembers,
+      filtering: pager.filtering,
+      scope,
     });
 
     // Only when this caller may actually run something over a selection.
@@ -396,8 +462,21 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
         }
       : undefined;
 
+    // The list's heading, and where focus lands when a save or a delete
+    // brings the reader back here rather than falling to `<body>`.
+    const heading = useRef<HTMLHeadingElement>(null);
+    useFocusOnArrival(heading);
+    const et = useT('entity');
+
     return (
       <div className="flex flex-col gap-s">
+        <h1
+          ref={heading}
+          tabIndex={-1}
+          className="m-0 text-step-2 font-semibold text-content focus-ring"
+        >
+          {et(pluralKey.replace(/^entity:/, ''))}
+        </h1>
         <EntityTable
           entityConstructor={entityConstructor}
           {...pager}
@@ -409,9 +488,13 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
           {...affordances}
           {...bulk.tableProps}
           onUseCase={handleRowUseCase}
+          onRetry={pager.refetch}
+          facets={facetCounts}
           error={syncFailure(rowVerb.verb) ?? pager.error}
         >
           {columns}
+          {/* After the host's own: a host column for the same member wins. */}
+          {linkColumns}
           {toolbar}
         </EntityTable>
       </div>
@@ -557,14 +640,70 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
       if (result?._tag !== 'settled') return;
       draft?.clear();
       void refreshList();
+      // Said in the toast region every route shares, so it survives the
+      // navigation that follows (ADR 0028).
+      toasts?.show({
+        tone: 'success',
+        message: ct('state.saved', {
+          object: recordNoun(next),
+        }),
+      });
       afterSave();
     };
 
+    const toasts = useToasts();
+    const ct = useT('controls');
+    const et = useT('entity');
+    /** What an announcement names: the record, or the entity for a blank one. */
+    const recordNoun = (record: TEntity | undefined) =>
+      recordLabelOf(record) ?? et(labelKey.replace(/^entity:/, ''));
+    // The breadcrumb for this page's segment names the record, never its id:
+    // "Nuevo" for a create, the record once it has loaded.
+    useBreadcrumbLabel(
+      slug ?? params.slug,
+      id == null ? ct('form.new') : entity && recordNoun(entity),
+    );
+    /**
+     * Saves a deleted record back under its id: what Undo runs under the
+     * `undo` policy.
+     */
+    const restore = (record: TEntity) =>
+      Effect.runPromise(
+        writer === undefined
+          ? Effect.asVoid(
+              Effect.provide(
+                saveUCFactory<TEntity>(),
+                ctx.pipe(Context.add(EntityTag, record)),
+              ),
+            )
+          : Effect.asVoid(writer.save(record)),
+      ).then(
+        () => refreshList(),
+        (failure: unknown) => {
+          toasts?.show({ tone: 'failure', failure: asFailure(failure) });
+        },
+      );
+
     const handleDelete = async () => {
+      const snapshot = entity;
       const result = await deleteMutation.mutate(id).catch(() => undefined);
       if (result?._tag !== 'settled') return;
       draft?.clear();
       void refreshList();
+      // Said once, in the toast region every route shares, so it survives the
+      // navigation back to the list.
+      const object = recordNoun(snapshot);
+      const message = ct('confirm.deleted', { object });
+      if (deletePolicy === 'undo' && snapshot !== undefined)
+        toasts?.show({
+          tone: 'undo',
+          message,
+          action: {
+            label: ct('confirm.undo'),
+            onAction: () => void restore(snapshot),
+          },
+        });
+      else toasts?.show({ tone: 'success', message });
       afterDelete();
     };
 
@@ -620,7 +759,9 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
           syncFailure(recordVerb.verb)
         }
         onSave={handleSave}
+        onRetry={loadError === undefined ? undefined : reload}
         onDelete={id == null ? undefined : handleDelete}
+        deletePolicy={deletePolicy}
         onUseCase={handleUseCase}
         backHref={withLocale(basePath)}
         renderLink={renderLink}

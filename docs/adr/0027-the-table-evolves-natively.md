@@ -1,6 +1,7 @@
 # 27. The table evolves natively: header sort, container pivot, live counts, and no table engine yet
 
-- Status: Proposed
+- Status: Accepted
+- Revised: 2026-11-09 — facet counts show for enum and boolean members (a link's count would show ids, not names); the pivot widths and default card roles are as built in #193
 - Date: 2026-11-05
 - Area: ui
 - Read when: a list shows cards inside a wide workspace pane or a cramped table in a narrow one, a screen reader cannot tell how a list is sorted or how many rows a filter kept, a table's horizontal scroll cannot be reached by keyboard, choosing between `table` and `grid` semantics, or about to add `@tanstack/react-table` or another table engine
@@ -76,7 +77,7 @@ role="region"` labelled by the caption.
   show the active count ("Filters · 2"). Applied filters render as removable
   chips ("Remove filter: Status is draft") with "Clear all". Facet counts
   ([ADR 0012](0012-facet-counts-are-a-port-of-their-own.md)) render inside the
-  filter builder for enum and link members.
+  filter builder for enum and boolean members.
 - **Pagination is a `nav` landmark** with First/Prev/Next/Last at
   `--target-min` ([ADR 0025](0025-the-token-contract.md)). A disabled end stays
   focusable with `aria-disabled`. A page change keeps focus on the control and

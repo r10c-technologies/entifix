@@ -610,3 +610,68 @@ describe('describeEntityColumns money', () => {
     );
   });
 });
+
+describe('describeEntityColumns card presentation', () => {
+  @entity({ key: 'carded' })
+  class Carded implements Entity {
+    #id?: EntityId;
+    #name = '';
+    #notes = '';
+
+    @accessor({ type: 'id' })
+    get id(): EntityId {
+      return this.#id;
+    }
+    set id(value: EntityId) {
+      this.#id = value;
+    }
+
+    @accessor({ type: 'string', minWidth: 14, card: 'title' })
+    get name(): string {
+      return this.#name;
+    }
+    set name(value: string) {
+      this.#name = value;
+    }
+
+    @accessor({ type: 'string', card: 'hidden', autocomplete: 'email' })
+    get notes(): string {
+      return this.#notes;
+    }
+    set notes(value: string) {
+      this.#notes = value;
+    }
+  }
+
+  it('carries a declared width and card role, and nothing undeclared', () => {
+    const columns = describeEntityColumns(Carded);
+    const by = (name: string) => columns.find(column => column.name === name);
+
+    expect(by('name')).toMatchObject({ minWidth: 14, card: 'title' });
+    expect(by('notes')).toMatchObject({
+      card: 'hidden',
+      autocomplete: 'email',
+    });
+    expect(by('notes')).not.toHaveProperty('minWidth');
+    expect(by('id')).not.toHaveProperty('card');
+    expect(by('name')).not.toHaveProperty('autocomplete');
+  });
+
+  it('refuses a width that is not a positive number', () => {
+    for (const minWidth of [0, -2, Number.NaN]) {
+      @entity({ key: 'bad-width' })
+      class BadWidth implements Entity {
+        #id?: EntityId;
+
+        @accessor({ type: 'id', minWidth })
+        get id(): EntityId {
+          return this.#id;
+        }
+        set id(value: EntityId) {
+          this.#id = value;
+        }
+      }
+      expect(() => describeEntityColumns(BadWidth)).toThrow(/minWidth/);
+    }
+  });
+});

@@ -85,4 +85,35 @@ describe('ConfirmDialog', () => {
     expect(screen.getByRole('button', { name: 'Confirmar' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Cancelar' })).toBeDisabled();
   });
+
+  it('is an alert dialog, described by its message, with Cancel focused', async () => {
+    render(<ConfirmDialog {...props} />);
+
+    const dialog = await screen.findByRole('alertdialog');
+    expect(dialog).toHaveAccessibleName('End all sessions');
+    expect(dialog).toHaveAccessibleDescription(
+      'This signs the user out everywhere.',
+    );
+    expect(screen.getByRole('button', { name: 'Cancelar' })).toHaveFocus();
+  });
+
+  it('enables the confirming button only once the expected text is typed', async () => {
+    const onConfirm = vi.fn();
+    render(<ConfirmDialog {...props} typed="Acme" onConfirm={onConfirm} />);
+
+    const confirm = screen.getByRole('button', { name: 'Confirmar' });
+    expect(confirm).toBeDisabled();
+    await userEvent.type(
+      screen.getByLabelText('Escriba Acme para confirmar'),
+      'Acm',
+    );
+    expect(confirm).toBeDisabled();
+    await userEvent.type(
+      screen.getByLabelText('Escriba Acme para confirmar'),
+      'e ',
+    );
+    expect(confirm).toBeEnabled();
+    await userEvent.click(confirm);
+    expect(onConfirm).toHaveBeenCalled();
+  });
 });

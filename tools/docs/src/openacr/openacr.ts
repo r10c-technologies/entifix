@@ -1,0 +1,145 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+import axe from 'axe-core';
+import { parse, stringify } from 'yaml';
+
+import { ASSESSMENT, type Assessment, type Method } from './assessment.js';
+
+const HERE = import.meta.dirname;
+const VENDORED = join(HERE, '..', '..', 'openacr');
+
+/** GSA's OpenACR schema, vendored at the version the report is written to. */
+export const SCHEMA_PATH = join(VENDORED, 'openacr-0.1.0.json');
+/** The VPAT 2.5 WCAG edition catalog, which names every criterion. */
+export const CATALOG_PATH = join(VENDORED, '2.5-edition-wcag-2.2-en.yaml');
+/** Where the report is committed. */
+export const REPORT_PATH = join(
+  HERE,
+  '..',
+  '..',
+  '..',
+  '..',
+  'docs',
+  'accessibility',
+  'openacr.yaml',
+);
+
+/** The tags the gate runs axe with: WCAG 2.2 A and AA (ADR 0024). */
+const GATE_TAGS = new Set([
+  'wcag2a',
+  'wcag2aa',
+  'wcag21a',
+  'wcag21aa',
+  'wcag22aa',
+]);
+
+/** The two chapters the report covers, as the catalog names them. */
+export const CHAPTERS = [
+  'success_criteria_level_a',
+  'success_criteria_level_aa',
+] as const;
+
+interface CatalogChapter {
+  readonly id: string;
+  readonly criteria: readonly { readonly id: string }[];
+}
+
+/** Every criterion id of a chapter, in the catalog's order. */
+export function criteriaOf(chapter: (typeof CHAPTERS)[number]): string[] {
+  const catalog = parse(readFileSync(CATALOG_PATH, 'utf8')) as {
+    chapters: readonly CatalogChapter[];
+  };
+  const found = catalog.chapters.find(entry => entry.id === chapter);
+  return (found as CatalogChapter).criteria.map(criterion => criterion.id);
+}
+
+/** The axe rules the gate runs that test a criterion, by axe's own tags. */
+export function gateRulesFor(criterion: string): string[] {
+  const tag = `wcag${criterion.replaceAll('.', '')}`;
+  return axe
+    .getRules()
+    .filter(
+      rule =>
+        rule.tags.includes(tag) &&
+        rule.tags.some(entry => GATE_TAGS.has(entry)),
+    )
+    .map(rule => rule.ruleId)
+    .sort();
+}
+
+const METHOD_TEXT: Record<Method, string> = {
+  gate: 'the accessibility gate (axe)',
+  walk: 'the keyboard walk',
+  spec: 'specs',
+  review: 'review',
+};
+
+/** One criterion's remarks: what holds, how it was established, which rules. */
+function remarks(criterion: string, assessment: Assessment): string {
+  const rules = assessment.methods.includes('gate')
+    ? gateRulesFor(criterion)
+    : [];
+  const how = `Established by ${assessment.methods
+    .map(method => METHOD_TEXT[method])
+    .join(', ')}.`;
+  const ruled = rules.length === 0 ? '' : ` Axe rules: ${rules.join(', ')}.`;
+  return `${assessment.notes} ${how}${ruled}`;
+}
+
+/** The report, as OpenACR shapes it. */
+export function buildReport(): Record<string, unknown> {
+  const chapter = (id: (typeof CHAPTERS)[number]) => ({
+    criteria: criteriaOf(id).map(criterion => {
+      const assessment = ASSESSMENT[criterion];
+      if (assessment === undefined)
+        throw new Error(`WCAG ${criterion} has no assessment.`);
+      return {
+        num: criterion,
+        components: [
+          {
+            name: 'web',
+            adherence: {
+              level: assessment.level,
+              notes: remarks(criterion, assessment),
+            },
+          },
+        ],
+      };
+    }),
+  });
+
+  return {
+    title: 'entifix — Accessibility Conformance Report',
+    product: {
+      name: 'entifix',
+      description:
+        'The UI packages of entifix — @entifix/react-controls, @entifix/react-integration and @entifix/next-shell — and the screens they generate.',
+    },
+    author: {
+      name: 'entifix maintainers',
+      email: 'herbercolop@gmail.com',
+      website: 'https://github.com/r10c-technologies/entifix',
+    },
+    notes:
+      'Covers WCAG 2.2 Level A and AA, on which EN 301 549 V4.1.1 rests, for what the library renders. It cannot speak for a host’s own pages, nor for an identity provider’s sign-in (3.3.8): a host assesses those itself.',
+    evaluation_methods_used:
+      'An axe gate over every Storybook story in five theme × scale × density cells and over every screen of the workspace example; a keyboard walk over every example screen; unit and end-to-end specs; and review. Generated from tools/docs/src/openacr/assessment.ts, with each criterion’s axe rules read from axe-core.',
+    legal_disclaimer:
+      'Provided in good faith from the evaluation described, for the version it ships with; not a legally binding claim.',
+    repository:
+      'https://github.com/r10c-technologies/entifix/blob/main/docs/accessibility/openacr.yaml',
+    feedback: 'https://github.com/r10c-technologies/entifix/issues',
+    license: 'MIT',
+    catalog: '2.5-edition-wcag-2.2-en',
+    chapters: {
+      success_criteria_level_a: chapter('success_criteria_level_a'),
+      success_criteria_level_aa: chapter('success_criteria_level_aa'),
+    },
+  };
+}
+
+/** The committed file's text: a generated-file note, then the report. */
+export function renderReport(): string {
+  return `# Generated by tools/docs/src/openacr — edit assessment.ts and run\n# \`UPDATE_OPENACR=1 pnpm nx test @entifix/docs-check\`, never this file.\n${stringify(buildReport(), { lineWidth: 80 })}`;
+}
