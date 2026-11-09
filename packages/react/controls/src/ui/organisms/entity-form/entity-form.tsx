@@ -97,6 +97,11 @@ const PICKABLE_TYPES: ReadonlySet<MetaAccessorType> = new Set<MetaAccessorType>(
 /** The key the built-in Delete runs under, which no declared verb can take. */
 const DELETE_KEY = '$delete';
 
+/** Save, from anywhere in the form — the caret in a field included. */
+const SAVE_SHORTCUT = 'Mod+S';
+/** The footer's declared primary, when it is not Save. */
+const PRIMARY_SHORTCUT = 'Mod+Enter';
+
 export function EntityForm<TEntity extends Entity>({
   entityConstructor,
   entity,
@@ -333,11 +338,17 @@ export function EntityForm<TEntity extends Entity>({
               : ('primary' as const),
             disabled: busy || resolvingLinks,
             submit: true,
+            shortcut: SAVE_SHORTCUT,
             onSelect: save,
           },
         ]
       : []),
-    ...footerItems,
+    // The page's main act answers Mod+Enter, unless it declared its own.
+    ...footerItems.map(item =>
+      item.emphasis === 'primary' && item.shortcut === undefined
+        ? { ...item, shortcut: PRIMARY_SHORTCUT }
+        : item,
+    ),
     // Clone is the CRUD triple's, not a declared verb's: every entity can be
     // copied, so giving it a `@useCase()` would mean declaring the same verb on
     // all 28 of them. It needs `write`, because what it produces is a create.

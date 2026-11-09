@@ -156,7 +156,7 @@ describe('CommandPaletteHost', () => {
     ).toBeInTheDocument();
     expect(push).not.toHaveBeenCalled();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Volver' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Volver Nuevo' }));
     expect(
       screen.getByPlaceholderText(
         'Busca un registro, una pantalla o un comando…',

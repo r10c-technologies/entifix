@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { installSpecCatalogs } from '../../../i18n/spec-support/catalogs.js';
 import { I18nProvider } from '../../../i18next/index.js';
-import { ariaKeyShortcuts } from '../../actions/shortcut.js';
+import { ariaKeyShortcuts, shortcutLabel } from '../../actions/shortcut.js';
 import {
   ActionBar,
   type ActionBarItem,
@@ -322,9 +322,62 @@ describe('itemsForUseCases', () => {
   });
 });
 
+describe('shortcutLabel', () => {
+  it('reads a chord the way each machine writes it', () => {
+    expect(shortcutLabel('Mod+Shift+S', true)).toBe('⌘ShiftS');
+    expect(shortcutLabel('Mod+S', false)).toBe('Ctrl+S');
+    expect(shortcutLabel('Mod+K')).toBe('Ctrl+K');
+  });
+});
+
 describe('ariaKeyShortcuts', () => {
   it('names Mod for both platforms, and leaves a chord without it alone', () => {
     expect(ariaKeyShortcuts('Mod+Enter')).toBe('Control+Enter Meta+Enter');
     expect(ariaKeyShortcuts('Shift+F10')).toBe('Shift+F10');
+  });
+});
+
+describe('ActionBar shortcuts', () => {
+  it('binds what it advertises, while the item is enabled', async () => {
+    const onSelect = vi.fn();
+    const { rerender } = renderBar({
+      surface: 'form-footer',
+      items: [item('go', { emphasis: 'primary', shortcut: 'Mod+J', onSelect })],
+    });
+
+    await userEvent.keyboard('{Control>}j{/Control}');
+    expect(onSelect).toHaveBeenCalledOnce();
+
+    rerender(
+      <I18nProvider locale="es">
+        <ActionBar
+          surface="form-footer"
+          items={[
+            item('go', {
+              emphasis: 'primary',
+              shortcut: 'Mod+J',
+              onSelect,
+              disabled: true,
+            }),
+          ]}
+        />
+      </I18nProvider>,
+    );
+    await userEvent.keyboard('{Control>}j{/Control}');
+    expect(onSelect).toHaveBeenCalledOnce();
+  });
+
+  it('neither binds nor advertises a row’s shortcut: every row would claim it', async () => {
+    const onSelect = vi.fn();
+    renderBar({
+      surface: 'row-menu',
+      items: [item('tag', { rowInline: true, shortcut: 'Mod+J', onSelect })],
+    });
+
+    expect(screen.getByRole('button', { name: 'tag' })).not.toHaveAttribute(
+      'aria-keyshortcuts',
+    );
+    await userEvent.keyboard('{Control>}j{/Control}');
+    expect(onSelect).not.toHaveBeenCalled();
   });
 });

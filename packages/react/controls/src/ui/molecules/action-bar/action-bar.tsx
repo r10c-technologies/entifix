@@ -14,6 +14,7 @@ import {
 import { ariaKeyShortcuts } from '../../actions/shortcut.js';
 import { Button, button } from '../../atoms/button/index.js';
 import { cn } from '../../utils/cn.js';
+import { useHotkey } from '../../utils/use-hotkey.js';
 import { Menu } from '../menu/index.js';
 
 /** Every surface an {@link ActionBar} renders: the palette lists, it does not render a bar. */
@@ -174,6 +175,13 @@ export function ActionBar({
 }: ActionBarProps) {
   const t = useT();
   const primary = assertHierarchy(surface, items);
+  // A row's verbs are bound nowhere — every row would claim the same chord —
+  // so they advertise none. Every other surface binds what it advertises.
+  const bindsShortcuts = surface !== 'row-menu';
+  const keyShortcuts = (item: ActionBarItem) =>
+    bindsShortcuts && item.shortcut !== undefined
+      ? ariaKeyShortcuts(item.shortcut)
+      : undefined;
   const label = menuLabel ?? t('actions.more');
 
   const asButton = (item: ActionBarItem, variant: 'primary' | 'secondary') =>
@@ -184,11 +192,7 @@ export function ActionBar({
         variant={item.destructive ? 'destructive' : variant}
         size={size}
         disabled={item.disabled}
-        aria-keyshortcuts={
-          item.shortcut === undefined
-            ? undefined
-            : ariaKeyShortcuts(item.shortcut)
-        }
+        aria-keyshortcuts={keyShortcuts(item)}
         onClick={item.submit ? undefined : item.onSelect}
       >
         {item.label}
@@ -219,11 +223,7 @@ export function ActionBar({
               <Menu.Item
                 tone={item.destructive ? 'destructive' : 'neutral'}
                 disabled={item.disabled}
-                aria-keyshortcuts={
-                  item.shortcut === undefined
-                    ? undefined
-                    : ariaKeyShortcuts(item.shortcut)
-                }
+                aria-keyshortcuts={keyShortcuts(item)}
                 onClick={item.onSelect}
               >
                 {item.label}
@@ -261,6 +261,18 @@ export function ActionBar({
       className={cn('min-w-0 @container/actions flex-1', className)}
       data-surface={surface}
     >
+      {items.map(item =>
+        item.shortcut === undefined ||
+        item.onSelect === undefined ||
+        item.href !== undefined ? null : (
+          <ItemShortcut
+            key={item.key}
+            chord={item.shortcut}
+            onSelect={item.onSelect}
+            enabled={item.disabled !== true}
+          />
+        ),
+      )}
       <div className="flex flex-wrap items-center gap-2xs">
         {primary && asButton(primary, 'primary')}
         {links.map(item => asButton(item, 'secondary'))}
@@ -292,4 +304,21 @@ export function ActionBar({
       </div>
     </div>
   );
+}
+
+/**
+ * Binds one item's shortcut for as long as the bar shows it — yielding to a
+ * binding already there, so a host's own chord wins over a surface's default.
+ */
+function ItemShortcut({
+  chord,
+  onSelect,
+  enabled,
+}: {
+  chord: string;
+  onSelect: () => void;
+  enabled: boolean;
+}) {
+  useHotkey([chord], onSelect, { enabled, ifFree: true });
+  return null;
 }

@@ -2,6 +2,7 @@
 
 import {
   ConfirmDialog,
+  HotkeyScopeProvider,
   Tab,
   TabPanel,
   TabStrip,
@@ -243,7 +244,12 @@ export function WorkspaceShell({
         }
         className="min-w-0 flex-1 p-m"
       >
-        {body}
+        {/* The tab's shortcuts are its own: bound while it is the tab shown. */}
+        <HotkeyScopeProvider
+          value={{ id: `tab:${activeParam ?? ''}`, active: true }}
+        >
+          {body}
+        </HotkeyScopeProvider>
       </TabPanel>
 
       {pendingClose && (

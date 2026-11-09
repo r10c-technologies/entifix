@@ -155,6 +155,15 @@ describe('useUseCaseSources', () => {
     expect(options(result.current)[0].keywords).toEqual([]);
   });
 
+  it('lists a verb with its shortcut, as this machine writes it', async () => {
+    const { result } = sourceFor([{ ...SIGN_OUT, shortcut: 'Mod+Shift+L' }], {
+      'sign-out-others': noop,
+    });
+
+    await waitFor(() => expect(options(result.current)).toHaveLength(1));
+    expect(options(result.current)[0].hint).toBe('Ctrl+Shift+L');
+  });
+
   it('drops a verb that belongs to another surface', async () => {
     const { result } = sourceFor(
       [{ ...SIGN_OUT, binding: 'entity' as const }],

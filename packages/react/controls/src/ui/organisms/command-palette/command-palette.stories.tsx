@@ -61,9 +61,15 @@ const ROOT: CommandPage = {
   ],
 };
 
-function Demo() {
+function Demo({
+  pages = [ROOT],
+  initialStack = [],
+}: {
+  pages?: readonly CommandPage[];
+  initialStack?: readonly string[];
+} = {}) {
   const [open, setOpen] = useState(true);
-  const [stack, setStack] = useState<readonly string[]>([]);
+  const [stack, setStack] = useState<readonly string[]>(initialStack);
   const [term, setTerm] = useState('');
   return (
     <>
@@ -71,7 +77,7 @@ function Demo() {
       <CommandPalette
         open={open}
         onClose={() => setOpen(false)}
-        pages={[ROOT]}
+        pages={pages}
         stack={stack}
         onStackChange={setStack}
         term={term}
@@ -146,5 +152,101 @@ export const Keyboard: Story = {
     const active = panel.querySelector('[role="option"][data-focus]');
     await expect(active).not.toBeNull();
     await expect(indicatorContrast(active!, panel)).toBeGreaterThanOrEqual(3);
+  },
+};
+
+/** A page pushed on the stack, with the way back named by what it shows. */
+const NEW: CommandPage = {
+  id: 'new',
+  title: 'Nuevo',
+  placeholder: '¿Qué quieres crear?',
+  sources: [
+    {
+      key: 'new',
+      groups: [
+        {
+          key: 'new',
+          label: 'Crear',
+          isLoading: false,
+          options: [{ id: 'new-brand', label: 'Marca', href: '#brand' }],
+        },
+      ],
+    },
+  ],
+};
+
+export const Stacked: Story = {
+  render: () => <Demo pages={[ROOT, NEW]} initialStack={['new']} />,
+  play: async ({ canvasElement }) => {
+    const page = within(canvasElement.ownerDocument.body);
+    await page.findByRole('dialog', { name: LABELS.title });
+    const back = page.getByRole('button', { name: /Volver/ });
+    // Its accessible name holds the text a reader sees on it (WCAG 2.5.3).
+    await expect(back.getAttribute('aria-label')).toContain(
+      back.textContent ?? '',
+    );
+  },
+};
+
+/** Nothing found, and a source still answering: each said in the status. */
+export const Statuses: Story = {
+  render: () => (
+    <Demo
+      pages={[
+        {
+          id: 'root',
+          placeholder: 'Escribe para buscar…',
+          sources: [
+            {
+              key: 'records',
+              groups: [
+                {
+                  key: 'products',
+                  label: 'Productos',
+                  isLoading: true,
+                  options: [],
+                },
+              ],
+            },
+          ],
+        },
+      ]}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const page = within(canvasElement.ownerDocument.body);
+    await page.findByRole('dialog', { name: LABELS.title });
+    await expect(page.getByRole('status')).toHaveTextContent(LABELS.loading);
+  },
+};
+
+export const NothingFound: Story = {
+  render: () => (
+    <Demo
+      pages={[
+        {
+          id: 'root',
+          placeholder: 'Escribe para buscar…',
+          sources: [
+            {
+              key: 'records',
+              groups: [
+                {
+                  key: 'products',
+                  label: 'Productos',
+                  isLoading: false,
+                  options: [],
+                },
+              ],
+            },
+          ],
+        },
+      ]}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const page = within(canvasElement.ownerDocument.body);
+    await page.findByRole('dialog', { name: LABELS.title });
+    await expect(page.getByRole('status')).toHaveTextContent(LABELS.empty);
   },
 };

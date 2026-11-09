@@ -103,3 +103,22 @@ test('offers no parent from the customer’s own subtree', async ({ page }) => {
     'Grace Hopper',
   ]);
 });
+
+/** Mod+S saves with the caret still in the field (ADR 0026). */
+test('a record saves on Mod+S', async ({ page }) => {
+  failOnPageErrors(page);
+  await page.goto('/es/customers');
+  const table = new EntityTablePage(page);
+  await table.waitForRows();
+  await page.getByRole('link', { name: 'Grace Hopper' }).click();
+
+  const name = page.getByLabel('Nombre');
+  await expect(name).toHaveValue('Grace Hopper');
+  await name.fill('Grace B. Hopper');
+  await name.press('ControlOrMeta+s');
+
+  await expect(page).toHaveURL(/\/es\/customers$/);
+  await expect(page.getByTestId('toast-region').getByRole('status')).toHaveText(
+    /Se guardó Grace B\. Hopper\./,
+  );
+});

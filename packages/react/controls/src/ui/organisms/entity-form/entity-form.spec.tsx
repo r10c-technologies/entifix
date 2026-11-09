@@ -1492,3 +1492,22 @@ describe('a pending write while live updates are down', () => {
     ).toBeGreaterThan(0);
   });
 });
+
+describe('the form’s shortcuts (ADR 0026)', () => {
+  it('saves on Mod+S with the caret in a field, and says so on Save', async () => {
+    const onSubmit = vi.fn();
+    render(<Harness mode="edit" onSubmit={onSubmit} />);
+
+    await userEvent.type(
+      screen.getByLabelText('Code'),
+      'G-2{Control>}s{/Control}',
+    );
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'G-2' }),
+    );
+    expect(
+      screen.getAllByRole('button', { name: 'Guardar' })[0],
+    ).toHaveAttribute('aria-keyshortcuts', 'Control+S Meta+S');
+  });
+});

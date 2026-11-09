@@ -252,7 +252,8 @@ describe('CommandPalette', () => {
       pages: [page({ sources: [{ key: 'commands', groups: [group()] }] })],
     });
 
-    expect(screen.getByText(labels.empty)).toBeInTheDocument();
+    // Said once, by the status region; the visible line is hidden from AT.
+    expect(screen.getByRole('status')).toHaveTextContent(labels.empty);
     expect(
       screen.queryByTestId('command-group-commands'),
     ).not.toBeInTheDocument();
@@ -339,16 +340,17 @@ describe('CommandPalette', () => {
       expect(
         screen.getByPlaceholderText('¿Qué quieres crear?'),
       ).toBeInTheDocument();
-      expect(
-        screen.getByRole('button', { name: labels.back }),
-      ).toBeInTheDocument();
+      // Its name holds what it shows (WCAG 2.5.3).
+      const back = screen.getByRole('button', { name: /^Volver/ });
+      expect(back.textContent).toContain('Nuevo');
+      expect(back).toHaveAccessibleName('Volver Nuevo');
     });
 
     it('pops on the back control', async () => {
       const onStackChange = vi.fn();
       renderPalette({ pages, stack: ['new'], onStackChange });
 
-      await userEvent.click(screen.getByRole('button', { name: labels.back }));
+      await userEvent.click(screen.getByRole('button', { name: /^Volver/ }));
 
       expect(onStackChange).toHaveBeenCalledWith([]);
     });

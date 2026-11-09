@@ -1,5 +1,6 @@
 (Symbol as { metadata?: symbol }).metadata ??= Symbol.for('Symbol.metadata');
 
+import { assertChord } from '../../shortcut/chord.js';
 import { Entity, EntityConstructor } from '../../types/Entity.js';
 import { UseCaseConstructor } from '../../types/UseCase.js';
 import {
@@ -101,6 +102,18 @@ export function appendMetaUseCase<TEntity extends Entity>(
     throw new Error(
       `Use case "${metaUseCase.key}" on ${target.name} is reversible by undo and names no \`inverse\`: Undo has nothing to run.`,
     );
+  }
+  // A shortcut is checked where it is declared, so a chord no reader can use
+  // — a bare key, Option+letter, Mod+C — fails at load rather than on a page.
+  if (metaUseCase.shortcut !== undefined) {
+    try {
+      assertChord(metaUseCase.shortcut);
+    } catch (refused) {
+      throw new Error(
+        `Use case "${metaUseCase.key}" on ${target.name}: ${(refused as Error).message}`,
+        { cause: refused },
+      );
+    }
   }
   const existing = (own[META_USE_CASE_KEY] as MetaUseCase[] | undefined) ?? [];
   // A verb declared on a record and over a selection is one verb under one

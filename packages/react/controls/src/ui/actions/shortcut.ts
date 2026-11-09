@@ -13,3 +13,17 @@ export function ariaKeyShortcuts(chord: string): string {
       .join('+');
   return `${as('Control')} ${as('Meta')}`;
 }
+
+/**
+ * A declared chord as a person reads it on their own machine: `⌘S` on a Mac,
+ * `Ctrl+S` elsewhere — what the command palette shows beside an action.
+ */
+export function shortcutLabel(
+  chord: string,
+  mac = /Mac|iPhone|iPad/.test(navigator.platform),
+): string {
+  return chord
+    .split('+')
+    .map(part => (part === 'Mod' ? (mac ? '⌘' : 'Ctrl') : part))
+    .join(mac ? '' : '+');
+}

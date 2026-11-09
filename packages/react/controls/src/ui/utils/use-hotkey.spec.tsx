@@ -1,208 +1,172 @@
 import { render } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { type Hotkey, useHotkey } from './use-hotkey.js';
+import {
+  HotkeyScopeProvider,
+  resetHotkeysForTesting,
+  useHotkey,
+} from './use-hotkey.js';
 
-function Harness({
-  hotkeys,
+function Bound({
+  chords,
   onFire,
+  ifFree,
+  enabled,
 }: {
-  hotkeys: Hotkey[];
-  onFire: (event: KeyboardEvent) => void;
+  chords: string[];
+  onFire: () => void;
+  ifFree?: boolean;
+  enabled?: boolean;
 }) {
-  useHotkey(hotkeys, onFire);
-  return (
-    <div>
-      <input aria-label="term" />
-      <textarea aria-label="notes" />
-      <select aria-label="choice" />
-      <div contentEditable aria-label="rich" suppressContentEditableWarning>
-        <span data-testid="inside-rich" />
-      </div>
-      <div
-        contentEditable="false"
-        aria-label="frozen"
-        suppressContentEditableWarning
-      >
-        <span data-testid="inside-frozen" />
-      </div>
-      <span data-testid="inert" tabIndex={-1} />
-    </div>
-  );
+  useHotkey(chords, onFire, { ifFree, enabled });
+  return <input aria-label="field" />;
 }
 
-const press = (init: KeyboardEventInit & { target?: Element }) => {
-  const { target, ...rest } = init;
+const press = (key: string, init: KeyboardEventInit = {}, target?: Element) => {
   const event = new KeyboardEvent('keydown', {
+    key,
     bubbles: true,
     cancelable: true,
-    ...rest,
+    ...init,
   });
-  (target ?? document.body).dispatchEvent(event);
+  (target ?? document).dispatchEvent(event);
   return event;
 };
 
+afterEach(() => resetHotkeysForTesting());
+
 describe('useHotkey', () => {
-  it('fires on the declared chord', () => {
+  it('fires on its chord with ⌘ or Ctrl, and prevents the browser’s own', () => {
     const onFire = vi.fn();
-    render(<Harness hotkeys={[{ key: 'k', mod: true }]} onFire={onFire} />);
+    render(<Bound chords={['Mod+K', 'Mod+Shift+P']} onFire={onFire} />);
 
-    press({ key: 'k', metaKey: true });
+    expect(press('k', { metaKey: true }).defaultPrevented).toBe(true);
+    press('K', { ctrlKey: true });
+    press('p', { ctrlKey: true, shiftKey: true });
+    press('k');
+    press('k', { ctrlKey: true, shiftKey: true });
+    press('k', { ctrlKey: true, altKey: true });
 
-    expect(onFire).toHaveBeenCalledTimes(1);
+    expect(onFire).toHaveBeenCalledTimes(3);
   });
 
-  it('accepts Ctrl and ⌘ as the same intent, so neither platform is special', () => {
-    const onFire = vi.fn();
-    render(<Harness hotkeys={[{ key: 'k', mod: true }]} onFire={onFire} />);
-
-    press({ key: 'k', ctrlKey: true });
-
-    expect(onFire).toHaveBeenCalledTimes(1);
-  });
-
-  it('is case-insensitive about the key', () => {
-    const onFire = vi.fn();
-    render(
-      <Harness
-        hotkeys={[{ key: 'p', mod: true, shift: true }]}
-        onFire={onFire}
-      />,
-    );
-
-    press({ key: 'P', metaKey: true, shiftKey: true });
-
-    expect(onFire).toHaveBeenCalledTimes(1);
-  });
-
-  it('fires on any of several bindings, so no single one is load-bearing', () => {
-    const onFire = vi.fn();
-    render(
-      <Harness
-        hotkeys={[
-          { key: 'k', mod: true },
-          { key: 'p', mod: true, shift: true },
-        ]}
-        onFire={onFire}
-      />,
-    );
-
-    press({ key: 'k', metaKey: true });
-    press({ key: 'p', metaKey: true, shiftKey: true });
-
-    expect(onFire).toHaveBeenCalledTimes(2);
-  });
-
-  it('ignores the plain key, the wrong modifier and an extra Shift', () => {
-    const onFire = vi.fn();
-    render(<Harness hotkeys={[{ key: 'k', mod: true }]} onFire={onFire} />);
-
-    press({ key: 'k' });
-    press({ key: 'j', metaKey: true });
-    press({ key: 'k', metaKey: true, shiftKey: true });
-
-    expect(onFire).not.toHaveBeenCalled();
-  });
-
-  it('supports a bare key, with no modifier declared', () => {
-    const onFire = vi.fn();
-    render(<Harness hotkeys={[{ key: '/' }]} onFire={onFire} />);
-
-    press({ key: '/' });
-    press({ key: '/', metaKey: true });
-
-    expect(onFire).toHaveBeenCalledTimes(1);
-  });
-
-  it('prevents the browser from acting on a chord it also claims', () => {
-    render(<Harness hotkeys={[{ key: 'k', mod: true }]} onFire={vi.fn()} />);
-
-    expect(press({ key: 'k', metaKey: true }).defaultPrevented).toBe(true);
-  });
-
-  it.each([
-    ['an input', 'term'],
-    ['a textarea', 'notes'],
-    ['a select', 'choice'],
-    ['a contenteditable', 'rich'],
-  ])('stays out of the way while focus is in %s', (_name, label) => {
+  it('fires inside a text field: a chord is never typing', () => {
     const onFire = vi.fn();
     const { getByLabelText } = render(
-      <Harness hotkeys={[{ key: 'k', mod: true }]} onFire={onFire} />,
+      <Bound chords={['Mod+S']} onFire={onFire} />,
     );
 
-    press({ key: 'k', metaKey: true, target: getByLabelText(label) });
+    press('s', { ctrlKey: true }, getByLabelText('field'));
 
-    expect(onFire).not.toHaveBeenCalled();
+    expect(onFire).toHaveBeenCalledOnce();
   });
 
-  it('stays out of the way inside a contenteditable, not only on its host', () => {
-    const onFire = vi.fn();
-    const { getByTestId } = render(
-      <Harness hotkeys={[{ key: 'k', mod: true }]} onFire={onFire} />,
+  it('refuses a chord no reader can use, when it is bound', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    expect(() => render(<Bound chords={['S']} onFire={vi.fn()} />)).toThrow(
+      /holds Mod/,
+    );
+  });
+
+  it('refuses a second binding of a chord in one scope', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    expect(() =>
+      render(
+        <>
+          <Bound chords={['Mod+S']} onFire={vi.fn()} />
+          <Bound chords={['Mod+S']} onFire={vi.fn()} />
+        </>,
+      ),
+    ).toThrow(/Mod\+S is already bound here/);
+  });
+
+  it('yields a default to a binding already there', () => {
+    const host = vi.fn();
+    const fallback = vi.fn();
+    render(
+      <>
+        <Bound chords={['Mod+S']} onFire={host} />
+        <Bound chords={['Mod+S', 'Mod+Enter']} onFire={fallback} ifFree />
+      </>,
     );
 
-    press({ key: 'k', metaKey: true, target: getByTestId('inside-rich') });
+    press('s', { ctrlKey: true });
+    press('Enter', { ctrlKey: true });
 
-    expect(onFire).not.toHaveBeenCalled();
+    expect(host).toHaveBeenCalledOnce();
+    expect(fallback).toHaveBeenCalledOnce();
   });
 
-  it('honours a subtree opted back out with contenteditable="false"', () => {
-    const onFire = vi.fn();
-    const { getByTestId } = render(
-      <Harness hotkeys={[{ key: 'k', mod: true }]} onFire={onFire} />,
+  it('binds nothing when every chord is taken, or while disabled', () => {
+    const fallback = vi.fn();
+    render(
+      <>
+        <Bound chords={['Mod+S']} onFire={vi.fn()} />
+        <Bound chords={['Mod+S']} onFire={fallback} ifFree />
+        <Bound chords={['Mod+J']} onFire={fallback} enabled={false} />
+      </>,
     );
 
-    press({ key: 'k', metaKey: true, target: getByTestId('inside-frozen') });
+    press('s', { ctrlKey: true });
+    press('j', { ctrlKey: true });
 
-    expect(onFire).toHaveBeenCalledTimes(1);
+    expect(fallback).not.toHaveBeenCalled();
   });
 
-  it('fires from a non-editable element', () => {
-    const onFire = vi.fn();
-    const { getByTestId } = render(
-      <Harness hotkeys={[{ key: 'k', mod: true }]} onFire={onFire} />,
-    );
-
-    press({ key: 'k', metaKey: true, target: getByTestId('inert') });
-
-    expect(onFire).toHaveBeenCalledTimes(1);
-  });
-
-  it('fires when the event has no element target at all', () => {
-    const onFire = vi.fn();
-    render(<Harness hotkeys={[{ key: 'k', mod: true }]} onFire={onFire} />);
-
-    document.dispatchEvent(
-      new KeyboardEvent('keydown', { key: 'k', metaKey: true }),
-    );
-
-    expect(onFire).toHaveBeenCalledTimes(1);
-  });
-
-  it('runs the latest handler without resubscribing on every render', () => {
+  it('scopes a tab’s chords to the active tab, and lets two tabs hold one chord', () => {
     const first = vi.fn();
     const second = vi.fn();
-    const { rerender } = render(
-      <Harness hotkeys={[{ key: 'k', mod: true }]} onFire={first} />,
+    const tabs = (active: 'a' | 'b') => (
+      <>
+        <HotkeyScopeProvider value={{ id: 'a', active: active === 'a' }}>
+          <Bound chords={['Mod+S']} onFire={first} />
+        </HotkeyScopeProvider>
+        <HotkeyScopeProvider value={{ id: 'b', active: active === 'b' }}>
+          <Bound chords={['Mod+S']} onFire={second} />
+        </HotkeyScopeProvider>
+      </>
     );
+    const { rerender } = render(tabs('a'));
+    press('s', { ctrlKey: true });
+    rerender(tabs('b'));
+    press('s', { ctrlKey: true });
 
-    rerender(<Harness hotkeys={[{ key: 'k', mod: true }]} onFire={second} />);
-    press({ key: 'k', metaKey: true });
-
-    expect(first).not.toHaveBeenCalled();
-    expect(second).toHaveBeenCalledTimes(1);
+    expect(first).toHaveBeenCalledOnce();
+    expect(second).toHaveBeenCalledOnce();
   });
 
-  it('stops listening once unmounted', () => {
-    const onFire = vi.fn();
-    const { unmount } = render(
-      <Harness hotkeys={[{ key: 'k', mod: true }]} onFire={onFire} />,
-    );
+  it('refuses a page chord a tab already holds, and a tab chord the page holds', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    expect(() =>
+      render(
+        <>
+          <HotkeyScopeProvider value={{ id: 'a', active: true }}>
+            <Bound chords={['Mod+K']} onFire={vi.fn()} />
+          </HotkeyScopeProvider>
+          <Bound chords={['Mod+K']} onFire={vi.fn()} />
+        </>,
+      ),
+    ).toThrow(/already bound/);
+    resetHotkeysForTesting();
+    expect(() =>
+      render(
+        <>
+          <Bound chords={['Mod+J']} onFire={vi.fn()} />
+          <HotkeyScopeProvider value={{ id: 'b', active: true }}>
+            <Bound chords={['Mod+J']} onFire={vi.fn()} />
+          </HotkeyScopeProvider>
+        </>,
+      ),
+    ).toThrow(/already bound/);
+  });
 
+  it('frees its chords when it unmounts', () => {
+    const { unmount } = render(<Bound chords={['Mod+S']} onFire={vi.fn()} />);
     unmount();
-    press({ key: 'k', metaKey: true });
+    const again = vi.fn();
+    render(<Bound chords={['Mod+S']} onFire={again} />);
 
-    expect(onFire).not.toHaveBeenCalled();
+    press('s', { ctrlKey: true });
+    expect(again).toHaveBeenCalledOnce();
   });
 });

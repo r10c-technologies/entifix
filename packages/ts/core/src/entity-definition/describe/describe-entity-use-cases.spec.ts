@@ -158,6 +158,19 @@ describe('useCase', () => {
     ).toThrow(/rowInline, and so is "settle"/);
   });
 
+  it('refuses a shortcut no reader can use', () => {
+    expect(() =>
+      useCase({
+        entity: Ledger,
+        key: 'copy',
+        binding: 'entity',
+        placement: 'context-dependent',
+        labelKey: 'entity:ledger.useCases.copy',
+        shortcut: 'Mod+C',
+      })(class CopyLedgerUC {}, { metadata: {} } as ClassDecoratorContext),
+    ).toThrow(/"copy" on Ledger: "Mod\+C" cannot be a shortcut/);
+  });
+
   it('refuses a destructive verb that does not say how it is made safe', () => {
     expect(() =>
       useCase({

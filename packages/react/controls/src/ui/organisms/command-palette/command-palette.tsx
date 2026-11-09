@@ -118,10 +118,9 @@ function Group({
       <GroupHeading label={group.label} />
 
       {group.isLoading && (
+        // The wait is said once, by the palette's status region: a listbox
+        // holds options, and text inside it is read as none of them.
         <div role="presentation" className="px-2xs py-3xs">
-          {/* The skeleton is `aria-hidden`, so the wait needs its own text or a
-              screen reader hears a group that simply has no rows. */}
-          <span className="sr-only">{labels.loading}</span>
           <SkeletonText lines={2} />
         </div>
       )}
@@ -217,6 +216,7 @@ export function CommandPalette({
   groups.forEach(group => group.options.forEach(commandEffectOf));
 
   const isEmpty = groups.every(groupIsEmpty);
+  const isAnswering = groups.some(group => group.isLoading);
 
   const pop = () => {
     if (stack.length === 0) {
@@ -293,9 +293,11 @@ export function CommandPalette({
             {page.title !== undefined && (
               <button
                 type="button"
-                aria-label={labels.back}
+                // Its name holds the text it shows (WCAG 2.5.3): "Volver" is
+                // said, and "Nuevo" is both seen and said.
+                aria-label={`${labels.back} ${page.title}`}
                 onClick={pop}
-                className="shrink-0 rounded-md bg-surface px-2xs py-3xs text-step-xs text-content-muted focus-ring"
+                className="inline-flex min-h-(--target-min) shrink-0 items-center rounded-md bg-surface px-2xs py-3xs text-step-xs text-content-muted focus-ring"
               >
                 {page.title}
               </button>
@@ -311,8 +313,16 @@ export function CommandPalette({
             />
           </div>
 
+          {/* Outside the listbox, which may hold only options: said when the
+              palette finds nothing, and while a group is still answering. */}
+          <span role="status" className="sr-only">
+            {isEmpty ? labels.empty : isAnswering ? labels.loading : ''}
+          </span>
+
           <ComboboxOptions
             static
+            // Still filling: a listbox with no options yet is not a broken one.
+            aria-busy={isAnswering || undefined}
             className={cn(
               'max-h-(--overlay-max-block) overflow-y-auto p-3xs',
               // The panel is a focus-managed CONTAINER, not a target: the ring
@@ -323,6 +333,7 @@ export function CommandPalette({
             {isEmpty ? (
               <div
                 role="presentation"
+                aria-hidden="true"
                 className="px-2xs py-s text-step-sm text-content-muted"
               >
                 {labels.empty}
