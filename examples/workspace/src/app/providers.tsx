@@ -20,11 +20,28 @@ import {
 import { I18nProvider } from '@entifix/react-controls/i18next';
 import {
   EntifixQueryProvider,
-  NoopPushChannel,
+  type InMemoryPushChannel,
+  makeInMemoryPushChannel,
 } from '@entifix/react-integration';
 import { type PropsWithChildren, useMemo } from 'react';
 
 import { chooseOrganization } from '../organization';
+
+/**
+ * The tab's push channel. This example has no server to push from, so it is
+ * the in-memory one, connected at once — and reachable from the page as
+ * `window.examplePush`, so a reader or a journey can drop the stream and watch
+ * the workspace say live updates are paused.
+ */
+const pushChannel = makeInMemoryPushChannel();
+pushChannel.connect();
+
+declare global {
+  interface Window {
+    examplePush?: InMemoryPushChannel;
+  }
+}
+if (typeof window !== 'undefined') window.examplePush = pushChannel;
 
 /** What a failure's code can offer: a refused tenant read, a way to choose. */
 const ERROR_ACTIONS = { noActiveOrganization: chooseOrganization };
@@ -55,7 +72,7 @@ function Themed({ children }: PropsWithChildren) {
             <ToastProvider>
               <PendingFlowsProvider
                 scope={ANONYMOUS_WORKSPACE_SCOPE}
-                channel={NoopPushChannel}
+                channel={pushChannel}
               >
                 {children}
               </PendingFlowsProvider>

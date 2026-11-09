@@ -29,3 +29,21 @@ export const Default: Story = {
     </TopBar>
   ),
 };
+
+/** The stream dropped and is retrying: paused, with Reconnect. */
+export const Reconnecting: Story = {
+  render: () => (
+    <TopBar connection="reconnecting" onReconnect={() => undefined}>
+      <TopBar.Brand>◈ Acme</TopBar.Brand>
+    </TopBar>
+  ),
+};
+
+/** The stream gave up: stopped, with Reconnect. */
+export const Stopped: Story = {
+  render: () => (
+    <TopBar connection="closed" onReconnect={() => undefined}>
+      <TopBar.Brand>◈ Acme</TopBar.Brand>
+    </TopBar>
+  ),
+};

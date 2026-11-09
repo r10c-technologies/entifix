@@ -1,6 +1,7 @@
 # 28. The states an organism must render, and what each one shows, announces and offers
 
-- Status: Proposed
+- Status: Accepted
+- Revised: 2026-11-09 — as built in #194–#198: `RegionState` also takes `onClearFilters` and `hasStaleData`, and EntityDetailGrid keeps its own empty row; `usePushConnection(channel)` reaches the controls through `LiveUpdatesProvider`, which `PendingFlowsProvider` mounts, and a pending write's label reads "Waiting for connection"; the error actions are `ErrorActionsProvider` and `useErrorAction`; focus after a write is `useFocusOnArrival` on the region's heading
 - Date: 2026-11-05
 - Area: ui
 - Read when: a list or form shows "Could not load records" with no way forward, an empty list looks the same as a filtered-out one, a save gives no sign it happened, focus lands on `<body>` after a write, a failure toast has no action, live updates stop with nothing on screen, a 403 or a missing organization renders a dead end, or about to write a `<p role="alert">` inside an organism
@@ -79,8 +80,8 @@ EntityDetailGrid already does the field half and is the reference.
 ### The mechanism
 
 - **`<RegionState>`** takes `{ isLoading, error, isEmpty, isFiltered, onRetry,
-emptyAction }`. EntityTable, EntityForm, EntityDetailGrid and Wizard render
-  their states through it, and a host's own screen can too. It is built on two
+emptyAction, onClearFilters, hasStaleData }`. EntityTable, EntityForm and
+  Wizard render their states through it, and a host's own screen can too. It is built on two
   new molecules, `Alert` (`role` decided by tone: `alert` for danger, `status`
   otherwise, never both) and `EmptyState`.
 - **The toast API becomes `show({ tone, message, action? })`.**
@@ -92,9 +93,10 @@ emptyAction }`. EntityTable, EntityForm, EntityDetailGrid and Wizard render
   - F6 moves focus into the region.
   - `makeEntityCrud` announces every save and delete through it.
 - **`usePushConnection()`** in `@entifix/react-integration` exposes the push
-  channel's state, `open | reconnecting | closed`. TopBar takes it as a
-  `connection` prop, which next-shell passes in: `react-controls` never imports
-  `react-integration`.
+  channel's state, `open | reconnecting | closed`. next-shell's
+  `PendingFlowsProvider` publishes it through `LiveUpdatesProvider`, and TopBar
+  takes it as a `connection` prop the workspace shell passes in:
+  `react-controls` never imports `react-integration`.
 - **An error's next step is catalog copy plus a host handler.**
   - Beside `errors:<code>`, a catalog may carry `errors:<code>Action` (for
     example "Choose organization").

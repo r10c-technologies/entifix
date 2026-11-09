@@ -1,6 +1,7 @@
 import type { DomainEvent } from '@entifix/core';
 
 import type {
+  PushConnection,
   PushListener,
   PushTopic,
   ResyncListener,
@@ -19,8 +20,17 @@ export interface PushRouter {
   deliver(topics: readonly string[], event: DomainEvent): void;
   /** Marks the channel connected and tells every connect listener. */
   connected(): void;
-  /** Marks the channel disconnected; a late connect listener then waits. */
-  disconnected(): void;
+  /**
+   * Marks the channel disconnected; a late connect listener then waits. With
+   * a state, the drop is also one a reader should hear about — `reconnecting`
+   * while the transport retries, `closed` when it gave up. Without one it is
+   * a reopen the channel chose, which says nothing.
+   */
+  disconnected(state?: Exclude<PushConnection, 'open'>): void;
+  /** Where the connection stands, as a reader would be told. */
+  connection(): PushConnection;
+  /** Runs whenever {@link connection} changes. */
+  onConnectionChange(listener: () => void): () => void;
   /** Tells every resync listener, about the named topics still subscribed. */
   resync(topics: readonly string[]): void;
   /** The topics something is subscribed to, sorted. */
@@ -35,6 +45,14 @@ export function makePushRouter(): PushRouter {
   const resyncListeners = new Set<ResyncListener>();
   let isConnected = false;
   let topicsChanged = (): void => undefined;
+  // Nothing to report until a drop is seen: a stream still opening is not news.
+  let connection: PushConnection = 'open';
+  const connectionListeners = new Set<() => void>();
+  const setConnection = (next: PushConnection): void => {
+    if (next === connection) return;
+    connection = next;
+    for (const listener of connectionListeners) listener();
+  };
 
   const subscribed = (topics: readonly string[]): PushTopic[] =>
     topics.filter((topic): topic is PushTopic =>
@@ -80,10 +98,19 @@ export function makePushRouter(): PushRouter {
     },
     connected() {
       isConnected = true;
+      setConnection('open');
       for (const listener of connectListeners) listener();
     },
-    disconnected() {
+    disconnected(state) {
       isConnected = false;
+      if (state !== undefined) setConnection(state);
+    },
+    connection: () => connection,
+    onConnectionChange(listener) {
+      connectionListeners.add(listener);
+      return () => {
+        connectionListeners.delete(listener);
+      };
     },
     resync(topics) {
       const still = subscribed(topics);

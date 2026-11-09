@@ -16,6 +16,7 @@ import { type ReactNode, useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { RenderLinkProps } from '../../actions/index.js';
+import { LiveUpdatesProvider } from '../../utils/live-updates.js';
 import { EntityForm } from './entity-form.js';
 import type { EntityFormField, EntityFormProps } from './entity-form.types.js';
 import { EntityActions, EntityField } from './entity-form-slots.js';
@@ -1475,5 +1476,19 @@ describe('the form as a form (ADR 0028)', () => {
       'Code',
     );
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+  });
+});
+
+describe('a pending write while live updates are down', () => {
+  it('says it is waiting for the connection', () => {
+    render(
+      <LiveUpdatesProvider value={{ connection: 'reconnecting' }}>
+        <Harness mode="edit" isPending onSubmit={vi.fn()} />
+      </LiveUpdatesProvider>,
+    );
+
+    expect(
+      screen.getAllByRole('button', { name: 'Esperando la conexión…' }).length,
+    ).toBeGreaterThan(0);
   });
 });

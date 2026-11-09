@@ -135,6 +135,13 @@ export function makeEventSourcePushChannel({
     opened.onopen = () => {
       router.connected();
     };
+    // A dropped stream: the browser retries on its own while the source is
+    // `CONNECTING`, and has given up once it is `CLOSED`.
+    opened.onerror = () => {
+      router.disconnected(
+        opened.readyState === EventSource.CLOSED ? 'closed' : 'reconnecting',
+      );
+    };
     opened.onmessage = message => {
       if (message.lastEventId !== '') lastEventId = message.lastEventId;
       const frame = parse(message.data as string, decodeEventFrame);
@@ -190,6 +197,13 @@ export function makeEventSourcePushChannel({
     subscribe: router.subscribe,
     onConnect: router.onConnect,
     onResync: router.onResync,
+    connection: router.connection,
+    onConnectionChange: router.onConnectionChange,
+    reconnect: () => {
+      // Forgets the open stream, so the sync opens a fresh one at once.
+      close();
+      sync();
+    },
     dropped: () => dropped,
   };
 }

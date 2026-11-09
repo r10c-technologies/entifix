@@ -42,6 +42,7 @@ describePushChannelContract('makeEventSourcePushChannel', () => {
     connect: () => latest().open(),
     push: (topics, event) => latest().event(topics, event),
     resync: topics => latest().named('resync', JSON.stringify({ topics })),
+    drop: state => latest().fail(state),
   };
 });
 

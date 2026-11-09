@@ -6,6 +6,7 @@ import {
   TabPanel,
   TabStrip,
   TopBar,
+  useLiveUpdates,
   useT,
   useTranslateKey,
 } from '@entifix/react-controls';
@@ -54,6 +55,7 @@ export function WorkspaceShell({
   emptyState,
 }: WorkspaceShellProps) {
   const t = useT('shell');
+  const live = useLiveUpdates();
   // Tab captions are catalog keys carried in a registry, not authored copy.
   const translate = useTranslateKey();
   const searchParams = useSearchParams();
@@ -199,7 +201,7 @@ export function WorkspaceShell({
 
   return (
     <div className="min-w-0 flex flex-1 flex-col">
-      <TopBar>
+      <TopBar connection={live.connection} onReconnect={live.reconnect}>
         <TopBar.Actions>
           {activeParam && (
             <button

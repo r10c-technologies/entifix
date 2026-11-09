@@ -12,6 +12,9 @@ export interface PushChannelUnderTest {
   subscribe(topic: string, listener: (event: DomainEvent) => void): () => void;
   onConnect(listener: () => void): () => void;
   onResync(listener: (topics: readonly string[]) => void): () => void;
+  connection(): 'open' | 'reconnecting' | 'closed';
+  onConnectionChange(listener: () => void): () => void;
+  reconnect(): void;
 }
 
 /**
@@ -28,6 +31,8 @@ export interface PushChannelHarness {
   readonly push: (topics: readonly string[], event: DomainEvent) => void;
   /** The server asks for `topics` to be read again. */
   readonly resync: (topics: readonly string[]) => void;
+  /** The transport drops: still retrying, or given up. */
+  readonly drop: (state: 'reconnecting' | 'closed') => void;
 }
 
 /**
@@ -148,6 +153,33 @@ export const describePushChannelContract = (
       stop();
       h.resync(['entity:x']);
       expect(resynced).toHaveBeenCalledTimes(1);
+    });
+
+    it('says when the stream drops and when it is back, and reopens on request', () => {
+      const h = make();
+      const changed = vi.fn();
+      const stop = h.channel.onConnectionChange(changed);
+      subscribe(h, 'entity:x', vi.fn());
+      h.settle();
+      // A stream still opening is not news.
+      expect(h.channel.connection()).toBe('open');
+      h.connect();
+      expect(changed).not.toHaveBeenCalled();
+
+      h.drop('reconnecting');
+      expect(h.channel.connection()).toBe('reconnecting');
+      h.drop('closed');
+      expect(h.channel.connection()).toBe('closed');
+
+      h.channel.reconnect();
+      h.settle();
+      h.connect();
+      expect(h.channel.connection()).toBe('open');
+      expect(changed).toHaveBeenCalledTimes(3);
+
+      stop();
+      h.drop('reconnecting');
+      expect(changed).toHaveBeenCalledTimes(3);
     });
   });
 };

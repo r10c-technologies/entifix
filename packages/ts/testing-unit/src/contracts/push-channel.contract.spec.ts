@@ -14,6 +14,13 @@ const makeReferenceHarness = (): PushChannelHarness => {
   const connects = new Set<() => void>();
   const resyncs = new Set<(topics: readonly string[]) => void>();
   let connected = false;
+  let state: 'open' | 'reconnecting' | 'closed' = 'open';
+  const changes = new Set<() => void>();
+  const become = (next: typeof state) => {
+    if (next === state) return;
+    state = next;
+    for (const listener of changes) listener();
+  };
   return {
     channel: {
       subscribe(topic, listener) {
@@ -33,11 +40,22 @@ const makeReferenceHarness = (): PushChannelHarness => {
         resyncs.add(listener);
         return () => resyncs.delete(listener);
       },
+      connection: () => state,
+      onConnectionChange(listener) {
+        changes.add(listener);
+        return () => changes.delete(listener);
+      },
+      reconnect: () => undefined,
     },
     settle: () => undefined,
     connect() {
       connected = true;
+      become('open');
       for (const listener of connects) listener();
+    },
+    drop(next) {
+      connected = false;
+      become(next);
     },
     push(topics, event) {
       const listeners = new Set(

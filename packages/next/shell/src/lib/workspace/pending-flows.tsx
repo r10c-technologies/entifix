@@ -1,6 +1,6 @@
 'use client';
 
-import { useToasts } from '@entifix/react-controls';
+import { LiveUpdatesProvider, useToasts } from '@entifix/react-controls';
 import {
   type FlowStatusRead,
   makePendingFlowStore,
@@ -8,6 +8,7 @@ import {
   PendingFlowStoreProvider,
   type PushChannel,
   usePendingFlowSettlement,
+  usePushConnection,
 } from '@entifix/react-integration';
 import { type ReactNode, useMemo } from 'react';
 
@@ -75,6 +76,9 @@ export function PendingFlowsProvider({
   children,
 }: PendingFlowsProviderProps) {
   const toasts = useToasts();
+  // The stream a pending write waits on, published to the controls: the top
+  // bar says when live updates are paused, a pending write that it is waiting.
+  const live = usePushConnection(channel);
 
   // A store per principal: a sign-in under another scope must never read the
   // previous one's pending writes.
@@ -104,8 +108,10 @@ export function PendingFlowsProvider({
     );
 
   return (
-    <PendingFlowStoreProvider store={store}>
-      {children}
-    </PendingFlowStoreProvider>
+    <LiveUpdatesProvider value={live}>
+      <PendingFlowStoreProvider store={store}>
+        {children}
+      </PendingFlowStoreProvider>
+    </LiveUpdatesProvider>
   );
 }

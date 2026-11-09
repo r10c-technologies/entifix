@@ -17,8 +17,13 @@ type Listener = (message: { data: string; lastEventId: string }) => void;
  */
 export class FakePushEventSource {
   static instances: FakePushEventSource[] = [];
+  static readonly CONNECTING = 0;
+  static readonly OPEN = 1;
+  static readonly CLOSED = 2;
 
+  readyState = FakePushEventSource.CONNECTING;
   onopen: (() => void) | null = null;
+  onerror: (() => void) | null = null;
   onmessage: Listener | null = null;
   closed = false;
   readonly #named = new Map<string, Listener>();
@@ -36,7 +41,17 @@ export class FakePushEventSource {
   }
 
   open() {
+    this.readyState = FakePushEventSource.OPEN;
     this.onopen?.();
+  }
+
+  /** The stream drops: the browser retries, or has given up. */
+  fail(state: 'reconnecting' | 'closed') {
+    this.readyState =
+      state === 'closed'
+        ? FakePushEventSource.CLOSED
+        : FakePushEventSource.CONNECTING;
+    this.onerror?.();
   }
 
   /** A default-typed frame, with the `id:` the server would have sent. */

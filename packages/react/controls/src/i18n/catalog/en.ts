@@ -246,6 +246,13 @@ export const controls: EsControls = {
     deleteMessage: 'It is removed for good.',
     deleted: '{{object}} deleted.',
   },
+  live: {
+    reconnecting: 'Live updates paused — reconnecting',
+    stopped: 'Live updates stopped',
+    reconnect: 'Reconnect',
+    resumed: 'Live updates resumed',
+    waiting: 'Waiting for connection…',
+  },
   toast: {
     region: 'Notifications',
     dismiss: 'Dismiss',

@@ -293,6 +293,14 @@ export const controls = {
     deleteMessage: 'Se elimina de forma definitiva.',
     deleted: 'Se eliminó {{object}}.',
   },
+  /** Las actualizaciones en vivo: se dicen al caer y al volver, nada más. */
+  live: {
+    reconnecting: 'Actualizaciones en vivo en pausa — reconectando',
+    stopped: 'Actualizaciones en vivo detenidas',
+    reconnect: 'Reconectar',
+    resumed: 'Actualizaciones en vivo reanudadas',
+    waiting: 'Esperando la conexión…',
+  },
   toast: {
     region: 'Notificaciones',
     dismiss: 'Descartar',

@@ -42,6 +42,7 @@ import { LoadingBoundary } from '../../molecules/loading-boundary/index.js';
 import { RegionState } from '../../molecules/region-state/index.js';
 import { Stack } from '../../molecules/stack/index.js';
 import { cn } from '../../utils/cn.js';
+import { useLiveUpdates } from '../../utils/live-updates.js';
 import { useFocusOnArrival } from '../../utils/use-focus-on-arrival.js';
 import { EntityDetailGrid } from '../entity-detail-grid/index.js';
 import type {
@@ -180,6 +181,7 @@ export function EntityForm<TEntity extends Entity>({
   const t = useT();
   const translateKey = useTranslateKey();
   const entityNoun = useEntityNoun();
+  const live = useLiveUpdates();
   // A form reached by a write — saved, handed off by a wizard — takes focus on
   // its heading, so it never rests on `<body>` (ADR 0028).
   const heading = useRef<HTMLHeadingElement>(null);
@@ -319,8 +321,10 @@ export function EntityForm<TEntity extends Entity>({
       ? [
           {
             key: 'save',
+            // A pending write waits on the push stream; while that is down
+            // it says so, rather than waiting without a word.
             label: isPending
-              ? t('form.pending')
+              ? t(live.connection === 'open' ? 'form.pending' : 'live.waiting')
               : isSaving
                 ? t('form.saving')
                 : t('form.save'),

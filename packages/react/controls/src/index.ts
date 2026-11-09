@@ -64,6 +64,7 @@ export * from './ui/utils/active-section/index.js';
 export * from './ui/utils/cn.js';
 export * from './ui/utils/fold-script/index.js';
 export * from './ui/utils/keep-section/index.js';
+export * from './ui/utils/live-updates.js';
 export * from './ui/utils/media-query/index.js';
 export { useFocusOnArrival } from './ui/utils/use-focus-on-arrival.js';
 export * from './ui/utils/use-hotkey.js';

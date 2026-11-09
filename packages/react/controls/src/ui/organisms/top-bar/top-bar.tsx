@@ -1,8 +1,18 @@
 import type { ComponentPropsWithoutRef, ReactNode } from 'react';
 
 import { cn } from '../../utils/cn.js';
+import type { LiveConnection } from '../../utils/live-updates.js';
+import { LiveIndicator } from './live-indicator.js';
 
-export type TopBarProps = ComponentPropsWithoutRef<'header'>;
+export interface TopBarProps extends ComponentPropsWithoutRef<'header'> {
+  /**
+   * The tab's live updates. Anything but `open` shows that they are paused,
+   * and it is said on the drop and on the recovery only (ADR 0028).
+   */
+  connection?: LiveConnection;
+  /** Reopens the stream now — the indicator's Reconnect. */
+  onReconnect?: () => void;
+}
 
 /**
  * The application top bar: a thin, recessive band carrying identity on the left
@@ -10,7 +20,13 @@ export type TopBarProps = ComponentPropsWithoutRef<'header'>;
  * it is where the eye goes. Compose it from the slots: `TopBar.Brand`,
  * `TopBar.Context`, `TopBar.Actions`.
  */
-export function TopBar({ className, children, ...props }: TopBarProps) {
+export function TopBar({
+  className,
+  children,
+  connection = 'open',
+  onReconnect,
+  ...props
+}: TopBarProps) {
   return (
     <header
       className={cn(
@@ -20,6 +36,7 @@ export function TopBar({ className, children, ...props }: TopBarProps) {
       {...props}
     >
       {children}
+      <LiveIndicator connection={connection} onReconnect={onReconnect} />
     </header>
   );
 }

@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it, vi } from 'vitest';
 
 import { TopBar } from './top-bar.js';
 
@@ -24,5 +25,38 @@ describe('TopBar', () => {
   it('merges a caller className', () => {
     render(<TopBar className="custom-bar">x</TopBar>);
     expect(screen.getByRole('banner').className).toContain('custom-bar');
+  });
+});
+
+describe('TopBar live updates', () => {
+  it('says nothing while updates flow', () => {
+    render(<TopBar>x</TopBar>);
+
+    expect(screen.getByRole('status')).toHaveTextContent('');
+  });
+
+  it('says they are paused, offers Reconnect, and says when they resume', async () => {
+    const onReconnect = vi.fn();
+    const { rerender } = render(
+      <TopBar connection="reconnecting" onReconnect={onReconnect}>
+        x
+      </TopBar>,
+    );
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Actualizaciones en vivo en pausa — reconectando',
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Reconectar' }));
+    expect(onReconnect).toHaveBeenCalledOnce();
+
+    rerender(<TopBar connection="closed">x</TopBar>);
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Actualizaciones en vivo detenidas',
+    );
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+
+    rerender(<TopBar connection="open">x</TopBar>);
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Actualizaciones en vivo reanudadas',
+    );
   });
 });

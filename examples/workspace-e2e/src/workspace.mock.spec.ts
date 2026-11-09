@@ -24,3 +24,25 @@ test('opens two tabs, tracks the active one in the URL, and restores both', asyn
   await expect(page.getByRole('tab', { name: /Clientes/ })).toBeVisible();
   await expect(page.getByRole('tab', { name: /Facturas/ })).toBeVisible();
 });
+
+/**
+ * Live updates that stop say so (ADR 0028): the top bar shows them paused
+ * with Reconnect, and the indicator clears once the stream is back.
+ */
+test('a dropped stream shows live updates paused until it reconnects', async ({
+  page,
+}) => {
+  failOnPageErrors(page);
+  await page.goto('/es/workspace');
+  const paused = page.getByTestId('live-updates-paused');
+  await expect(paused).toHaveCount(0);
+
+  await page.evaluate('window.examplePush.drop("reconnecting")');
+  await expect(paused).toHaveText(/Actualizaciones en vivo en pausa/);
+
+  await paused.getByRole('button', { name: 'Reconectar' }).click();
+  await expect(paused).toHaveCount(0);
+  await expect(
+    page.getByRole('status').filter({ hasText: 'reanudadas' }),
+  ).toHaveCount(1);
+});
