@@ -1,3 +1,17 @@
+## 0.20.0 (2026-11-09)
+
+### 🚀 Features
+
+- ⚠️ **react-controls:** organisms meet WCAG 2.2 AA ([#210](https://github.com/r10c-technologies/entifix/pull/210))
+
+### ⚠️ Breaking Changes
+
+- **react-controls:** organisms meet WCAG 2.2 AA ([#210](https://github.com/r10c-technologies/entifix/pull/210))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.19.0 (2026-11-06)
 
 ### 🚀 Features
