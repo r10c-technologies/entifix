@@ -30,7 +30,9 @@ test('adds an owned row, saves, and finds it on the record again', async ({
 
   // Saving returns to the list tab, which reads the repository again.
   await expect(page).toHaveURL(/tab=master%3Ainvoice$/);
-  await expect(page.getByRole('cell', { name: 'INV-0002-A' })).toBeVisible();
+  await expect(
+    page.getByRole('cell', { name: 'INV-0002-A', exact: true }),
+  ).toBeVisible();
   await expectFocusKept(page, { lostUntil: LOST_UNTIL });
 
   // Reopened from the list row, which opens the record's tab in place.

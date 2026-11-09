@@ -8,6 +8,7 @@ import {
   type EntityDraft,
   type EntityDraftValue,
   type EntityLinkSource,
+  extractMetaEntity,
   type MetaAccessorType,
   readDraftString,
   readLocalizedDraft,
@@ -17,12 +18,14 @@ import {
 import { type ReactNode, useId, useState } from 'react';
 
 import {
+  useEntityNoun,
   useErrorMessage,
   useLocalizedDescriptors,
   useT,
   useTranslateKey,
 } from '../../../i18n/index.js';
 import { renderAnchor, useCasesForSurface } from '../../actions/index.js';
+import { useVerbInvoker } from '../../actions/use-verb-invoker.js';
 import { Button, button } from '../../atoms/button/index.js';
 import { CellValue } from '../../atoms/cell-value/index.js';
 import { FieldControl } from '../../atoms/field-control/index.js';
@@ -35,7 +38,6 @@ import {
   itemsForUseCases,
 } from '../../molecules/action-bar/index.js';
 import { Card } from '../../molecules/card/index.js';
-import { ConfirmDialog } from '../../molecules/confirm-dialog/index.js';
 import { EntityLinkInput } from '../../molecules/entity-link-input/index.js';
 import { LoadingBoundary } from '../../molecules/loading-boundary/index.js';
 import { Stack } from '../../molecules/stack/index.js';
@@ -90,12 +92,8 @@ const PICKABLE_TYPES: ReadonlySet<MetaAccessorType> = new Set<MetaAccessorType>(
  * It is presentational: the draft, its errors and the save/delete actions are
  * all props, so the same form hosts on a plain route and inside a workspace tab.
  */
-/** A verb waiting on its confirmation — narrowed so `confirm` is not optional. */
-interface PendingConfirmation {
-  key: string;
-  labelKey: string;
-  confirm: NonNullable<UseCaseDescriptor['confirm']>;
-}
+/** The key the built-in Delete runs under, which no declared verb can take. */
+const DELETE_KEY = '$delete';
 
 export function EntityForm<TEntity extends Entity>({
   entityConstructor,
@@ -111,6 +109,7 @@ export function EntityForm<TEntity extends Entity>({
   formError,
   onSubmit,
   onDelete,
+  deletePolicy = 'confirm',
   embedded = false,
   isLoading = false,
   skeleton = true,
@@ -178,6 +177,7 @@ export function EntityForm<TEntity extends Entity>({
 
   const t = useT();
   const translateKey = useTranslateKey();
+  const entityNoun = useEntityNoun();
   const errorMessage = useErrorMessage();
   const busy = isSaving || isPending || isDeleting;
 
@@ -227,24 +227,48 @@ export function EntityForm<TEntity extends Entity>({
   const headerUseCases = onUseCase ? declaredHeaderUseCases : [];
   const footerUseCases = onUseCase ? declaredFooterUseCases : [];
 
-  // A descriptor carrying `confirm` must be asked about before it fires;
-  // `revoke-sessions` ends every session a user holds. The state holds the
-  // confirmation itself rather than the descriptor, so the dialog cannot be
-  // opened for a verb that never asked for one.
-  const [pending, setPending] = useState<PendingConfirmation | undefined>(
-    undefined,
+  // Every verb on the form, and its own Delete, goes through one invoker: a
+  // destructive verb asks, asks for the name, or runs and offers Undo, as it
+  // declared — `revoke-sessions` ends every session a user holds.
+  const verbs = useVerbInvoker<undefined>({
+    run: key => (key === DELETE_KEY ? onDelete?.() : onUseCase?.(key)),
+    busy,
+    served: metadata?.useCases,
+  });
+  // What a confirmation names: the record as the reader knows it — its first
+  // filled-in field — or, for a record with nothing filled in, the entity.
+  const metaEntity = extractMetaEntity(entityConstructor);
+  const named = fields.find(
+    field => field.type !== 'id' && readDraftString(draft, field.name) !== '',
   );
-  const invoke = (descriptor: UseCaseDescriptor) => {
-    const confirm = descriptor.confirm;
-    if (confirm) {
-      setPending({
-        key: descriptor.key,
-        labelKey: descriptor.labelKey,
-        confirm,
-      });
+  const recordLabel =
+    named === undefined
+      ? entityNoun(metaEntity)
+      : readDraftString(draft, named.name);
+  const invoke = (descriptor: UseCaseDescriptor) =>
+    verbs.invoke({
+      descriptor,
+      target: undefined,
+      object: recordLabel,
+      count: 1,
+    });
+  const requestDelete = () => {
+    // Undo is the host's to offer: only it can put a deleted record back.
+    if (deletePolicy === 'undo') {
+      onDelete?.();
       return;
     }
-    onUseCase?.(descriptor.key);
+    invoke({
+      key: DELETE_KEY,
+      binding: 'entity',
+      placement: 'determining',
+      labelKey: 'controls:form.delete',
+      confirm: {
+        tone: 'destructive',
+        messageKey: 'controls:confirm.deleteMessage',
+      },
+      reversible: deletePolicy,
+    });
   };
 
   const headerItems = itemsForUseCases(
@@ -303,7 +327,7 @@ export function EntityForm<TEntity extends Entity>({
             label: isDeleting ? t('form.deleting') : t('form.delete'),
             destructive: true,
             disabled: busy,
-            onSelect: onDelete,
+            onSelect: requestDelete,
           },
         ]
       : []),
@@ -441,21 +465,7 @@ export function EntityForm<TEntity extends Entity>({
         {slots.rest}
       </Stack>
 
-      {pending && (
-        <ConfirmDialog
-          open
-          tone={pending.confirm.tone}
-          title={translateKey(pending.labelKey)}
-          message={translateKey(pending.confirm.messageKey)}
-          busy={busy}
-          onCancel={() => setPending(undefined)}
-          onConfirm={() => {
-            const key = pending.key;
-            setPending(undefined);
-            onUseCase?.(key);
-          }}
-        />
-      )}
+      {verbs.dialog}
     </Card>
   );
 }

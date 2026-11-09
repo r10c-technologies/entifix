@@ -43,23 +43,43 @@ export const resetRepositories = (): void => {
 /**
  * The invoice's verbs, run in the page against the same repository its screens
  * read — the in-process counterpart of the REST runner a service-backed host
- * passes under this key. `issue` moves a draft to issued; the generated form
- * renders the button because the metadata document lists the verb, and when it
- * resolves the page reloads the record, so the new status shows.
+ * passes under this key. `issue`, `void` and `reopen` move an invoice's
+ * status; the generated screens render each because the metadata document
+ * lists it, and reload once it resolves, so the new status shows.
  */
+const STATUS_AFTER: Readonly<Record<string, Invoice['status']>> = {
+  issue: 'issued',
+  void: 'void',
+  reopen: 'draft',
+};
+
 const invoiceVerbs: EntityUseCaseRunner = {
-  run: (useCase, id) =>
-    useCase.key === 'issue' && id != null
+  run: (useCase, id) => {
+    const status = STATUS_AFTER[useCase.key];
+    return status !== undefined && id != null
       ? repositories.invoices.get<Invoice>(id).pipe(
           Effect.flatMap(invoice => {
-            invoice.status = 'issued';
+            invoice.status = status;
             return repositories.invoices.save(invoice);
           }),
           Effect.map(settled),
         )
+      : Effect.fail(new Internal());
+  },
+  // `purge-drafts` deletes every draft — the toolbar sends the list's whole
+  // matching set, and the drafts in it are what goes.
+  bulk: useCase =>
+    useCase.key === 'purge-drafts'
+      ? Effect.forEach(
+          (repositories.invoices.items as Invoice[]).filter(
+            invoice => invoice.status === 'draft',
+          ),
+          invoice =>
+            repositories.invoices
+              .delete(invoice.id)
+              .pipe(Effect.as({ id: invoice.id, ok: true })),
+        )
       : Effect.fail(new Internal()),
-  // The invoice declares no collection verb.
-  bulk: () => Effect.fail(new Internal()),
 };
 
 export const exampleAdapters = {

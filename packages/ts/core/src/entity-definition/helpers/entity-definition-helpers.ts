@@ -89,6 +89,19 @@ export function appendMetaUseCase<TEntity extends Entity>(
       `Use case "${metaUseCase.key}" targets ${target.name}, which has no metadata of its own — it is missing @entity(), or a circular import evaluated the use case first.`,
     );
   }
+  if (
+    metaUseCase.confirm?.tone === 'destructive' &&
+    metaUseCase.reversible === undefined
+  ) {
+    throw new Error(
+      `Use case "${metaUseCase.key}" on ${target.name} is destructive and declares no \`reversible\`. Say how it is made safe: 'undo' (with an \`inverse\`), 'confirm' or 'typed'.`,
+    );
+  }
+  if (metaUseCase.reversible === 'undo' && metaUseCase.inverse === undefined) {
+    throw new Error(
+      `Use case "${metaUseCase.key}" on ${target.name} is reversible by undo and names no \`inverse\`: Undo has nothing to run.`,
+    );
+  }
   const existing = (own[META_USE_CASE_KEY] as MetaUseCase[] | undefined) ?? [];
   // A verb declared on a record and over a selection is one verb under one
   // key, so only a different key makes a second inline verb.

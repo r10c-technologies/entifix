@@ -16,8 +16,14 @@ import {
 } from '@entifix/core';
 import { Fragment, type ReactNode, useMemo, useRef, useState } from 'react';
 
-import { useErrorMessage, useT, useTranslateKey } from '../../../i18n/index.js';
+import {
+  useEntityNoun,
+  useErrorMessage,
+  useT,
+  useTranslateKey,
+} from '../../../i18n/index.js';
 import { renderAnchor, useCasesForSurface } from '../../actions/index.js';
+import { useVerbInvoker } from '../../actions/use-verb-invoker.js';
 import { Button } from '../../atoms/button/index.js';
 import { CellValue } from '../../atoms/cell-value/index.js';
 import { Checkbox } from '../../atoms/field/index.js';
@@ -40,7 +46,6 @@ import {
 import { BulkActionBar } from '../../molecules/bulk-action-bar/index.js';
 import { BulkResult } from '../../molecules/bulk-result/index.js';
 import { ColumnSettings } from '../../molecules/column-settings/index.js';
-import { ConfirmDialog } from '../../molecules/confirm-dialog/index.js';
 import { EntityRecordCard } from '../../molecules/entity-record-card/index.js';
 import { FilterBuilder } from '../../molecules/filter-builder/index.js';
 import { LoadingBoundary } from '../../molecules/loading-boundary/index.js';
@@ -146,38 +151,11 @@ export function EntityTable<TEntity extends Entity>({
   // A descriptor's label is a runtime catalog key — the typed gate cannot see
   // it, which is why a host's catalog check is what catches a typo.
   const translateKey = useTranslateKey();
+  const entityNoun = useEntityNoun();
   const errorMessage = useErrorMessage();
   const metaEntity = extractMetaEntity(entityConstructor);
   const slots = readEntityTableSlots<TEntity>(children);
   const [panel, setPanel] = useState<Panel>('none');
-
-  /**
-   * A verb waiting to be confirmed, and what it will act on.
-   *
-   * ⚠️ **The table had no confirmation flow at all** until a change moved a
-   * destructive verb onto it. It read `confirm.tone` — only to pick a tone for
-   * a button or a menu item — and then fired on the first click. `unpublish` is
-   * declared `destructive`, so a verb reachable from a row menu without this
-   * would have been a one-click unpublish with a red label explaining what had
-   * already happened.
-   *
-   * The state holds the confirmation itself rather than the descriptor, so the
-   * dialog cannot open for a verb that never asked for one — the same shape
-   * `EntityForm` uses, and for the same reason.
-   *
-   * It carries the **target** too, which the form's does not need: a form has
-   * one record and a table has a row or a selection, and those run through two
-   * different handlers with two different payloads.
-   */
-  const [pending, setPending] = useState<
-    | {
-        key: string;
-        labelKey: string;
-        confirm: NonNullable<UseCaseDescriptor['confirm']>;
-        target: PendingTarget<TEntity>;
-      }
-    | undefined
-  >(undefined);
 
   const { columns, visibleColumns, hidden, setPersonalization } =
     useEntityTableColumns<TEntity>(
@@ -451,21 +429,42 @@ export function EntityTable<TEntity extends Entity>({
     else onBulkUseCase?.(key, target.selection);
   };
 
+  /**
+   * Every verb on the table goes through here — the row menu, the bulk bar and
+   * the toolbar — so none reaches a destructive verb around its confirmation,
+   * its typed check or its Undo.
+   */
+  const verbs = useVerbInvoker<PendingTarget<TEntity>>({
+    run: runTarget,
+    busy: isBulkRunning,
+    served: metadata?.useCases,
+  });
+
   const invoke = (
     useCase: UseCaseDescriptor,
     target: PendingTarget<TEntity>,
   ) => {
-    const confirm = useCase.confirm;
-    if (confirm) {
-      setPending({
-        key: useCase.key,
-        labelKey: useCase.labelKey,
-        confirm,
+    if (target.kind === 'row') {
+      verbs.invoke({
+        descriptor: useCase,
         target,
+        object: rowLabel(target.item),
+        count: 1,
       });
       return;
     }
-    runTarget(useCase.key, target);
+    const count = selectionSize(target.selection);
+    verbs.invoke({
+      descriptor: useCase,
+      target,
+      object: t('confirm.selection', {
+        count,
+        label: entityNoun(metaEntity),
+        plural: entityNoun(metaEntity, 'plural'),
+      }),
+      count,
+      matching: target.selection.mode === 'matching',
+    });
   };
 
   const rowMenu = (item: TEntity) =>
@@ -668,21 +667,7 @@ export function EntityTable<TEntity extends Entity>({
         />
       )}
 
-      {pending && (
-        <ConfirmDialog
-          open
-          tone={pending.confirm.tone}
-          title={translateKey(pending.labelKey)}
-          message={translateKey(pending.confirm.messageKey)}
-          busy={isBulkRunning}
-          onCancel={() => setPending(undefined)}
-          onConfirm={() => {
-            const { key, target } = pending;
-            setPending(undefined);
-            runTarget(key, target);
-          }}
-        />
-      )}
+      {verbs.dialog}
 
       {bulkOutcomes && bulkOutcomes.length > 0 && onBulkDismiss && (
         <BulkResult

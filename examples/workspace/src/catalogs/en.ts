@@ -35,12 +35,19 @@ export const en: ExampleCatalog = {
         unitPrice: 'Unit price',
       },
       values: {
-        status: { draft: 'Draft', issued: 'Issued' },
+        status: { draft: 'Draft', issued: 'Issued', void: 'Void' },
       },
       useCases: {
         issue: 'Issue',
         resetDemo: 'Reset the example data',
         resetDemoKeywords: 'reset, seed, data',
+        void: 'Void',
+        voidConfirm: 'It stops counting as owed.',
+        voided: 'Invoice voided.',
+        reopen: 'Reopen',
+        purgeDrafts: 'Delete drafts',
+        purgeDraftsConfirm:
+          'Every draft invoice in this list is deleted for good.',
       },
     },
     payment: {

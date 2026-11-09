@@ -60,6 +60,7 @@ class PublishArticleUC {}
     tone: 'destructive',
     messageKey: 'entity:article.useCases.archiveConfirm',
   },
+  reversible: 'confirm',
   form: 'archive-reason',
 })
 class ArchiveArticlesUC {}
@@ -125,6 +126,7 @@ describe('useCase', () => {
           tone: 'destructive',
           messageKey: 'entity:article.useCases.archiveConfirm',
         },
+        reversible: 'confirm',
         form: 'archive-reason',
       },
     ]);
@@ -154,6 +156,50 @@ describe('useCase', () => {
         rowInline: true,
       })(class VoidLedgerUC {}, { metadata: {} } as ClassDecoratorContext),
     ).toThrow(/rowInline, and so is "settle"/);
+  });
+
+  it('refuses a destructive verb that does not say how it is made safe', () => {
+    expect(() =>
+      useCase({
+        entity: Ledger,
+        key: 'purge',
+        binding: 'entity',
+        placement: 'determining',
+        labelKey: 'entity:ledger.useCases.purge',
+        confirm: { tone: 'destructive', messageKey: 'entity:ledger.sure' },
+      })(class PurgeLedgerUC {}, { metadata: {} } as ClassDecoratorContext),
+    ).toThrow(/declares no `reversible`/);
+  });
+
+  it('refuses an undo with nothing to run', () => {
+    expect(() =>
+      useCase({
+        entity: Ledger,
+        key: 'void',
+        binding: 'entity',
+        placement: 'determining',
+        labelKey: 'entity:ledger.useCases.void',
+        confirm: { tone: 'destructive', messageKey: 'entity:ledger.sure' },
+        reversible: 'undo',
+      })(class VoidLedgerUC {}, { metadata: {} } as ClassDecoratorContext),
+    ).toThrow(/names no `inverse`/);
+  });
+
+  it('carries how a destructive verb is made safe, and what undoes it', () => {
+    useCase({
+      entity: Ledger,
+      key: 'reverse',
+      binding: 'entity',
+      placement: 'determining',
+      labelKey: 'entity:ledger.useCases.reverse',
+      confirm: { tone: 'destructive', messageKey: 'entity:ledger.sure' },
+      reversible: 'undo',
+      inverse: 'settle',
+    })(class ReverseLedgerUC {}, { metadata: {} } as ClassDecoratorContext);
+
+    expect(
+      describeEntityUseCases(Ledger).find(verb => verb.key === 'reverse'),
+    ).toMatchObject({ reversible: 'undo', inverse: 'settle' });
   });
 
   it('records whether a person may create the entity, true unless declared', () => {

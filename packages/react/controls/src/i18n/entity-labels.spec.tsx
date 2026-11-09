@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { I18nProvider } from '../i18next/index.js';
 import {
   failureFields,
+  useEntityNoun,
   useEnumLabel,
   useErrorMessage,
   useFailureFields,
@@ -95,6 +96,37 @@ describe('useLocalizedDescriptors', () => {
     );
 
     expect(screen.getByTestId('labels')).toHaveTextContent('Code');
+  });
+});
+
+describe('useEntityNoun', () => {
+  const noun = () =>
+    renderHook(() => useEntityNoun(), {
+      wrapper: ({ children }) => (
+        <I18nProvider locale="es">{children}</I18nProvider>
+      ),
+    }).result.current;
+
+  it('reads the singular and the plural through their declared keys', () => {
+    const name = noun();
+    const entity = {
+      name: 'ProductSpecification',
+      key: 'product-specification',
+      labelKey: 'entity:product-specification.label',
+      pluralKey: 'entity:product-specification.plural',
+    };
+
+    expect([name(entity), name(entity, 'plural')]).toEqual([
+      'Producto',
+      'Productos',
+    ]);
+  });
+
+  it('falls back to the key, then the class name, without a catalog entry', () => {
+    const name = noun();
+
+    expect(name({ name: 'Gadget', key: 'gadget' }, 'plural')).toBe('gadget');
+    expect(name({ name: 'Gadget' })).toBe('Gadget');
   });
 });
 

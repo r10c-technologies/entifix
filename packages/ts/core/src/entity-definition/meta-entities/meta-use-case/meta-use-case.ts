@@ -40,7 +40,25 @@ export interface UseCaseConfirm {
    * the title to learn what they are agreeing to.
    */
   confirmLabelKey?: string;
+  /**
+   * Catalog key for what an `undo` verb's toast says once it has run, in the
+   * past tense — "Invoice voided." Absent, a generic sentence names the verb.
+   */
+  doneKey?: string;
 }
+
+/**
+ * How a destructive verb is made safe
+ * ([ADR 0026](../../../../../../../docs/adr/0026-actions-hierarchy-overflow-and-destructive-verbs.md)):
+ * - `undo` acts at once and offers Undo, which runs the verb's `inverse`;
+ * - `confirm` asks first, in a dialog that names what will be destroyed;
+ * - `typed` asks the reader to type the record's name, or the count, first.
+ *
+ * Required on every `confirm.tone: 'destructive'` verb, and refused at
+ * declaration without it: a destructive verb whose safety is left to whichever
+ * surface renders it is one click on one of them.
+ */
+export type UseCaseReversible = 'undo' | 'confirm' | 'typed';
 
 /**
  * How much weight a surface gives a verb. One `primary` per surface — the
@@ -116,6 +134,10 @@ export interface MetaUseCaseOptions<
   labelKey: string;
   keywordsKey?: string;
   confirm?: UseCaseConfirm;
+  /** How a destructive verb is made safe. Required when `confirm.tone` is `destructive`. */
+  reversible?: UseCaseReversible;
+  /** The verb Undo runs, by key. Required with `reversible: 'undo'`. */
+  inverse?: string;
   /** Names a form a surface should open instead of acting immediately. */
   form?: string;
   /**
@@ -163,6 +185,8 @@ export class MetaUseCase {
   readonly labelKey: string;
   readonly keywordsKey?: string;
   readonly confirm?: UseCaseConfirm;
+  readonly reversible?: UseCaseReversible;
+  readonly inverse?: string;
   readonly emphasis?: UseCaseEmphasis;
   readonly priority?: number;
   readonly rowInline?: true;
@@ -185,6 +209,8 @@ export class MetaUseCase {
     this.labelKey = options.labelKey;
     this.keywordsKey = options.keywordsKey;
     this.confirm = options.confirm;
+    this.reversible = options.reversible;
+    this.inverse = options.inverse;
     this.emphasis = options.emphasis;
     this.priority = options.priority;
     this.rowInline = options.rowInline;

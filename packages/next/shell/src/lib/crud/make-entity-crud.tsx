@@ -30,7 +30,12 @@ import {
   settled,
   type UseCaseDescriptor,
 } from '@entifix/core';
-import { EntityTable, useCasesForSurface } from '@entifix/react-controls';
+import {
+  EntityTable,
+  useCasesForSurface,
+  useT,
+  useToasts,
+} from '@entifix/react-controls';
 import {
   entityQueryScope,
   type OptimisticMutation,
@@ -234,7 +239,16 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     metadata,
     useCases,
     write,
+    delete: deletePolicy = 'confirm',
   } = options;
+
+  /**
+   * Set by a delete that is about to land on the list, read by the list once
+   * it mounts: focus goes to the list's heading rather than falling to
+   * `<body>` with the page that held it. Per generated screen, so another
+   * entity's list never takes it.
+   */
+  let focusListOnMount = false;
 
   if (givenMetadataSource !== undefined && metadata !== undefined) {
     throw new Error(
@@ -279,6 +293,9 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
       `${entityConstructor.name} must declare labelKey and pluralKey on @entity() to be generated`,
     );
   }
+  // Narrowed once, for the closures below that TypeScript cannot follow.
+  const labelKey: string = entityLabelKey;
+  const pluralKey: string = entityPluralKey;
 
   // Computed once: a descriptor is a property of the class, so nothing about it
   // depends on the record being edited. `linkLabelProperty`/`linkSearchProperty`
@@ -289,6 +306,20 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
   // disagree about which entity they mean.
   const entityName = envelopeEntityName(entityConstructor);
   const descriptors = describeEntityColumns(entityConstructor);
+  /** A record as the reader knows it: its first shown member that is filled in. */
+  const recordLabelOf = (record: TEntity | undefined): string | undefined => {
+    const named = descriptors.find(descriptor => {
+      if (descriptor.type === 'id' || hiddenFields.includes(descriptor.name))
+        return false;
+      const value = (record as Record<string, unknown> | undefined)?.[
+        descriptor.name
+      ];
+      return value != null && String(value) !== '';
+    });
+    return named === undefined
+      ? undefined
+      : String((record as Record<string, unknown>)[named.name]);
+  };
   const linkPlans = links.map(link => {
     const descriptor = descriptors.find(entry => entry.name === link.field);
     if (descriptor === undefined) {
@@ -396,8 +427,25 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
         }
       : undefined;
 
+    // The list's heading, and where focus lands after a delete brings the
+    // reader back here.
+    const heading = useRef<HTMLHeadingElement>(null);
+    useEffect(() => {
+      if (!focusListOnMount) return;
+      focusListOnMount = false;
+      heading.current?.focus();
+    }, []);
+    const et = useT('entity');
+
     return (
       <div className="flex flex-col gap-s">
+        <h1
+          ref={heading}
+          tabIndex={-1}
+          className="m-0 text-step-2 font-semibold text-content focus-ring"
+        >
+          {et(pluralKey.replace(/^entity:/, ''))}
+        </h1>
         <EntityTable
           entityConstructor={entityConstructor}
           {...pager}
@@ -560,11 +608,52 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
       afterSave();
     };
 
+    const toasts = useToasts();
+    const ct = useT('controls');
+    const et = useT('entity');
+    /**
+     * Saves a deleted record back under its id: what Undo runs under the
+     * `undo` policy.
+     */
+    const restore = (record: TEntity) =>
+      Effect.runPromise(
+        writer === undefined
+          ? Effect.asVoid(
+              Effect.provide(
+                saveUCFactory<TEntity>(),
+                ctx.pipe(Context.add(EntityTag, record)),
+              ),
+            )
+          : Effect.asVoid(writer.save(record)),
+      ).then(
+        () => refreshList(),
+        (failure: unknown) => {
+          toasts?.show({ tone: 'failure', failure: asFailure(failure) });
+        },
+      );
+
     const handleDelete = async () => {
+      const snapshot = entity;
       const result = await deleteMutation.mutate(id).catch(() => undefined);
       if (result?._tag !== 'settled') return;
       draft?.clear();
       void refreshList();
+      // Said once, in the toast region every route shares, so it survives the
+      // navigation back to the list.
+      const object =
+        recordLabelOf(snapshot) ?? et(labelKey.replace(/^entity:/, ''));
+      const message = ct('confirm.deleted', { object });
+      if (deletePolicy === 'undo' && snapshot !== undefined)
+        toasts?.show({
+          tone: 'undo',
+          message,
+          action: {
+            label: ct('confirm.undo'),
+            onAction: () => void restore(snapshot),
+          },
+        });
+      else toasts?.show({ tone: 'success', message });
+      focusListOnMount = onDeleted === undefined;
       afterDelete();
     };
 
@@ -621,6 +710,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
         }
         onSave={handleSave}
         onDelete={id == null ? undefined : handleDelete}
+        deletePolicy={deletePolicy}
         onUseCase={handleUseCase}
         backHref={withLocale(basePath)}
         renderLink={renderLink}

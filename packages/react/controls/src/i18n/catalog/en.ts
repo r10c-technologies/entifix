@@ -211,7 +211,16 @@ export const controls: EsControls = {
   confirm: {
     confirm: 'Confirm',
     cancel: 'Cancel',
-    title: 'Confirm',
+    question: '{{verb}} {{object}}?',
+    verbCount_one: '{{verb}}',
+    verbCount_other: '{{verb}} {{count}}',
+    selection_one: '{{count}} {{label}}',
+    selection_other: '{{count}} {{plural}}',
+    typeToConfirm: 'Type {{expected}} to confirm',
+    done: 'Done: {{verb}}, {{object}}.',
+    undo: 'Undo',
+    deleteMessage: 'It is removed for good.',
+    deleted: '{{object}} deleted.',
   },
   toast: {
     region: 'Notifications',

@@ -107,6 +107,12 @@ export interface EntityFormProps<TEntity extends Entity> {
 
   onSubmit?: (draft: EntityDraft) => void;
   onDelete?: () => void;
+  /**
+   * How the built-in Delete is made safe: `confirm` (the default) asks in an
+   * alert dialog, `typed` asks for the record's name first, and `undo` deletes
+   * at once — the host offers Undo, since only it can put the record back.
+   */
+  deletePolicy?: 'confirm' | 'typed' | 'undo';
 
   /**
    * What this caller may do with the entity, as served by

@@ -246,7 +246,16 @@ export const controls = {
   confirm: {
     confirm: 'Confirmar',
     cancel: 'Cancelar',
-    title: 'Confirmar',
+    question: '¿{{verb}} {{object}}?',
+    verbCount_one: '{{verb}}',
+    verbCount_other: '{{verb}} {{count}}',
+    selection_one: '{{count}} {{label}}',
+    selection_other: '{{count}} {{plural}}',
+    typeToConfirm: 'Escriba {{expected}} para confirmar',
+    done: 'Hecho: {{verb}}, {{object}}.',
+    undo: 'Deshacer',
+    deleteMessage: 'Se elimina de forma definitiva.',
+    deleted: 'Se eliminó {{object}}.',
   },
   toast: {
     region: 'Notificaciones',

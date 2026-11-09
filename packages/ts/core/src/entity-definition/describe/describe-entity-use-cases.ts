@@ -6,6 +6,7 @@ import type {
   UseCaseConfirm,
   UseCaseHierarchy,
   UseCasePlacement,
+  UseCaseReversible,
 } from '../meta-entities/meta-use-case/index.js';
 
 /**
@@ -26,6 +27,10 @@ export interface UseCaseDescriptor extends UseCaseHierarchy {
   labelKey: string;
   keywordsKey?: string;
   confirm?: UseCaseConfirm;
+  /** How a destructive verb is made safe — see `UseCaseReversible`. */
+  reversible?: UseCaseReversible;
+  /** The verb Undo runs, by key. */
+  inverse?: string;
   form?: string;
   /** The named variant set this verb resolves between. */
   variants?: string;
@@ -70,6 +75,8 @@ export function describeEntityUseCases<TEntity extends Entity>(
     labelKey: metaUseCase.labelKey,
     keywordsKey: metaUseCase.keywordsKey,
     confirm: metaUseCase.confirm,
+    reversible: metaUseCase.reversible,
+    inverse: metaUseCase.inverse,
     emphasis: metaUseCase.emphasis,
     priority: metaUseCase.priority,
     rowInline: metaUseCase.rowInline,

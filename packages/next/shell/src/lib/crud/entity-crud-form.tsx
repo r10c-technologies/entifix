@@ -44,6 +44,8 @@ export interface EntityCrudFormProps<TEntity extends Entity> {
   readonly onSave: (entity: TEntity) => void;
   /** Omitted for a create — there is nothing to delete yet. */
   readonly onDelete?: () => void;
+  /** How Delete is made safe — see `EntityCrudOptions.delete`. */
+  readonly deletePolicy?: 'confirm' | 'undo' | 'typed';
   readonly backHref: string;
   /** Renders the Back link; see `useCrudRenderLink`. */
   readonly renderLink?: RenderLink;
@@ -90,6 +92,7 @@ export function EntityCrudForm<TEntity extends Entity>({
   error,
   onSave,
   onDelete,
+  deletePolicy,
   backHref,
   renderLink,
   draft,
@@ -187,6 +190,7 @@ export function EntityCrudForm<TEntity extends Entity>({
       formError={form.formError}
       onSubmit={form.submit}
       onDelete={onDelete}
+      deletePolicy={deletePolicy}
       {...affordances}
       onUseCase={onUseCase}
       isLoading={isLoading}

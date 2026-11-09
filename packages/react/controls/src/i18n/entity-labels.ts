@@ -54,6 +54,35 @@ export function useEnumLabel(): (
   );
 }
 
+/** What {@link useEntityNoun} reads off an entity's metadata. */
+export interface EntityNounSource {
+  readonly name: string;
+  readonly key?: string;
+  readonly labelKey?: string;
+  readonly pluralKey?: string;
+}
+
+/**
+ * Names an entity in the reader's language — "Marca", "Marcas" — through its
+ * declared `labelKey` or `pluralKey`, falling back to its `key`, then its class
+ * name, for an entity that declared no catalog entry: what a confirmation or
+ * an announcement says when there is no record name to say instead.
+ */
+export function useEntityNoun(): (
+  entity: EntityNounSource,
+  form?: 'singular' | 'plural',
+) => string {
+  const translate = useTranslateKey();
+
+  return useCallback(
+    (entity, form = 'singular') => {
+      const key = form === 'plural' ? entity.pluralKey : entity.labelKey;
+      return key === undefined ? (entity.key ?? entity.name) : translate(key);
+    },
+    [translate],
+  );
+}
+
 const ENVELOPE: ReadonlySet<string> = new Set([
   'type',
   'title',

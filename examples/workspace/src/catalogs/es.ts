@@ -40,12 +40,19 @@ export const es = {
         unitPrice: 'Precio unitario',
       },
       values: {
-        status: { draft: 'Borrador', issued: 'Emitida' },
+        status: { draft: 'Borrador', issued: 'Emitida', void: 'Anulada' },
       },
       useCases: {
         issue: 'Emitir',
         resetDemo: 'Restablecer los datos de ejemplo',
         resetDemoKeywords: 'reiniciar, semilla, datos',
+        void: 'Anular',
+        voidConfirm: 'Deja de contar como pendiente.',
+        voided: 'Factura anulada.',
+        reopen: 'Reabrir',
+        purgeDrafts: 'Eliminar borradores',
+        purgeDraftsConfirm:
+          'Se eliminan de forma definitiva todos los borradores de esta lista.',
       },
     },
     payment: {

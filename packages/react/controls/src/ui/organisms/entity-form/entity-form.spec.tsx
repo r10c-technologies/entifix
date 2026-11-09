@@ -21,6 +21,12 @@ import type { EntityFormField, EntityFormProps } from './entity-form.types.js';
 import { EntityActions, EntityField } from './entity-form-slots.js';
 import { resolveEntityFormFields } from './use-entity-form-fields.js';
 
+/** The dialog's confirming button: named for the verb it runs, so found by place. */
+const confirmButton = () =>
+  within(screen.getByTestId('confirm-dialog'))
+    .getAllByRole('button')
+    .at(-1) as HTMLElement;
+
 @entity({ key: 'gadget-brand' })
 class GadgetBrand implements Entity {
   #id?: EntityId;
@@ -958,7 +964,7 @@ describe('EntityForm actions from served metadata', () => {
     expect(onUseCase).not.toHaveBeenCalled();
     expect(screen.getByTestId('confirm-dialog')).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Confirmar' }));
+    await userEvent.click(confirmButton());
     expect(onUseCase).toHaveBeenCalledWith('revoke-sessions');
   });
 
@@ -1150,7 +1156,7 @@ describe('EntityForm actions from served metadata', () => {
 
       // A folded verb is still a verb: the confirmation is not skipped.
       expect(onUseCase).not.toHaveBeenCalled();
-      await userEvent.click(screen.getByRole('button', { name: 'Confirmar' }));
+      await userEvent.click(confirmButton());
       expect(onUseCase).toHaveBeenCalledWith('purge');
     });
 
@@ -1323,5 +1329,67 @@ describe('a localized member', () => {
     // The spec catalogs default to Spanish.
     expect(screen.getByText('Sopa')).toBeInTheDocument();
     expect(screen.queryByText('Soup')).not.toBeInTheDocument();
+  });
+});
+
+describe('the built-in Delete', () => {
+  it('asks first, naming the record, and deletes only once confirmed', async () => {
+    const onDelete = vi.fn();
+    render(
+      <Harness mode="edit" initial={{ code: 'G-1' }} onDelete={onDelete} />,
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Eliminar' }));
+
+    expect(onDelete).not.toHaveBeenCalled();
+    expect(screen.getByRole('alertdialog')).toHaveAccessibleName(
+      '¿Eliminar G-1?',
+    );
+    await userEvent.click(confirmButton());
+    expect(onDelete).toHaveBeenCalledOnce();
+  });
+
+  it('names the entity when the record has nothing filled in', async () => {
+    render(<Harness mode="edit" onDelete={vi.fn()} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Eliminar' }));
+
+    expect(screen.getByRole('alertdialog')).toHaveAccessibleName(
+      '¿Eliminar gadget?',
+    );
+  });
+
+  it('asks for the record’s name under the typed policy', async () => {
+    render(
+      <Harness
+        mode="edit"
+        initial={{ code: 'G-1' }}
+        deletePolicy="typed"
+        onDelete={vi.fn()}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Eliminar' }));
+
+    expect(
+      screen.getByLabelText('Escriba G-1 para confirmar'),
+    ).toBeInTheDocument();
+  });
+
+  it('deletes at once under the undo policy, leaving Undo to the host', async () => {
+    const onDelete = vi.fn();
+    render(
+      <Harness
+        mode="edit"
+        initial={{ code: 'G-1' }}
+        deletePolicy="undo"
+        onDelete={onDelete}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Eliminar' }));
+
+    expect(onDelete).toHaveBeenCalledOnce();
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   });
 });

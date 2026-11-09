@@ -198,6 +198,16 @@ export interface EntityCrudOptions<TAdapters, TEntity extends Entity> {
    * wrong type, throws here rather than answering `400` on every first load.
    */
   readonly initialFiltering?: FilterGroup<TEntity>;
+  /**
+   * How the record page's Delete is made safe
+   * ([ADR 0026](../../../../../../docs/adr/0026-actions-hierarchy-overflow-and-destructive-verbs.md)):
+   * `confirm` (the default) asks in an alert dialog naming the record; `typed`
+   * asks for its name to be typed first — for the records a fleet boots from;
+   * `undo` deletes at once and offers Undo, which saves the record back under
+   * its id, so it needs a store whose save puts a record back rather than
+   * refusing an id it no longer holds.
+   */
+  readonly delete?: 'confirm' | 'undo' | 'typed';
   /** Frozen at factory time — see `use-entity-link-sources.ts`. */
   readonly links?: readonly EntityCrudLink<TAdapters, TEntity>[];
   /**

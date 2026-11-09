@@ -14,6 +14,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { EntityTable } from './entity-table.js';
 
+/** The dialog's confirming button: named for the verb it runs, so found by place. */
+const confirmButton = () =>
+  within(screen.getByTestId('confirm-dialog'))
+    .getAllByRole('button')
+    .at(-1) as HTMLElement;
+
 @entity({ key: 'gizmo' })
 class Gizmo implements Entity {
   #id?: EntityId;
@@ -506,7 +512,7 @@ describe('EntityTable bulk bar', () => {
     expect(onBulkUseCase).not.toHaveBeenCalled();
     expect(screen.getByTestId('confirm-dialog')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Confirmar' }));
+    await user.click(confirmButton());
 
     expect(onBulkUseCase).toHaveBeenCalledWith(
       'retire',
@@ -850,7 +856,7 @@ describe('EntityTable row menu', () => {
     expect(onUseCase).not.toHaveBeenCalled();
     expect(screen.getByTestId('confirm-dialog')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Confirmar' }));
+    await user.click(confirmButton());
 
     expect(onUseCase).toHaveBeenCalledWith('archive', ITEMS[0]);
   });
@@ -1013,7 +1019,7 @@ describe('EntityTable "New" and the toolbar', () => {
     expect(onBulkUseCase).not.toHaveBeenCalled();
     expect(screen.getByTestId('confirm-dialog')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Confirmar' }));
+    await user.click(confirmButton());
     expect(onBulkUseCase).toHaveBeenCalledWith(
       'purge',
       expect.objectContaining({ mode: 'matching' }),
