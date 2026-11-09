@@ -1974,3 +1974,33 @@ describe('the generated Delete (ADR 0026)', () => {
     expect(await screen.findByRole('alert')).toBeInTheDocument();
   });
 });
+
+describe('the generated list’s links (#200)', () => {
+  it('names the record an id refers to, never its id', async () => {
+    const product = new Product('Widget');
+    product.id = 'p-1';
+    product.brandId = 'b-1';
+    const orphan = new Product('Gizmo');
+    orphan.id = 'p-2';
+    orphan.brandId = 'b-404';
+    const bare = new Product('Gadget');
+    bare.id = 'p-3';
+    repositories.product = makeInMemoryEntityRepository([
+      product,
+      orphan,
+      bare,
+    ] as Entity[]);
+
+    renderPage(<productCrud.ListPage />);
+
+    await screen.findAllByText('Widget');
+    await waitFor(() =>
+      expect(screen.getAllByText('Acme').length).toBeGreaterThan(0),
+    );
+    // Never the key: an id with no record, and no id, both read as empty.
+    expect(screen.queryByText('b-1')).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.queryByText('b-404')).not.toBeInTheDocument(),
+    );
+  });
+});

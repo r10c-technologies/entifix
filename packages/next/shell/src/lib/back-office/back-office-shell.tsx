@@ -11,6 +11,7 @@ import {
 import { usePathname } from 'next/navigation';
 import { type ReactNode, useState } from 'react';
 
+import { BreadcrumbLabelsProvider } from './breadcrumb-labels.js';
 import { BackOfficeBreadcrumbs } from './breadcrumbs.js';
 import type { NavSection } from './nav.js';
 import { SidebarNav } from './sidebar-nav.js';
@@ -133,67 +134,71 @@ export function BackOfficeShell({
       >
         {t('sidebar.skipToContent')}
       </a>
-      <Sidebar gap="none" className="min-h-screen">
-        {isCompact ? null : (
-          <Sidebar.Side
-            as="aside"
-            width={collapsed ? '4.5rem' : '16rem'}
-            className="md:sticky md:top-0 md:h-screen md:overflow-y-auto flex flex-col gap-m border-r border-border bg-surface-elevated p-s"
-          >
-            <div className="flex items-center justify-center px-2xs py-3xs text-step-1 font-semibold text-content">
-              {collapsed ? null : brand}
-            </div>
-            {navTree}
-          </Sidebar.Side>
-        )}
-
-        <Sidebar.Main
-          as="main"
-          id={MAIN_ID}
-          // The skip link's target: focusable from it, never a Tab stop.
-          tabIndex={-1}
-          className="flex flex-col outline-none"
-        >
-          <header className="flex items-center gap-s border-b border-border bg-surface-elevated px-m py-s">
-            <Button
-              variant="ghost"
-              size="sm"
-              aria-label={
-                isCompact
-                  ? t('sidebar.openMenu')
-                  : collapsed
-                    ? t('sidebar.expand')
-                    : t('sidebar.collapse')
-              }
-              // A drawer trigger is not a two-state toggle — it opens a thing that
-              // closes itself — so it reports pressed state only where it is one.
-              {...(isCompact ? {} : { 'aria-pressed': collapsed })}
-              onClick={() =>
-                isCompact ? setDrawerOpen(true) : setCollapsed(!preferCollapsed)
-              }
+      <BreadcrumbLabelsProvider>
+        <Sidebar gap="none" className="min-h-screen">
+          {isCompact ? null : (
+            <Sidebar.Side
+              as="aside"
+              width={collapsed ? '4.5rem' : '16rem'}
+              className="md:sticky md:top-0 md:h-screen md:overflow-y-auto flex flex-col gap-m border-r border-border bg-surface-elevated p-s"
             >
-              <span aria-hidden="true">☰</span>
-            </Button>
-            <BackOfficeBreadcrumbs labels={breadcrumbLabels} />
-            <div className="ml-auto flex items-center gap-2xs">
-              {commandPalette}
-              {accountMenu}
-            </div>
-          </header>
-          <div className="flex-1 p-m">{children}</div>
-        </Sidebar.Main>
+              <div className="flex items-center justify-center px-2xs py-3xs text-step-1 font-semibold text-content">
+                {collapsed ? null : brand}
+              </div>
+              {navTree}
+            </Sidebar.Side>
+          )}
 
-        {isCompact && (
-          <Drawer
-            open={isDrawerOpen}
-            onClose={() => setDrawerOpen(false)}
-            title={brand}
-            closeLabel={t('sidebar.closeMenu')}
+          <Sidebar.Main
+            as="main"
+            id={MAIN_ID}
+            // The skip link's target: focusable from it, never a Tab stop.
+            tabIndex={-1}
+            className="flex flex-col outline-none"
           >
-            {navTree}
-          </Drawer>
-        )}
-      </Sidebar>
+            <header className="flex items-center gap-s border-b border-border bg-surface-elevated px-m py-s">
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label={
+                  isCompact
+                    ? t('sidebar.openMenu')
+                    : collapsed
+                      ? t('sidebar.expand')
+                      : t('sidebar.collapse')
+                }
+                // A drawer trigger is not a two-state toggle — it opens a thing that
+                // closes itself — so it reports pressed state only where it is one.
+                {...(isCompact ? {} : { 'aria-pressed': collapsed })}
+                onClick={() =>
+                  isCompact
+                    ? setDrawerOpen(true)
+                    : setCollapsed(!preferCollapsed)
+                }
+              >
+                <span aria-hidden="true">☰</span>
+              </Button>
+              <BackOfficeBreadcrumbs labels={breadcrumbLabels} />
+              <div className="ml-auto flex items-center gap-2xs">
+                {commandPalette}
+                {accountMenu}
+              </div>
+            </header>
+            <div className="flex-1 p-m">{children}</div>
+          </Sidebar.Main>
+
+          {isCompact && (
+            <Drawer
+              open={isDrawerOpen}
+              onClose={() => setDrawerOpen(false)}
+              title={brand}
+              closeLabel={t('sidebar.closeMenu')}
+            >
+              {navTree}
+            </Drawer>
+          )}
+        </Sidebar>
+      </BreadcrumbLabelsProvider>
     </>
   );
 }

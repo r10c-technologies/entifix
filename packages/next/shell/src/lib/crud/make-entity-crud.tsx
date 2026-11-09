@@ -32,6 +32,7 @@ import {
   type UseCaseDescriptor,
 } from '@entifix/core';
 import {
+  EntityColumn,
   EntityTable,
   useCasesForSurface,
   useFocusOnArrival,
@@ -51,6 +52,7 @@ import { Cause, Context, Effect, Exit } from 'effect';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useRef } from 'react';
 
+import { useBreadcrumbLabel } from '../back-office/breadcrumb-labels.js';
 import { useLocaleHref } from '../i18n/index.js';
 import { useEntityNavHost } from '../workspace/entity-nav.js';
 import { EntityCrudForm } from './entity-crud-form.js';
@@ -65,6 +67,7 @@ import { CATALOG_NEW_SLUG, slugToEntityId } from './slug.js';
 import { useCrudRenderLink } from './use-crud-render-link.js';
 import { useEntityAffordances } from './use-entity-affordances.js';
 import { useEntityBulk } from './use-entity-bulk.js';
+import { LinkLabelCell, useLinkLabels } from './use-link-labels.js';
 
 /** What a picker defaults to reading off its target. */
 const TARGET_NAME_PROPERTY = 'name';
@@ -366,6 +369,24 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
       ...(initialFiltering === undefined ? {} : { initialFiltering }),
     });
 
+    // A member that holds another record's id reads as that record's name.
+    const linkLabel = useLinkLabels(
+      linkPlans.map(plan => ({
+        field: plan.field,
+        entityConstructor: plan.entityConstructor,
+        labelProperty: plan.descriptor.linkLabelProperty,
+        ctx: crudContextOf(adapters, plan.repository),
+      })),
+      pager.items,
+    );
+    const linkColumns = linkPlans.map(plan => (
+      <EntityColumn<TEntity>
+        key={plan.field}
+        field={plan.field}
+        render={item => <LinkLabelCell label={linkLabel(plan.field, item)} />}
+      />
+    ));
+
     const facetCounts = useFacetCounts<TEntity>({
       ctx:
         facets === undefined
@@ -472,6 +493,8 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
           error={syncFailure(rowVerb.verb) ?? pager.error}
         >
           {columns}
+          {/* After the host's own: a host column for the same member wins. */}
+          {linkColumns}
           {toolbar}
         </EntityTable>
       </div>
@@ -634,6 +657,12 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     /** What an announcement names: the record, or the entity for a blank one. */
     const recordNoun = (record: TEntity | undefined) =>
       recordLabelOf(record) ?? et(labelKey.replace(/^entity:/, ''));
+    // The breadcrumb for this page's segment names the record, never its id:
+    // "Nuevo" for a create, the record once it has loaded.
+    useBreadcrumbLabel(
+      slug ?? params.slug,
+      id == null ? ct('form.new') : entity && recordNoun(entity),
+    );
     /**
      * Saves a deleted record back under its id: what Undo runs under the
      * `undo` policy.

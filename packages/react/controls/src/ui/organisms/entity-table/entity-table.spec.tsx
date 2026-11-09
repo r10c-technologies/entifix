@@ -137,7 +137,7 @@ describe('EntityTable', () => {
     expect(screen.getAllByText('Acme').length).toBeGreaterThan(0);
   });
 
-  it('renders a foreign-key link as its id when the target is not loaded', () => {
+  it('holds a skeleton, never the id, for a link whose target is not loaded', () => {
     const widget = makeWidget();
     widget.brand.setValue(undefined);
     widget.brand.setId('brand-9');
@@ -146,7 +146,7 @@ describe('EntityTable', () => {
       <EntityTable entityConstructor={Widget} items={[widget]} {...pager} />,
     );
 
-    expect(screen.getAllByText('brand-9').length).toBeGreaterThan(0);
+    expect(screen.queryByText('brand-9')).not.toBeInTheDocument();
   });
 
   it('lets a slot override a column', () => {
