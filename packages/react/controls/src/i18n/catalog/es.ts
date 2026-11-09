@@ -37,6 +37,17 @@ export const controls = {
     selectedCount_one: '{{count}} seleccionado',
     selectedCount_other: '{{count}} seleccionados',
     clearSelection: 'Limpiar selección',
+    /**
+     * Lo que dice la región de estado tras filtrar, ordenar o cambiar de
+     * página — nunca en la primera carga, que el lector pidió al llegar.
+     */
+    results_one: '{{count}} resultado',
+    results_other: '{{count}} resultados',
+    noResultsFiltered: 'Sin resultados para estos filtros',
+    /** El `caption` de la tabla: qué contiene, cuántos y en qué orden. */
+    caption: '{{entity}} · {{results}}',
+    captionSorted:
+      '{{entity}} · {{results}} · ordenado por {{column}}, {{direction}}',
   },
   /**
    * Una acción sobre una selección. El resultado es por fila, nunca un aviso
@@ -71,8 +82,12 @@ export const controls = {
     label: 'Páginas',
     summary: 'Página {{current}} de {{total}} · {{items}} registros',
     rows: 'Filas',
+    first: 'Primera',
     previous: 'Anterior',
     next: 'Siguiente',
+    last: 'Última',
+    /** Lo que se anuncia al cambiar de página. */
+    page: 'Página {{current}} de {{total}}',
   },
   columns: {
     title: 'Columnas',
@@ -98,6 +113,11 @@ export const controls = {
     remove: 'Quitar filtro',
     applyAria: 'Aplicar filtros',
     clearAria: 'Limpiar filtros',
+    applied: 'Filtros aplicados',
+    removeChip: 'Quitar filtro: {{filter}}',
+    clearAll: 'Limpiar todo',
+    /** Una opción con cuántos registros la tienen: «Borrador (3)». */
+    withCount: '{{label}} ({{count}})',
   },
   sort: {
     by: 'Ordenar por',

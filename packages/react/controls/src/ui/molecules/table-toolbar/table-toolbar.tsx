@@ -9,6 +9,8 @@ export interface TableToolbarProps {
   end?: ReactNode;
   /** Expanded panel rendered below the bar (filters, sorting). */
   panel?: ReactNode;
+  /** The panel's id, for the toggle that opens it to name in `aria-controls`. */
+  panelId?: string;
   className?: string;
 }
 
@@ -17,6 +19,7 @@ export function TableToolbar({
   start,
   end,
   panel,
+  panelId,
   className,
 }: TableToolbarProps) {
   return (
@@ -28,7 +31,10 @@ export function TableToolbar({
         <div className="flex flex-wrap items-center gap-2xs">{end}</div>
       </div>
       {panel && (
-        <div className="rounded-xl border border-border bg-surface p-s">
+        <div
+          id={panelId}
+          className="rounded-xl border border-border bg-surface p-s"
+        >
           {panel}
         </div>
       )}

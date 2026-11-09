@@ -37,6 +37,7 @@ export * from './ui/molecules/entity-link-input/index.js';
 export * from './ui/molecules/entity-link-picker/index.js';
 export * from './ui/molecules/entity-record-card/index.js';
 export * from './ui/molecules/filter-builder/index.js';
+export * from './ui/molecules/filter-chips/index.js';
 export * from './ui/molecules/loading-boundary/index.js';
 export * from './ui/molecules/media-gallery/index.js';
 export * from './ui/molecules/menu/index.js';

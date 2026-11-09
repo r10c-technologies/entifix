@@ -10,15 +10,24 @@ import {
   type FilterGroup,
   hierarchyOf,
   isSelected,
+  queryPropertyFor,
   selectionSize,
   toggleSelected,
   type UseCaseDescriptor,
 } from '@entifix/core';
-import { Fragment, type ReactNode, useMemo, useRef, useState } from 'react';
+import {
+  Fragment,
+  type ReactNode,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 
 import {
   useEntityNoun,
   useErrorMessage,
+  useLocale,
   useT,
   useTranslateKey,
 } from '../../../i18n/index.js';
@@ -48,6 +57,7 @@ import { BulkResult } from '../../molecules/bulk-result/index.js';
 import { ColumnSettings } from '../../molecules/column-settings/index.js';
 import { EntityRecordCard } from '../../molecules/entity-record-card/index.js';
 import { FilterBuilder } from '../../molecules/filter-builder/index.js';
+import { FilterChips } from '../../molecules/filter-chips/index.js';
 import { LoadingBoundary } from '../../molecules/loading-boundary/index.js';
 import { Pagination } from '../../molecules/pagination/index.js';
 import { SortBuilder } from '../../molecules/sort-builder/index.js';
@@ -59,7 +69,9 @@ import type {
 } from './entity-table.types.js';
 import { readEntityTableSlots } from './entity-table-slots.js';
 import { shownTreeRows, TreeCell, treeRows } from './entity-table-tree.js';
+import { nextHeaderSorting, sortKeys } from './header-sort.js';
 import { useEntityTableColumns } from './use-entity-table-columns.js';
+import { useResultAnnouncement } from './use-result-announcement.js';
 
 /**
  * The grid and the card list are both rendered, and CSS picks one. A JS
@@ -135,6 +147,7 @@ export function EntityTable<TEntity extends Entity>({
   sorting,
   onFilteringChange,
   onSortingChange,
+  facets,
   selection,
   onSelectionChange,
   metadata,
@@ -229,7 +242,6 @@ export function EntityTable<TEntity extends Entity>({
    * the two is what stops every pagination click flashing grey.
    */
   const isFirstLoad = isLoading && items.length === 0;
-  const isRefetching = isLoading && items.length > 0;
 
   /** `true`/omitted → the built-in default; a node → that node; `false` → none. */
   const customSkeleton = typeof skeleton === 'boolean' ? undefined : skeleton;
@@ -240,13 +252,11 @@ export function EntityTable<TEntity extends Entity>({
   );
 
   /**
-   * The refetch hint, and it is deliberately the only one: rows stay readable
-   * and simply dim, because a second skeleton over live data would be two
-   * loading signals in one region.
+   * A refetch keeps its rows at full contrast and marks them `aria-busy`:
+   * dimming them through opacity took the text under the contrast a reader
+   * needs, on every page change.
    */
-  const busyClass = isRefetching
-    ? 'opacity-60 transition-opacity duration-200 ease-smooth'
-    : '';
+  const busy = isLoading || undefined;
 
   /** The column a row reads *as*: the first non-identifier one it filled in. */
   const titleColumn = (item: TEntity) =>
@@ -549,6 +559,121 @@ export function EntityTable<TEntity extends Entity>({
    */
   const emptyMessage = error ? t('table.error') : t('table.empty');
 
+  const locale = useLocale();
+  const panelId = useId();
+  const keys = sortKeys(sorting, columns);
+  const activeFilters = filtering?.values.length ?? 0;
+  const results = t('table.results', { count: totalItems });
+
+  /**
+   * What the status region says once a filter, a sort or a page has settled —
+   * debounced, and silent on the first load.
+   */
+  const announcement = useResultAnnouncement(
+    !isLoading,
+    totalItems === 0 && activeFilters > 0
+      ? t('table.noResultsFiltered')
+      : results,
+    JSON.stringify([filtering, sorting, currentPage, pageSize]),
+  );
+
+  /** The caption: what the table holds, how many, and in what order. */
+  const primaryKey = keys[0];
+  const primaryColumn =
+    primaryKey === undefined
+      ? undefined
+      : columns.find(column => column.name === primaryKey.member);
+  const caption =
+    primaryKey === undefined || primaryColumn === undefined
+      ? t('table.caption', {
+          entity: entityNoun(metaEntity, 'plural'),
+          results,
+        })
+      : t('table.captionSorted', {
+          entity: entityNoun(metaEntity, 'plural'),
+          results,
+          column: primaryColumn.label,
+          direction: t(
+            primaryKey.type === 'asc' ? 'sort.ascending' : 'sort.descending',
+          ),
+        });
+
+  /**
+   * A column's header: its name, and — for a sortable one — a button that
+   * cycles it ascending → descending → unsorted, with Shift adding it as the
+   * next key. Only the primary key carries `aria-sort`.
+   */
+  const headerCell = (column: EntityTableColumn<TEntity>) => {
+    const label = column.header ?? column.label;
+    if (!column.sortable || onSortingChange === undefined)
+      return <TableHeaderCell key={column.name}>{label}</TableHeaderCell>;
+    const position = keys.findIndex(key => key.member === column.name);
+    const type = keys[position]?.type;
+    return (
+      <TableHeaderCell
+        key={column.name}
+        aria-sort={
+          position === 0
+            ? type === 'asc'
+              ? 'ascending'
+              : 'descending'
+            : undefined
+        }
+      >
+        <button
+          type="button"
+          className="inline-flex min-h-(--target-min) items-center gap-3xs rounded-sm focus-ring hover:text-content"
+          onClick={event =>
+            onSortingChange(
+              nextHeaderSorting<TEntity>(
+                keys,
+                {
+                  member: column.name,
+                  property: queryPropertyFor(column, locale),
+                },
+                event.shiftKey,
+              ),
+            )
+          }
+        >
+          {label}
+          <span aria-hidden="true">
+            {type === 'asc' ? '▲' : type === 'desc' ? '▼' : '↕'}
+          </span>
+          {keys.length > 1 && position >= 0 && (
+            <span aria-hidden="true" className="text-step-sm">
+              {position + 1}
+            </span>
+          )}
+        </button>
+      </TableHeaderCell>
+    );
+  };
+
+  /** A panel toggle: its state said by `aria-expanded`, and its count shown. */
+  const panelToggle = (which: Exclude<Panel, 'none'>, count: number) => (
+    <Button
+      type="button"
+      variant={panel === which ? 'primary' : 'secondary'}
+      size="sm"
+      aria-expanded={panel === which}
+      aria-controls={panelId}
+      onClick={() => setPanel(current => (current === which ? 'none' : which))}
+    >
+      {t(which === 'filters' ? 'table.filters' : 'table.sorting')}
+      {count > 0 && (
+        // Its name stays "Filters": the chips say which filters, and a count
+        // in the name would change it under the reader with every filter.
+        <span
+          aria-hidden="true"
+          className="ms-3xs rounded-full bg-surface px-3xs text-step-sm text-content"
+        >
+          {count}
+        </span>
+      )}
+    </Button>
+  );
+
   return (
     <div className="flex flex-col gap-s">
       {/*
@@ -559,7 +684,7 @@ export function EntityTable<TEntity extends Entity>({
         only thing that carries the news.
       */}
       <span role="status" aria-live="polite" className="sr-only">
-        {isFirstLoad ? t('table.loading') : ''}
+        {isFirstLoad ? t('table.loading') : announcement}
       </span>
 
       {showControls && (
@@ -586,30 +711,8 @@ export function EntityTable<TEntity extends Entity>({
           }
           end={
             <>
-              <Button
-                type="button"
-                variant={panel === 'filters' ? 'primary' : 'secondary'}
-                size="sm"
-                onClick={() =>
-                  setPanel(current =>
-                    current === 'filters' ? 'none' : 'filters',
-                  )
-                }
-              >
-                {t('table.filters')}
-              </Button>
-              <Button
-                type="button"
-                variant={panel === 'sorting' ? 'primary' : 'secondary'}
-                size="sm"
-                onClick={() =>
-                  setPanel(current =>
-                    current === 'sorting' ? 'none' : 'sorting',
-                  )
-                }
-              >
-                {t('table.sorting')}
-              </Button>
+              {panelToggle('filters', activeFilters)}
+              {panelToggle('sorting', keys.length)}
               <ColumnSettings
                 columns={columns}
                 hidden={hidden}
@@ -617,10 +720,15 @@ export function EntityTable<TEntity extends Entity>({
               />
             </>
           }
+          panelId={panelId}
           panel={
             panel === 'filters' ? (
               <FilterBuilder<TEntity>
+                // Remounted when the filtering changes from outside — a chip
+                // removed — so its rows show what is in effect.
+                key={JSON.stringify(filtering ?? null)}
                 descriptors={columns.filter(column => column.filterable)}
+                facets={facets}
                 value={filtering}
                 onChange={(applied: FilterGroup<TEntity>) =>
                   onFilteringChange?.(applied)
@@ -636,6 +744,14 @@ export function EntityTable<TEntity extends Entity>({
               />
             ) : undefined
           }
+        />
+      )}
+
+      {showControls && onFilteringChange !== undefined && (
+        <FilterChips<TEntity>
+          descriptors={columns.filter(column => column.filterable)}
+          value={filtering}
+          onChange={onFilteringChange}
         />
       )}
 
@@ -698,8 +814,13 @@ export function EntityTable<TEntity extends Entity>({
       )}
 
       {/* Wide viewports: a grid. */}
-      <div className={`${pivot.grid} ${busyClass}`}>
-        <Table>
+      <div className={pivot.grid} aria-busy={busy}>
+        {/* Held to most of the viewport so the header can stick above the
+            rows; the scroll padding keeps a focused row out from under it. */}
+        <Table
+          caption={caption}
+          containerClassName="max-h-[80dvh] scroll-pt-12"
+        >
           <TableHead>
             {slots.header ? (
               slots.header.render(visibleColumns)
@@ -721,18 +842,14 @@ export function EntityTable<TEntity extends Entity>({
                     />
                   </TableHeaderCell>
                 )}
-                {visibleColumns.map(column => (
-                  <TableHeaderCell key={column.name}>
-                    {column.header ?? column.label}
-                  </TableHeaderCell>
-                ))}
+                {visibleColumns.map(headerCell)}
                 {hasRowAction && (
                   <TableHeaderCell>{t('table.actions')}</TableHeaderCell>
                 )}
               </tr>
             )}
           </TableHead>
-          <TableBody aria-busy={isLoading || undefined}>
+          <TableBody>
             {/* Skeleton rows rather than the word "Loading", and one per column
                 rather than a single full-width blob: the placeholder occupies
                 the real grid, so the swap to rows shifts nothing sideways.
@@ -814,10 +931,7 @@ export function EntityTable<TEntity extends Entity>({
       </div>
 
       {/* Narrow viewports: the same columns pivoted into cards. */}
-      <div
-        className={`${pivot.cards} flex flex-col gap-2xs ${busyClass}`}
-        aria-busy={isLoading || undefined}
-      >
+      <div className={`${pivot.cards} flex flex-col gap-2xs`} aria-busy={busy}>
         {/* The card pivot gets card-shaped placeholders, not a bare shimmer
             block: the border, radius and padding are the geometry here. */}
         {showSkeleton &&

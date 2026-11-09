@@ -30,6 +30,12 @@ export const controls: EsControls = {
     selectedCount_one: '{{count}} selected',
     selectedCount_other: '{{count}} selected',
     clearSelection: 'Clear selection',
+    results_one: '{{count}} result',
+    results_other: '{{count}} results',
+    noResultsFiltered: 'No results for these filters',
+    caption: '{{entity}} · {{results}}',
+    captionSorted:
+      '{{entity}} · {{results}} · sorted by {{column}}, {{direction}}',
   },
   bulk: {
     running: 'Running…',
@@ -60,8 +66,11 @@ export const controls: EsControls = {
     label: 'Pages',
     summary: 'Page {{current}} of {{total}} · {{items}} items',
     rows: 'Rows',
+    first: 'First',
     previous: 'Previous',
     next: 'Next',
+    last: 'Last',
+    page: 'Page {{current}} of {{total}}',
   },
   columns: {
     title: 'Columns',
@@ -87,6 +96,10 @@ export const controls: EsControls = {
     remove: 'Remove filter',
     applyAria: 'Apply filters',
     clearAria: 'Clear filters',
+    applied: 'Applied filters',
+    removeChip: 'Remove filter: {{filter}}',
+    clearAll: 'Clear all',
+    withCount: '{{label}} ({{count}})',
   },
   sort: {
     by: 'Sort by',

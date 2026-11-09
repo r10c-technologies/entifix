@@ -98,6 +98,7 @@ export const invoiceCrud = makeEntityCrud<Invoice, ExampleAdapters>(Invoice, {
   ],
   metadataSource,
   useCases: 'invoiceVerbs',
+  facets: 'invoiceFacets',
 });
 
 /** A list with no "New": a payment is written when money arrives. */

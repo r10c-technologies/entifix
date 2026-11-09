@@ -450,6 +450,9 @@ describe('EntityTable controls', () => {
       const { container } = renderTable({ isLoading: true });
 
       expect(container.querySelectorAll('[aria-busy="true"]').length).toBe(2);
+      // Busy, and still at full contrast: no dimming through opacity.
+      for (const region of container.querySelectorAll('[aria-busy="true"]'))
+        expect(region.className).not.toMatch(/opacity/);
     });
 
     // The placeholder occupies the real grid: one shimmer per visible column,

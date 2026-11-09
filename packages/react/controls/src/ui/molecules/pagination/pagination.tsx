@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+
 import { useT } from '../../../i18n/index.js';
 import { Button } from '../../atoms/button/index.js';
 import { Select } from '../../atoms/field/index.js';
@@ -22,6 +24,11 @@ export interface PaginationProps {
 /**
  * Page stepper plus an optional page-size selector, driven by callbacks.
  *
+ * A `nav` with First, Previous, Next and Last. An end that goes nowhere stays
+ * focusable and says so with `aria-disabled`, rather than dropping out of the
+ * tab order under the reader's hand. A page change is announced — "Page 2 of
+ * 5" — and the first render is not.
+ *
  * For a listing whose pages are addresses (server-rendered, crawlable, working
  * without JavaScript) use {@link PaginationLinks} instead.
  */
@@ -36,9 +43,28 @@ export function Pagination({
 }: PaginationProps) {
   const t = useT();
   const totalPages = pageCount(totalItems, pageSize);
+  const [announced, setAnnounced] = useState(false);
+
+  const step = (label: string, page: number, enabled: boolean) => (
+    <Button
+      type="button"
+      variant="secondary"
+      size="sm"
+      // Headless UI runs no handler on an `aria-disabled` button, so an end
+      // that goes nowhere is inert while it keeps its place in the tab order.
+      aria-disabled={enabled ? undefined : true}
+      onClick={() => {
+        setAnnounced(true);
+        onPageChange(page);
+      }}
+    >
+      {label}
+    </Button>
+  );
 
   return (
-    <div
+    <nav
+      aria-label={t('pagination.label')}
       className={cn(
         'flex flex-wrap items-center justify-between gap-2xs',
         className,
@@ -51,8 +77,13 @@ export function Pagination({
           items: totalItems,
         })}
       </Text>
+      <span role="status" className="sr-only">
+        {announced
+          ? t('pagination.page', { current: currentPage, total: totalPages })
+          : ''}
+      </span>
 
-      <div className="flex items-center gap-2xs">
+      <div className="flex flex-wrap items-center gap-2xs">
         {onPageSizeChange && (
           <label className="flex items-center gap-3xs text-step-sm text-content-muted">
             {t('pagination.rows')}
@@ -68,25 +99,11 @@ export function Pagination({
             </Select>
           </label>
         )}
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          disabled={currentPage <= 1}
-          onClick={() => onPageChange(currentPage - 1)}
-        >
-          {t('pagination.previous')}
-        </Button>
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          disabled={currentPage >= totalPages}
-          onClick={() => onPageChange(currentPage + 1)}
-        >
-          {t('pagination.next')}
-        </Button>
+        {step(t('pagination.first'), 1, currentPage > 1)}
+        {step(t('pagination.previous'), currentPage - 1, currentPage > 1)}
+        {step(t('pagination.next'), currentPage + 1, currentPage < totalPages)}
+        {step(t('pagination.last'), totalPages, currentPage < totalPages)}
       </div>
-    </div>
+    </nav>
   );
 }

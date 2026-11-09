@@ -1,4 +1,7 @@
-import type { EntityRepositoryTag } from '@entifix/business';
+import type {
+  EntityFacetCounterTag,
+  EntityRepositoryTag,
+} from '@entifix/business';
 import type {
   Entity,
   EntityConstructor,
@@ -260,6 +263,14 @@ export interface EntityCrudOptions<TAdapters, TEntity extends Entity> {
    * `PendingFlowsProvider` above while the form keeps its input.
    */
   readonly write?: AdapterKey<TAdapters, EntityWriter>;
+
+  /**
+   * An adapter context providing `EntityFacetCounterTag` — the REST client's
+   * facets adapter, typically. Supplied, the list's filter panel shows how
+   * many records hold each choice of an enum or boolean member, counted under
+   * the filters in effect less that member's own.
+   */
+  readonly facets?: AdapterKey<TAdapters, Context<EntityFacetCounterTag>>;
 }
 
 /**

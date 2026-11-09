@@ -1,10 +1,50 @@
-import type { ComponentPropsWithoutRef } from 'react';
+'use client';
+
+import {
+  type ComponentPropsWithoutRef,
+  type ReactNode,
+  type RefObject,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from 'react';
 
 import { cn } from '../../utils/cn.js';
 
 export interface TableProps extends ComponentPropsWithoutRef<'table'> {
   /** Class names for the scroll container wrapping the `<table>`. */
   containerClassName?: string;
+  /**
+   * What the table holds — "Clientes, 12 resultados". It names the table and,
+   * once the table overflows its container, the scroll region too.
+   */
+  caption?: ReactNode;
+  /** Class names for the caption; screen-reader only unless overridden. */
+  captionClassName?: string;
+}
+
+/**
+ * Whether an element's content is larger than its box, on either axis —
+ * measured again whenever the box or the content it holds resizes.
+ */
+function useOverflows(ref: RefObject<HTMLElement | null>): boolean {
+  const [overflows, setOverflows] = useState(false);
+  useEffect(() => {
+    const node = ref.current as HTMLElement;
+    const measure = () =>
+      setOverflows(
+        node.scrollWidth > node.clientWidth ||
+          node.scrollHeight > node.clientHeight,
+      );
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    // The table grows with its rows while the container keeps its size.
+    for (const child of Array.from(node.children)) observer.observe(child);
+    return () => observer.disconnect();
+  }, [ref]);
+  return overflows;
 }
 
 /**
@@ -12,13 +52,34 @@ export interface TableProps extends ComponentPropsWithoutRef<'table'> {
  * composes these; anything rendering non-entity tabular data can use them too.
  *
  * Wide tables scroll inside their own container rather than pushing the page
- * sideways.
+ * sideways. A container that scrolls is a **focusable region** named by the
+ * caption, so a keyboard can scroll it — and one that fits is neither, so it
+ * adds no tab stop that does nothing.
  */
-export function Table({ className, containerClassName, ...props }: TableProps) {
+export function Table({
+  className,
+  containerClassName,
+  caption,
+  captionClassName = 'sr-only',
+  children,
+  ...props
+}: TableProps) {
+  const container = useRef<HTMLDivElement>(null);
+  const captionId = useId();
+  const overflows = useOverflows(container);
+  const named = caption !== undefined;
+
   return (
     <div
+      ref={container}
+      data-overflows={overflows || undefined}
+      {...(overflows && {
+        tabIndex: 0,
+        role: named ? 'region' : undefined,
+        'aria-labelledby': named ? captionId : undefined,
+      })}
       className={cn(
-        'w-full overflow-x-auto rounded-xl border border-border bg-surface-elevated',
+        'w-full overflow-auto rounded-xl border border-border bg-surface-elevated focus-ring',
         containerClassName,
       )}
     >
@@ -28,7 +89,14 @@ export function Table({ className, containerClassName, ...props }: TableProps) {
           className,
         )}
         {...props}
-      />
+      >
+        {named && (
+          <caption id={captionId} className={captionClassName}>
+            {caption}
+          </caption>
+        )}
+        {children}
+      </table>
     </div>
   );
 }
@@ -39,7 +107,13 @@ export function TableHead({
 }: ComponentPropsWithoutRef<'thead'>) {
   return (
     <thead
-      className={cn('border-b border-border bg-surface', className)}
+      // Sticky inside a container that scrolls: the column names stay in view
+      // over a long page of rows. One layer above the rows, and no higher: a
+      // row menu opened under it must still paint over it.
+      className={cn(
+        'top-0 sticky z-1 border-b border-border bg-surface',
+        className,
+      )}
       {...props}
     />
   );

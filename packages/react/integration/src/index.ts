@@ -6,6 +6,7 @@ export * from './hooks/use-entity-link-source/index.js';
 export * from './hooks/use-entity-mutation/index.js';
 export * from './hooks/use-entity-record/index.js';
 export * from './hooks/use-entity-use-cases/index.js';
+export * from './hooks/use-facet-counts/index.js';
 export * from './hooks/use-wizard/index.js';
 export * from './pending/pending-flow-store.js';
 export * from './pending/use-optimistic-mutation.js';

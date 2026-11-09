@@ -1,6 +1,8 @@
-import { EntityRepositoryTag } from '@entifix/business';
+import { EntityFacetCounterTag, EntityRepositoryTag } from '@entifix/business';
 import {
+  countFacets,
   type Entity,
+  type EntityFacetQuery,
   type EntityUseCaseRunner,
   Internal,
   settled,
@@ -87,6 +89,18 @@ export const exampleAdapters = {
   invoices: Context.make(EntityRepositoryTag, repositories.invoices),
   payments: Context.make(EntityRepositoryTag, repositories.payments),
   invoiceVerbs,
+  // Counted over the same repository the list reads, the in-process
+  // counterpart of the REST client's facets adapter.
+  invoiceFacets: Context.make(EntityFacetCounterTag, {
+    count: queries =>
+      Effect.sync(() =>
+        countFacets(
+          repositories.invoices.items,
+          // The port is generic over the entity; this store holds one.
+          queries as unknown as readonly EntityFacetQuery[],
+        ),
+      ),
+  }),
 };
 
 export type ExampleAdapters = typeof exampleAdapters;

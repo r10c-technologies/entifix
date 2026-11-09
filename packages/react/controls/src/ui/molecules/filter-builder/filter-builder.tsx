@@ -2,6 +2,8 @@
 
 import {
   type Entity,
+  type EntityFacetCounts,
+  type EntityFacetValue,
   type EntityFieldDescriptor,
   type EntityFilter,
   type FilterGroup,
@@ -159,6 +161,12 @@ export interface FilterBuilderProps<TEntity extends Entity> {
   /** The filtering currently applied, used to seed the rows. */
   value?: FilterGroup<TEntity>;
   onChange: (filtering: FilterGroup<TEntity>) => void;
+  /**
+   * How many records hold each value, by member — shown beside an enum's or a
+   * boolean's choices, so a reader sees what a choice would keep before
+   * applying it ([ADR 0012](../../../../../../../docs/adr/0012-facet-counts-are-a-port-of-their-own.md)).
+   */
+  facets?: EntityFacetCounts;
 }
 
 /**
@@ -174,6 +182,7 @@ export function FilterBuilder<TEntity extends Entity>({
   descriptors,
   value: applied,
   onChange,
+  facets,
 }: FilterBuilderProps<TEntity>) {
   const t = useT();
   const idPrefix = useId();
@@ -311,6 +320,7 @@ export function FilterBuilder<TEntity extends Entity>({
             {arity !== 'none' && (
               <FilterValueInput
                 descriptor={descriptor}
+                counts={facets?.[descriptor.name]}
                 arity={arity}
                 value={draft.value}
                 end={draft.end}
@@ -369,6 +379,7 @@ export function FilterBuilder<TEntity extends Entity>({
 
 interface FilterValueInputProps {
   descriptor: EntityFieldDescriptor;
+  counts?: readonly EntityFacetValue[];
   arity: ReturnType<typeof operatorArity>;
   value: string;
   end: string;
@@ -379,6 +390,7 @@ interface FilterValueInputProps {
 /** The value control the member's type calls for. */
 function FilterValueInput({
   descriptor,
+  counts,
   arity,
   value,
   end,
@@ -387,6 +399,13 @@ function FilterValueInput({
 }: FilterValueInputProps) {
   const t = useT();
   const enumLabel = useEnumLabel();
+  /** A choice's label, with how many records hold it when that is known. */
+  const counted = (label: string, option: string) => {
+    const count = counts?.find(entry => String(entry.value) === option)?.count;
+    return count === undefined
+      ? label
+      : t('filter.withCount', { label, count });
+  };
 
   if (descriptor.type === 'boolean') {
     return (
@@ -396,8 +415,8 @@ function FilterValueInput({
         onChange={event => onValueChange(event.target.value)}
       >
         <option value="">—</option>
-        <option value="true">{t('value.yes')}</option>
-        <option value="false">{t('value.no')}</option>
+        <option value="true">{counted(t('value.yes'), 'true')}</option>
+        <option value="false">{counted(t('value.no'), 'false')}</option>
       </Select>
     );
   }
@@ -412,7 +431,7 @@ function FilterValueInput({
         <option value="">—</option>
         {descriptor.enumValues.map(option => (
           <option key={option} value={option}>
-            {enumLabel(descriptor, option)}
+            {counted(enumLabel(descriptor, option), option)}
           </option>
         ))}
       </Select>

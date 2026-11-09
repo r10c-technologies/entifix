@@ -3,6 +3,7 @@ import type {
   EntifixFailure,
   Entity,
   EntityConstructor,
+  EntityFacetCounts,
   EntityFieldDescriptor,
   EntityId,
   EntityMetadataDocument,
@@ -112,8 +113,13 @@ export interface EntityTableProps<TEntity extends Entity> {
   /** Notified when the filter panel is **applied** — not while it is edited, so
    *  the value can feed a load request directly. */
   onFilteringChange?: (filtering: FilterGroup<TEntity>) => void;
-  /** Notified when the sort panel is applied. */
+  /** Notified when the sort panel is applied, or a column header is clicked. */
   onSortingChange?: (sorting: EntitySorting<TEntity>) => void;
+  /**
+   * How many records hold each value, by member, for the filter panel to show
+   * beside an enum's or a boolean's choices.
+   */
+  facets?: EntityFacetCounts;
 
   /**
    * The rows a collection-bound action would act on.

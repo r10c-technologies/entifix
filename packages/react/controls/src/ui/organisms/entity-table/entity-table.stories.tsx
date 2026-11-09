@@ -1,14 +1,19 @@
 import {
   accessor,
+  applyFiltering,
+  applySorting,
   type BulkOutcome,
   type Entity,
   entity,
   type EntityAction,
   type EntityId,
   type EntitySelection,
+  type EntitySorting,
+  type FilterGroup,
 } from '@entifix/core';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
+import { expect, userEvent, waitFor, within } from 'storybook/test';
 
 import { EntityTable } from './entity-table.js';
 
@@ -106,8 +111,9 @@ export const Loading: Story = {
 };
 
 /**
- * A refetch over rows that already arrived keeps them and dims instead. A
- * skeleton here would be a grey flash on every pagination click.
+ * A refetch over rows that already arrived keeps them, at full contrast, and
+ * marks the region busy. A skeleton here would be a grey flash on every
+ * pagination click, and dimming took the text under its contrast.
  */
 export const Reloading: Story = {
   render: () => (
@@ -244,4 +250,58 @@ export const BulkPartialFailure: Story = {
       ]}
     />
   ),
+};
+
+/**
+ * Sorted from a header and filtered from the panel, with what changed said in
+ * the status region: a list a keyboard and a screen reader can drive whole.
+ */
+function SortAndFilterDemo() {
+  const [sorting, setSorting] = useState<EntitySorting<StoryWidget>>({});
+  const [filtering, setFiltering] = useState<FilterGroup<StoryWidget>>({
+    operator: 'and',
+    values: [],
+  });
+  const items = applySorting(applyFiltering(WIDGETS, [filtering]), [sorting]);
+
+  return (
+    <EntityTable<StoryWidget>
+      entityConstructor={StoryWidget}
+      items={items}
+      isLoading={false}
+      {...pager}
+      totalItems={items.length}
+      sorting={sorting}
+      filtering={filtering}
+      onSortingChange={setSorting}
+      onFilteringChange={setFiltering}
+    />
+  );
+}
+
+export const SortAndFilter: Story = {
+  render: () => <SortAndFilterDemo />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const name = canvas.getByRole('columnheader', { name: /Name/ });
+
+    await userEvent.click(within(name).getByRole('button'));
+    await expect(name).toHaveAttribute('aria-sort', 'ascending');
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Filtros' }));
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Añadir filtro' }),
+    );
+    await userEvent.type(
+      canvas.getByRole('textbox', { name: 'Valor del filtro' }),
+      'Spro',
+    );
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Aplicar filtros' }),
+    );
+
+    await waitFor(() =>
+      expect(canvas.getAllByRole('status')[0]).toHaveTextContent('1 resultado'),
+    );
+  },
 };

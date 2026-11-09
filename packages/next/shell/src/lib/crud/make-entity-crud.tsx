@@ -2,6 +2,7 @@
 
 import {
   deleteUCFactory,
+  type EntityFacetCounterTag,
   EntityIdTag,
   type EntityRepositoryTag,
   EntityTag,
@@ -41,6 +42,7 @@ import {
   type OptimisticMutation,
   useDataLoading,
   useEntityRecord,
+  useFacetCounts,
   useOptimisticMutation,
 } from '@entifix/react-integration';
 import { useQueryClient } from '@tanstack/react-query';
@@ -240,6 +242,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     useCases,
     write,
     delete: deletePolicy = 'confirm',
+    facets,
   } = options;
 
   /**
@@ -306,6 +309,14 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
   // disagree about which entity they mean.
   const entityName = envelopeEntityName(entityConstructor);
   const descriptors = describeEntityColumns(entityConstructor);
+  /** The members a filter panel offers choices for, and so counts. */
+  const facetMembers = descriptors
+    .filter(
+      descriptor =>
+        descriptor.filterable &&
+        (descriptor.type === 'enum' || descriptor.type === 'boolean'),
+    )
+    .map(({ name, key }) => ({ name, key }));
   /** A record as the reader knows it: its first shown member that is filled in. */
   const recordLabelOf = (record: TEntity | undefined): string | undefined => {
     const named = descriptors.find(descriptor => {
@@ -360,6 +371,16 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
       queryKey: scope,
       ...(pageSize === undefined ? {} : { initialPageSize: pageSize }),
       ...(initialFiltering === undefined ? {} : { initialFiltering }),
+    });
+
+    const facetCounts = useFacetCounts<TEntity>({
+      ctx:
+        facets === undefined
+          ? undefined
+          : (adapters[facets] as Context.Context<EntityFacetCounterTag>),
+      members: facetMembers,
+      filtering: pager.filtering,
+      scope,
     });
 
     // Only when this caller may actually run something over a selection.
@@ -457,6 +478,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
           {...affordances}
           {...bulk.tableProps}
           onUseCase={handleRowUseCase}
+          facets={facetCounts}
           error={syncFailure(rowVerb.verb) ?? pager.error}
         >
           {columns}

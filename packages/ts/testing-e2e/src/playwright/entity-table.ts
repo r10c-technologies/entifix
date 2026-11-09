@@ -38,9 +38,21 @@ export class EntityTablePage {
     await expect(this.rows.first()).toBeVisible();
   }
 
-  /** Column headers, in render order. */
+  /**
+   * Column headers, in render order, as they are named: a header's
+   * `aria-hidden` decoration — the sort direction's glyph — is not its name.
+   */
   async headers(): Promise<string[]> {
-    return this.page.locator('table thead th').allInnerTexts();
+    return this.page.locator('table thead th').evaluateAll(cells =>
+      cells.map(cell => {
+        const copy = cell.cloneNode(true) as Element;
+        for (const hidden of Array.from(
+          copy.querySelectorAll('[aria-hidden="true"]'),
+        ))
+          hidden.remove();
+        return copy.textContent ?? '';
+      }),
+    );
   }
 
   /**
