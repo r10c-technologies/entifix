@@ -15,11 +15,10 @@ import {
   readRowDrafts,
   type UseCaseDescriptor,
 } from '@entifix/core';
-import { type ReactNode, useId, useState } from 'react';
+import { type ReactNode, useId, useRef, useState } from 'react';
 
 import {
   useEntityNoun,
-  useErrorMessage,
   useLocalizedDescriptors,
   useT,
   useTranslateKey,
@@ -40,8 +39,10 @@ import {
 import { Card } from '../../molecules/card/index.js';
 import { EntityLinkInput } from '../../molecules/entity-link-input/index.js';
 import { LoadingBoundary } from '../../molecules/loading-boundary/index.js';
+import { RegionState } from '../../molecules/region-state/index.js';
 import { Stack } from '../../molecules/stack/index.js';
 import { cn } from '../../utils/cn.js';
+import { useFocusOnArrival } from '../../utils/use-focus-on-arrival.js';
 import { EntityDetailGrid } from '../entity-detail-grid/index.js';
 import type {
   EntityFormField,
@@ -117,6 +118,7 @@ export function EntityForm<TEntity extends Entity>({
   isPending = false,
   isDeleting = false,
   error,
+  onRetry,
   backHref,
   renderLink = renderAnchor,
   title,
@@ -178,7 +180,10 @@ export function EntityForm<TEntity extends Entity>({
   const t = useT();
   const translateKey = useTranslateKey();
   const entityNoun = useEntityNoun();
-  const errorMessage = useErrorMessage();
+  // A form reached by a write — saved, handed off by a wizard — takes focus on
+  // its heading, so it never rests on `<body>` (ADR 0028).
+  const heading = useRef<HTMLHeadingElement>(null);
+  useFocusOnArrival(heading);
   const busy = isSaving || isPending || isDeleting;
 
   // A draft restored from storage holds relation ids and no instances, so every
@@ -342,7 +347,14 @@ export function EntityForm<TEntity extends Entity>({
             rendering a second of each is two controls for one job. */}
         {!embedded && (
           <Stack direction="row" gap="xs" align="center">
-            <Text as="h2" step={1} weight="semibold">
+            <Text
+              as="h2"
+              ref={heading}
+              tabIndex={-1}
+              step={1}
+              weight="semibold"
+              className="focus-ring"
+            >
               {/* `entity` is undefined while the record is still in flight, so
                 testing it alone made a loading edit form announce itself as
                 "New" for as long as the fetch took, then relabel when the
@@ -378,15 +390,14 @@ export function EntityForm<TEntity extends Entity>({
           {isLoading ? t('form.loading') : ''}
         </span>
 
-        {error && (
-          <p
-            role="alert"
-            data-testid="entity-form-error"
-            className="rounded-sm border border-danger bg-danger-subtle px-s py-2xs text-step-sm text-danger"
-          >
-            {errorMessage(error)}
-          </p>
-        )}
+        <RegionState
+          plural={entityNoun(metaEntity, 'plural')}
+          error={error}
+          onRetry={onRetry}
+          // Only a load that can be retried leaves an out-of-date record; a
+          // failed save leaves what the reader typed, which is current.
+          hasStaleData={entity !== undefined && onRetry !== undefined}
+        />
 
         {/* The placeholder *replaces* the rows rather than sitting above them.
             Rendering both meant a shimmer stacked on a full set of empty fields,

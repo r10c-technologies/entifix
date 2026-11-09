@@ -6,6 +6,7 @@ import {
   goBackWizard,
   goToWizardStep,
   stepStatuses,
+  Unavailable,
   withStepValue,
   type WizardDefinition,
 } from '@entifix/core';
@@ -203,6 +204,16 @@ export const Submitting: Story = {
     onFinish: () => undefined,
     onPrevious: () => undefined,
     children: <Text tone="muted">{'Repaso de todo lo respondido.'}</Text>,
+  },
+};
+
+/** The submit failed: every answer is kept, and Retry submits again. */
+export const SubmitFailed: Story = {
+  args: {
+    ...Submitting.args,
+    isSubmitting: false,
+    error: new Unavailable({}),
+    onRetry: () => undefined,
   },
 };
 

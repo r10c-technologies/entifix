@@ -25,13 +25,6 @@ export const BASELINE = join(__dirname, 'a11y-baseline.json');
  */
 export const WALK: WalkOptions = { skipLink: false, mainIndexMax: 13 };
 
-/**
- * A generated form drops focus to `<body>` after it saves or hands off, so a
- * write that does is marked with this until r10c-technologies/entifix#194
- * moves focus to the region's heading.
- */
-export const LOST_UNTIL = 'r10c-technologies/entifix#194';
-
 /** The screen gate: axe against the baseline, then the keyboard walk. */
 export const expectAccessible = async (page: Page, screen: string) => {
   await expectNoNewA11yViolations(page, { screen, baselinePath: BASELINE });

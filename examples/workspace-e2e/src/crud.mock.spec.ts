@@ -4,7 +4,6 @@ import {
   expectAccessible,
   expectFocusKept,
   expectNoNewViolations,
-  LOST_UNTIL,
 } from './a11y';
 import { expect, failOnPageErrors, test } from './support';
 
@@ -44,8 +43,12 @@ test('lists the seed, edits a record and shows the edit in the list', async ({
   await page.getByRole('button', { name: 'Guardar' }).click();
 
   await expect(page).toHaveURL(/\/es\/customers$/);
+  await expect(page.getByTestId('toast-region').getByRole('status')).toHaveText(
+    /Se guardó Alan M\. Turing\./,
+  );
   await table.waitForRows();
-  await expectFocusKept(page, { lostUntil: LOST_UNTIL });
+  await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
+  await expectFocusKept(page);
   expect(await table.columnValues('Nombre')).toContain('Alan M. Turing');
 });
 

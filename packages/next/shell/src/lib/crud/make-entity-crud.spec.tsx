@@ -1229,7 +1229,7 @@ describe('the generated form', () => {
     await press(user, button);
 
     await waitFor(() =>
-      expect(screen.getByTestId(/form-error$/)).toBeInTheDocument(),
+      expect(screen.getByTestId('region-state-error')).toBeInTheDocument(),
     );
     expect(push).not.toHaveBeenCalled();
   });
@@ -1324,7 +1324,7 @@ describe('the generated form', () => {
     await user.click(screen.getByRole('button', { name: 'Guardar' }));
 
     await waitFor(() =>
-      expect(screen.getByTestId(/form-error$/)).toBeInTheDocument(),
+      expect(screen.getByTestId('region-state-error')).toBeInTheDocument(),
     );
     expect(store.clear).not.toHaveBeenCalled();
   });
@@ -1622,7 +1622,7 @@ describe('the generated form, writing through a writer that answers both modes',
     expect(alerts).toHaveLength(1);
     expect(alerts[0]).toHaveTextContent(/ya estaba retirado/i);
     expect(screen.getByLabelText(/nombre/i)).toHaveValue('Hooli');
-    expect(screen.queryByTestId(/form-error$/)).toBeNull();
+    expect(screen.queryByTestId('region-state-error')).toBeNull();
     expect(screen.getByRole('button', { name: 'Guardar' })).not.toBeDisabled();
     expect(draft.clear).not.toHaveBeenCalled();
     expect(push).not.toHaveBeenCalled();
@@ -1869,8 +1869,53 @@ describe('the generated Delete (ADR 0026)', () => {
     expect(screen.getByRole('heading', { level: 1 })).toHaveFocus();
   });
 
-  it('leaves focus alone on a list nobody deleted from', () => {
+  it('announces a save by name', async () => {
+    slug = 'b-1';
+    const user = userEvent.setup();
+    withToasts(<brandCrud.SingleViewPage />);
+    await waitFor(() =>
+      expect(screen.getByLabelText(/nombre/i)).toHaveValue('Acme'),
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
+    expect(
+      within(screen.getByTestId('toast-region')).getByRole('status'),
+    ).toHaveTextContent('Se guardó Acme.');
+  });
+
+  it('retries a record that failed to load', async () => {
+    slug = 'b-1';
+    repositories.brand.failNext(new Unavailable({}));
+    const user = userEvent.setup();
+    renderPage(<brandCrud.SingleViewPage />);
+
+    await user.click(await screen.findByRole('button', { name: 'Reintentar' }));
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/nombre/i)).toHaveValue('Acme'),
+    );
+  });
+
+  it('retries a list that failed to load', async () => {
+    repositories.brand.failNext(new Unavailable({}));
+    const user = userEvent.setup();
     renderPage(<brandCrud.ListPage />);
+
+    await user.click(await screen.findByRole('button', { name: 'Reintentar' }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Reintentar' })).toBeNull(),
+    );
+    expect(screen.getAllByText('Acme').length).toBeGreaterThan(0);
+  });
+
+  it('leaves focus where the reader put it', () => {
+    render(<button type="button">Pestaña</button>);
+    screen.getByRole('button', { name: 'Pestaña' }).focus();
+    renderPage(<brandCrud.ListPage />);
+
     expect(screen.getByRole('heading', { level: 1 })).not.toHaveFocus();
   });
 

@@ -16,8 +16,6 @@ export const controls = {
     filters: 'Filtros',
     sorting: 'Orden',
     loading: 'Cargando…',
-    empty: 'Sin registros',
-    error: 'No se pudieron cargar los registros',
     /**
      * La columna de selección. `selectRow` nombra la fila porque una casilla
      * sin etiqueta visible sólo se anuncia por su `aria-label`, y repetir el
@@ -77,6 +75,19 @@ export const controls = {
     back: 'Volver',
     loading: 'Cargando…',
     pending: 'Esperando al servidor…',
+  },
+  /**
+   * Lo que dice una región cuando no muestra su contenido (ADR 0028): qué
+   * pasó, qué hacer, sin culpar a nadie y sin códigos.
+   */
+  state: {
+    retry: 'Reintentar',
+    forbidden: 'No tiene permiso para ver {{plural}}.',
+    stale: 'Lo que se muestra puede estar desactualizado.',
+    noResults: 'No hay {{plural}} que coincidan con estos filtros.',
+    clearFilters: 'Limpiar filtros',
+    empty: 'Aquí aparecerán sus {{plural}}.',
+    saved: 'Se guardó {{object}}.',
   },
   pagination: {
     label: 'Páginas',

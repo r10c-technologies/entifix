@@ -179,11 +179,7 @@ export function EntityDetailGrid({
         </div>
       )}
 
-      <Table
-        aria-label={descriptor.label}
-        aria-busy={isLoading || undefined}
-        aria-rowcount={rows.length}
-      >
+      <Table aria-label={descriptor.label} aria-busy={isLoading || undefined}>
         <TableHead>
           <TableRow>
             {columns.map(column => (

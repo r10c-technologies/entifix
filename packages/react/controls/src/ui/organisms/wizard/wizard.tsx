@@ -9,6 +9,7 @@ import { Skeleton } from '../../atoms/skeleton/index.js';
 import { Text } from '../../atoms/text/index.js';
 import { Cluster } from '../../layout/cluster/index.js';
 import { Card } from '../../molecules/card/index.js';
+import { RegionState } from '../../molecules/region-state/index.js';
 import { Stack } from '../../molecules/stack/index.js';
 import { cn } from '../../utils/cn.js';
 import type { WizardProps, WizardStepView } from './wizard.types.js';
@@ -74,6 +75,8 @@ export function Wizard({
   canFinish = false,
   canAdvance = true,
   isSubmitting = false,
+  error,
+  onRetry,
   recap,
   onDismissRecap,
   isLoading = false,
@@ -160,6 +163,8 @@ export function Wizard({
 
         {children}
       </Stack>
+
+      <RegionState plural={title} error={error} onRetry={onRetry} />
 
       <Cluster justify="between">
         <div>

@@ -180,6 +180,8 @@ export interface EntityFormProps<TEntity extends Entity> {
   isDeleting?: boolean;
   /** The failure of the last load/save, shown as an alert. */
   error?: EntifixFailure;
+  /** Loads the record again — what a failed load offers as Retry. */
+  onRetry?: () => void;
 
   /** Link to return to, rendered as a `Back` action. Omit to hide it. */
   backHref?: string;

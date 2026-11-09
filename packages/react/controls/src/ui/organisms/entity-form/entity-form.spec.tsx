@@ -702,9 +702,17 @@ describe('EntityForm', () => {
     // from assistive tech.
     expect(screen.getAllByTestId('skeleton').length).toBeGreaterThan(0);
     expect(screen.getByRole('status')).toHaveTextContent('Cargando…');
-    expect(screen.getByTestId('entity-form-error')).toHaveTextContent(
+    expect(screen.getByTestId('region-state-error')).toHaveTextContent(
       'Servicio no disponible',
     );
+  });
+
+  it('retries a failed load', async () => {
+    const onRetry = vi.fn();
+    render(<Harness error={new Unavailable({})} onRetry={onRetry} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
+    expect(onRetry).toHaveBeenCalledOnce();
   });
 
   // The defect this replaced: the shimmer used to render *beside* the field

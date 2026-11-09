@@ -26,14 +26,13 @@ import {
 
 import {
   useEntityNoun,
-  useErrorMessage,
   useLocale,
   useT,
   useTranslateKey,
 } from '../../../i18n/index.js';
 import { renderAnchor, useCasesForSurface } from '../../actions/index.js';
 import { useVerbInvoker } from '../../actions/use-verb-invoker.js';
-import { Button } from '../../atoms/button/index.js';
+import { Button, button } from '../../atoms/button/index.js';
 import { CellValue } from '../../atoms/cell-value/index.js';
 import { Checkbox } from '../../atoms/field/index.js';
 import { Skeleton } from '../../atoms/skeleton/index.js';
@@ -60,6 +59,7 @@ import { FilterBuilder } from '../../molecules/filter-builder/index.js';
 import { FilterChips } from '../../molecules/filter-chips/index.js';
 import { LoadingBoundary } from '../../molecules/loading-boundary/index.js';
 import { Pagination } from '../../molecules/pagination/index.js';
+import { RegionState } from '../../molecules/region-state/index.js';
 import { SortBuilder } from '../../molecules/sort-builder/index.js';
 import { TableToolbar } from '../../molecules/table-toolbar/index.js';
 import type {
@@ -147,6 +147,7 @@ export function EntityTable<TEntity extends Entity>({
   isMetadataLoading = false,
   onBulkUseCase,
   onUseCase,
+  onRetry,
   bulkOutcomes,
   onBulkDismiss,
   onBulkRetry,
@@ -158,7 +159,6 @@ export function EntityTable<TEntity extends Entity>({
   // it, which is why a host's catalog check is what catches a typo.
   const translateKey = useTranslateKey();
   const entityNoun = useEntityNoun();
-  const errorMessage = useErrorMessage();
   const metaEntity = extractMetaEntity(entityConstructor);
   const slots = readEntityTableSlots<TEntity>(children);
   const [panel, setPanel] = useState<Panel>('none');
@@ -589,13 +589,6 @@ export function EntityTable<TEntity extends Entity>({
     ...toolbarItems,
   ];
 
-  /**
-   * "No records" is a statement about the data; after a failed load it would be
-   * a lie about it. The distinction matters most to the user who is deciding
-   * whether their catalog is empty or their backend is down.
-   */
-  const emptyMessage = error ? t('table.error') : t('table.empty');
-
   const locale = useLocale();
   const panelId = useId();
   const keys = sortKeys(sorting, columns);
@@ -840,15 +833,41 @@ export function EntityTable<TEntity extends Entity>({
         are rows: a refetch that fails leaves the previous page on screen, and
         without this the user would read stale data as current.
       */}
-      {error && (
-        <p
-          role="alert"
-          data-testid="entity-table-error"
-          className="rounded-sm border border-danger bg-danger-subtle px-s py-2xs text-step-sm text-danger"
-        >
-          {errorMessage(error)}
-        </p>
-      )}
+      {/*
+        One state for the region, outside both layouts (ADR 0028): a failed
+        load with Retry — and the rows from before it marked as possibly out of
+        date — or an empty answer, which says whether a filter emptied it.
+      */}
+      <RegionState
+        plural={entityNoun(metaEntity, 'plural')}
+        isLoading={isLoading}
+        error={error}
+        onRetry={onRetry}
+        hasStaleData={items.length > 0}
+        isEmpty={items.length === 0}
+        isFiltered={activeFilters > 0}
+        onClearFilters={
+          onFilteringChange === undefined
+            ? undefined
+            : () =>
+                onFilteringChange({
+                  // Only offered under a filter, so there is one to keep the
+                  // logic of.
+                  operator: (filtering as FilterGroup<TEntity>).operator,
+                  values: [],
+                })
+        }
+        emptyAction={
+          mayCreate
+            ? renderLink({
+                href: newHref as string,
+                className: button({ variant: 'primary' }),
+                children: t('table.new'),
+                intent: { kind: 'new' },
+              })
+            : undefined
+        }
+      />
 
       {/* Wide viewports: a grid. */}
       <div className={pivot.grid} aria-busy={busy}>
@@ -918,11 +937,6 @@ export function EntityTable<TEntity extends Entity>({
                   </TableRow>
                 ))
               ))}
-            {!isLoading && items.length === 0 && (
-              <TableMessageRow colSpan={columnCount}>
-                {emptyMessage}
-              </TableMessageRow>
-            )}
             {shown.map(({ item, depth, hasChildren }, index) =>
               slots.row ? (
                 // A Fragment carries the key without wrapping the custom row in
@@ -988,9 +1002,6 @@ export function EntityTable<TEntity extends Entity>({
               ))}
             </ul>
           ))}
-        {!isLoading && items.length === 0 && (
-          <p className="text-step-sm text-content-muted">{emptyMessage}</p>
-        )}
         {shown.length > 0 && (
           <ul role="list" className="m-0 p-0 flex list-none flex-col gap-2xs">
             {shown.map(({ item, depth }, index) => {

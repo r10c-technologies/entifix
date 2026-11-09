@@ -1,4 +1,4 @@
-import { expectAccessible, expectFocusKept, LOST_UNTIL } from './a11y';
+import { expectAccessible, expectFocusKept } from './a11y';
 import { expect, failOnPageErrors, test } from './support';
 
 /**
@@ -33,7 +33,7 @@ test('adds an owned row, saves, and finds it on the record again', async ({
   await expect(
     page.getByRole('cell', { name: 'INV-0002-A', exact: true }),
   ).toBeVisible();
-  await expectFocusKept(page, { lostUntil: LOST_UNTIL });
+  await expectFocusKept(page);
 
   // Reopened from the list row, which opens the record's tab in place.
   await page

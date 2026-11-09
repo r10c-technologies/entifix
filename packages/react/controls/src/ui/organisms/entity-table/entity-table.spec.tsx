@@ -174,7 +174,7 @@ describe('EntityTable', () => {
       />,
     );
 
-    expect(screen.getAllByText('Sin registros').length).toBeGreaterThan(0);
+    expect(screen.getByText('Aquí aparecerán sus widget.')).toBeVisible();
   });
 });
 
@@ -501,10 +501,47 @@ describe('EntityTable controls', () => {
       expect(screen.queryAllByTestId('skeleton')).toHaveLength(0);
     });
 
-    it('reports an empty result set', () => {
-      renderTable({ items: [], totalItems: 0 });
+    it('reports an empty result set once, offering the first record', () => {
+      renderTable({ items: [], totalItems: 0, newHref: '/widgets/new' });
 
-      expect(screen.getAllByText('Sin registros').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Aquí aparecerán sus widget.')).toHaveLength(
+        1,
+      );
+      expect(screen.getAllByRole('link', { name: 'Nuevo' })).toHaveLength(2);
+    });
+
+    it('offers Clear filters when a filter emptied it', async () => {
+      const onFilteringChange = vi.fn();
+      const { user } = renderTable({
+        items: [],
+        totalItems: 0,
+        filtering: {
+          operator: 'or',
+          values: [{ property: 'name', operator: 'eq', value: 'x' }],
+        },
+        onFilteringChange,
+      });
+
+      await user.click(screen.getByRole('button', { name: 'Limpiar filtros' }));
+      expect(onFilteringChange).toHaveBeenCalledWith({
+        operator: 'or',
+        values: [],
+      });
+    });
+
+    it('offers no Clear filters where it cannot change them', () => {
+      renderTable({
+        items: [],
+        totalItems: 0,
+        filtering: {
+          operator: 'and',
+          values: [{ property: 'name', operator: 'eq', value: 'x' }],
+        },
+      });
+
+      expect(
+        screen.queryByRole('button', { name: 'Limpiar filtros' }),
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -525,10 +562,20 @@ describe('EntityTable controls', () => {
     it('does not claim the result set is empty', () => {
       renderTable({ items: [], totalItems: 0, error: unreachable });
 
-      expect(screen.queryByText('Sin registros')).not.toBeInTheDocument();
       expect(
-        screen.getAllByText('No se pudieron cargar los registros').length,
-      ).toBeGreaterThan(0);
+        screen.queryByText('Aquí aparecerán sus widget.'),
+      ).not.toBeInTheDocument();
+    });
+
+    it('retries the load', async () => {
+      const onRetry = vi.fn();
+      const { user } = renderTable({ error: unreachable, onRetry });
+
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'Lo que se muestra puede estar desactualizado.',
+      );
+      await user.click(screen.getByRole('button', { name: 'Reintentar' }));
+      expect(onRetry).toHaveBeenCalledOnce();
     });
 
     // A refetch that fails leaves the previous page on screen; without the

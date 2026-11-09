@@ -50,6 +50,16 @@ beforeEach(() => {
 });
 
 describe('useDataLoading', () => {
+  it('reads the page again on refetch', async () => {
+    const { result } = renderLoading();
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    repository.seed(widgets(3));
+    act(() => result.current.refetch());
+
+    await waitFor(() => expect(result.current.totalItems).toBe(3));
+  });
+
   it('loads the first page on mount', async () => {
     const { result } = renderLoading();
 

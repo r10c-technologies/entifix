@@ -2,7 +2,6 @@ import {
   expectAccessible,
   expectFocusKept,
   expectNoNewViolations,
-  LOST_UNTIL,
 } from './a11y';
 import { expect, failOnPageErrors, test } from './support';
 
@@ -40,5 +39,5 @@ test('walks the steps, goes back without losing input, and opens the new invoice
   await page.getByRole('button', { name: 'Finalizar' }).click();
   await expect(page.getByRole('tab', { name: /Factura #/ })).toBeVisible();
   await expect(page.getByLabel('Descripción')).toHaveValue('Debugging');
-  await expectFocusKept(page, { lostUntil: LOST_UNTIL });
+  await expectFocusKept(page);
 });

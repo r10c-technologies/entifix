@@ -180,6 +180,11 @@ export function useDataLoading<TEntity extends Entity, TContext>({
       ),
   });
 
+  const { refetch: refetchQuery } = query;
+  const refetch = useCallback(() => {
+    void refetchQuery();
+  }, [refetchQuery]);
+
   const onPageChange = useCallback((newPage: number) => {
     dispatch({ set: { currentPage: newPage } });
   }, []);
@@ -211,5 +216,7 @@ export function useDataLoading<TEntity extends Entity, TContext>({
     onPageSizeChange,
     onFilteringChange,
     onSortingChange,
+    /** Reads the current page again — what a failed load offers as Retry. */
+    refetch,
   };
 }

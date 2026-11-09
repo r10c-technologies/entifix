@@ -45,7 +45,7 @@ const I18nContext = createContext<Translator | null>(null);
 
 let fallback: Translator | undefined;
 
-/** `'table.empty'` → the string at that path, or `undefined`. */
+/** `'table.filters'` → the string at that path, or `undefined`. */
 const at = (catalog: object, key: string): string | undefined => {
   let node: unknown = catalog;
   for (const segment of key.split('.')) {
@@ -99,7 +99,7 @@ const interpolate = (text: string, params?: Record<string, unknown>): string =>
  * It resolves against **this package's own catalog**, which is the point of the
  * catalog living here: the controls arrive already able to speak, so an adopter
  * who wants no i18n library at all still gets a working table rather than one
- * captioned `table.empty`. A key outside `controls` — a host's namespace, an
+ * captioned `table.filters`. A key outside `controls` — a host's namespace, an
  * entity label — has nothing here to resolve against and comes back as itself.
  */
 function fallbackTranslator(): Translator {

@@ -34,6 +34,7 @@ import {
 import {
   EntityTable,
   useCasesForSurface,
+  useFocusOnArrival,
   useT,
   useToasts,
 } from '@entifix/react-controls';
@@ -245,14 +246,6 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     facets,
   } = options;
 
-  /**
-   * Set by a delete that is about to land on the list, read by the list once
-   * it mounts: focus goes to the list's heading rather than falling to
-   * `<body>` with the page that held it. Per generated screen, so another
-   * entity's list never takes it.
-   */
-  let focusListOnMount = false;
-
   if (givenMetadataSource !== undefined && metadata !== undefined) {
     throw new Error(
       `${entityConstructor.name} was given both metadataSource and metadata; pass one`,
@@ -448,14 +441,10 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
         }
       : undefined;
 
-    // The list's heading, and where focus lands after a delete brings the
-    // reader back here.
+    // The list's heading, and where focus lands when a save or a delete
+    // brings the reader back here rather than falling to `<body>`.
     const heading = useRef<HTMLHeadingElement>(null);
-    useEffect(() => {
-      if (!focusListOnMount) return;
-      focusListOnMount = false;
-      heading.current?.focus();
-    }, []);
+    useFocusOnArrival(heading);
     const et = useT('entity');
 
     return (
@@ -478,6 +467,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
           {...affordances}
           {...bulk.tableProps}
           onUseCase={handleRowUseCase}
+          onRetry={pager.refetch}
           facets={facetCounts}
           error={syncFailure(rowVerb.verb) ?? pager.error}
         >
@@ -627,12 +617,23 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
       if (result?._tag !== 'settled') return;
       draft?.clear();
       void refreshList();
+      // Said in the toast region every route shares, so it survives the
+      // navigation that follows (ADR 0028).
+      toasts?.show({
+        tone: 'success',
+        message: ct('state.saved', {
+          object: recordNoun(next),
+        }),
+      });
       afterSave();
     };
 
     const toasts = useToasts();
     const ct = useT('controls');
     const et = useT('entity');
+    /** What an announcement names: the record, or the entity for a blank one. */
+    const recordNoun = (record: TEntity | undefined) =>
+      recordLabelOf(record) ?? et(labelKey.replace(/^entity:/, ''));
     /**
      * Saves a deleted record back under its id: what Undo runs under the
      * `undo` policy.
@@ -662,8 +663,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
       void refreshList();
       // Said once, in the toast region every route shares, so it survives the
       // navigation back to the list.
-      const object =
-        recordLabelOf(snapshot) ?? et(labelKey.replace(/^entity:/, ''));
+      const object = recordNoun(snapshot);
       const message = ct('confirm.deleted', { object });
       if (deletePolicy === 'undo' && snapshot !== undefined)
         toasts?.show({
@@ -675,7 +675,6 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
           },
         });
       else toasts?.show({ tone: 'success', message });
-      focusListOnMount = onDeleted === undefined;
       afterDelete();
     };
 
@@ -731,6 +730,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
           syncFailure(recordVerb.verb)
         }
         onSave={handleSave}
+        onRetry={loadError === undefined ? undefined : reload}
         onDelete={id == null ? undefined : handleDelete}
         deletePolicy={deletePolicy}
         onUseCase={handleUseCase}

@@ -3,6 +3,7 @@ import {
   type Entity,
   entity,
   type EntityId,
+  Unavailable,
   type UseCaseDescriptor,
 } from '@entifix/core';
 import type { Meta, StoryObj } from '@storybook/react-vite';
@@ -109,6 +110,17 @@ export const Editing: Story = { render: () => <Demo mode="edit" /> };
 export const Loading: Story = {
   render: () => (
     <EntityForm<StoryGadget> entityConstructor={StoryGadget} isLoading />
+  ),
+};
+
+/** A record that failed to load: what went wrong, and Retry. */
+export const LoadError: Story = {
+  render: () => (
+    <EntityForm<StoryGadget>
+      entityConstructor={StoryGadget}
+      error={new Unavailable({})}
+      onRetry={() => undefined}
+    />
   ),
 };
 

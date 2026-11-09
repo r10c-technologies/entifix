@@ -35,9 +35,9 @@ export interface BulkResultProps {
  * because the user walks away believing the work is done. So both counts are
  * always stated, and every failure is named with its own reason.
  *
- * `role="status"`, not `role="alert"`: a partial failure is an outcome to read,
- * not an interruption, and `alert` on a list this long is hostile. The region
- * is `tabIndex={-1}` so the caller can move focus to it once the run ends,
+ * `role="alert"` when anything failed, `role="status"` when nothing did
+ * (ADR 0028): rows the user believes were written and were not are news that
+ * cannot wait its turn. The region is `tabIndex={-1}` so the caller can move focus to it once the run ends,
  * which is the only reliable way a keyboard user learns the result arrived.
  */
 export function BulkResult({
@@ -56,7 +56,7 @@ export function BulkResult({
 
   return (
     <div
-      role="status"
+      role={failed.length > 0 ? 'alert' : 'status'}
       tabIndex={-1}
       aria-label={t('bulk.resultLabel')}
       data-testid="bulk-result"

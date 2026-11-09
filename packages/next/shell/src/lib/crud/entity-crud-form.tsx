@@ -41,6 +41,8 @@ export interface EntityCrudFormProps<TEntity extends Entity> {
   readonly isPending?: boolean;
   readonly isDeleting?: boolean;
   readonly error?: EntifixFailure;
+  /** Loads the record again — offered as Retry on a failed load. */
+  readonly onRetry?: () => void;
   readonly onSave: (entity: TEntity) => void;
   /** Omitted for a create — there is nothing to delete yet. */
   readonly onDelete?: () => void;
@@ -90,6 +92,7 @@ export function EntityCrudForm<TEntity extends Entity>({
   isPending = false,
   isDeleting = false,
   error,
+  onRetry,
   onSave,
   onDelete,
   deletePolicy,
@@ -198,6 +201,7 @@ export function EntityCrudForm<TEntity extends Entity>({
       isPending={isPending}
       isDeleting={isDeleting}
       error={error}
+      onRetry={onRetry}
       backHref={backHref}
       renderLink={renderLink}
       // `entity` is undefined until the record lands, so testing it alone

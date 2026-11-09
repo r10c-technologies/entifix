@@ -10,6 +10,7 @@ import {
   type EntitySelection,
   type EntitySorting,
   type FilterGroup,
+  Unavailable,
 } from '@entifix/core';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
@@ -416,5 +417,45 @@ export const ResizeKeepsSelection: Story = {
     await expect(
       within(card).getByRole('button', { name: 'Acciones para Flange' }),
     ).toBeVisible();
+
+    // A box ticked on a card keeps focus: the bulk bar that appears above the
+    // cards must not take the card out from under it.
+    const grommet = within(frame.getByRole('article', { name: 'Grommet' }));
+    const box = grommet.getByRole('checkbox', { name: 'Seleccionar Grommet' });
+    await userEvent.click(box);
+    await expect(box).toBeChecked();
+    await expect(box).toHaveFocus();
   },
+};
+
+/** A filter emptied the list: it says so, and offers Clear filters. */
+export const NoResults: Story = {
+  render: () => (
+    <EntityTable<StoryWidget>
+      entityConstructor={StoryWidget}
+      items={[]}
+      isLoading={false}
+      {...pager}
+      totalItems={0}
+      filtering={{
+        operator: 'and',
+        values: [{ property: 'name', operator: 'like', value: 'zz' }],
+      }}
+      onFilteringChange={() => undefined}
+    />
+  ),
+};
+
+/** A load that failed, over the rows from before it, with Retry. */
+export const LoadError: Story = {
+  render: () => (
+    <EntityTable<StoryWidget>
+      entityConstructor={StoryWidget}
+      items={WIDGETS}
+      isLoading={false}
+      {...pager}
+      error={new Unavailable({})}
+      onRetry={() => undefined}
+    />
+  ),
 };
