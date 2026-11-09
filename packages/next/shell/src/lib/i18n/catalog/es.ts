@@ -2,10 +2,10 @@
 export const shell = {
   nav: {
     primary: 'Principal',
-    openInWorkspace: 'Abrir {{label}} en el espacio de trabajo',
-    openInWorkspaceShort: 'Abrir en el espacio de trabajo',
-    openInNewTab: 'Abrir {{label}} en una pestaña nueva',
-    openInNewTabShort: 'Abrir en una pestaña nueva',
+    openInWorkspace: 'Abrir en el espacio de trabajo',
+    openInNewTab: 'Abrir en una pestaña nueva',
+    /** The one menu beside each destination: open it elsewhere. */
+    itemActions: 'Opciones de {{label}}',
     /**
      * The screen taxonomy — the sidebar's top tier, above the
      * domain. `Definiciones` rather than `Maestros` because the ERP term needs
@@ -60,6 +60,8 @@ export const shell = {
     openInWorkspaceHint: 'Pestaña',
   },
   sidebar: {
+    /** The page's first stop: past the navigation, to the content. */
+    skipToContent: 'Saltar al contenido',
     expand: 'Expandir barra lateral',
     collapse: 'Contraer barra lateral',
     openMenu: 'Abrir el menú',

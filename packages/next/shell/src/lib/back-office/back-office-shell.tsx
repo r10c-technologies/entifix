@@ -72,6 +72,9 @@ export interface BackOfficeShellProps {
  * not. There is exactly one `SidebarNav` in the tree either way; rendering a
  * second copy for the drawer is how the two drift.
  */
+/** The content landmark's id: where the skip link lands. */
+const MAIN_ID = 'main-content';
+
 export function BackOfficeShell({
   nav,
   brand,
@@ -121,60 +124,76 @@ export function BackOfficeShell({
   const isCompact = mode === 'compact';
 
   return (
-    <Sidebar gap="none" className="min-h-screen">
-      {isCompact ? null : (
-        <Sidebar.Side
-          as="aside"
-          width={collapsed ? '4.5rem' : '16rem'}
-          className="md:sticky md:top-0 md:h-screen md:overflow-y-auto flex flex-col gap-m border-r border-border bg-surface-elevated p-s"
-        >
-          <div className="flex items-center justify-center px-2xs py-3xs text-step-1 font-semibold text-content">
-            {collapsed ? null : brand}
-          </div>
-          {navTree}
-        </Sidebar.Side>
-      )}
-
-      <Sidebar.Main as="main" className="flex flex-col">
-        <header className="flex items-center gap-s border-b border-border bg-surface-elevated px-m py-s">
-          <Button
-            variant="ghost"
-            size="sm"
-            aria-label={
-              isCompact
-                ? t('sidebar.openMenu')
-                : collapsed
-                  ? t('sidebar.expand')
-                  : t('sidebar.collapse')
-            }
-            // A drawer trigger is not a two-state toggle — it opens a thing that
-            // closes itself — so it reports pressed state only where it is one.
-            {...(isCompact ? {} : { 'aria-pressed': collapsed })}
-            onClick={() =>
-              isCompact ? setDrawerOpen(true) : setCollapsed(!preferCollapsed)
-            }
+    <>
+      {/* The first stop on every page: past the navigation, to the content
+          (WCAG 2.4.1). Hidden until it is focused. */}
+      <a
+        href={`#${MAIN_ID}`}
+        className="sr-only rounded-md bg-surface-elevated px-s py-2xs text-step-sm text-content shadow-overlay focus-ring focus:not-sr-only focus:fixed focus:top-s focus:left-s focus:z-(--z-overlay)"
+      >
+        {t('sidebar.skipToContent')}
+      </a>
+      <Sidebar gap="none" className="min-h-screen">
+        {isCompact ? null : (
+          <Sidebar.Side
+            as="aside"
+            width={collapsed ? '4.5rem' : '16rem'}
+            className="md:sticky md:top-0 md:h-screen md:overflow-y-auto flex flex-col gap-m border-r border-border bg-surface-elevated p-s"
           >
-            <span aria-hidden="true">☰</span>
-          </Button>
-          <BackOfficeBreadcrumbs labels={breadcrumbLabels} />
-          <div className="ml-auto flex items-center gap-2xs">
-            {commandPalette}
-            {accountMenu}
-          </div>
-        </header>
-        <div className="flex-1 p-m">{children}</div>
-      </Sidebar.Main>
+            <div className="flex items-center justify-center px-2xs py-3xs text-step-1 font-semibold text-content">
+              {collapsed ? null : brand}
+            </div>
+            {navTree}
+          </Sidebar.Side>
+        )}
 
-      {isCompact && (
-        <Drawer
-          open={isDrawerOpen}
-          onClose={() => setDrawerOpen(false)}
-          title={brand}
-          closeLabel={t('sidebar.closeMenu')}
+        <Sidebar.Main
+          as="main"
+          id={MAIN_ID}
+          // The skip link's target: focusable from it, never a Tab stop.
+          tabIndex={-1}
+          className="flex flex-col outline-none"
         >
-          {navTree}
-        </Drawer>
-      )}
-    </Sidebar>
+          <header className="flex items-center gap-s border-b border-border bg-surface-elevated px-m py-s">
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label={
+                isCompact
+                  ? t('sidebar.openMenu')
+                  : collapsed
+                    ? t('sidebar.expand')
+                    : t('sidebar.collapse')
+              }
+              // A drawer trigger is not a two-state toggle — it opens a thing that
+              // closes itself — so it reports pressed state only where it is one.
+              {...(isCompact ? {} : { 'aria-pressed': collapsed })}
+              onClick={() =>
+                isCompact ? setDrawerOpen(true) : setCollapsed(!preferCollapsed)
+              }
+            >
+              <span aria-hidden="true">☰</span>
+            </Button>
+            <BackOfficeBreadcrumbs labels={breadcrumbLabels} />
+            <div className="ml-auto flex items-center gap-2xs">
+              {commandPalette}
+              {accountMenu}
+            </div>
+          </header>
+          <div className="flex-1 p-m">{children}</div>
+        </Sidebar.Main>
+
+        {isCompact && (
+          <Drawer
+            open={isDrawerOpen}
+            onClose={() => setDrawerOpen(false)}
+            title={brand}
+            closeLabel={t('sidebar.closeMenu')}
+          >
+            {navTree}
+          </Drawer>
+        )}
+      </Sidebar>
+    </>
   );
 }

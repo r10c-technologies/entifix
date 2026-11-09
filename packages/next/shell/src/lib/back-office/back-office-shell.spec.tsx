@@ -6,7 +6,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BackOfficeShell } from './back-office-shell.js';
 import type { NavSection } from './nav.js';
 
-vi.mock('next/navigation', () => ({ usePathname: () => '/catalog/product' }));
+vi.mock('next/navigation', () => ({
+  usePathname: () => '/catalog/product',
+  useRouter: () => ({ push: vi.fn() }),
+}));
 vi.mock('next/link', () => ({
   default: ({ href, children, ...rest }: ComponentProps<'a'>) => (
     <a href={href} {...rest}>
@@ -223,5 +226,16 @@ describe('BackOfficeShell, at a narrow viewport', () => {
     expect(
       window.localStorage.getItem('entifix-ui:back-office:sidebar-collapsed'),
     ).toBeNull();
+  });
+});
+
+describe('BackOfficeShell skip link', () => {
+  it('is the first stop, and lands on the content', () => {
+    renderShell();
+
+    const [first] = screen.getAllByRole('link');
+    expect(first).toHaveAccessibleName('Saltar al contenido');
+    expect(first).toHaveAttribute('href', '#main-content');
+    expect(screen.getByRole('main')).toHaveAttribute('id', 'main-content');
   });
 });

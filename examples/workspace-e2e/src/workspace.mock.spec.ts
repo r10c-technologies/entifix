@@ -13,8 +13,9 @@ test('opens two tabs, tracks the active one in the URL, and restores both', asyn
   await expect(page.getByRole('tab', { name: /Clientes/ })).toBeVisible();
   await expectAccessible(page, 'customer-list-tab');
 
+  await page.getByRole('button', { name: 'Opciones de Facturas' }).click();
   await page
-    .getByRole('link', { name: 'Abrir Facturas en el espacio de trabajo' })
+    .getByRole('menuitem', { name: 'Abrir en el espacio de trabajo' })
     .click();
 
   await expect(page).toHaveURL(/tab=master%3Ainvoice|tab=master:invoice/);

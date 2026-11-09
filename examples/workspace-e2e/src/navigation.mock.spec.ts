@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 
-import { expectAccessible } from './a11y';
+import { expectAccessible, expectNoNewViolations } from './a11y';
 import { expect, failOnPageErrors, test } from './support';
 
 /**
@@ -70,3 +70,19 @@ test('a route host opens a record client-side', async ({ page }) => {
   await expect(page.getByLabel('Nombre')).toHaveValue('Alan Turing');
   expect(await markerSurvived(page)).toBe(true);
 });
+
+/**
+ * The sidebar's targets reach the 24px floor in both densities (ADR 0025):
+ * group toggles and item menus, at comfortable as at compact.
+ */
+for (const density of ['compact', 'comfortable'] as const)
+  test(`the navigation meets target size at ${density} density`, async ({
+    page,
+  }) => {
+    failOnPageErrors(page);
+    await page.goto('/es/customers');
+    await page.evaluate(
+      `document.documentElement.dataset.density = ${JSON.stringify(density)}`,
+    );
+    await expectNoNewViolations(page, `navigation-${density}`);
+  });

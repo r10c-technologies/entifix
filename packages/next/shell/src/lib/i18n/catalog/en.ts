@@ -3,10 +3,10 @@ type EsShell = typeof import('./es.js').shell;
 export const shell: EsShell = {
   nav: {
     primary: 'Primary',
-    openInWorkspace: 'Open {{label}} in workspace',
-    openInWorkspaceShort: 'Open in workspace',
-    openInNewTab: 'Open {{label}} in a new tab',
-    openInNewTabShort: 'Open in a new tab',
+    openInWorkspace: 'Open in workspace',
+    openInNewTab: 'Open in a new tab',
+    /** The one menu beside each destination: open it elsewhere. */
+    itemActions: 'Options for {{label}}',
     /**
      * The screen taxonomy. Translated like every other string rather
      * than kept in Spanish: what that decision fixed was which *Spanish* word
@@ -44,6 +44,8 @@ export const shell: EsShell = {
     openInWorkspaceHint: 'Tab',
   },
   sidebar: {
+    /** The page's first stop: past the navigation, to the content. */
+    skipToContent: 'Skip to content',
     expand: 'Expand sidebar',
     collapse: 'Collapse sidebar',
     openMenu: 'Open the menu',

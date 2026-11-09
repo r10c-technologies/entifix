@@ -1,8 +1,8 @@
 'use client';
 
 import { SCREEN_TYPE_LABEL_KEYS } from '@entifix/authz';
-import { cn, useT, useTranslateKey } from '@entifix/react-controls';
-import { usePathname } from 'next/navigation';
+import { cn, Menu, useT, useTranslateKey } from '@entifix/react-controls';
+import { usePathname, useRouter } from 'next/navigation';
 import { useMemo } from 'react';
 
 import { LocaleLink, useLocaleHref } from '../i18n/index.js';
@@ -27,45 +27,43 @@ const workspaceHref = (workspace: string) =>
   `/workspace?tab=${encodeURIComponent(workspace)}`;
 
 /**
- * The two "open where" choices for one destination.
+ * The two "open where" choices for one destination, behind one menu.
  *
- * Both used to be either absent or invisible. The workspace link existed but was
- * `opacity-0` until `group-hover/nav` — undiscoverable on touch, where there is
- * no hover — and was dropped entirely while collapsed, which is the mode a power
- * operator lives in. There was no open-in-a-browser-tab control at all; middle
- * click worked by accident, and only with a mouse.
- *
- * They are now always rendered and always focusable. `text-content-muted` plus a
- * hover/focus lift is what keeps a permanently visible control from competing
- * with the destination itself — the affordance is quiet, not hidden.
+ * They were two 15px links beside every item: three Tab stops per destination,
+ * and two targets under the 24px floor (ADR 0025). One trigger at
+ * `--target-min` keeps both choices a keystroke away and costs one stop.
  */
-function ItemActions({ item, label }: { item: NavItem; label: string }) {
+function ItemMenu({ item, label }: { item: NavItem; label: string }) {
   const t = useT('shell');
   const withLocale = useLocaleHref();
+  const router = useRouter();
+  const workspace = item.workspace;
 
   return (
-    <>
-      {item.workspace !== undefined && (
-        <LocaleLink
-          href={workspaceHref(item.workspace)}
-          aria-label={t('nav.openInWorkspace', { label })}
-          title={t('nav.openInWorkspaceShort')}
-          className="rounded shrink-0 p-3xs text-content-muted focus-ring transition-colors hover:bg-surface hover:text-content"
-        >
-          <span aria-hidden="true">⧉</span>
-        </LocaleLink>
-      )}
-      <a
-        href={withLocale(item.href)}
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label={t('nav.openInNewTab', { label })}
-        title={t('nav.openInNewTabShort')}
-        className="rounded shrink-0 p-3xs text-content-muted focus-ring transition-colors hover:bg-surface hover:text-content"
+    <Menu className="shrink-0">
+      <Menu.Trigger
+        aria-label={t('nav.itemActions', { label })}
+        className="text-content-muted hover:text-content"
       >
-        <span aria-hidden="true">↗</span>
-      </a>
-    </>
+        <span aria-hidden="true">⋯</span>
+      </Menu.Trigger>
+      <Menu.Items>
+        {workspace !== undefined && (
+          <Menu.Item
+            onClick={() => router.push(withLocale(workspaceHref(workspace)))}
+          >
+            {t('nav.openInWorkspace')}
+          </Menu.Item>
+        )}
+        <Menu.Link
+          href={withLocale(item.href)}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {t('nav.openInNewTab')}
+        </Menu.Link>
+      </Menu.Items>
+    </Menu>
   );
 }
 
@@ -189,7 +187,7 @@ export function SidebarNav({
                             : t('sidebar.collapseGroup', { group: title })
                         }
                         className={cn(
-                          'rounded tracking-wide flex items-center gap-3xs px-2xs text-step-xs uppercase focus-ring transition-colors hover:text-content',
+                          'rounded tracking-wide flex min-h-(--target-min) items-center gap-3xs px-2xs text-step-xs uppercase focus-ring transition-colors hover:text-content',
                           groupCollapsed && hasActive
                             ? 'text-content'
                             : 'text-content-muted',
@@ -213,7 +211,7 @@ export function SidebarNav({
                           collapsed={collapsed}
                         />
                         {!collapsed && (
-                          <ItemActions item={item} label={item.label} />
+                          <ItemMenu item={item} label={item.label} />
                         )}
                       </div>
                     ))}
