@@ -92,6 +92,16 @@ export const es = {
       body: 'Todo lo que ves corre en esta pestaña sobre un repositorio en memoria. Los borradores sobreviven a una recarga; los registros guardados vuelven a los datos de ejemplo.',
       openWorkspace: 'Abrir el workspace',
     },
+    subscription: {
+      title: 'Suscripción',
+      active: 'Su suscripción está activa.',
+      ended: 'Su suscripción terminó.',
+      end: 'Dar de baja',
+      keep: 'Conservar',
+      confirmTitle: '¿Dar de baja la suscripción?',
+      confirmMessage:
+        'Dejará de recibir los envíos desde hoy. Para volver tendrá que suscribirse de nuevo.',
+    },
     preferences: {
       density: 'Densidad',
       compact: 'Compacta',

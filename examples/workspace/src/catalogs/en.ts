@@ -87,6 +87,16 @@ export const en: ExampleCatalog = {
       body: 'Everything here runs in this tab over an in-memory repository. Drafts survive a reload; saved records go back to the example data.',
       openWorkspace: 'Open the workspace',
     },
+    subscription: {
+      title: 'Subscription',
+      active: 'Your subscription is active.',
+      ended: 'Your subscription has ended.',
+      end: 'Unsubscribe',
+      keep: 'Keep it',
+      confirmTitle: 'Unsubscribe?',
+      confirmMessage:
+        'Deliveries stop today. To come back you will have to subscribe again.',
+    },
     preferences: {
       density: 'Density',
       compact: 'Compact',

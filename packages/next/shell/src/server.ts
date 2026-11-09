@@ -49,3 +49,7 @@ export * from './lib/session/account-links.js';
 
 // Device identity — read from the request, written onto the response.
 export * from './lib/session/device.js';
+
+// The guard a Server Action behind `ConfirmAction` runs: it acts only on a post
+// that went through the confirmation.
+export * from './lib/confirm-action/confirm-action-state.js';
