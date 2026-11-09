@@ -2,6 +2,7 @@
 
 import type { Formatters, Locale } from '@entifix/core';
 import {
+  defaultLocale,
   type Entity,
   EntityCollectionLink,
   type EntityFieldDescriptor,
@@ -210,6 +211,16 @@ export function CellValue({ value, descriptor, record }: CellValueProps) {
 
   if (text === '') {
     return <span className="text-content-muted">{EMPTY}</span>;
+  }
+
+  // Text the reader's locale lacks falls back to the default locale's, and is
+  // marked as that language, so it is read in its own voice (WCAG 3.1.2).
+  if (
+    descriptor.type === 'localized' &&
+    isLocalizedText(value) &&
+    (value[locale] ?? '') === ''
+  ) {
+    return <span lang={defaultLocale()}>{text}</span>;
   }
 
   return (

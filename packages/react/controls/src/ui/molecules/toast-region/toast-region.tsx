@@ -73,10 +73,11 @@ export interface Toasts {
 }
 
 /**
- * How long a toast that is not a failure stays, in milliseconds. A failure
- * stays until it is dismissed: it reports something that already happened,
- * often after the screen that started it was left, and a message that times
- * out is one a slow reader never gets.
+ * How long a toast that is neither a failure nor offers an action stays, in
+ * milliseconds. A failure stays until it is dismissed: it reports something
+ * that already happened, often after the screen that started it was left, and
+ * a message that times out is one a slow reader never gets. A toast with an
+ * action stays too, for the same reader.
  */
 export const TOAST_TIMEOUT_MS = 8000;
 
@@ -111,7 +112,10 @@ export function ToastProvider({
       next.current += 1;
       const id = next.current;
       setToasts(shown => [...shown, { ...toast, id }]);
-      if (toast.tone !== 'failure')
+      // A failure stays until it is dismissed, and so does a toast that
+      // offers an action: Undo on a timer is a time limit on the reader's
+      // only way back (WCAG 2.2.1). The rest say their piece and go.
+      if (toast.tone !== 'failure' && toast.action === undefined)
         timers.current.set(
           id,
           setTimeout(() => dismiss(id), timeoutMs),

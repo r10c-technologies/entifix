@@ -110,6 +110,24 @@ describe('ToastRegion', () => {
     expect(screen.getByRole('alert')).toBeInTheDocument();
   });
 
+  it('keeps a toast that offers an action until it is dismissed', () => {
+    vi.useFakeTimers();
+    const { result } = renderHook(() => useToasts(), { wrapper });
+
+    act(() => {
+      result.current?.show({
+        tone: 'undo',
+        message: 'Anulada.',
+        action: { label: 'Deshacer', onAction: () => undefined },
+      });
+    });
+    act(() => {
+      vi.advanceTimersByTime(TOAST_TIMEOUT_MS * 10);
+    });
+
+    expect(screen.getByRole('status')).toHaveTextContent('Anulada.');
+  });
+
   it('clears its pending timeouts on unmount', () => {
     vi.useFakeTimers();
     const { result, unmount } = renderHook(() => useToasts(), { wrapper });

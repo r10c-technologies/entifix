@@ -188,6 +188,13 @@ export interface MetaAccessorOptions {
    * badge and up to three more members are meta. Presentation only.
    */
   card?: CardRole;
+  /**
+   * What the member holds about the person filling it in, as an HTML autofill
+   * token — `email`, `given-name`, `tel`, `street-address` — so a browser can
+   * fill it and assistive tech can say what it is for (WCAG 1.3.5).
+   * Presentation only.
+   */
+  autocomplete?: string;
 }
 
 /** The part a member plays on a record's card. */
@@ -232,6 +239,7 @@ export class MetaAccessor {
   readonly money?: MoneyFormat;
   readonly minWidth?: number;
   readonly card?: CardRole;
+  readonly autocomplete?: string;
 
   //#endregion
 
@@ -267,6 +275,7 @@ export class MetaAccessor {
     this.money = options?.money;
     this.minWidth = options?.minWidth;
     this.card = options?.card;
+    this.autocomplete = options?.autocomplete;
   }
   //#endregion
 

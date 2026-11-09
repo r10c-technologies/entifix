@@ -69,6 +69,8 @@ export interface EntityFieldDescriptor {
   minWidth?: number;
   /** The part the member plays on a record's card, when declared. */
   card?: CardRole;
+  /** The member's HTML autofill token, when declared. */
+  autocomplete?: string;
   /** This member holds the parent record's id: the entity forms a tree. */
   parent?: boolean;
 }
@@ -321,6 +323,9 @@ function toDescriptor(
       ? {}
       : { minWidth: metaAccessor.minWidth }),
     ...(metaAccessor.card === undefined ? {} : { card: metaAccessor.card }),
+    ...(metaAccessor.autocomplete === undefined
+      ? {}
+      : { autocomplete: metaAccessor.autocomplete }),
     parent: metaAccessor.parent ?? false,
   };
 }

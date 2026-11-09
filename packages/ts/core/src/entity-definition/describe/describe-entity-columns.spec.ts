@@ -634,7 +634,7 @@ describe('describeEntityColumns card presentation', () => {
       this.#name = value;
     }
 
-    @accessor({ type: 'string', card: 'hidden' })
+    @accessor({ type: 'string', card: 'hidden', autocomplete: 'email' })
     get notes(): string {
       return this.#notes;
     }
@@ -648,9 +648,13 @@ describe('describeEntityColumns card presentation', () => {
     const by = (name: string) => columns.find(column => column.name === name);
 
     expect(by('name')).toMatchObject({ minWidth: 14, card: 'title' });
-    expect(by('notes')).toMatchObject({ card: 'hidden' });
+    expect(by('notes')).toMatchObject({
+      card: 'hidden',
+      autocomplete: 'email',
+    });
     expect(by('notes')).not.toHaveProperty('minWidth');
     expect(by('id')).not.toHaveProperty('card');
+    expect(by('name')).not.toHaveProperty('autocomplete');
   });
 
   it('refuses a width that is not a positive number', () => {
