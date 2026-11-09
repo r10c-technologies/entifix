@@ -4,6 +4,14 @@ The React UI. `EntityTable`, `EntityForm`, `FilterBuilder`, `SortBuilder`, `Wiza
 
 Styling is Tailwind utilities over the token names in `@entifix/style`.
 
+They hold to WCAG 2.2 AA by contract, not by care at each call site
+([conformance report](https://github.com/r10c-technologies/entifix/blob/main/docs/accessibility/openacr.yaml)):
+
+- **Actions** — one `ActionBar` renders every surface: one primary, an overflow menu, destructive verbs last and confirmed through `ConfirmDialog` (undo, confirm or typed), and the shortcuts it advertises bound through `useHotkey`, which takes modifier chords only and refuses a conflict.
+- **States** — `RegionState` says why a region is empty or failed, with Clear filters, Retry and a host's next step from `ErrorActionsProvider`; toasts take a tone and an action through `useToasts().show`; `useFocusOnArrival` keeps focus off `<body>` after a write; `LiveUpdatesProvider` lets the top bar say when live updates pause.
+- **Tables** — header sort, a caption, a keyboard-reachable scroll region, announced result counts, `FilterChips`, facet counts, and cards when the table's own container is too narrow.
+- **Theme** — `ThemeProvider` keeps the choice in a cookie a server can render (`readThemeCookies` in `@entifix/next-shell/server`); `ThemeScript` is for a host with no server.
+
 ## Install
 
 ```sh

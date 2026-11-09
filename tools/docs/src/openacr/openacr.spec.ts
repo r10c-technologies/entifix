@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 
-import Ajv from 'ajv';
+import { Ajv } from 'ajv';
 import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
 
