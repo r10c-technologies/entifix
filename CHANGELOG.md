@@ -1,3 +1,13 @@
+## 0.20.1 (2026-11-11)
+
+### 🚀 Features
+
+- **react-controls:** export the verb invoker, and an entity form names its record ([#215](https://github.com/r10c-technologies/entifix/pull/215))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.20.0 (2026-11-09)
 
 ### 🚀 Features
