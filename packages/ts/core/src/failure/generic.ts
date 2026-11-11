@@ -61,6 +61,21 @@ export class Forbidden extends defineFailure('forbidden')<Forbidden>()(
   { permission: Schema.optionalKey(Schema.String) },
 ) {}
 
+/**
+ * A signed-in caller whose session names no organization, on a route that acts
+ * for one. A member of several organizations hits it before choosing one; the
+ * code is what a client renders as "select an organization" instead of
+ * "forbidden".
+ *
+ * Declared here rather than beside the guard that raises it, so every bundle
+ * that decodes a problem knows the code: a browser loads no service shell, and
+ * an unregistered code decodes as a protocol failure, losing the next step a
+ * host registers for it.
+ */
+export class NoActiveOrganization extends defineFailure(
+  'conflict',
+)<NoActiveOrganization>()('NoActiveOrganization', 'noActiveOrganization') {}
+
 /** The addressed record does not exist. */
 export class NotFound extends defineFailure('notFound')<NotFound>()(
   'NotFound',

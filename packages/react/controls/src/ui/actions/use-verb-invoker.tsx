@@ -59,6 +59,11 @@ export interface VerbInvoker<TTarget> {
  *   count, and the button repeats the verb with the count;
  * - `typed`, or a `matching` selection over {@link TYPED_SELECTION_THRESHOLD}
  *   — the same dialog, and the name or the count has to be typed first.
+ *
+ * Exported for a host's own surface — a screen that is neither a form nor a
+ * table, rendering declared verbs on an `ActionBar` — so it reaches a verb
+ * through the same funnel EntityForm and EntityTable use rather than
+ * re-implementing the dialog's rules.
  */
 export function useVerbInvoker<TTarget>({
   run,
