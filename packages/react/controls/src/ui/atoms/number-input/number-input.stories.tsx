@@ -68,3 +68,31 @@ export const TouchFloor: Story = {
     await expect(undersizedTargets(touch, 44)).toEqual([]);
   },
 };
+
+/**
+ * Inside a Server Action form: seeded with `defaultValue` and no handler, so
+ * a server component renders it and the count posts under `name`.
+ */
+export const InAServerForm: Story = {
+  render: () => (
+    <form aria-label="Cart line" onSubmit={event => event.preventDefault()}>
+      <QuantityInput
+        label="Sprocket"
+        name="quantity"
+        defaultValue={2}
+        min={1}
+        max={9}
+      />
+    </form>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const spin = canvas.getByRole('spinbutton', { name: 'Sprocket' });
+    await userEvent.click(spin);
+    await userEvent.keyboard('{ArrowUp}');
+    const form = canvas.getByRole('form', {
+      name: 'Cart line',
+    }) as HTMLFormElement;
+    await expect(new FormData(form).get('quantity')).toBe('3');
+  },
+};
