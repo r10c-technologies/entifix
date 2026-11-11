@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
 import { NumberInput, QuantityInput } from './index.js';
@@ -150,6 +151,9 @@ describe('QuantityInput', () => {
 });
 
 describe('QuantityInput in a server form', () => {
+  const formData = () =>
+    new FormData(screen.getByRole('form', { name: 'cart' }) as HTMLFormElement);
+
   it('posts the count under its name, as typed, with no script involved', () => {
     render(
       <form aria-label="cart">
@@ -162,7 +166,76 @@ describe('QuantityInput in a server form', () => {
       </form>,
     );
 
-    const form = screen.getByRole('form', { name: 'cart' }) as HTMLFormElement;
-    expect(new FormData(form).get('quantity')).toBe('2');
+    expect(formData().get('quantity')).toBe('2');
+  });
+
+  it('server-renders its starting count, so the field posts before hydration', () => {
+    const html = renderToStaticMarkup(
+      <QuantityInput label="Cantidad" name="quantity" defaultValue={3} />,
+    );
+    expect(html).toContain('value="3"');
+    expect(html).toContain('aria-valuenow="3"');
+  });
+
+  it('owns its count when given no value: it steps, clamps and posts what was committed', async () => {
+    const user = userEvent.setup();
+    render(
+      <form aria-label="cart">
+        <QuantityInput
+          label="Cantidad"
+          name="quantity"
+          defaultValue={2}
+          min={1}
+          max={5}
+        />
+      </form>,
+    );
+    const spin = screen.getByRole('spinbutton', { name: 'Cantidad' });
+
+    await user.click(screen.getByRole('button', { name: 'Aumentar Cantidad' }));
+    expect(spin).toHaveAttribute('aria-valuenow', '3');
+    expect(formData().get('quantity')).toBe('3');
+
+    await user.clear(spin);
+    await user.type(spin, '40');
+    await user.tab();
+    expect(spin).toHaveAttribute('aria-valuenow', '5');
+    expect(formData().get('quantity')).toBe('5');
+
+    await user.click(spin);
+    await user.keyboard('{Home}');
+    expect(formData().get('quantity')).toBe('1');
+    expect(
+      screen.getByRole('button', { name: 'Disminuir Cantidad' }),
+    ).toBeDisabled();
+  });
+
+  it('starts at its minimum without a default, and still reports each commit', async () => {
+    const onChange = vi.fn();
+    const user = userEvent.setup();
+    render(<QuantityInput label="Cantidad" min={1} onChange={onChange} />);
+    const spin = screen.getByRole('spinbutton');
+    expect(spin).toHaveAttribute('aria-valuenow', '1');
+
+    await user.click(spin);
+    await user.keyboard('{ArrowUp}');
+    expect(onChange).toHaveBeenLastCalledWith(2);
+    await user.keyboard('{ArrowDown}{ArrowDown}');
+    expect(onChange).toHaveBeenCalledTimes(2);
+  });
+
+  it('refuses half of the controlled pair at compile time', () => {
+    // @ts-expect-error a value with no onChange is a field nobody can change
+    const valueOnly = <QuantityInput label="Cantidad" value={2} />;
+    const both = (
+      // @ts-expect-error a field is either controlled or seeded, never both
+      <QuantityInput
+        label="x"
+        value={2}
+        defaultValue={3}
+        onChange={() => undefined}
+      />
+    );
+    expect([valueOnly, both]).toHaveLength(2);
   });
 });

@@ -5,11 +5,9 @@ import { type KeyboardEvent, useEffect, useState } from 'react';
 import { useT } from '../../../i18n/index.js';
 import { cn } from '../../utils/cn.js';
 
-export interface QuantityInputProps {
+interface QuantityInputBase {
   /** What is being counted; names the spinbutton and both of its buttons. */
   label: string;
-  value: number;
-  onChange: (value: number) => void;
   min?: number;
   max?: number;
   step?: number;
@@ -25,6 +23,28 @@ export interface QuantityInputProps {
   className?: string;
 }
 
+/** The caller owns the count: every committed change comes back through `onChange`. */
+export interface ControlledQuantityInputProps extends QuantityInputBase {
+  value: number;
+  onChange: (value: number) => void;
+  defaultValue?: never;
+}
+
+/**
+ * The field owns the count, starting at `defaultValue` (or `min`). This is the
+ * shape a server-rendered form takes: a server component cannot hand a client
+ * one a function, and with `name` the count posts with the form, so the page
+ * needs no client parent of its own. `onChange` still reports each commit.
+ */
+export interface UncontrolledQuantityInputProps extends QuantityInputBase {
+  value?: never;
+  defaultValue?: number;
+  onChange?: (value: number) => void;
+}
+
+export type QuantityInputProps =
+  ControlledQuantityInputProps | UncontrolledQuantityInputProps;
+
 const STEP_BUTTON =
   'flex min-h-(--target-min) min-w-(--target-min) shrink-0 items-center justify-center rounded-md border border-border-control bg-surface-elevated text-content hover:bg-surface disabled:cursor-not-allowed disabled:opacity-50';
 
@@ -35,10 +55,15 @@ const STEP_BUTTON =
  * "Decrease {label}" and "Increase {label}" and sit at `--target-min`; they are
  * out of the Tab order, as the pattern has them, because the arrow keys
  * already do what they do.
+ *
+ * Controlled with `value` and `onChange`, or uncontrolled with `defaultValue`
+ * — the second is how a Server Action form uses it, since a server component
+ * can pass neither a state nor a handler.
  */
 export function QuantityInput({
   label,
-  value,
+  value: controlled,
+  defaultValue,
   onChange,
   min = 0,
   max,
@@ -49,6 +74,8 @@ export function QuantityInput({
   className,
 }: QuantityInputProps) {
   const t = useT();
+  const [own, setOwn] = useState(defaultValue ?? min);
+  const value = controlled ?? own;
   const [text, setText] = useState(String(value));
 
   useEffect(() => {
@@ -61,7 +88,9 @@ export function QuantityInput({
   const set = (next: number) => {
     const clamped = clamp(next);
     setText(String(clamped));
-    if (clamped !== value) onChange(clamped);
+    if (clamped === value) return;
+    setOwn(clamped);
+    onChange?.(clamped);
   };
   const commit = () => {
     const typed = Number.parseInt(text, 10);
