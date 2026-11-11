@@ -117,6 +117,7 @@ export function EntityForm<TEntity extends Entity>({
   onSubmit,
   onDelete,
   deletePolicy = 'confirm',
+  recordLabel: hostRecordLabel,
   embedded = false,
   isLoading = false,
   skeleton = true,
@@ -254,9 +255,10 @@ export function EntityForm<TEntity extends Entity>({
     field => field.type !== 'id' && readDraftString(draft, field.name) !== '',
   );
   const recordLabel =
-    named === undefined
+    hostRecordLabel ??
+    (named === undefined
       ? entityNoun(metaEntity)
-      : readDraftString(draft, named.name);
+      : readDraftString(draft, named.name));
   const invoke = (descriptor: UseCaseDescriptor) =>
     verbs.invoke({
       descriptor,

@@ -1385,6 +1385,27 @@ describe('the built-in Delete', () => {
     ).toBeInTheDocument();
   });
 
+  it('asks for the name the host gives the record, over its first field', async () => {
+    render(
+      <Harness
+        mode="edit"
+        initial={{ code: 'G-1' }}
+        deletePolicy="typed"
+        recordLabel="gadget-key"
+        onDelete={vi.fn()}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Eliminar' }));
+
+    expect(screen.getByRole('alertdialog')).toHaveAccessibleName(
+      '¿Eliminar gadget-key?',
+    );
+    expect(
+      screen.getByLabelText('Escriba gadget-key para confirmar'),
+    ).toBeInTheDocument();
+  });
+
   it('deletes at once under the undo policy, leaving Undo to the host', async () => {
     const onDelete = vi.fn();
     render(

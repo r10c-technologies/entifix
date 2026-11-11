@@ -113,6 +113,14 @@ export interface EntityFormProps<TEntity extends Entity> {
    * at once — the host offers Undo, since only it can put the record back.
    */
   deletePolicy?: 'confirm' | 'typed' | 'undo';
+  /**
+   * What a confirmation calls this record — the object in "Delete {record}?"
+   * and the text the `typed` policy asks for. Defaults to the first filled-in
+   * field, which names the record only when that field is its name: for a
+   * record whose first field is a grouping (a service, a category) pass the
+   * member that identifies it, or the dialog names the group.
+   */
+  recordLabel?: string;
 
   /**
    * What this caller may do with the entity, as served by
