@@ -1,4 +1,5 @@
 import {
+  isUseCaseAvailable,
   type UseCaseBinding,
   type UseCaseDescriptor,
   type UseCasePlacement,
@@ -143,4 +144,23 @@ export function useCasesForSurface(
   return (useCases ?? []).filter(descriptor =>
     surfacesFor(descriptor).includes(surface),
   );
+}
+
+/**
+ * The descriptors a surface showing one record offers on it: those whose
+ * declared states the record is in. A verb the record's state does not allow
+ * is left out rather than disabled — a shipment awaiting dispatch has no use
+ * for a greyed-out Record delivery, and four buttons of equal weight whatever
+ * the status is what made the one that applies hard to find. The verb's handler
+ * still refuses an illegal move: a record can change between render and click.
+ *
+ * Only for a surface about one record. A selection carries no states, so the
+ * bulk bar and the toolbar offer every verb and a refused row comes back as a
+ * failed outcome.
+ */
+export function availableUseCases(
+  useCases: readonly UseCaseDescriptor[],
+  record: object | undefined,
+): UseCaseDescriptor[] {
+  return useCases.filter(descriptor => isUseCaseAvailable(descriptor, record));
 }

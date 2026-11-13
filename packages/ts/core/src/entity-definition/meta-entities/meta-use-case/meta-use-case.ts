@@ -61,6 +61,27 @@ export interface UseCaseConfirm {
 export type UseCaseReversible = 'undo' | 'confirm' | 'typed';
 
 /**
+ * The states a record must be in for a verb to apply to it: the record's
+ * `member` — an `enumValues` accessor, by its own name as the record holds
+ * it rather than any wire alias — holds one of `in`.
+ *
+ * ⚠️ **This is presentation, not authorization.** A surface hides a verb the
+ * record's state does not allow, so a shipment awaiting dispatch offers
+ * Dispatch and nothing that only a dispatched one can take. The verb's handler
+ * still refuses an illegal move — a record can change between the render and
+ * the click, and a selection carries no states at all — so a bulk run reports
+ * such a row as a failed outcome rather than skipping it on the client.
+ *
+ * Declared beside the verb rather than derived from a transition table because
+ * the framework has no notion of one; a host that keeps a table derives `in`
+ * from it, so the states are written once.
+ */
+export interface UseCaseAvailability {
+  member: string;
+  in: readonly string[];
+}
+
+/**
  * How much weight a surface gives a verb. One `primary` per surface — the
  * thing the surface is for — and every other verb `default`; a second primary
  * on one surface throws when it renders
@@ -138,6 +159,12 @@ export interface MetaUseCaseOptions<
   reversible?: UseCaseReversible;
   /** The verb Undo runs, by key. Required with `reversible: 'undo'`. */
   inverse?: string;
+  /**
+   * The states a record must be in for the verb to be offered on it — see
+   * {@link UseCaseAvailability}. Refused on an `unbound` verb, which has no
+   * record to be in a state.
+   */
+  availableWhen?: UseCaseAvailability;
   /** Names a form a surface should open instead of acting immediately. */
   form?: string;
   /**
@@ -187,6 +214,7 @@ export class MetaUseCase {
   readonly confirm?: UseCaseConfirm;
   readonly reversible?: UseCaseReversible;
   readonly inverse?: string;
+  readonly availableWhen?: UseCaseAvailability;
   readonly emphasis?: UseCaseEmphasis;
   readonly priority?: number;
   readonly rowInline?: true;
@@ -211,6 +239,7 @@ export class MetaUseCase {
     this.confirm = options.confirm;
     this.reversible = options.reversible;
     this.inverse = options.inverse;
+    this.availableWhen = options.availableWhen;
     this.emphasis = options.emphasis;
     this.priority = options.priority;
     this.rowInline = options.rowInline;

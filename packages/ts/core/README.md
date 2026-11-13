@@ -2,7 +2,7 @@
 
 The entity system. A class decorated with `@entity()` and `@accessor()` describes itself — its members, their types and labels, which of them are sortable or filterable — and everything else in entifix reads that description instead of being told it again.
 
-Presentation lives on the class too: `@entity({ creatable })`, and `@accessor({ minWidth, card, autocomplete })` for how a member reads in a table, on a card and to a browser's autofill. A `@useCase()` declares its place in the action hierarchy (`emphasis`, `priority`, `rowInline`, `shortcut`) and, when destructive, how it is undone (`reversible`, `inverse`); a bad shortcut (`parseChord`) or an unsafe destructive verb fails at load.
+Presentation lives on the class too: `@entity({ creatable })`, and `@accessor({ minWidth, card, autocomplete })` for how a member reads in a table, on a card and to a browser's autofill. A `@useCase()` declares its place in the action hierarchy (`emphasis`, `priority`, `rowInline`, `shortcut`), the record states it is offered in (`availableWhen`) and, when destructive, how it is undone (`reversible`, `inverse`); a bad shortcut (`parseChord`) or an unsafe destructive verb fails at load.
 
 It also owns what crosses the wire: entity serialization and reconstruction, the envelopes a service answers with, and the RSQL filter and sort protocol a query is written in. Nothing here performs I/O.
 

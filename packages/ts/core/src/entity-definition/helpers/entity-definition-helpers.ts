@@ -12,6 +12,7 @@ import { MetaMethod } from '../meta-entities/meta-method/index.js';
 import {
   MetaUseCase,
   MetaUseCaseBinding,
+  type UseCaseAvailability,
 } from '../meta-entities/meta-use-case/index.js';
 
 declare global {
@@ -103,6 +104,9 @@ export function appendMetaUseCase<TEntity extends Entity>(
       `Use case "${metaUseCase.key}" on ${target.name} is reversible by undo and names no \`inverse\`: Undo has nothing to run.`,
     );
   }
+  if (metaUseCase.availableWhen !== undefined) {
+    assertAvailability(target, metaUseCase, metaUseCase.availableWhen);
+  }
   // A shortcut is checked where it is declared, so a chord no reader can use
   // — a bare key, Option+letter, Mod+C — fails at load rather than on a page.
   if (metaUseCase.shortcut !== undefined) {
@@ -127,6 +131,50 @@ export function appendMetaUseCase<TEntity extends Entity>(
     );
   }
   own[META_USE_CASE_KEY] = [...existing, metaUseCase];
+}
+
+/**
+ * A verb's states are checked where they are declared, against the entity's
+ * own member: a misspelt member or state would otherwise hide the verb on every
+ * record, which reads as a missing grant rather than a typo.
+ */
+function assertAvailability(
+  target: EntityConstructor<Entity>,
+  { key, binding, alsoAt }: MetaUseCase,
+  availableWhen: UseCaseAvailability,
+) {
+  const where = `Use case "${key}" on ${target.name}`;
+  // A selection carries no states, so the collection surfaces offer every
+  // verb; a verb with no record-bound cell would declare states nothing reads.
+  const recordBound =
+    binding === 'entity' ||
+    (alsoAt ?? []).some(cell => cell.binding === 'entity');
+  if (!recordBound) {
+    throw new Error(
+      `${where} declares \`availableWhen\` and sits on no record: a selection carries no states, so nothing would read them.`,
+    );
+  }
+  const member = extractMetaAccessors(target).find(
+    accessor => accessor.name === availableWhen.member,
+  );
+  if (member?.enumValues === undefined) {
+    throw new Error(
+      `${where} is available when "${availableWhen.member}" holds a state, and ${target.name} has no enum member by that name.`,
+    );
+  }
+  if (availableWhen.in.length === 0) {
+    throw new Error(
+      `${where} is available in no state of "${availableWhen.member}": a verb that is never offered is a verb to delete.`,
+    );
+  }
+  const unknown = availableWhen.in.filter(
+    state => !member.enumValues?.includes(state),
+  );
+  if (unknown.length > 0) {
+    throw new Error(
+      `${where} names ${unknown.map(state => `"${state}"`).join(', ')}, which "${availableWhen.member}" does not hold.`,
+    );
+  }
 }
 
 /**

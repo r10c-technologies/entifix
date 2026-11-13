@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Revised: 2026-11-09 — as built in #189–#201: "New" renders unless the entity declares `creatable: false`, and only for a caller whose served actions include `write`; Mod+Enter answers a form footer's declared primary; ActionBar binds the shortcuts it advertises, and a row advertises none
+- Revised: 2026-11-13 by [ADR 0029](0029-a-verb-declares-the-states-it-is-legal-from.md) — a verb may also declare the states it applies to, and a surface about one record hides the rest
 - Date: 2026-11-05
 - Area: ui
 - Read when: adding a verb to an entity, a screen shows a row of equal-weight buttons, a delete or cancel happens in one click, "New" appears where nothing can be created, a toolbar or bulk verb acts on every matching row, a Server Action needs a confirmation without JavaScript, or about to add a keyboard shortcut

@@ -1,6 +1,7 @@
 import { Entity, EntityConstructor } from '../../types/Entity.js';
 import { extractMetaUseCases } from '../helpers/index.js';
 import type {
+  UseCaseAvailability,
   UseCaseBinding,
   UseCaseCell,
   UseCaseConfirm,
@@ -31,6 +32,8 @@ export interface UseCaseDescriptor extends UseCaseHierarchy {
   reversible?: UseCaseReversible;
   /** The verb Undo runs, by key. */
   inverse?: string;
+  /** The states a record must be in for the verb to be offered on it. */
+  availableWhen?: UseCaseAvailability;
   form?: string;
   /** The named variant set this verb resolves between. */
   variants?: string;
@@ -77,6 +80,7 @@ export function describeEntityUseCases<TEntity extends Entity>(
     confirm: metaUseCase.confirm,
     reversible: metaUseCase.reversible,
     inverse: metaUseCase.inverse,
+    availableWhen: metaUseCase.availableWhen,
     emphasis: metaUseCase.emphasis,
     priority: metaUseCase.priority,
     rowInline: metaUseCase.rowInline,
@@ -85,4 +89,26 @@ export function describeEntityUseCases<TEntity extends Entity>(
     variants: metaUseCase.variants,
     recipe: metaUseCase.recipe,
   }));
+}
+
+/**
+ * Whether a surface offers `descriptor` on `record`: always, for a verb that
+ * declares no {@link UseCaseAvailability}; otherwise only once the record has
+ * arrived and its member holds one of the declared states. A record still in
+ * flight offers none of its state-bound verbs, rather than all of them for a
+ * moment.
+ *
+ * Presentation only — the verb's handler is what refuses an illegal move.
+ */
+export function isUseCaseAvailable(
+  descriptor: Pick<UseCaseDescriptor, 'availableWhen'>,
+  record: object | undefined,
+): boolean {
+  const availability = descriptor.availableWhen;
+  if (availability === undefined) return true;
+  if (record === undefined) return false;
+  const state = (record as Readonly<Record<string, unknown>>)[
+    availability.member
+  ];
+  return typeof state === 'string' && availability.in.includes(state);
 }

@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ACTION_SURFACES,
   type ActionSurface,
+  availableUseCases,
   surfaceFor,
   surfacesFor,
   useCasesForSurface,
@@ -218,5 +219,23 @@ describe('a verb that names more than one cell', () => {
     expect(surfaceFor(descriptor('collection', 'context-dependent'))).toBe(
       'bulk-bar',
     );
+  });
+});
+
+describe('availableUseCases', () => {
+  const send = {
+    ...descriptor('entity', 'context-independent', 'send'),
+    availableWhen: { member: 'status', in: ['waiting'] },
+  };
+  const track = descriptor('entity', 'context-independent', 'track');
+
+  it('keeps the verbs the record is in a state for, and every stateless one', () => {
+    expect(availableUseCases([send, track], { status: 'waiting' })).toEqual([
+      send,
+      track,
+    ]);
+    expect(availableUseCases([send, track], { status: 'sent' })).toEqual([
+      track,
+    ]);
   });
 });

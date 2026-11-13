@@ -10,6 +10,9 @@ import { Invoice } from './invoice.entity.js';
  * `issue` is bound to one invoice and sits in the form header; `reset-demo` is
  * bound to nothing and so reaches only the command palette.
  *
+ * Each verb that moves the invoice's status names the statuses it moves it
+ * from, so a draft offers Issue and an issued invoice does not.
+ *
  * In a served application these descriptors arrive filtered by the verified
  * principal from `$metadata`. This example has no principal, so
  * `../metadata.ts` reads them straight off the class.
@@ -20,6 +23,7 @@ import { Invoice } from './invoice.entity.js';
   binding: 'entity',
   placement: 'context-independent',
   labelKey: 'entity:invoice.useCases.issue',
+  availableWhen: { member: 'status', in: ['draft'] },
 })
 export class IssueInvoiceUC {}
 
@@ -42,6 +46,7 @@ export class ResetDemoUC {}
   key: 'void',
   binding: 'entity',
   placement: 'context-dependent',
+  availableWhen: { member: 'status', in: ['draft', 'issued'] },
   labelKey: 'entity:invoice.useCases.void',
   confirm: {
     tone: 'destructive',
@@ -59,6 +64,7 @@ export class VoidInvoiceUC {}
   key: 'reopen',
   binding: 'entity',
   placement: 'context-dependent',
+  availableWhen: { member: 'status', in: ['void'] },
   labelKey: 'entity:invoice.useCases.reopen',
 })
 export class ReopenInvoiceUC {}

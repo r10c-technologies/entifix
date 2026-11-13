@@ -10,7 +10,7 @@ import {
 } from '@entifix/core';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 
 import { EntityTable } from './entity-table.js';
 
@@ -897,6 +897,107 @@ describe('EntityTable row menu', () => {
     expect(screen.queryByTestId('confirm-dialog')).not.toBeInTheDocument();
     expect(onUseCase).toHaveBeenCalledWith('tag', ITEMS[0]);
   });
+
+  it('offers a state-bound verb only on the rows whose state allows it', async () => {
+    // The descriptor is served, not declared here, so any member stands in
+    // for a state: only Alpha is in one `ship` applies to.
+    const ship = {
+      ...useCase('ship', 'entity', 'context-dependent'),
+      availableWhen: { member: 'name', in: ['Alpha'] },
+    };
+    const { user } = renderTable({
+      metadata: metadata(ship),
+      onUseCase: () => undefined,
+    });
+
+    const menus = grid().getAllByRole('button', { name: /^Acciones para / });
+    expect(menus).toHaveLength(1);
+    await user.click(menus[0]!);
+    expect(
+      screen.getByRole('menuitem', { name: 'gizmo.useCases.ship' }),
+    ).toBeInTheDocument();
+  });
+
+  it.each([
+    [
+      'checkVisibility',
+      function (this: HTMLElement) {
+        return this.closest('table') !== null;
+      },
+    ],
+    [
+      'getClientRects',
+      function (this: HTMLElement) {
+        return { length: this.closest('table') === null ? 0 : 1 };
+      },
+    ],
+  ] as const)(
+    'keeps focus in the row when a verb leaves it with nothing to offer, laid out by %s',
+    async (probe, laidOut) => {
+      // jsdom lays nothing out: the grid stands for the layout on show, asked
+      // through `checkVisibility` where a browser has it and its boxes where not.
+      const original = Object.getOwnPropertyDescriptor(
+        HTMLElement.prototype,
+        probe,
+      );
+      Object.defineProperty(HTMLElement.prototype, probe, {
+        configurable: true,
+        value: laidOut,
+      });
+      onTestFinished(() => {
+        if (original === undefined) {
+          delete (HTMLElement.prototype as unknown as Record<string, unknown>)[
+            probe
+          ];
+        } else {
+          Object.defineProperty(HTMLElement.prototype, probe, original);
+        }
+      });
+      const ship = {
+        ...useCase('ship', 'entity', 'context-dependent'),
+        availableWhen: { member: 'name', in: ['Alpha'] },
+      };
+      const props = {
+        metadata: metadata(ship),
+        onUseCase: () => undefined,
+        hrefFor: (id: EntityId) => `/gizmo/${String(id)}`,
+      };
+      const user = userEvent.setup();
+      const { rerender } = render(
+        <EntityTable<Gizmo>
+          entityConstructor={Gizmo}
+          items={ITEMS}
+          showControls={false}
+          {...pager}
+          {...props}
+        />,
+      );
+
+      await user.click(grid().getByRole('button', { name: /^Acciones para / }));
+      await user.click(
+        screen.getByRole('menuitem', { name: 'gizmo.useCases.ship' }),
+      );
+      // The record moved on: Alpha is shipped, and its row has no verb left.
+      rerender(
+        <EntityTable<Gizmo>
+          entityConstructor={Gizmo}
+          items={[gizmo('1', 'Alpha (shipped)'), ...ITEMS.slice(1)]}
+          showControls={false}
+          {...pager}
+          {...props}
+        />,
+      );
+
+      expect(
+        grid().queryByRole('button', { name: /^Acciones para / }),
+      ).not.toBeInTheDocument();
+      expect(
+        grid().getByRole('link', { name: 'Alpha (shipped)' }),
+      ).toHaveFocus();
+      delete (HTMLElement.prototype as { checkVisibility?: unknown })
+        .checkVisibility;
+    },
+  );
 
   /** A verb with no `confirm` reads as an ordinary entry, not a deletion. */
   it('renders a verb without a confirmation in the neutral tone', async () => {
