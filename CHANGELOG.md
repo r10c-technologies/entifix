@@ -1,3 +1,13 @@
+## 0.20.3 (2026-11-13)
+
+### 🚀 Features
+
+- **core,react-controls:** a verb declares the states it is legal from ([#224](https://github.com/r10c-technologies/entifix/pull/224))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.20.2 (2026-11-13)
 
 ### 🚀 Features
