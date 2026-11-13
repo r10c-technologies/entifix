@@ -38,7 +38,7 @@ export type FlowOutcome =
  * principal. Zustand's `StateStorage` satisfies it.
  */
 export interface PendingFlowStorage {
-  getItem(name: string): string | null | Promise<string | null>;
+  getItem(name: string): string | null | PromiseLike<string | null>;
   setItem(name: string, value: string): unknown;
 }
 
