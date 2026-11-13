@@ -1,3 +1,13 @@
+## 0.20.2 (2026-11-13)
+
+### 🚀 Features
+
+- **react-controls:** a quantity input a server form can seed ([#219](https://github.com/r10c-technologies/entifix/pull/219))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.20.1 (2026-11-11)
 
 ### 🚀 Features
