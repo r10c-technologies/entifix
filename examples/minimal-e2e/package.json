@@ -30,6 +30,6 @@
   },
   "devDependencies": {
     "@nx/devkit": "24.0.3",
-    "@playwright/test": "1.64.1"
+    "@playwright/test": "1.65.0"
   }
 }
