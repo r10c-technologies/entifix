@@ -250,3 +250,52 @@ export const OverflowActions: Story = {
  * button protects nothing either way — the route guard is the boundary.
  */
 export const WithoutMetadata: Story = { render: () => <Demo mode="edit" /> };
+
+/** A verb offered only while the record's `code` holds one of `states`. */
+const stateBound = (key: string, states: string[]) => ({
+  ...verb(key, 'context-independent'),
+  availableWhen: { member: 'code', in: states },
+});
+
+function StateBoundDemo() {
+  const [record, setRecord] = useState(GADGET);
+  const [values, setValues] = useState<Record<string, string>>({
+    id: 'g-1',
+    name: 'Sprocket',
+    code: 'SPR-001',
+    stock: '1200',
+  });
+  const move = (code: string) => {
+    setRecord(new StoryGadget('g-1', 'Sprocket', code, 1200));
+    setValues(current => ({ ...current, code }));
+  };
+
+  return (
+    <EntityForm<StoryGadget>
+      entityConstructor={StoryGadget}
+      entity={record}
+      values={values}
+      mode="edit"
+      onFieldChange={(name, value) =>
+        setValues(current => ({ ...current, [name]: value }))
+      }
+      onSubmit={() => undefined}
+      metadata={{
+        actions: ['read', 'write'],
+        useCases: [
+          stateBound('dispatch', ['SPR-001']),
+          stateBound('recordDelivery', ['SPR-002']),
+        ],
+      }}
+      onUseCase={key => move(key === 'dispatch' ? 'SPR-002' : 'SPR-001')}
+    />
+  );
+}
+
+/**
+ * A verb that declares `availableWhen` is offered only on a record in one of
+ * its states — here the code stands in for a status. Running one moves the
+ * record on, the verb it no longer applies to leaves the header, and focus
+ * goes to the heading rather than `<body>`.
+ */
+export const VerbsByState: Story = { render: () => <StateBoundDemo /> };

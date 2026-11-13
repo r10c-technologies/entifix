@@ -1,6 +1,6 @@
 'use client';
 
-import { type RefObject, useEffect } from 'react';
+import { type RefObject, useEffect, useEffectEvent } from 'react';
 
 /**
  * Whether the reader has pressed a key or a pointer in this document yet. A
@@ -9,6 +9,13 @@ import { type RefObject, useEffect } from 'react';
  */
 let interacted = false;
 
+/**
+ * The element that last took focus, whatever it was. `focusin` always fires on
+ * the way in, while nothing reliable fires when a focused element is removed —
+ * so this is what tells a dropped focus from one that was never anywhere.
+ */
+let lastFocused: Element | undefined;
+
 /* v8 ignore next -- a server render has no document to listen on */
 if (typeof document !== 'undefined') {
   const mark = () => {
@@ -16,11 +23,19 @@ if (typeof document !== 'undefined') {
   };
   document.addEventListener('pointerdown', mark, { capture: true });
   document.addEventListener('keydown', mark, { capture: true });
+  document.addEventListener(
+    'focusin',
+    event => {
+      lastFocused = event.target as Element;
+    },
+    { capture: true },
+  );
 }
 
 /** For specs: the document as it was before anyone touched it. */
 export const resetArrivalForTesting = () => {
   interacted = false;
+  lastFocused = undefined;
 };
 
 /**
@@ -41,4 +56,27 @@ export function useFocusOnArrival(
     if (active !== null && active !== document.body) return;
     heading.current?.focus();
   }, [heading]);
+}
+
+/**
+ * Keeps focus off `<body>` when the control holding it goes away under the
+ * reader: a verb that ran and moved its record into a state the verb no longer
+ * applies to unmounts the very button that was focused, and the browser drops
+ * focus to the document. Each time `revision` changes — the set of verbs on
+ * show — focus goes to `target()`, but **only** when the element that last held
+ * it has left the document and nothing has taken focus since. A revision that
+ * removed nothing the reader was on moves nothing, so a live update to some
+ * other row never pulls focus around.
+ */
+export function useFocusOnLoss(
+  target: () => HTMLElement | null | undefined,
+  revision: string,
+): void {
+  const refocus = useEffectEvent(() => {
+    const active = document.activeElement;
+    if (active !== null && active !== document.body) return;
+    if (lastFocused === undefined || lastFocused.isConnected) return;
+    target()?.focus();
+  });
+  useEffect(() => refocus(), [revision]);
 }

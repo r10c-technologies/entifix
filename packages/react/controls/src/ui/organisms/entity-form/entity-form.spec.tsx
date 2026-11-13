@@ -936,6 +936,82 @@ describe('EntityForm actions from served metadata', () => {
     expect(screen.getByRole('button', { name: 'Guardar' })).toBeInTheDocument();
   });
 
+  it('offers a state-bound verb only on a record in one of its states', () => {
+    const promote = {
+      key: 'promote',
+      binding: 'entity' as const,
+      placement: 'context-independent' as const,
+      labelKey: 'entity:gadget.useCases.promote',
+      availableWhen: { member: 'tier', in: ['bronze'] },
+    };
+    const metadata = { actions: ['read' as const], useCases: [promote] };
+    const bronze = makeGadget();
+    bronze.tier = 'bronze';
+    const name = { name: 'gadget.useCases.promote' };
+
+    const { rerender } = render(
+      <Harness
+        mode="edit"
+        entity={bronze}
+        metadata={metadata}
+        onUseCase={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('button', name)).toBeInTheDocument();
+
+    // A record that moved on loses the verb the moment the form re-renders.
+    rerender(
+      <Harness
+        mode="edit"
+        entity={makeGadget()}
+        metadata={metadata}
+        onUseCase={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole('button', name)).not.toBeInTheDocument();
+
+    // And a record still in flight offers none of them.
+    rerender(<Harness mode="edit" metadata={metadata} onUseCase={vi.fn()} />);
+    expect(screen.queryByRole('button', name)).not.toBeInTheDocument();
+  });
+
+  it('moves focus to the heading when the verb pressed is no longer offered', async () => {
+    const promote = {
+      key: 'promote',
+      binding: 'entity' as const,
+      placement: 'context-independent' as const,
+      labelKey: 'entity:gadget.useCases.promote',
+      availableWhen: { member: 'tier', in: ['bronze'] },
+    };
+    const metadata = { actions: ['read' as const], useCases: [promote] };
+    const bronze = makeGadget();
+    bronze.tier = 'bronze';
+    const onUseCase = vi.fn();
+    const { rerender } = render(
+      <Harness
+        mode="edit"
+        entity={bronze}
+        metadata={metadata}
+        onUseCase={onUseCase}
+      />,
+    );
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'gadget.useCases.promote' }),
+    );
+    expect(onUseCase).toHaveBeenCalledWith('promote');
+    rerender(
+      <Harness
+        mode="edit"
+        entity={makeGadget()}
+        metadata={metadata}
+        onUseCase={onUseCase}
+      />,
+    );
+
+    expect(screen.getByRole('heading', { level: 2 })).toHaveFocus();
+  });
+
   it('fires a verb with no confirm straight away', async () => {
     const onUseCase = vi.fn();
     render(

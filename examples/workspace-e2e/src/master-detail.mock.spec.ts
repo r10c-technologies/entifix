@@ -59,5 +59,8 @@ test('runs a declared verb and shows the state it moved to', async ({
   await expectAccessible(page, 'invoice');
   await page.getByRole('button', { name: 'Emitir' }).click();
   await expect(status).toHaveValue('issued');
+  // Issue applies to a draft only, so the issued invoice no longer offers it,
+  // and the focus it held moves to the form rather than `<body>`.
+  await expect(page.getByRole('button', { name: 'Emitir' })).toHaveCount(0);
   await expectFocusKept(page);
 });

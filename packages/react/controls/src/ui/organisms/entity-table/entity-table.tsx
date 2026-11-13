@@ -30,7 +30,11 @@ import {
   useT,
   useTranslateKey,
 } from '../../../i18n/index.js';
-import { renderAnchor, useCasesForSurface } from '../../actions/index.js';
+import {
+  availableUseCases,
+  renderAnchor,
+  useCasesForSurface,
+} from '../../actions/index.js';
 import { useVerbInvoker } from '../../actions/use-verb-invoker.js';
 import { Button, button } from '../../atoms/button/index.js';
 import { CellValue } from '../../atoms/cell-value/index.js';
@@ -62,6 +66,7 @@ import { Pagination } from '../../molecules/pagination/index.js';
 import { RegionState } from '../../molecules/region-state/index.js';
 import { SortBuilder } from '../../molecules/sort-builder/index.js';
 import { TableToolbar } from '../../molecules/table-toolbar/index.js';
+import { useFocusOnLoss } from '../../utils/use-focus-on-arrival.js';
 import type {
   EntityTableColumn,
   EntityTableProps,
@@ -487,11 +492,29 @@ export function EntityTable<TEntity extends Entity>({
     served: metadata?.useCases,
   });
 
+  // The row a verb last ran on. Its menu trigger unmounts when the verb moved
+  // the record out of every state a row verb applies to, and focus then goes
+  // to that row's own link or control rather than `<body>`.
+  const rowScope = useId();
+  const [lastRow, setLastRow] = useState<string | undefined>(undefined);
+  useFocusOnLoss(
+    () =>
+      lastRow === undefined ? undefined : focusableIn(`${rowScope}${lastRow}`),
+    shown
+      .map(({ item }) =>
+        availableUseCases(rowUseCases, item)
+          .map(({ key }) => key)
+          .join(','),
+      )
+      .join(' '),
+  );
+
   const invoke = (
     useCase: UseCaseDescriptor,
     target: PendingTarget<TEntity>,
   ) => {
     if (target.kind === 'row') {
+      setLastRow(String(target.item.id));
       verbs.invoke({
         descriptor: useCase,
         target,
@@ -519,8 +542,10 @@ export function EntityTable<TEntity extends Entity>({
       <ActionBar
         surface="row-menu"
         menuLabel={t('actions.forRecord', { record: rowLabel(item) })}
-        items={itemsForUseCases(rowUseCases, translateKey, useCase =>
-          invoke(useCase, { kind: 'row', item }),
+        items={itemsForUseCases(
+          availableUseCases(rowUseCases, item),
+          translateKey,
+          useCase => invoke(useCase, { kind: 'row', item }),
         )}
       />
     ) : undefined;
@@ -945,7 +970,10 @@ export function EntityTable<TEntity extends Entity>({
                   {slots.row.render(item, visibleColumns)}
                 </Fragment>
               ) : (
-                <TableRow key={String(item.id ?? index)}>
+                <TableRow
+                  key={String(item.id ?? index)}
+                  data-record-id={`${rowScope}${String(item.id)}`}
+                >
                   {selectionState && (
                     <TableCell>
                       {selectionCell(item, index, selectionState)}
@@ -1009,6 +1037,7 @@ export function EntityTable<TEntity extends Entity>({
               return (
                 <li
                   key={String(item.id ?? index)}
+                  data-record-id={`${rowScope}${String(item.id)}`}
                   // A tree's card says how deep it sits, as its row does.
                   aria-level={treeKeys === undefined ? undefined : depth + 1}
                   style={
@@ -1062,5 +1091,24 @@ export function EntityTable<TEntity extends Entity>({
 
       {slots.rest}
     </div>
+  );
+}
+
+/**
+ * The first control in a record's row or card that the reader can see. Both
+ * layouts are in the DOM and CSS shows one, so a control inside the hidden
+ * one is skipped. `scoped` is the record's id under this table's own prefix,
+ * so a second table on the page holding the same record is never reached.
+ */
+function focusableIn(scoped: string): HTMLElement | undefined {
+  return [
+    ...document.querySelectorAll<HTMLElement>(
+      `[data-record-id="${CSS.escape(scoped)}"] :is(a[href], button)`,
+    ),
+  ].find(
+    control =>
+      // `checkVisibility` is recent; a browser without it is asked for the
+      // boxes the control lays out, which a `display: none` layout has none of.
+      control.checkVisibility?.() ?? control.getClientRects().length > 0,
   );
 }

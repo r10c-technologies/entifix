@@ -23,7 +23,11 @@ import {
   useT,
   useTranslateKey,
 } from '../../../i18n/index.js';
-import { renderAnchor, useCasesForSurface } from '../../actions/index.js';
+import {
+  availableUseCases,
+  renderAnchor,
+  useCasesForSurface,
+} from '../../actions/index.js';
 import { useVerbInvoker } from '../../actions/use-verb-invoker.js';
 import { Button, button } from '../../atoms/button/index.js';
 import { CellValue } from '../../atoms/cell-value/index.js';
@@ -43,7 +47,10 @@ import { RegionState } from '../../molecules/region-state/index.js';
 import { Stack } from '../../molecules/stack/index.js';
 import { cn } from '../../utils/cn.js';
 import { useLiveUpdates } from '../../utils/live-updates.js';
-import { useFocusOnArrival } from '../../utils/use-focus-on-arrival.js';
+import {
+  useFocusOnArrival,
+  useFocusOnLoss,
+} from '../../utils/use-focus-on-arrival.js';
 import { EntityDetailGrid } from '../entity-detail-grid/index.js';
 import type {
   EntityFormField,
@@ -237,8 +244,20 @@ export function EntityForm<TEntity extends Entity>({
     'form-footer',
     metadata?.useCases,
   );
-  const headerUseCases = onUseCase ? declaredHeaderUseCases : [];
-  const footerUseCases = onUseCase ? declaredFooterUseCases : [];
+  // And only the verbs the record's state allows: a shipment awaiting dispatch
+  // offers Dispatch, not every move a shipment can ever make.
+  const headerUseCases = onUseCase
+    ? availableUseCases(declaredHeaderUseCases, entity)
+    : [];
+  const footerUseCases = onUseCase
+    ? availableUseCases(declaredFooterUseCases, entity)
+    : [];
+  // A verb that moved its record out of the states it applies to unmounts the
+  // button the reader just pressed; focus goes to the heading, not `<body>`.
+  useFocusOnLoss(
+    () => heading.current,
+    [...headerUseCases, ...footerUseCases].map(({ key }) => key).join(' '),
+  );
 
   // Every verb on the form, and its own Delete, goes through one invoker: a
   // destructive verb asks, asks for the name, or runs and offers Undo, as it
