@@ -60,7 +60,7 @@
     "@entifix/business": "workspace:*",
     "@entifix/core": "workspace:*",
     "@swc/helpers": "0.5.23",
-    "amqplib": "2.2.1"
+    "amqplib": "2.3.1"
   },
   "devDependencies": {
     "@entifix/testing-unit": "workspace:*",
