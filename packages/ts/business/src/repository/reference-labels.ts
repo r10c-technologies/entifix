@@ -88,9 +88,7 @@ function labelDescriptor(
   const declared =
     labelProperty ?? extractMetaEntity(entityConstructor).labelMember;
   if (declared === undefined) return undefined;
-  const descriptor = descriptors.find(
-    column => column.name === declared,
-  );
+  const descriptor = descriptors.find(column => column.name === declared);
   if (
     descriptor === undefined ||
     descriptor.references !== undefined ||

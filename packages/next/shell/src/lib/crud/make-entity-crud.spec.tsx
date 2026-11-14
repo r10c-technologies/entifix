@@ -59,9 +59,12 @@ class AlreadyRetired extends Failure.declined<AlreadyRetired>()(
 const push = vi.fn();
 let slug = 'new';
 
+const searchParams = new URLSearchParams();
+
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push }),
   useParams: () => ({ slug }),
+  useSearchParams: () => searchParams,
 }));
 
 /**

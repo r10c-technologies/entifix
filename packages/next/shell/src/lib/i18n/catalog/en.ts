@@ -55,6 +55,10 @@ export const shell: EsShell = {
     collapseGroup: 'Collapse {{group}}',
   },
   /** A list column whose value lives in another entity, when more than one record matches. */
+  /** The section nav above a record's related regions. */
+  regions: {
+    nav: 'Record sections',
+  },
   related: {
     count: '{{count}} {{noun}}',
   },

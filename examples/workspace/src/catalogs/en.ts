@@ -15,6 +15,7 @@ export const en: ExampleCatalog = {
         parent: 'Branch of',
       },
       related: { invoices: 'Invoices' },
+      regions: { invoices: 'Invoices', branches: 'Branches' },
       values: {
         tier: { standard: 'Standard', preferred: 'Preferred' },
       },
@@ -23,6 +24,7 @@ export const en: ExampleCatalog = {
       form: { editTitle: 'Edit invoice', newTitle: 'New invoice' },
       label: 'Invoice',
       plural: 'Invoices',
+      regions: { payments: 'Payments' },
       fields: {
         id: 'ID',
         number: 'Number',

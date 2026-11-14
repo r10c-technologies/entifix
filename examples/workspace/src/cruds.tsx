@@ -89,6 +89,40 @@ export const customerCrud = makeEntityCrud<Customer, ExampleAdapters>(
         member: 'number',
       },
     ],
+    // The records that refer to a customer, under its form: its invoices and
+    // its branches, each its own list with its own writes (ADR 0030).
+    regions: customer => [
+      <invoiceCrud.RelatedList
+        key="invoices"
+        labelKey="entity:customer.regions.invoices"
+        filtering={{
+          operator: 'and',
+          values: [
+            {
+              property: 'customerId',
+              operator: 'eq',
+              value: String(customer.id),
+            },
+          ],
+        }}
+        prefill={{ customerId: String(customer.id) }}
+      />,
+      <customerCrud.RelatedList
+        key="branches"
+        labelKey="entity:customer.regions.branches"
+        filtering={{
+          operator: 'and',
+          values: [
+            {
+              property: 'parentId',
+              operator: 'eq',
+              value: String(customer.id),
+            },
+          ],
+        }}
+        prefill={{ parentId: String(customer.id) }}
+      />,
+    ],
   },
 );
 
@@ -111,6 +145,18 @@ export const invoiceCrud = makeEntityCrud<Invoice, ExampleAdapters>(Invoice, {
   metadataSource,
   useCases: 'invoiceVerbs',
   facets: 'invoiceFacets',
+  regions: invoice => [
+    <paymentCrud.RelatedList
+      key="payments"
+      labelKey="entity:invoice.regions.payments"
+      filtering={{
+        operator: 'and',
+        values: [
+          { property: 'invoiceId', operator: 'eq', value: String(invoice.id) },
+        ],
+      }}
+    />,
+  ],
 });
 
 /** A list with no "New": a payment is written when money arrives. */

@@ -190,6 +190,22 @@ export type AdapterKey<TAdapters, TValue> = {
   [K in keyof TAdapters]: TAdapters[K] extends TValue ? K : never;
 }[keyof TAdapters];
 
+/** A related region: this entity's records that refer to another record. */
+export interface EntityCrudRelatedListProps<TEntity extends Entity> {
+  /** Which records — those referring to the record whose page this is. Fixed, and shown as no chip. */
+  readonly filtering: FilterGroup<TEntity>;
+  /** Catalog key for the region's `h2`, and its entry in the page's section nav. */
+  readonly labelKey: string;
+  /**
+   * The members a "New" from this region opens already set — the parent
+   * record's id under the member that refers to it.
+   */
+  readonly prefill?: Readonly<Record<string, string>>;
+  /** Where "New" goes, in place of this crud's create page with `prefill`. */
+  readonly newHref?: string;
+  readonly pageSize?: number;
+}
+
 export interface EntityCrudOptions<TAdapters, TEntity extends Entity> {
   /** The domain shell's adapters hook, e.g. `useMarketplaceAdminAdapters`. */
   readonly useAdapters: () => TAdapters;
@@ -256,6 +272,14 @@ export interface EntityCrudOptions<TAdapters, TEntity extends Entity> {
   readonly links?: readonly EntityCrudLink<TAdapters, TEntity>[];
   /** Columns whose values live in another entity, read per page. */
   readonly related?: readonly EntityCrudRelated<TAdapters>[];
+  /**
+   * The records that refer to this one, as regions under its form — each
+   * usually another crud's `RelatedList`, held to this record's id. Rendered
+   * for an existing record only, never on create. Not master-detail: each
+   * region writes its own records through its own owner, with its own Save,
+   * and there is no page-wide Save across stores.
+   */
+  readonly regions?: (record: TEntity) => readonly ReactNode[];
   /**
    * Where the entity's served affordances come from — `GET /api/<entity>/$metadata`.
    *
@@ -360,6 +384,10 @@ export interface EntityCrud<TEntity extends Entity> {
   readonly basePath: string;
   readonly ListPage: () => ReactElement;
   readonly SingleViewPage: (props?: EntityCrudSingleViewProps) => ReactElement;
+  /** This entity's records referring to another record, as a region of that record's page. */
+  readonly RelatedList: (
+    props: EntityCrudRelatedListProps<TEntity>,
+  ) => ReactElement;
 }
 
 /**

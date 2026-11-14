@@ -38,6 +38,7 @@ import {
   useRecordLabel,
   useT,
   useToasts,
+  useTranslateKey,
 } from '@entifix/react-controls';
 import {
   entityQueryScope,
@@ -49,8 +50,8 @@ import {
 } from '@entifix/react-integration';
 import { useQueryClient } from '@tanstack/react-query';
 import { Cause, Context, Effect, Exit } from 'effect';
-import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useRef } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useId, useMemo, useRef } from 'react';
 
 import { useBreadcrumbLabel } from '../back-office/breadcrumb-labels.js';
 import { useLocaleHref } from '../i18n/index.js';
@@ -61,8 +62,15 @@ import type {
   EntityCrud,
   EntityCrudLinkSource,
   EntityCrudOptions,
+  EntityCrudRelatedListProps,
   EntityCrudSingleViewProps,
 } from './make-entity-crud.types.js';
+import {
+  PREFILL_PARAM,
+  readPrefill,
+  RecordRegions,
+  useRegion,
+} from './regions.js';
 import { planRelated, useRelatedColumns } from './related-columns.js';
 import { CATALOG_NEW_SLUG, slugToEntityId } from './slug.js';
 import { useCrudRenderLink } from './use-crud-render-link.js';
@@ -71,6 +79,9 @@ import { useEntityBulk } from './use-entity-bulk.js';
 
 /** What a picker defaults to reading off its target. */
 const TARGET_NAME_PROPERTY = 'name';
+
+/** A prefilled create with no host draft store keeps nothing between visits. */
+const ignoreDraft = () => undefined;
 
 /**
  * What the generated pages' use-cases run against: one repository adapter.
@@ -242,6 +253,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     initialFiltering,
     links = [],
     related = [],
+    regions,
     metadataSource: givenMetadataSource,
     metadata,
     useCases,
@@ -335,7 +347,25 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     };
   });
 
-  function ListPage() {
+  /**
+   * The generated list itself — the table, its reads, its verbs — shared by the
+   * list page and by a related region on another record's page. A region holds
+   * it to a fixed filter that is not a removable chip and keeps its pager in
+   * component state, never in the URL.
+   */
+  function ListBody({
+    baseFiltering,
+    newHref: givenNewHref,
+    listPageSize = pageSize,
+    listInitialFiltering,
+    onVerbSettled,
+  }: {
+    baseFiltering?: FilterGroup<TEntity>;
+    newHref?: string;
+    listPageSize?: number;
+    listInitialFiltering?: FilterGroup<TEntity>;
+    onVerbSettled?: () => void;
+  }) {
     const adapters = useAdapters();
     // Every internal href carries the locale. An unprefixed one still resolves —
     // the middleware redirects it — but the visitor pays a round trip per click.
@@ -356,8 +386,11 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
       // the same prefix `useReactiveInvalidation`already targets, so a generated
       // list now also refreshes on a reactive change event.
       queryKey: scope,
-      ...(pageSize === undefined ? {} : { initialPageSize: pageSize }),
-      ...(initialFiltering === undefined ? {} : { initialFiltering }),
+      ...(listPageSize === undefined ? {} : { initialPageSize: listPageSize }),
+      ...(listInitialFiltering === undefined
+        ? {}
+        : { initialFiltering: listInitialFiltering }),
+      ...(baseFiltering === undefined ? {} : { baseFiltering }),
     });
 
     // Values that live in another entity, one read per column per page.
@@ -425,6 +458,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     // table's own error region — the same one a failed page read uses.
     const rowVerb = useVerb(verbs, () => {
       void queryClient.invalidateQueries({ queryKey: scope });
+      onVerbSettled?.();
     });
     // Called unconditionally and the *result* gated, the way the surfaces are
     // read in `EntityForm`: the name begins with `use`, so short-circuiting it
@@ -442,6 +476,31 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
         }
       : undefined;
 
+    return (
+      <EntityTable
+        entityConstructor={entityConstructor}
+        {...pager}
+        items={pager.items}
+        totalItems={pager.totalItems}
+        hrefFor={id => withLocale(`${basePath}/${String(id)}`)}
+        newHref={withLocale(givenNewHref ?? `${basePath}/${CATALOG_NEW_SLUG}`)}
+        renderLink={renderLink}
+        {...affordances}
+        {...bulk.tableProps}
+        onUseCase={handleRowUseCase}
+        onRetry={pager.refetch}
+        facets={facetCounts}
+        error={syncFailure(rowVerb.verb) ?? pager.error}
+      >
+        {columns}
+        {relatedColumns}
+        {/* After the host's own: a host column for the same member wins. */}
+        {toolbar}
+      </EntityTable>
+    );
+  }
+
+  function ListPage() {
     // The list's heading, and where focus lands when a save or a delete
     // brings the reader back here rather than falling to `<body>`.
     const heading = useRef<HTMLHeadingElement>(null);
@@ -457,27 +516,68 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
         >
           {et(pluralKey.replace(/^entity:/, ''))}
         </h1>
-        <EntityTable
-          entityConstructor={entityConstructor}
-          {...pager}
-          items={pager.items}
-          totalItems={pager.totalItems}
-          hrefFor={id => withLocale(`${basePath}/${String(id)}`)}
-          newHref={withLocale(`${basePath}/${CATALOG_NEW_SLUG}`)}
-          renderLink={renderLink}
-          {...affordances}
-          {...bulk.tableProps}
-          onUseCase={handleRowUseCase}
-          onRetry={pager.refetch}
-          facets={facetCounts}
-          error={syncFailure(rowVerb.verb) ?? pager.error}
-        >
-          {columns}
-          {relatedColumns}
-          {/* After the host's own: a host column for the same member wins. */}
-          {toolbar}
-        </EntityTable>
+        <ListBody
+          {...(initialFiltering === undefined
+            ? {}
+            : { listInitialFiltering: initialFiltering })}
+        />
       </div>
+    );
+  }
+
+  /**
+   * This entity's records that refer to another record, as a region of that
+   * record's page
+   * ([ADR 0030](../../../../../../docs/adr/0030-a-reference-names-its-target-through-the-owners-read-port.md)):
+   * the generated list held to `filtering`, which is fixed and shown as no
+   * chip, under its own `h2`, with its own states and its own writes. A verb
+   * that settles inside it moves focus to that heading; nothing else on the
+   * page is re-read or touched. `prefill` names the members a "New" from here
+   * opens already set — the parent record's id.
+   */
+  function RelatedList({
+    filtering,
+    labelKey: headingKey,
+    prefill,
+    newHref,
+    pageSize: regionPageSize,
+  }: EntityCrudRelatedListProps<TEntity>) {
+    const headingRef = useRef<HTMLHeadingElement>(null);
+    const id = useId();
+    const heading = useTranslateKey()(headingKey);
+    useRegion(id, heading);
+    const query = new URLSearchParams(
+      Object.entries(prefill ?? {}).map(([member, value]): [string, string] => [
+        `${PREFILL_PARAM}${member}`,
+        value,
+      ]),
+    ).toString();
+    return (
+      <section
+        id={id}
+        aria-labelledby={`${id}-heading`}
+        className="flex flex-col gap-s"
+      >
+        <h2
+          id={`${id}-heading`}
+          ref={headingRef}
+          tabIndex={-1}
+          className="m-0 text-step-1 font-semibold text-content focus-ring"
+        >
+          {heading}
+        </h2>
+        <ListBody
+          baseFiltering={filtering}
+          newHref={
+            newHref ??
+            `${basePath}/${CATALOG_NEW_SLUG}${query === '' ? '' : `?${query}`}`
+          }
+          {...(regionPageSize === undefined
+            ? {}
+            : { listPageSize: regionPageSize })}
+          onVerbSettled={() => headingRef.current?.focus()}
+        />
+      </section>
     );
   }
 
@@ -502,6 +602,25 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     const params = useParams<{ slug: string }>();
     const mounted = useMounted();
     const id = slugToEntityId(slug ?? params.slug);
+
+    // A create opened from a related region starts with the parent record set:
+    // `?prefill.<member>=<value>`, layered under any draft the host restores.
+    const searchParams = useSearchParams();
+    const prefill =
+      id == null ? readPrefill(searchParams, descriptors) : undefined;
+    const prefillKey = prefill === undefined ? '' : JSON.stringify(prefill);
+    const formDraft = useMemo(
+      () =>
+        prefill === undefined
+          ? draft
+          : {
+              draft: { ...prefill, ...draft?.draft },
+              save: draft?.save ?? ignoreDraft,
+              clear: draft?.clear ?? ignoreDraft,
+            },
+      // Keyed on the values, not the object a render builds them into.
+      [draft, prefillKey],
+    );
 
     const ctx = crudContextOf(adapters, repository);
 
@@ -719,7 +838,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
         ? undefined
         : (key: string) => recordVerb.run(key, id);
 
-    return (
+    const form = (
       <EntityCrudForm<TEntity>
         // Remounts (and reseeds the fields) once the record arrives.
         key={String(entity?.id ?? CATALOG_NEW_SLUG)}
@@ -748,8 +867,18 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
         onUseCase={handleUseCase}
         backHref={withLocale(basePath)}
         renderLink={renderLink}
-        draft={draft}
+        draft={formDraft}
       />
+    );
+    // The records that refer to this one, under its form: an existing record
+    // only, since a record being created has nothing referring to it yet.
+    if (regions === undefined || id == null || entity === undefined)
+      return form;
+    return (
+      <div className="flex flex-col gap-l">
+        {form}
+        <RecordRegions>{regions(entity)}</RecordRegions>
+      </div>
     );
   }
 
@@ -761,5 +890,6 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     basePath,
     ListPage,
     SingleViewPage,
+    RelatedList,
   };
 }

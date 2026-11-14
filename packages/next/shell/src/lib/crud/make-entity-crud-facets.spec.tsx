@@ -16,9 +16,12 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { makeEntityCrud } from './make-entity-crud.js';
 
+const searchParams = new URLSearchParams();
+
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
   useParams: () => ({ slug: 'new' }),
+  useSearchParams: () => searchParams,
 }));
 
 @entity({
