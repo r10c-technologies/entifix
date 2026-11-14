@@ -46,8 +46,10 @@ class StoryWidget implements Entity {
     this.#id = value;
   }
 
-  // Wide enough that three columns no longer fit in 400px: 6 + 16 + 6 = 28rem.
-  @accessor({ type: 'string', label: 'Name', minWidth: 16 })
+  // Wide enough that a row's essentials no longer fit in 400px (25rem): the
+  // name and the stock, 20 + 6 = 26rem — the id is off the card, so it does
+  // not count.
+  @accessor({ type: 'string', label: 'Name', minWidth: 20 })
   get name(): string | undefined {
     return this.#name;
   }
