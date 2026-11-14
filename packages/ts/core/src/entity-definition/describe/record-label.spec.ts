@@ -239,7 +239,8 @@ describe('recordLabel', () => {
 
   it('never quotes more of an id than the short form', () => {
     expect(shortId(uuid)).toHaveLength(8);
-    expect(shortId('p-1')).toBe('p-1');
+    expect(shortId('offering-12')).toBe('offering-12');
+    expect(shortId('offering-1234')).toBe('offering');
   });
 });
 

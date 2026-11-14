@@ -100,13 +100,18 @@ const resolve = (
   key: string,
   ids: string[],
 ) =>
-  Effect.runPromiseExit(Context.get(context, ReferenceLabelsTag).resolve(key, ids));
+  Effect.runPromiseExit(
+    Context.get(context, ReferenceLabelsTag).resolve(key, ids),
+  );
 
 describe('createReferenceLabels', () => {
   it('reads 50 ids naming 3 records in one load with an in filter of 3', async () => {
     const repository = repositoryFor(offerings);
     const context = createReferenceLabels([[Offering, repository.context]]);
-    const ids = Array.from({ length: 50 }, (_, index) => `o-${(index % 3) + 1}`);
+    const ids = Array.from(
+      { length: 50 },
+      (_, index) => `o-${(index % 3) + 1}`,
+    );
 
     const exit = await resolve(context, 'catalog:offering', ids);
 
@@ -159,8 +164,10 @@ describe('createReferenceLabels', () => {
       [Offering, repositoryFor(offerings).context, { labelProperty: 'code' }],
       [
         Brand,
-        repositoryFor([new Brand({ id: 'b-1', rank: 3 }), new Brand({ id: 'b-2' })])
-          .context,
+        repositoryFor([
+          new Brand({ id: 'b-1', rank: 3 }),
+          new Brand({ id: 'b-2' }),
+        ]).context,
       ],
     ]);
     const byCode = await resolve(context, 'catalog:offering', ['o-1', 'o-2']);
@@ -173,9 +180,9 @@ describe('createReferenceLabels', () => {
     const context = createReferenceLabels([
       [Offering, repositoryFor(offerings, true).context],
     ]);
-    expect(Exit.isFailure(await resolve(context, 'catalog:offering', ['o-1']))).toBe(
-      true,
-    );
+    expect(
+      Exit.isFailure(await resolve(context, 'catalog:offering', ['o-1'])),
+    ).toBe(true);
     expect(Exit.isFailure(await resolve(context, 'sales:order', ['x']))).toBe(
       true,
     );

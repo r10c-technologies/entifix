@@ -211,7 +211,9 @@ export function extractMetaEntity<TEntity extends Entity>(
  * The `@entity()` metadata of a class, or `undefined` for one that declares
  * none — a `composition` member's child is described without it.
  */
-export function findMetaEntity(target: ChildConstructor): MetaEntity | undefined {
+export function findMetaEntity(
+  target: ChildConstructor,
+): MetaEntity | undefined {
   return readMetadata(target)?.[META_ENTITY_KEY] as MetaEntity | undefined;
 }
 

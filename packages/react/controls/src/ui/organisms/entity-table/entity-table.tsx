@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  canNameRecord,
   emptySelection,
   type Entity,
   type EntityId,
@@ -11,6 +12,7 @@ import {
   hierarchyOf,
   isSelected,
   queryPropertyFor,
+  recordLabel,
   selectionSize,
   toggleSelected,
   type UseCaseDescriptor,
@@ -37,7 +39,7 @@ import {
 } from '../../actions/index.js';
 import { useVerbInvoker } from '../../actions/use-verb-invoker.js';
 import { Button, button } from '../../atoms/button/index.js';
-import { CellValue } from '../../atoms/cell-value/index.js';
+import { CellValue, useRecordLabel } from '../../atoms/cell-value/index.js';
 import { Checkbox } from '../../atoms/field/index.js';
 import { Skeleton } from '../../atoms/skeleton/index.js';
 import {
@@ -267,17 +269,30 @@ export function EntityTable<TEntity extends Entity>({
    */
   const busy = isLoading || undefined;
 
-  /** The column a row reads *as*: the first non-identifier one it filled in. */
-  const titleColumn = (item: TEntity) =>
-    visibleColumns.find(column => {
-      if (column.type === 'id') return false;
-      const value = (item as Record<string, unknown>)[column.name];
-      return value != null && String(value) !== '';
-    });
+  const nameOf = useRecordLabel();
 
-  /** The column that links to the record: one declared `card: 'title'`, else the row's title. */
+  /**
+   * The column a row reads *as*: the member `recordLabel()` names it by, when
+   * the reader has not hidden that column; else one declared `card: 'title'`;
+   * else the first visible one it filled in that is not a key — an id, a
+   * reference or a link names a row no better than its position does.
+   */
   const declaredTitle = visibleColumns.find(column => column.card === 'title');
-  const linkColumn = (item: TEntity) => declaredTitle ?? titleColumn(item);
+  const linkColumn = (item: TEntity) => {
+    const label = recordLabel(entityConstructor, item);
+    const named =
+      label.kind === 'fallback'
+        ? undefined
+        : visibleColumns.find(column => column.name === label.member.name);
+    return (
+      named ??
+      declaredTitle ??
+      visibleColumns.find(column => {
+        const value = (item as Record<string, unknown>)[column.name];
+        return canNameRecord(column) && value != null && String(value) !== '';
+      })
+    );
+  };
 
   /**
    * What a record's card shows, by each member's declared `card` role or the
@@ -425,30 +440,12 @@ export function EntityTable<TEntity extends Entity>({
   };
 
   /**
-   * How a row names itself to a screen reader.
-   *
-   * The first visible column's value, because that is what the user reads the
-   * row *as* — "Seleccionar Acme" rather than "Seleccionar fila 3", which tells
-   * them the position they can already see and not the thing they cannot.
+   * How a row names itself — to a screen reader on its checkbox, in a confirm
+   * dialog, a bulk result, a tree toggle: what the reader reads the row *as*
+   * ("Seleccionar Acme", never "Seleccionar fila 3" and never a whole id),
+   * through the one derivation every surface shares.
    */
-  const rowLabel = (item: TEntity): string => {
-    // The first non-identifier column **that this row actually filled in**.
-    //
-    // An id names a row the way "row 3" does: it repeats what the user can
-    // already see. But skipping only the id is not enough — measured against
-    // the seeded catalog, where `code` is the first non-id column and is empty
-    // on every brand, so the label fell straight through to the id and never
-    // reached `name`. A column that is blank on this row names it no better
-    // than its position does, so the search continues past it.
-    //
-    // The id remains the last resort, because a row with nothing rendered
-    // still has to announce itself.
-    const named = titleColumn(item);
-
-    return named
-      ? String((item as Record<string, unknown>)[named.name])
-      : String(item.id);
-  };
+  const rowLabel = (item: TEntity): string => nameOf(entityConstructor, item);
 
   const selectionCell = (
     item: TEntity,
@@ -1050,7 +1047,14 @@ export function EntityTable<TEntity extends Entity>({
                     // The same renderers as the grid, so the two layouts agree.
                     title={
                       parts.title === undefined
-                        ? rowLabel(item)
+                        ? hrefFor === undefined || onSelect !== undefined
+                          ? rowLabel(item)
+                          : renderLink({
+                              href: hrefFor(item.id),
+                              className: linkClassName,
+                              children: rowLabel(item),
+                              intent: { kind: 'open', id: item.id },
+                            })
                         : renderCell(parts.title, item)
                     }
                     subtitle={

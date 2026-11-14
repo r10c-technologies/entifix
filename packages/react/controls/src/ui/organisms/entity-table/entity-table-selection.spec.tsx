@@ -210,7 +210,7 @@ describe('EntityTable selection', () => {
    * A row whose columns are all empty still has to announce itself, so the
    * id is the last resort — unreadable, but never silent.
    */
-  it('falls back to the id when the naming column is empty', () => {
+  it('falls back to the noun and the id when the naming column is empty', () => {
     const unnamed = new Gizmo();
     unnamed.id = '9';
 
@@ -221,13 +221,13 @@ describe('EntityTable selection', () => {
     });
 
     expect(
-      grid().getByRole('checkbox', { name: 'Seleccionar 9' }),
+      grid().getByRole('checkbox', { name: 'Seleccionar gizmo 9' }),
     ).toBeInTheDocument();
   });
 
-  it('names a row by its id when the entity has no other column', () => {
+  it('names a row by its noun and short id when the entity has no other column', () => {
     const token = new Token();
-    token.id = 'tok-1';
+    token.id = 'tok-1-0a1b2c3d-4e5f';
 
     render(
       <EntityTable<Token>
@@ -241,7 +241,8 @@ describe('EntityTable selection', () => {
     );
 
     expect(
-      grid().getByRole('checkbox', { name: 'Seleccionar tok-1' }),
+      // Never the whole id: the first eight characters, after the noun.
+      grid().getByRole('checkbox', { name: 'Seleccionar token tok-1-0a' }),
     ).toBeInTheDocument();
   });
 

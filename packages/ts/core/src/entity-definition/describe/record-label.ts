@@ -7,7 +7,7 @@ import {
   type EntityFieldDescriptor,
 } from './describe-entity-columns.js';
 
-/** How many characters of an id a fallback label shows. A whole UUID never reads. */
+/** How many characters of a long id a fallback label shows. A whole UUID never reads. */
 export const SHORT_ID_LENGTH = 8;
 
 /**
@@ -19,8 +19,8 @@ export const SHORT_ID_LENGTH = 8;
  *   text in the reader's locale, a number formatted);
  * - `reference` — the name of the record another entity holds under `id`,
  *   which the host's reference registry resolves;
- * - `fallback` — nothing names the record: the entity's noun with `shortId`,
- *   the first {@link SHORT_ID_LENGTH} characters of its id, when it has one.
+ * - `fallback` — nothing names the record: the entity's noun with
+ *   {@link shortId} of its id, when it has one.
  */
 export type RecordLabel =
   | {
@@ -60,10 +60,11 @@ function isFilled(descriptor: EntityFieldDescriptor, value: unknown): boolean {
 }
 
 /**
- * A member that holds a key or a list is never the undeclared label: an id, a
- * reference and a link are keys, and a collection is many values.
+ * Whether a member can name a record it was not declared to name. One that
+ * holds a key or a list never can: an id, a reference and a link are keys,
+ * and a collection is many values.
  */
-function canNameUndeclared(descriptor: EntityFieldDescriptor): boolean {
+export function canNameRecord(descriptor: EntityFieldDescriptor): boolean {
   return (
     descriptor.type !== 'id' &&
     descriptor.type !== 'link' &&
@@ -95,8 +96,7 @@ function labelFrom(
  *    `title`, when filled in — a reference is answered as one, to resolve;
  * 2. the first filled-in member that is neither an id, a reference, a link nor
  *    a collection;
- * 3. the fallback: the noun and the id's first {@link SHORT_ID_LENGTH}
- *    characters.
+ * 3. the fallback: the noun and the id's {@link shortId}.
  *
  * `record` is read by member name, so an entity instance, a plain record and a
  * form's draft all work.
@@ -118,7 +118,7 @@ export function recordLabel(
   }
   const undeclared = descriptors.find(
     descriptor =>
-      canNameUndeclared(descriptor) &&
+      canNameRecord(descriptor) &&
       isFilled(descriptor, values[descriptor.name]),
   );
   if (undeclared !== undefined) {
@@ -130,9 +130,18 @@ export function recordLabel(
     : { kind: 'fallback', shortId: shortId(String(id)) };
 }
 
-/** The first {@link SHORT_ID_LENGTH} characters of an id — what a label quotes when nothing names the record. */
+/**
+ * Ids no longer than this are quoted whole: `offering-12` cut to eight
+ * characters would name every offering alike, while a UUID is never short.
+ */
+export const SHORT_ID_WHOLE = 12;
+
+/**
+ * What a label quotes of an id when nothing names the record: a short id
+ * whole, a long one cut to its first {@link SHORT_ID_LENGTH} characters.
+ */
 export function shortId(id: string): string {
-  return id.slice(0, SHORT_ID_LENGTH);
+  return id.length <= SHORT_ID_WHOLE ? id : id.slice(0, SHORT_ID_LENGTH);
 }
 
 /**

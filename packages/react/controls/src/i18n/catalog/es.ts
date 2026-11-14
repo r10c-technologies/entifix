@@ -200,6 +200,9 @@ export const controls = {
     errorSummary_one: '{{count}} celda con errores',
     errorSummary_other: '{{count}} celdas con errores',
   },
+  reference: {
+    unresolved: '{{noun}} {{id}}',
+  },
   value: {
     none: '— ninguno —',
     yes: 'Sí',

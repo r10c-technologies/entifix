@@ -81,8 +81,10 @@ a text, a reference to resolve, or a fallback carrying the short id — and
 2. undeclared: the first filled-in member that is neither an `id`, a reference,
    a `link`, a hidden member nor a collection (the current heuristic, minus the
    kinds that are keys);
-3. nothing: the entity's noun with the first eight characters of the id
-   ("Shipment 79ce50c8"). A whole UUID is never a label.
+3. nothing: the entity's noun with the id's short form — an id of twelve
+   characters or fewer whole, a longer one cut to its first eight ("Shipment
+   79ce50c8"). A whole UUID is never a label, and `offering-12` is not cut to
+   `offering`, which would call every offering the same.
 
 `EntityForm`'s `recordLabel` prop is removed; a host declares `labelMember`.
 
