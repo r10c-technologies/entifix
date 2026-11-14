@@ -128,6 +128,10 @@ export const Reloading: Story = {
   ),
 };
 
+/**
+ * Nothing yet: the region's empty state alone — no table header over no rows,
+ * no empty card list — with the result still announced.
+ */
 export const Empty: Story = {
   render: () => (
     <EntityTable<StoryWidget>
@@ -138,6 +142,14 @@ export const Empty: Story = {
       totalItems={0}
     />
   ),
+  play: async ({ canvasElement }) => {
+    await expect(canvasElement.querySelector('table')).toBeNull();
+    await expect(canvasElement.querySelector('ul[role=list]')).toBeNull();
+    // The result is still said, by the polite status beside the toolbar.
+    await expect(
+      within(canvasElement).getAllByRole('status').length,
+    ).toBeGreaterThan(0);
+  },
 };
 
 /** The verbs a selection can be acted on with, as the service reports them. */
@@ -428,22 +440,47 @@ export const ResizeKeepsSelection: Story = {
   },
 };
 
-/** A filter emptied the list: it says so, and offers Clear filters. */
-export const NoResults: Story = {
-  render: () => (
+function FilteredEmpty() {
+  const [filtering, setFiltering] = useState<FilterGroup<StoryWidget>>({
+    operator: 'and',
+    values: [{ property: 'name', operator: 'like', value: 'zz' }],
+  });
+  const items = filtering.values.length === 0 ? WIDGETS : [];
+  return (
     <EntityTable<StoryWidget>
       entityConstructor={StoryWidget}
-      items={[]}
+      items={items}
       isLoading={false}
       {...pager}
-      totalItems={0}
-      filtering={{
-        operator: 'and',
-        values: [{ property: 'name', operator: 'like', value: 'zz' }],
-      }}
-      onFilteringChange={() => undefined}
+      totalItems={items.length}
+      filtering={filtering}
+      onFilteringChange={setFiltering}
     />
-  ),
+  );
+}
+
+/**
+ * A filter emptied the list: it says so, and offers Clear filters — with no
+ * table under it. Clearing brings the rows back, and focus stays on the
+ * control that filters rather than falling to the page.
+ */
+export const NoResults: Story = {
+  render: () => <FilteredEmpty />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvasElement.querySelector('table')).toBeNull();
+    await expect(canvasElement.querySelector('ul[role=list]')).toBeNull();
+    await expect(canvas.getAllByRole('status').length).toBeGreaterThan(0);
+
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Limpiar filtros' }),
+    );
+    // Back in the DOM: which layout shows is the container's call.
+    await waitFor(() =>
+      expect(canvasElement.querySelector('table')).not.toBeNull(),
+    );
+    await expect(canvas.getByRole('button', { name: 'Filtros' })).toHaveFocus();
+  },
 };
 
 /** A load that failed, over the rows from before it, with Retry. */

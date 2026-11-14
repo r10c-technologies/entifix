@@ -6,6 +6,7 @@ import {
   type EntityId,
   type EntityMetadataDocument,
   type EntitySelection,
+  Unavailable,
   type UseCaseDescriptor,
 } from '@entifix/core';
 import { render, screen, within } from '@testing-library/react';
@@ -414,8 +415,10 @@ describe('EntityTable selection', () => {
     });
 
     it('is disabled with no rows to select', () => {
+      // A failed first load keeps its grid, header and all, under the error.
       renderTable({
         items: [],
+        error: new Unavailable({ dependency: 'catalog' }),
         selection: emptySelection<Gizmo>(),
         onSelectionChange: () => undefined,
       });
@@ -425,6 +428,17 @@ describe('EntityTable selection', () => {
           name: 'Seleccionar todo en esta página',
         }),
       ).toBeDisabled();
+    });
+
+    it('is not drawn over a list that settled empty', () => {
+      renderTable({
+        items: [],
+        selection: emptySelection<Gizmo>(),
+        onSelectionChange: () => undefined,
+      });
+
+      expect(screen.queryByRole('table')).not.toBeInTheDocument();
+      expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
     });
   });
 
