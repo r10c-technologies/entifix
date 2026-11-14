@@ -54,6 +54,10 @@ export const shell: EsShell = {
     expandGroup: 'Expand {{group}}',
     collapseGroup: 'Collapse {{group}}',
   },
+  /** A list column whose value lives in another entity, when more than one record matches. */
+  related: {
+    count: '{{count}} {{noun}}',
+  },
   session: {
     expiringSoon:
       'Your session is about to expire. Save your work and sign in again to continue.',

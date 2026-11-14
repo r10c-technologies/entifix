@@ -87,6 +87,15 @@ describe('resolveEntityTableColumns', () => {
     });
   });
 
+  it("carries a slot column's declared width, so the pivot counts it", () => {
+    const { columns } = resolveEntityTableColumns<Gadget>(
+      described(),
+      [{ field: 'price', label: 'Price', type: 'number', minWidth: 11 }],
+      {},
+    );
+    expect(columns.find(column => column.name === 'price')?.minWidth).toBe(11);
+  });
+
   it('reorders per the stored personalization', () => {
     const { columns } = resolveEntityTableColumns<Gadget>(described(), [], {
       order: ['name', 'code', 'id'],

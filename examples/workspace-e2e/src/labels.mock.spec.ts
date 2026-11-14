@@ -55,3 +55,22 @@ for (const [list, name, cells] of [
     await expect(page.getByRole('main')).not.toContainText(RAW_ID);
   });
 }
+
+/**
+ * A related column: each customer's invoices, read for the whole page in one
+ * request — the number when there is one, a dash when there is none — and a
+ * header that offers no sort, since the value lives in another store.
+ */
+test('a list shows a related entity’s value as a column', async ({ page }) => {
+  failOnPageErrors(page);
+  await page.goto('/es/customers');
+  await new EntityTablePage(page).waitForRows();
+  const table = page.getByRole('table');
+  const header = table.getByRole('columnheader', { name: 'Facturas' });
+  await expect(header).toBeVisible();
+  await expect(header).not.toHaveAttribute('aria-sort');
+  await expect(header.getByRole('button')).toHaveCount(0);
+  await expect(
+    table.getByRole('row', { name: /Ada Lovelace/ }).getByText('INV-0001'),
+  ).toBeVisible();
+});

@@ -77,6 +77,18 @@ export const customerCrud = makeEntityCrud<Customer, ExampleAdapters>(
         useBaseFiltering: useOutsideOwnSubtree,
       },
     ],
+    // A value that lives in another entity: the customer's invoices, read
+    // for the whole page in one request (ADR 0030).
+    related: [
+      {
+        key: 'invoices',
+        labelKey: 'entity:customer.related.invoices',
+        target: Invoice,
+        repository: 'invoices',
+        match: 'customerId',
+        member: 'number',
+      },
+    ],
   },
 );
 

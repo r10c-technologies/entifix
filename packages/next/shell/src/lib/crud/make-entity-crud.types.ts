@@ -148,6 +148,43 @@ export interface EntityCrudLink<TAdapters, TEntity extends Entity = Entity> {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type AnyFilterGroup = FilterGroup<any>;
 
+/**
+ * A column whose value lives in another entity — a price that points at the
+ * offering, the stock held of it, the brand it names — read in **one request
+ * per column per page** through the target's own read path
+ * ([ADR 0030](../../../../../../docs/adr/0030-a-reference-names-its-target-through-the-owners-read-port.md)).
+ *
+ * Matched one of two ways, never both:
+ *
+ * - `via` — a member of **this** entity that `references` the target, so the
+ *   target is read by `id=in=(…)` over the page's values of it;
+ * - `match` — a member of the **target** holding this record's id, so the
+ *   target is read by `<match>=in=(…)` over the page's ids. It must be
+ *   `filterable` on the target.
+ *
+ * Zero matches read `—`, one reads its `member` through the target's own
+ * descriptor (money reads as money), and more than one reads as a count. The
+ * column is never sortable or filterable: its value is in another store, and a
+ * sort the server cannot run would be a lie.
+ */
+export interface EntityCrudRelated<TAdapters> {
+  /** The column's identity, unique among the list's columns. */
+  readonly key: string;
+  /** Catalog key for its header, e.g. `entity:product-offering.related.price`. */
+  readonly labelKey: string;
+  readonly target: EntityConstructor<Entity>;
+  /** Which adapter holds the target's repository. The column names no adapter of its own. */
+  readonly repository: AdapterKey<TAdapters, Context<EntityRepositoryTag>>;
+  readonly via?: string;
+  readonly match?: string;
+  /** Narrows the matches, AND-ed with the match — the current price, the active stock. */
+  readonly filtering?: AnyFilterGroup;
+  /** The target's member the column shows. */
+  readonly member: string;
+  /** How one match renders, in place of its member's value — a picture, say. */
+  readonly render?: (match: Entity) => ReactNode;
+}
+
 /** The keys of `TAdapters` whose value is assignable to `TValue`. */
 export type AdapterKey<TAdapters, TValue> = {
   [K in keyof TAdapters]: TAdapters[K] extends TValue ? K : never;
@@ -217,6 +254,8 @@ export interface EntityCrudOptions<TAdapters, TEntity extends Entity> {
   readonly delete?: 'confirm' | 'undo' | 'typed';
   /** Frozen at factory time — see `use-entity-link-sources.ts`. */
   readonly links?: readonly EntityCrudLink<TAdapters, TEntity>[];
+  /** Columns whose values live in another entity, read per page. */
+  readonly related?: readonly EntityCrudRelated<TAdapters>[];
   /**
    * Where the entity's served affordances come from — `GET /api/<entity>/$metadata`.
    *

@@ -55,10 +55,12 @@ export class Invoice implements Entity {
     this.#number = value;
   }
 
+  // Filterable, so a customer's list can show its invoices in one request.
   @accessor({
     type: 'string',
     labelKey: 'entity:invoice.fields.customer',
     references: { entity: 'billing:customer' },
+    filterable: true,
   })
   get customerId(): string | undefined {
     return this.#customerId;

@@ -16,7 +16,9 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 
+import { Money } from '../../atoms/money/money.js';
 import { EntityTable } from './entity-table.js';
+import { EntityColumn } from './entity-table-slots.js';
 
 /**
  * A decorated fixture, because the table builds itself from metadata — there is
@@ -495,4 +497,57 @@ export const LoadError: Story = {
       onRetry={() => undefined}
     />
   ),
+};
+
+/**
+ * Columns whose values live in another entity — a price, a picture — as a
+ * host's related columns render them: read through the target's own
+ * descriptor, and never sortable, so their headers carry no sort button and no
+ * `aria-sort`.
+ */
+export const RelatedColumns: Story = {
+  parameters: { gate: { viewport: { width: 1680, height: 900 } } },
+  render: () => (
+    <EntityTable<StoryWidget>
+      entityConstructor={StoryWidget}
+      items={WIDGETS}
+      isLoading={false}
+      {...pager}
+      onSortingChange={() => undefined}
+    >
+      <EntityColumn<StoryWidget>
+        field="price"
+        label="Precio"
+        type="number"
+        render={widget => (
+          <Money
+            amount={(widget.stock ?? 0) * 7}
+            currency="GTQ"
+            unit="minor"
+            locale="es"
+          />
+        )}
+      />
+      <EntityColumn<StoryWidget>
+        field="picture"
+        label="Imagen"
+        render={widget => (
+          <img
+            src={`data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'/%3E`}
+            alt={widget.name ?? ''}
+            width={32}
+            height={32}
+          />
+        )}
+      />
+    </EntityTable>
+  ),
+  play: async ({ canvasElement }) => {
+    const table = within(canvasElement).getByRole('table');
+    for (const name of ['Precio', 'Imagen']) {
+      const header = within(table).getByRole('columnheader', { name });
+      await expect(header).not.toHaveAttribute('aria-sort');
+      await expect(within(header).queryByRole('button')).toBeNull();
+    }
+  },
 };

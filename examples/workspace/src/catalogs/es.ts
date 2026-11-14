@@ -19,6 +19,7 @@ export const es = {
         tier: 'Categoría',
         parent: 'Sucursal de',
       },
+      related: { invoices: 'Facturas' },
       values: {
         tier: { standard: 'Estándar', preferred: 'Preferente' },
       },

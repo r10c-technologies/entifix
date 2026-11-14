@@ -14,6 +14,7 @@ export const en: ExampleCatalog = {
         tier: 'Tier',
         parent: 'Branch of',
       },
+      related: { invoices: 'Invoices' },
       values: {
         tier: { standard: 'Standard', preferred: 'Preferred' },
       },

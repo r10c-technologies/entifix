@@ -54,6 +54,7 @@ function mergeSlots<TEntity extends Entity>(
       // A slot-only column has no accessor, so there is nothing for a copy to
       // reset — the value is computed from members that are cloned themselves.
       resetOnClone: false,
+      ...(slot.minWidth === undefined ? {} : { minWidth: slot.minWidth }),
       header: slot.header,
       render: slot.render,
       virtual: true,

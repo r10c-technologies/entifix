@@ -63,6 +63,7 @@ import type {
   EntityCrudOptions,
   EntityCrudSingleViewProps,
 } from './make-entity-crud.types.js';
+import { planRelated, useRelatedColumns } from './related-columns.js';
 import { CATALOG_NEW_SLUG, slugToEntityId } from './slug.js';
 import { useCrudRenderLink } from './use-crud-render-link.js';
 import { useEntityAffordances } from './use-entity-affordances.js';
@@ -240,6 +241,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     pageSize,
     initialFiltering,
     links = [],
+    related = [],
     metadataSource: givenMetadataSource,
     metadata,
     useCases,
@@ -311,6 +313,11 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
         (descriptor.type === 'enum' || descriptor.type === 'boolean'),
     )
     .map(({ name, key }) => ({ name, key }));
+  const relatedPlans = planRelated(
+    entityConstructor as EntityConstructor<Entity>,
+    descriptors,
+    related,
+  );
   const linkPlans = links.map(link => {
     const descriptor = descriptors.find(entry => entry.name === link.field);
     if (descriptor === undefined) {
@@ -352,6 +359,13 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
       ...(pageSize === undefined ? {} : { initialPageSize: pageSize }),
       ...(initialFiltering === undefined ? {} : { initialFiltering }),
     });
+
+    // Values that live in another entity, one read per column per page.
+    const relatedColumns = useRelatedColumns<TAdapters, TEntity>(
+      relatedPlans,
+      pager.items,
+      plan => crudContextOf(adapters, plan.repository),
+    );
 
     const facetCounts = useFacetCounts<TEntity>({
       ctx:
@@ -459,6 +473,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
           error={syncFailure(rowVerb.verb) ?? pager.error}
         >
           {columns}
+          {relatedColumns}
           {/* After the host's own: a host column for the same member wins. */}
           {toolbar}
         </EntityTable>
