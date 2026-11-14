@@ -76,10 +76,11 @@ entity's translated noun, so it answers with what to show rather than a string �
 a text, a reference to resolve, or a fallback carrying the short id — and
 `useRecordLabel()` in `@entifix/react-controls` turns that into words. In order:
 
-1. the declared `labelMember`, resolved if it is a reference;
+1. the declared `labelMember` — or, failing one, the member declared the card's
+   `title`, which already says the same thing — resolved if it is a reference;
 2. undeclared: the first filled-in member that is neither an `id`, a reference,
-   a hidden member nor a collection (the current heuristic, minus the two kinds
-   that are keys);
+   a `link`, a hidden member nor a collection (the current heuristic, minus the
+   kinds that are keys);
 3. nothing: the entity's noun with the first eight characters of the id
    ("Shipment 79ce50c8"). A whole UUID is never a label.
 
@@ -95,8 +96,11 @@ and its default, `createReferenceLabels(registrations)`, built from repository
 adapters that already exist, exactly as `createEntityLinkResolver` is:
 `[TargetConstructor, repositoryContext, { labelProperty? }]`. The key is derived
 from the constructor's `@entity()`, and `labelProperty` defaults to the target's
-own `labelMember`. It must be a scalar: a target labelled by another reference
-is refused at registration, so resolution is always one hop.
+own `labelMember`, and then to the value rung of its own record label. It must
+be a scalar: a target labelled by another reference is refused at registration,
+so resolution is always one hop. A long list of ids is split into reads of at
+most one hundred, which keeps a filter's URL and a server's page-size cap out of
+reach; a page names far fewer.
 
 - **One read per target entity per page**: a `load` filtered `id=in=(…)` over the
   distinct ids, page size equal to their count. The target's `id` must be

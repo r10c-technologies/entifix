@@ -165,6 +165,20 @@ export interface MetaAccessorOptions {
    */
   parent?: boolean;
   /**
+   * This `id` or `string` member holds the id of a record of another entity,
+   * named by the `domain:key` pair that entity's `@entity({ domain, key })`
+   * declares — so the declaring package imports nothing of the target's. A
+   * screen reads the target's name in its place through the host's
+   * `ReferenceLabelsTag` registry, rather than showing the key.
+   *
+   * Not a `link` on purpose: the target may live in another store, and a
+   * `link` invites the storage-layer join that would couple the two, while its
+   * accessor would import the target's class across a domain boundary.
+   * Presentation and resolution only — to validation, queries, serialization
+   * and every adapter the member is still its id.
+   */
+  references?: MemberReference;
+  /**
    * This `number` member is an amount of money, and how to read it: its
    * currency, fixed or held by another member of the same record, and whether
    * the number counts the currency's minor units (cents) or its major ones.
@@ -195,6 +209,11 @@ export interface MetaAccessorOptions {
    * Presentation only.
    */
   autocomplete?: string;
+}
+
+/** The entity a reference member points at, as `domain:key`. */
+export interface MemberReference {
+  readonly entity: string;
 }
 
 /** The part a member plays on a record's card. */
@@ -236,6 +255,7 @@ export class MetaAccessor {
   readonly maxItems?: number;
   readonly notBefore?: string;
   readonly parent?: boolean;
+  readonly references?: MemberReference;
   readonly money?: MoneyFormat;
   readonly minWidth?: number;
   readonly card?: CardRole;
@@ -272,6 +292,7 @@ export class MetaAccessor {
     this.maxItems = options?.maxItems;
     this.notBefore = options?.notBefore;
     this.parent = options?.parent;
+    this.references = options?.references;
     this.money = options?.money;
     this.minWidth = options?.minWidth;
     this.card = options?.card;

@@ -1,4 +1,4 @@
-import { extractMetaAccessors } from '../helpers/index.js';
+import { extractMetaAccessors, findMetaEntity } from '../helpers/index.js';
 import { EntityCollectionLink } from '../links/entity-collection-link/index.js';
 import { EntityLink } from '../links/entity-link/index.js';
 import { assertBounds } from '../meta-entities/bounds.js';
@@ -6,6 +6,7 @@ import {
   type CardRole,
   type ChildConstructor,
   type EntityLinkSerialization,
+  type MemberReference,
   MetaAccessor,
   MetaAccessorType,
   type MoneyFormat,
@@ -73,6 +74,11 @@ export interface EntityFieldDescriptor {
   autocomplete?: string;
   /** This member holds the parent record's id: the entity forms a tree. */
   parent?: boolean;
+  /**
+   * This member holds the id of a record of another entity, named `domain:key`.
+   * A screen shows that record's name in its place.
+   */
+  references?: MemberReference;
 }
 
 /** Types whose values are scalars a user can meaningfully sort/filter on. */
@@ -197,6 +203,76 @@ function assertParentType(metaAccessor: MetaAccessor, type: MetaAccessorType) {
   );
 }
 
+/** A reference's entity, as `@entity({ domain, key })` names it: two kebab-case words. */
+const REFERENCE_KEY = /^[a-z0-9]+(?:-[a-z0-9]+)*:[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+/**
+ * A reference holds one record's id, so it is an `id` or a `string` member, and
+ * names its target as `domain:key`. Beside `parent` it would say two things:
+ * a parent is a record of the same entity, built into a tree, never a name to
+ * look up.
+ */
+function assertReference(metaAccessor: MetaAccessor, type: MetaAccessorType) {
+  const { references } = metaAccessor;
+  if (references === undefined) return;
+  const name = String(metaAccessor.name);
+  if (type !== 'id' && type !== 'string') {
+    throw new Error(
+      `"${name}" is a ${type} and declares references — a reference holds one record's id, so it is an id or a string.`,
+    );
+  }
+  if (!REFERENCE_KEY.test(references.entity)) {
+    throw new Error(
+      `"${name}" references "${references.entity}", which is not an entity's "domain:key" — the pair its @entity({ domain, key }) declares.`,
+    );
+  }
+  if (metaAccessor.parent === true) {
+    throw new Error(
+      `"${name}" is the parent member and declares references — a parent is a record of the same entity, built into a tree, not a name to look up.`,
+    );
+  }
+}
+
+/** Members whose value can name a record: a text, a number, or a reference to one. */
+const LABEL_TYPES: readonly MetaAccessorType[] = [
+  'string',
+  'number',
+  'localized',
+];
+
+/**
+ * An entity's `labelMember` must be a visible member that holds one value a
+ * person can read: a hidden one never reaches the client, and a collection is
+ * many names. Checked against every accessor, since a hidden member is exactly
+ * the one describing would never see.
+ */
+function assertLabelMember(
+  target: ChildConstructor,
+  descriptors: readonly EntityFieldDescriptor[],
+) {
+  const labelMember = findMetaEntity(target)?.labelMember;
+  if (labelMember === undefined) return;
+  const declared = extractMetaAccessors(target).some(
+    metaAccessor => String(metaAccessor.name) === labelMember,
+  );
+  const descriptor = descriptors.find(other => other.name === labelMember);
+  if (descriptor === undefined) {
+    throw new Error(
+      declared
+        ? `${target.name} is called by "${labelMember}", which is hidden — a hidden member never reaches the client, so nothing could show the name.`
+        : `${target.name} is called by "${labelMember}", which is not a member of the entity.`,
+    );
+  }
+  if (
+    descriptor.references === undefined &&
+    !LABEL_TYPES.includes(descriptor.type)
+  ) {
+    throw new Error(
+      `${target.name} is called by "${labelMember}", a ${descriptor.type} — a record is called by a string, a localized text, a number or a reference.`,
+    );
+  }
+}
+
 /** Money is a reading of a number; any other member declaring it is a mistake. */
 function assertMoneyType(metaAccessor: MetaAccessor, type: MetaAccessorType) {
   if (metaAccessor.money === undefined || type === 'number') return;
@@ -290,6 +366,7 @@ function toDescriptor(
   assertNotQueryable(metaAccessor, type);
   assertItemCounts(metaAccessor, type);
   assertParentType(metaAccessor, type);
+  assertReference(metaAccessor, type);
   assertMoneyType(metaAccessor, type);
   assertMinWidth(metaAccessor);
   // A localized member is queried one locale at a time (`name.en`), which
@@ -327,6 +404,9 @@ function toDescriptor(
       ? {}
       : { autocomplete: metaAccessor.autocomplete }),
     parent: metaAccessor.parent ?? false,
+    ...(metaAccessor.references === undefined
+      ? {}
+      : { references: metaAccessor.references }),
   };
 }
 
@@ -367,5 +447,6 @@ export function describeEntityColumns<TTarget extends object>(
   assertNotBefore(descriptors);
   assertCurrencyMembers(descriptors);
   assertOneParent(descriptors);
+  assertLabelMember(entityConstructor, descriptors);
   return descriptors;
 }
