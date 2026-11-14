@@ -32,10 +32,10 @@ import {
   type UseCaseDescriptor,
 } from '@entifix/core';
 import {
-  EntityColumn,
   EntityTable,
   useCasesForSurface,
   useFocusOnArrival,
+  useRecordLabel,
   useT,
   useToasts,
 } from '@entifix/react-controls';
@@ -67,7 +67,6 @@ import { CATALOG_NEW_SLUG, slugToEntityId } from './slug.js';
 import { useCrudRenderLink } from './use-crud-render-link.js';
 import { useEntityAffordances } from './use-entity-affordances.js';
 import { useEntityBulk } from './use-entity-bulk.js';
-import { LinkLabelCell, useLinkLabels } from './use-link-labels.js';
 
 /** What a picker defaults to reading off its target. */
 const TARGET_NAME_PROPERTY = 'name';
@@ -293,7 +292,6 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     );
   }
   // Narrowed once, for the closures below that TypeScript cannot follow.
-  const labelKey: string = entityLabelKey;
   const pluralKey: string = entityPluralKey;
 
   // Computed once: a descriptor is a property of the class, so nothing about it
@@ -313,20 +311,6 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
         (descriptor.type === 'enum' || descriptor.type === 'boolean'),
     )
     .map(({ name, key }) => ({ name, key }));
-  /** A record as the reader knows it: its first shown member that is filled in. */
-  const recordLabelOf = (record: TEntity | undefined): string | undefined => {
-    const named = descriptors.find(descriptor => {
-      if (descriptor.type === 'id' || hiddenFields.includes(descriptor.name))
-        return false;
-      const value = (record as Record<string, unknown> | undefined)?.[
-        descriptor.name
-      ];
-      return value != null && String(value) !== '';
-    });
-    return named === undefined
-      ? undefined
-      : String((record as Record<string, unknown>)[named.name]);
-  };
   const linkPlans = links.map(link => {
     const descriptor = descriptors.find(entry => entry.name === link.field);
     if (descriptor === undefined) {
@@ -368,24 +352,6 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
       ...(pageSize === undefined ? {} : { initialPageSize: pageSize }),
       ...(initialFiltering === undefined ? {} : { initialFiltering }),
     });
-
-    // A member that holds another record's id reads as that record's name.
-    const linkLabel = useLinkLabels(
-      linkPlans.map(plan => ({
-        field: plan.field,
-        entityConstructor: plan.entityConstructor,
-        labelProperty: plan.descriptor.linkLabelProperty,
-        ctx: crudContextOf(adapters, plan.repository),
-      })),
-      pager.items,
-    );
-    const linkColumns = linkPlans.map(plan => (
-      <EntityColumn<TEntity>
-        key={plan.field}
-        field={plan.field}
-        render={item => <LinkLabelCell label={linkLabel(plan.field, item)} />}
-      />
-    ));
 
     const facetCounts = useFacetCounts<TEntity>({
       ctx:
@@ -494,7 +460,6 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
         >
           {columns}
           {/* After the host's own: a host column for the same member wins. */}
-          {linkColumns}
           {toolbar}
         </EntityTable>
       </div>
@@ -653,10 +618,13 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
 
     const toasts = useToasts();
     const ct = useT('controls');
-    const et = useT('entity');
-    /** What an announcement names: the record, or the entity for a blank one. */
+    const nameOf = useRecordLabel();
+    /**
+     * What an announcement names: the record, through the one derivation every
+     * surface shares, or the entity for one not loaded.
+     */
     const recordNoun = (record: TEntity | undefined) =>
-      recordLabelOf(record) ?? et(labelKey.replace(/^entity:/, ''));
+      nameOf(entityConstructor, record);
     // The breadcrumb for this page's segment names the record, never its id:
     // "Nuevo" for a create, the record once it has loaded.
     useBreadcrumbLabel(

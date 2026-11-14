@@ -99,13 +99,13 @@ function labelFrom(
  * 3. the fallback: the noun and the id's {@link shortId}.
  *
  * `record` is read by member name, so an entity instance, a plain record and a
- * form's draft all work.
+ * form's draft all work; a record not loaded yet is called by the noun alone.
  */
 export function recordLabel(
   entityConstructor: ChildConstructor,
-  record: object,
+  record: object | undefined,
 ): RecordLabel {
-  const values = record as Record<string, unknown>;
+  const values = (record ?? {}) as Record<string, unknown>;
   const descriptors = descriptorsOf(entityConstructor);
   const declaredName =
     findMetaEntity(entityConstructor)?.labelMember ??

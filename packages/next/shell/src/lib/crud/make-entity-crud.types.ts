@@ -108,7 +108,11 @@ export interface EntityCrudLink<TAdapters, TEntity extends Entity = Entity> {
    * resolving an id goes through that domain's own read path.
    */
   readonly repository: AdapterKey<TAdapters, Context<EntityRepositoryTag>>;
-  /** Defaults to `'name'`. */
+  /**
+   * What the picker shows for a candidate. Defaults to `'name'`. The picker's
+   * display only: a list, a read form and a confirm name the target through
+   * the member's `references` and the host's `ReferenceLabelsHost`.
+   */
   readonly labelProperty?: string;
   /** Defaults to `'name'`. Must be `filterable` on the target. */
   readonly searchProperty?: string;

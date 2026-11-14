@@ -135,19 +135,42 @@ describe('references and labelMember, described', () => {
     }
   });
 
-  it('refuses a reference beside parent', () => {
-    @entity({ key: 'bad' })
+  it('lets a parent reference only its own entity', () => {
+    @entity({ domain: 'a', key: 'bad' })
     class Bad extends Values implements Entity {
       @accessor({
         type: 'string',
         parent: true,
-        references: { entity: 'a:b' },
+        references: { entity: 'a:other' },
+      })
+      get parentId(): string {
+        return this.read('parentId');
+      }
+    }
+    @entity({ domain: 'a', key: 'node' })
+    class Node extends Values implements Entity {
+      @accessor({
+        type: 'string',
+        parent: true,
+        references: { entity: 'a:node' },
+      })
+      get parentId(): string {
+        return this.read('parentId');
+      }
+    }
+    class Line extends Values {
+      @accessor({
+        type: 'string',
+        parent: true,
+        references: { entity: 'a:node' },
       })
       get parentId(): string {
         return this.read('parentId');
       }
     }
     expect(() => describeEntityColumns(Bad)).toThrow(/parent member/);
+    expect(() => describeEntityColumns(Line)).toThrow(/parent member/);
+    expect(describeEntityColumns(Node)[0]?.references?.entity).toBe('a:node');
   });
 
   it('refuses a labelMember that is missing, hidden or a collection', () => {
@@ -234,6 +257,7 @@ describe('recordLabel', () => {
 
   it('falls back to the noun alone when the record has no id yet', () => {
     expect(recordLabel(Parcel, {})).toEqual({ kind: 'fallback' });
+    expect(recordLabel(Parcel, undefined)).toEqual({ kind: 'fallback' });
     expect(recordLabel(Parcel, { id: '' })).toEqual({ kind: 'fallback' });
   });
 

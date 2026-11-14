@@ -29,7 +29,7 @@ import { useValueText } from './cell-value.js';
  */
 export function useRecordLabel(): (
   entityConstructor: ChildConstructor,
-  record: object,
+  record: object | undefined,
 ) => string {
   const valueText = useValueText();
   const lookup = useReferenceLabels();

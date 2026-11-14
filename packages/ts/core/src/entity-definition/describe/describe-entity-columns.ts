@@ -208,11 +208,15 @@ const REFERENCE_KEY = /^[a-z0-9]+(?:-[a-z0-9]+)*:[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 /**
  * A reference holds one record's id, so it is an `id` or a `string` member, and
- * names its target as `domain:key`. Beside `parent` it would say two things:
- * a parent is a record of the same entity, built into a tree, never a name to
- * look up.
+ * names its target as `domain:key`. On the `parent` member it may only name the
+ * entity itself — a parent is a record of the same entity, built into a tree —
+ * which is what lets a list show a branch's parent by name.
  */
-function assertReference(metaAccessor: MetaAccessor, type: MetaAccessorType) {
+function assertReference(
+  target: ChildConstructor,
+  metaAccessor: MetaAccessor,
+  type: MetaAccessorType,
+) {
   const { references } = metaAccessor;
   if (references === undefined) return;
   const name = String(metaAccessor.name);
@@ -226,9 +230,13 @@ function assertReference(metaAccessor: MetaAccessor, type: MetaAccessorType) {
       `"${name}" references "${references.entity}", which is not an entity's "domain:key" — the pair its @entity({ domain, key }) declares.`,
     );
   }
-  if (metaAccessor.parent === true) {
+  const own = findMetaEntity(target);
+  if (
+    metaAccessor.parent === true &&
+    references.entity !== `${own?.domain}:${own?.key}`
+  ) {
     throw new Error(
-      `"${name}" is the parent member and declares references — a parent is a record of the same entity, built into a tree, not a name to look up.`,
+      `"${name}" is the parent member and references "${references.entity}" — a parent is a record of the same entity, so it can only reference ${target.name} itself.`,
     );
   }
 }
@@ -355,6 +363,7 @@ export function assertParentVisible(
 }
 
 function toDescriptor(
+  target: ChildConstructor,
   metaAccessor: MetaAccessor,
   index: number,
   sample: unknown,
@@ -366,7 +375,7 @@ function toDescriptor(
   assertNotQueryable(metaAccessor, type);
   assertItemCounts(metaAccessor, type);
   assertParentType(metaAccessor, type);
-  assertReference(metaAccessor, type);
+  assertReference(target, metaAccessor, type);
   assertMoneyType(metaAccessor, type);
   assertMinWidth(metaAccessor);
   // A localized member is queried one locale at a time (`name.en`), which
@@ -442,7 +451,9 @@ export function describeEntityColumns<TTarget extends object>(
       seen.add(name);
       return true;
     })
-    .map((metaAccessor, index) => toDescriptor(metaAccessor, index, sample))
+    .map((metaAccessor, index) =>
+      toDescriptor(entityConstructor, metaAccessor, index, sample),
+    )
     .sort((left, right) => left.order - right.order);
   assertNotBefore(descriptors);
   assertCurrencyMembers(descriptors);

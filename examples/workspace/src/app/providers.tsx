@@ -2,10 +2,13 @@
 
 import '../i18n';
 
+import type { ReferenceLabelRegistration } from '@entifix/business';
 import type { Locale } from '@entifix/core';
+import { Customer, Invoice } from '@entifix/example-workspace-domain';
 import {
   ANONYMOUS_WORKSPACE_SCOPE,
   PendingFlowsProvider,
+  ReferenceLabelsHost,
 } from '@entifix/next-shell';
 import {
   type Density,
@@ -26,6 +29,7 @@ import {
 } from '@entifix/react-integration';
 import { type PropsWithChildren, useMemo } from 'react';
 
+import { exampleAdapters } from '../adapters';
 import { chooseOrganization } from '../organization';
 
 /**
@@ -49,6 +53,16 @@ const ERROR_ACTIONS = { noActiveOrganization: chooseOrganization };
 
 // Module scope: a new store per render would reopen the database each time.
 const uiPreferences = makeIndexedDbUiPreferencesState();
+
+/**
+ * How every entity a reference names is read — once, here, where every
+ * target's repository is in reach. A screen that shows a customer id or an
+ * invoice id shows its name instead, read in one request per entity.
+ */
+const REFERENCE_LABELS: ReferenceLabelRegistration[] = [
+  [Customer, exampleAdapters.customers],
+  [Invoice, exampleAdapters.invoices],
+];
 
 /** Below `I18nProvider`, so the theme captions resolve in the active locale. */
 /** What the layout rendered the page in, read from the reader's cookies. */
@@ -86,7 +100,9 @@ function Themed({
                 scope={ANONYMOUS_WORKSPACE_SCOPE}
                 channel={pushChannel}
               >
-                {children}
+                <ReferenceLabelsHost registrations={REFERENCE_LABELS}>
+                  {children}
+                </ReferenceLabelsHost>
               </PendingFlowsProvider>
               <ToastRegion />
             </ToastProvider>

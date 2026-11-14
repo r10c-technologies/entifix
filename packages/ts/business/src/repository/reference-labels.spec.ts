@@ -23,7 +23,7 @@ class Values implements Entity {
   protected read(name: string): never {
     return this.values[name] as never;
   }
-  @accessor({ type: 'id' })
+  @accessor({ type: 'id', filterable: true })
   get id(): EntityId {
     return this.read('id');
   }
@@ -64,6 +64,15 @@ class StockItem extends Values {
 
 @entity({ key: 'keyless' })
 class Keyless extends Values {}
+
+/** Its id cannot be filtered, so its names cannot be read in one request. */
+@entity({ domain: 'catalog', key: 'sealed' })
+class Sealed implements Entity {
+  @accessor({ type: 'id' })
+  get id(): EntityId {
+    return undefined;
+  }
+}
 
 /**
  * A hand-rolled double rather than `makeInMemoryEntityRepository` from
@@ -220,6 +229,9 @@ describe('createReferenceLabels', () => {
     ).toThrow(/registered twice/);
     expect(() => createReferenceLabels([[Keyless, context]])).toThrow(
       /domain and a key/,
+    );
+    expect(() => createReferenceLabels([[Sealed, context]])).toThrow(
+      /must be filterable/,
     );
   });
 });

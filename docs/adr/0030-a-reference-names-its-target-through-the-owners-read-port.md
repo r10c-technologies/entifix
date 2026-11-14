@@ -57,8 +57,10 @@ permissions from, so the declaring package imports nothing of the target's.
 - It is legal on a `composition` child's member too: a shipment line's
   `offeringId` is the same kind of reference as a stock item's.
 - Describing the entity fails on `references` declared on any other type, on a
-  malformed key, or beside `parent: true` (a parent is the same entity and is
-  built into a tree, ADR 0008).
+  malformed key, or on a `parent: true` member naming any entity but its own: a
+  parent is a record of the same entity, built into a tree (ADR 0008), and
+  declaring it a reference to itself is what lets a list show a branch's parent
+  by name rather than by key.
 
 ### A record declares what names it
 
@@ -121,13 +123,13 @@ TanStack nor `react-integration`). The `next-shell` fills it per page, cached pe
 `(entityKey, id)` under the target's own query scope, so a record's page reuses
 what its list read.
 
-| State       | Shows                                                                      |
-| ----------- | -------------------------------------------------------------------------- |
-| resolving   | a line skeleton (as a `link` does today)                                   |
-| named       | the label, in the reader's locale if localized                             |
-| not found   | the entity noun and the short id, muted ("Offering product-…")             |
-| read failed | the same as not found; the region does not raise an alert for a label      |
-| no registry | the raw id, muted; a development warning names the unregistered entity key |
+| State       | Shows                                                                                                                    |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------ |
+| resolving   | a line skeleton (as a `link` does today)                                                                                 |
+| named       | the label, in the reader's locale if localized                                                                           |
+| not found   | the entity noun and the short id, muted ("Offering product-…")                                                           |
+| read failed | the same as not found; the region does not raise an alert for a label                                                    |
+| no registry | the raw id, muted; the host is told the unregistered entity key once, to warn about (ADR 0013: a mechanism does not log) |
 
 A list that loaded is not a failed list because one name could not be read: the
 reader still gets something they can quote. That is why there is no alert per
@@ -166,7 +168,8 @@ transaction across stores to make one honest.
 - An entity without a `labelMember` keeps a reasonable default, but no longer
   one that can land on a key.
 - The register of who reads what grows a host-side table. A target the host never
-  registered shows its id, with a development warning. It is not a silent `—`.
+  registered shows its id, and the host is told its key to warn about. It is not a
+  silent `—`.
 - Related columns cost one batched read each and are explicitly not sortable,
   which a reader may find limiting. The alternative is copying the value into
   the store that lists it, which is a projection with its own owner, and a host

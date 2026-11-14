@@ -78,10 +78,17 @@ function labelDescriptor(
   entityConstructor: EntityConstructor<Entity>,
   labelProperty: string | undefined,
 ): EntityFieldDescriptor | undefined {
+  const descriptors = describeEntityColumns(entityConstructor);
+  // Read by `id=in=(…)`: a store refuses a filter on a member that is not.
+  if (descriptors.find(column => column.name === 'id')?.filterable !== true) {
+    throw new Error(
+      `${entityConstructor.name}'s id must be filterable to be referenced — its names are read in one request, filtered by id.`,
+    );
+  }
   const declared =
     labelProperty ?? extractMetaEntity(entityConstructor).labelMember;
   if (declared === undefined) return undefined;
-  const descriptor = describeEntityColumns(entityConstructor).find(
+  const descriptor = descriptors.find(
     column => column.name === declared,
   );
   if (

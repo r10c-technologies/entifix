@@ -33,3 +33,25 @@ test('a record and its breadcrumb name it, never its id', async ({ page }) => {
   await expect(crumbs).toContainText('INV-0001');
   await expect(page.getByRole('main')).not.toContainText(RAW_ID);
 });
+
+/**
+ * A payment names the invoice it settles, and a branch names its parent
+ * account: references read in one request per entity, through the host's
+ * registry (ADR 0030).
+ */
+for (const [list, name, cells] of [
+  // The invoice a payment settles, by its number.
+  ['payments', 'INV-0001', 1],
+  // Grace Hopper's own row, and the branch whose parent she is.
+  ['customers', 'Grace Hopper', 2],
+] as const) {
+  test(`the ${list} list names every record it refers to`, async ({ page }) => {
+    failOnPageErrors(page);
+    await page.goto(`/es/${list}`);
+    await new EntityTablePage(page).waitForRows();
+    await expect(
+      page.getByRole('table').getByRole('cell', { name, exact: true }),
+    ).toHaveCount(cells);
+    await expect(page.getByRole('main')).not.toContainText(RAW_ID);
+  });
+}
