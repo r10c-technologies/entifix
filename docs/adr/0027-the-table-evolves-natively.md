@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Revised: 2026-11-09 — facet counts show for enum and boolean members (a link's count would show ids, not names); the pivot widths and default card roles are as built in #193
+- Revised: 2026-11-14 by [ADR 0030](0030-a-reference-names-its-target-through-the-owners-read-port.md) — the pivot switches at a row's essential width, not every column's, and the grid scrolls with its title sticky in between (#231)
 - Date: 2026-11-05
 - Area: ui
 - Read when: a list shows cards inside a wide workspace pane or a cramped table in a narrow one, a screen reader cannot tell how a list is sorted or how many rows a filter kept, a table's horizontal scroll cannot be reached by keyboard, choosing between `table` and `grid` semantics, or about to add `@tanstack/react-table` or another table engine
@@ -91,8 +92,16 @@ role="region"` labelled by the caption.
 
 - **The table's root is a named container,** and the table/card switch is a
   container query rather than a viewport breakpoint.
-  - The threshold derives from the visible columns: the sum of each column's
-    `minWidth`, from a new `@accessor({ minWidth })` with type defaults.
+  - The threshold derives from the visible columns' `minWidth`, from a new
+    `@accessor({ minWidth })` with type defaults — but only the **essential**
+    ones: the title a row reads as (ADR 0030's `labelMember`, else the card's
+    `title`), its badges, up to two `meta` or `subtitle` columns, and the
+    selection and actions columns. Summing every column made an eleven-column
+    list need 97rem, so a window with its sidebar open always got cards.
+  - Between that essential width and every column side by side, the grid
+    scrolls sideways inside the focusable region it already has, its title
+    column sticky at the inline start and kept clear of a focused cell by
+    `scroll-padding-inline-start` (2.4.11).
   - An explicit `pivotBreakpoint` stays as an override.
   - It remains CSS-only, so server rendering and hydration agree.
 - **The inactive layout is `display: none`,** so assistive technology meets one

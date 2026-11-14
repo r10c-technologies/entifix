@@ -371,8 +371,9 @@ describe('a declared card title', () => {
     expect(
       within(screen.getByRole('table')).getByRole('link', { name: 'Gold' }),
     ).toBeVisible();
-    // ID 6 + Code 10 + Name 30 = 46rem, held by `@3xl` (48rem).
-    expect(container.innerHTML).toContain('@3xl/entity-table:hidden');
+    // Only the title is essential — the id and the code are off the card — so
+    // Name's 30rem is held by `@lg` (32rem); the grid scrolls past it.
+    expect(container.innerHTML).toContain('@lg/entity-table:hidden');
   });
 });
 

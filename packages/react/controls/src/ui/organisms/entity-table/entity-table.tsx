@@ -69,6 +69,7 @@ import { RegionState } from '../../molecules/region-state/index.js';
 import { SortBuilder } from '../../molecules/sort-builder/index.js';
 import { TableToolbar } from '../../molecules/table-toolbar/index.js';
 import { useFocusOnLoss } from '../../utils/use-focus-on-arrival.js';
+import { cardRoles } from './card-roles.js';
 import type {
   EntityTableColumn,
   EntityTableProps,
@@ -78,8 +79,9 @@ import { shownTreeRows, TreeCell, treeRows } from './entity-table-tree.js';
 import { nextHeaderSorting, sortKeys } from './header-sort.js';
 import {
   ACTIONS_WIDTH,
+  columnWidth,
   pivotClasses,
-  pivotWidth,
+  pivotWidths,
   SELECTION_WIDTH,
 } from './pivot.js';
 import { useEntityTableColumns } from './use-entity-table-columns.js';
@@ -240,13 +242,38 @@ export function EntityTable<TEntity extends Entity>({
    * viewport breakpoint was wrong inside a split view, a drawer or a wizard
    * step, and a JS measurement would guess during SSR and correct after mount.
    */
-  const pivot = pivotClasses(
-    pivotWidth(
-      visibleColumns,
+  /**
+   * The column every row reads as — the entity's `labelMember`, else its
+   * declared card title, else the first that can name a record — held in view
+   * at the inline start while a grid wider than its container scrolls.
+   */
+  const stickyTitle =
+    visibleColumns.find(column => column.name === metaEntity.labelMember) ??
+    visibleColumns.find(column => column.card === 'title') ??
+    visibleColumns.find(canNameRecord);
+  const widths = pivotWidths({
+    columns: visibleColumns,
+    title: stickyTitle,
+    roleOf: cardRoles(visibleColumns),
+    extra:
       (selectable ? SELECTION_WIDTH : 0) + (hasRowAction ? ACTIONS_WIDTH : 0),
-      pivotBreakpoint,
-    ),
-  );
+    breakpoint: pivotBreakpoint,
+  });
+  const pivot = pivotClasses(widths.essential);
+  /**
+   * The sticky title's cells: opaque, so the columns scrolling under it never
+   * show through — a header cell on the header's surface, a row's on the
+   * row's, following its hover.
+   */
+  const stickyClass = (
+    column: EntityTableColumn<TEntity>,
+    part: 'header' | 'body',
+  ) =>
+    column !== stickyTitle
+      ? undefined
+      : part === 'header'
+        ? 'sticky start-0 z-2 bg-surface'
+        : 'sticky start-0 z-1 bg-surface-elevated group-hover/row:bg-surface';
   /**
    * The first load has nothing to show and is held with a skeleton; a refetch
    * already has rows, so it keeps them and only marks the region busy. Splitting
@@ -302,12 +329,7 @@ export function EntityTable<TEntity extends Entity>({
    * {@link UNDECLARED_META_CAP} more members are meta — a card is a summary,
    * and the grid holds the rest.
    */
-  const firstEnum = visibleColumns.find(
-    column => column.card === undefined && column.type === 'enum',
-  );
-  const roleOf = (column: EntityTableColumn<TEntity>) =>
-    column.card ??
-    (column.type === 'id' ? 'hidden' : column === firstEnum ? 'badge' : 'meta');
+  const roleOf = cardRoles(visibleColumns);
   const cardParts = (item: TEntity) => {
     const title = linkColumn(item);
     const rest = visibleColumns.filter(column => column !== title);
@@ -660,12 +682,20 @@ export function EntityTable<TEntity extends Entity>({
   const headerCell = (column: EntityTableColumn<TEntity>) => {
     const label = column.header ?? column.label;
     if (!column.sortable || onSortingChange === undefined)
-      return <TableHeaderCell key={column.name}>{label}</TableHeaderCell>;
+      return (
+        <TableHeaderCell
+          key={column.name}
+          className={stickyClass(column, 'header')}
+        >
+          {label}
+        </TableHeaderCell>
+      );
     const position = keys.findIndex(key => key.member === column.name);
     const type = keys[position]?.type;
     return (
       <TableHeaderCell
         key={column.name}
+        className={stickyClass(column, 'header')}
         aria-sort={
           position === 0
             ? type === 'asc'
@@ -915,6 +945,19 @@ export function EntityTable<TEntity extends Entity>({
             <Table
               caption={caption}
               containerClassName="max-h-(--table-max-block) scroll-pt-12"
+              // Never narrower than its columns side by side: between the
+              // essential width and that, the grid scrolls rather than crushing
+              // every column into an unreadable sliver.
+              style={{ minWidth: `${widths.full}rem` }}
+              // A focused cell scrolled sideways is never left under the
+              // sticky title column (WCAG 2.4.11).
+              containerStyle={
+                stickyTitle === undefined
+                  ? undefined
+                  : {
+                      scrollPaddingInlineStart: `${columnWidth(stickyTitle)}rem`,
+                    }
+              }
             >
               <TableHead>
                 {slots.header ? (
@@ -987,6 +1030,7 @@ export function EntityTable<TEntity extends Entity>({
                     <TableRow
                       key={String(item.id ?? index)}
                       data-record-id={`${rowScope}${String(item.id)}`}
+                      className="group/row"
                     >
                       {selectionState && (
                         <TableCell>
@@ -994,7 +1038,10 @@ export function EntityTable<TEntity extends Entity>({
                         </TableCell>
                       )}
                       {visibleColumns.map((column, columnIndex) => (
-                        <TableCell key={column.name}>
+                        <TableCell
+                          key={column.name}
+                          className={stickyClass(column, 'body')}
+                        >
                           {treeKeys !== undefined && columnIndex === 0 ? (
                             <TreeCell
                               depth={depth}

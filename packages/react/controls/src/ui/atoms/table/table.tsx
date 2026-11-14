@@ -2,6 +2,7 @@
 
 import {
   type ComponentPropsWithoutRef,
+  type CSSProperties,
   type ReactNode,
   type RefObject,
   useEffect,
@@ -15,6 +16,8 @@ import { cn } from '../../utils/cn.js';
 export interface TableProps extends ComponentPropsWithoutRef<'table'> {
   /** Class names for the scroll container wrapping the `<table>`. */
   containerClassName?: string;
+  /** Inline style on that container — the scroll padding a sticky column needs. */
+  containerStyle?: CSSProperties;
   /**
    * What the table holds — "Clientes, 12 resultados". It names the table and,
    * once the table overflows its container, the scroll region too.
@@ -59,6 +62,7 @@ function useOverflows(ref: RefObject<HTMLElement | null>): boolean {
 export function Table({
   className,
   containerClassName,
+  containerStyle,
   caption,
   captionClassName = 'sr-only',
   children,
@@ -72,6 +76,7 @@ export function Table({
   return (
     <div
       ref={container}
+      style={containerStyle}
       data-overflows={overflows || undefined}
       {...(overflows && {
         tabIndex: 0,
