@@ -87,8 +87,12 @@ function labelFrom(
       };
 }
 
-/** A member whose value reads as words: only such a member names a record undeclared. */
-function isText(descriptor: EntityFieldDescriptor): boolean {
+/**
+ * A member whose value reads as words — a `string` or a `localized`: only such
+ * a member names a record it was not declared to name. A table's open link and
+ * its sticky title follow the same rule, so a row never opens on "0" or "Paid".
+ */
+export function isTextMember(descriptor: EntityFieldDescriptor): boolean {
   return descriptor.type === 'string' || descriptor.type === 'localized';
 }
 
@@ -126,7 +130,7 @@ export function recordLabel(
   const undeclared = descriptors.find(
     descriptor =>
       canNameRecord(descriptor) &&
-      isText(descriptor) &&
+      isTextMember(descriptor) &&
       isFilled(descriptor, values[descriptor.name]),
   );
   if (undeclared !== undefined) {

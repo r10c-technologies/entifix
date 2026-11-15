@@ -3,6 +3,7 @@
 - Status: Accepted
 - Revised: 2026-11-15 — record search finds a record through the one it refers to, and a record search result names itself as every other surface does
 - Revised: 2026-11-15 — an undeclared name is a text member only: a number, an enum or a date the record holds never names it
+- Revised: 2026-11-15 — a table's open link and sticky title follow the same text-only rule, a row nothing on screen names opens from a leading column that reads as its label, and a list leaves out the record's own key
 - Date: 2026-11-14
 - Area: entities
 - Read when: a list, a form, a confirm dialog or a breadcrumb shows `product-offering-10` or a UUID where a person needs a name, a member holds another entity's id and cannot be a `link` because the target lives in another store, a list needs a column whose value lives in another entity (a price, a stock level, a picture), a record page needs the records that point at it, or about to add another "first filled-in member" guess at what a record is called
@@ -95,6 +96,21 @@ a text, a reference to resolve, or a fallback carrying the short id — and
    `offering`, which would call every offering the same.
 
 `EntityForm`'s `recordLabel` prop is removed; a host declares `labelMember`.
+
+A table follows the same order. The cell that carries a row's open link, and
+the title column held sticky while the grid scrolls, are the declared name's
+column, else the first **text** column — never a status or a quantity, which
+opened an order on "0" or "Paid" while its checkbox called it by its noun and
+short id. When no visible column names a row — every member a value, or the
+naming column hidden — the table adds one leading column headed by the entity's
+noun, whose cell is the row's label; a row whose naming cell is empty reads as
+its label there. Every row has exactly one open link.
+
+**A list leaves out the record's own key.** The entity's `id` is how a record
+is addressed, not how a person reads it, and the row already opens by its name.
+`EntityTable` withholds it by default — from the grid, the settings, the filters
+and the sort choices — and a host that needs it passes `showKey`. A key that
+references another record is a reference, and stays.
 
 ### The host registers how each target is read, once
 
