@@ -7,6 +7,7 @@ import type {
   EntityConstructor,
   EntityFieldDescriptor,
   EntityMetadataSource,
+  EntitySorting,
   EntityUseCaseRunner,
   EntityWriter,
   FilterGroup,
@@ -258,6 +259,16 @@ export interface EntityCrudOptions<TAdapters, TEntity extends Entity> {
    * wrong type, throws here rather than answering `400` on every first load.
    */
   readonly initialFiltering?: FilterGroup<TEntity>;
+  /**
+   * The order the list opens in — a worklist again: the stock that is out
+   * first, the oldest order first. The header reads as sorted by it, and a
+   * click on another column replaces it.
+   *
+   * Checked when the screen is generated against the `sortable` allowlist a
+   * service applies to a `sort` parameter: a member that is not `sortable`
+   * throws here rather than answering `400` on every first load.
+   */
+  readonly initialSorting?: EntitySorting<TEntity>;
   /**
    * How the record page's Delete is made safe
    * ([ADR 0026](../../../../../../docs/adr/0026-actions-hierarchy-overflow-and-destructive-verbs.md)):

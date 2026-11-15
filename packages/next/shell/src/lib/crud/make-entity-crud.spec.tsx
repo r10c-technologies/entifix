@@ -536,6 +536,20 @@ describe('makeEntityCrud, at factory time', () => {
     ).not.toThrow();
   });
 
+  // The same allowlist for the order it opens in: a member outside `sortable`
+  // throws where the screen is generated, not as a `400` on every first load.
+  it('rejects an initial sorting on a member outside the allowlist', () => {
+    expect(() =>
+      makeEntityCrud<Brand, TestAdapters>(Brand, {
+        useAdapters,
+        basePath: '/catalog/brand',
+        catalogKey: 'product-brand',
+        repository: 'brandRest',
+        initialSorting: { 0: { property: 'vendor' as 'name', type: 'asc' } },
+      }),
+    ).toThrow(/vendor/);
+  });
+
   it('carries the entity’s identity for a registry to derive from', () => {
     expect(brandCrud.entityKey).toBe('product-brand');
     expect(brandCrud.basePath).toBe('/catalog/product-brand');
@@ -621,6 +635,37 @@ describe('the generated list page, given an initial filtering', () => {
     );
     expect(screen.queryByText('Acme')).not.toBeInTheDocument();
     expect(screen.queryByText('Gamma')).not.toBeInTheDocument();
+  });
+});
+
+/** A worklist that opens on what needs acting on first. */
+const sortedBrandCrud = makeEntityCrud<Brand, TestAdapters>(Brand, {
+  useAdapters,
+  basePath: '/catalog/brand',
+  catalogKey: 'product-brand',
+  repository: 'brandRest',
+  hiddenFields: ['id', 'code'],
+  initialSorting: { 0: { property: 'name', type: 'desc' } },
+});
+
+describe('the generated list page, given an initial sorting', () => {
+  // jsdom measures nothing, so the list renders as cards: each record's name
+  // is its card's heading, in the order the page arrived in.
+  it('opens in that order', async () => {
+    repositories.brand.seed([
+      makeBrand('b-1', 'Acme'),
+      makeBrand('b-2', 'Beta'),
+      makeBrand('b-3', 'Gamma'),
+    ] as Entity[]);
+
+    renderPage(<sortedBrandCrud.ListPage />);
+
+    await waitFor(() =>
+      expect(screen.getAllByText('Gamma').length).toBeGreaterThan(0),
+    );
+    expect(
+      screen.getAllByRole('heading', { level: 3 }).map(h => h.textContent),
+    ).toEqual(['Gamma', 'Beta', 'Acme']);
   });
 });
 

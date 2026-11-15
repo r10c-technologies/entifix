@@ -27,7 +27,9 @@ import {
   Internal,
   isFailure,
   parseRsql,
+  parseSort,
   serializeRsql,
+  serializeSort,
   settled,
   type UseCaseDescriptor,
 } from '@entifix/core';
@@ -251,6 +253,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     toolbar,
     pageSize,
     initialFiltering,
+    initialSorting,
     links = [],
     related = [],
     regions,
@@ -285,6 +288,11 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     initialFiltering === undefined ? '' : serializeRsql([initialFiltering]);
   if (initialRsql !== '') {
     coerceFiltering(entityConstructor, parseRsql(initialRsql));
+  }
+  // The same posture for the order it opens in: parsed back through the
+  // allowlist a service applies to a `sort` parameter.
+  if (initialSorting !== undefined) {
+    parseSort(entityConstructor, serializeSort([initialSorting]));
   }
 
   const meta = extractMetaEntity(entityConstructor);
@@ -390,6 +398,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
       ...(listInitialFiltering === undefined
         ? {}
         : { initialFiltering: listInitialFiltering }),
+      ...(initialSorting === undefined ? {} : { initialSorting }),
       ...(baseFiltering === undefined ? {} : { baseFiltering }),
     });
 
