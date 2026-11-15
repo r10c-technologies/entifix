@@ -531,7 +531,10 @@ describe('a source searched through a reference', () => {
       'the referenced records could not be read',
       (url: string) =>
         url.startsWith('http://offerings.test')
-          ? answering(503, problemOf(new Unavailable({ dependency: 'offerings' })))
+          ? answering(
+              503,
+              problemOf(new Unavailable({ dependency: 'offerings' })),
+            )
           : answering(200, { rows: [] }),
       { reason: 'unavailable', status: 503 },
     ],
@@ -545,7 +548,10 @@ describe('a source searched through a reference', () => {
       (url: string) =>
         url.startsWith('http://offerings.test')
           ? answering(200, { matches: [{ id: 'o-1', label: 'Café' }] })
-          : answering(403, problemOf(new Forbidden({ permission: 'stock:read' }))),
+          : answering(
+              403,
+              problemOf(new Forbidden({ permission: 'stock:read' })),
+            ),
       { reason: 'forbidden', status: 403 },
     ],
   ])('degrades the group when %s', async (_case, handler, expected) => {

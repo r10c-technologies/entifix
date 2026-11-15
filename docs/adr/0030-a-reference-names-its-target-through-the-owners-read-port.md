@@ -1,6 +1,7 @@
 # 30. A reference names its target through the owner's read port, and a record names itself
 
 - Status: Accepted
+- Revised: 2026-11-15 — record search finds a record through the one it refers to, and a record search result names itself as every other surface does
 - Date: 2026-11-14
 - Area: entities
 - Read when: a list, a form, a confirm dialog or a breadcrumb shows `product-offering-10` or a UUID where a person needs a name, a member holds another entity's id and cannot be a `link` because the target lives in another store, a list needs a column whose value lives in another entity (a price, a stock level, a picture), a record page needs the records that point at it, or about to add another "first filled-in member" guess at what a record is called
@@ -150,6 +151,16 @@ batched over the page's ids:
 - **A related region** on a record page is the target entity's own list, held to
   the records that refer to this one by a fixed filter that is not a removable
   chip, with its own heading, its own states (ADR 0028) and its own writes.
+
+**Record search reaches a reference the same way.** A record a person knows
+by the record it refers to — a stock level by its product — is searched
+through that reference: the term is matched against the referenced entity's
+label at its owner, under the caller's own session, and the records referring
+to the matches are read with one `=in=` and named by them. Two reads, one
+after the other, and no index, for the reason the search has none. A search
+result whose source declares no label member names itself by the derivation
+above; one nothing names is sent by its short id for the caller to put the
+noun to, never by its whole id.
 
 **A record page that composes related regions is not master-detail.** Each
 region writes its own record through its own owner, with its own Save. Rows a
