@@ -8,15 +8,17 @@ export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
 /**
  * A record that owns rows, and refers to another record by id.
  *
- * `customerId` is a plain string rather than a typed link: the crud names the
- * target (`links` in `../cruds.tsx`), and the generated form edits it with a
- * picker over the customer repository.
+ * `customerId` is a plain string rather than a typed link, declared a
+ * reference to `billing:customer`: every screen shows the customer's name in
+ * its place, read through the host's reference registry, and the generated
+ * form edits it with a picker the crud names (`links` in `../cruds.tsx`).
  */
 @entity({
   domain: 'billing',
   key: 'invoice',
   labelKey: 'entity:invoice.label',
   pluralKey: 'entity:invoice.plural',
+  labelMember: 'number',
 })
 export class Invoice implements Entity {
   #id?: EntityId;
@@ -25,7 +27,13 @@ export class Invoice implements Entity {
   #status: InvoiceStatus = 'draft';
   #lines: readonly InvoiceLine[] = [];
 
-  @accessor({ type: 'id', labelKey: 'entity:invoice.fields.id' })
+  // Filterable, so the payments that name an invoice read its number in one
+  // request.
+  @accessor({
+    type: 'id',
+    labelKey: 'entity:invoice.fields.id',
+    filterable: true,
+  })
   get id(): EntityId {
     return this.#id;
   }
@@ -47,7 +55,13 @@ export class Invoice implements Entity {
     this.#number = value;
   }
 
-  @accessor({ type: 'string', labelKey: 'entity:invoice.fields.customer' })
+  // Filterable, so a customer's list can show its invoices in one request.
+  @accessor({
+    type: 'string',
+    labelKey: 'entity:invoice.fields.customer',
+    references: { entity: 'billing:customer' },
+    filterable: true,
+  })
   get customerId(): string | undefined {
     return this.#customerId;
   }

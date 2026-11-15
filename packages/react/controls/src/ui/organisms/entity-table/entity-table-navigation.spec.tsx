@@ -371,8 +371,63 @@ describe('a declared card title', () => {
     expect(
       within(screen.getByRole('table')).getByRole('link', { name: 'Gold' }),
     ).toBeVisible();
-    // ID 6 + Code 10 + Name 30 = 46rem, held by `@3xl` (48rem).
-    expect(container.innerHTML).toContain('@3xl/entity-table:hidden');
+    // Only the title is essential — the id and the code are off the card — so
+    // Name's 30rem is held by `@lg` (32rem); the grid scrolls past it.
+    expect(container.innerHTML).toContain('@lg/entity-table:hidden');
+  });
+});
+
+describe('a record nothing names', () => {
+  @entity({ key: 'ticket' })
+  class Ticket implements Entity {
+    #id?: EntityId;
+    #note?: string | null;
+
+    @accessor({ type: 'id', label: 'ID' })
+    get id(): EntityId {
+      return this.#id;
+    }
+    set id(value: EntityId) {
+      this.#id = value;
+    }
+
+    @accessor({ type: 'string', label: 'Note' })
+    get note(): string | null | undefined {
+      return this.#note;
+    }
+    set note(value: string | null | undefined) {
+      this.#note = value;
+    }
+  }
+
+  const ticket = (id: string, note: string | null) => {
+    const record = new Ticket();
+    record.id = id;
+    record.note = note;
+    return record;
+  };
+
+  it('links its card by the noun and the short id, never the whole id', () => {
+    render(
+      <EntityTable<Ticket>
+        {...baseProps}
+        entityConstructor={Ticket}
+        items={[
+          ticket('79ce50c8-0a1b-4c2d-8e3f-1234567890ab', null),
+          ticket('0a1b2c3d-0a1b-4c2d-8e3f-1234567890ab', ''),
+        ]}
+        totalItems={2}
+        hrefFor={id => `/tickets/${String(id)}`}
+      />,
+    );
+
+    const card = screen.getByRole('article', { name: 'ticket 79ce50c8' });
+    expect(
+      within(card).getByRole('link', { name: 'ticket 79ce50c8' }),
+    ).toHaveAttribute('href', '/tickets/79ce50c8-0a1b-4c2d-8e3f-1234567890ab');
+    expect(
+      screen.getByRole('article', { name: 'ticket 0a1b2c3d' }),
+    ).toBeInTheDocument();
   });
 });
 

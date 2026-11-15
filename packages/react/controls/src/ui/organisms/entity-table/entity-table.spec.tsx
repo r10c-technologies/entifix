@@ -622,10 +622,11 @@ describe('EntityTable controls', () => {
     );
 
     // ID 6 + Name 10 + Units in stock 6 + Brand 10 = 32rem: `@lg`.
-    it('switches where its visible columns fit, by default', () => {
+    it('switches where a row’s essential columns fit, by default', () => {
       const { container } = renderTable();
 
-      expect(container.innerHTML).toContain('hidden @lg/entity-table:block');
+      // Its title, its badge and two meta columns — not every column.
+      expect(container.innerHTML).toContain('hidden @md/entity-table:block');
     });
 
     it('renders its cards as a list of articles, each named by its linked heading', () => {

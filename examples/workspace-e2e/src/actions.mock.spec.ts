@@ -61,7 +61,8 @@ test('Delete confirms by name, then lands on the list heading and says so', asyn
   await page.getByRole('link', { name: 'Alan Turing' }).click();
   await expect(page.getByLabel('Nombre')).toHaveValue('Alan Turing');
 
-  await page.getByRole('button', { name: 'Eliminar' }).click();
+  // The record's own Delete — its invoices region below carries its own verbs.
+  await page.getByRole('button', { name: 'Eliminar', exact: true }).click();
   const dialog = page.getByRole('alertdialog', {
     name: '¿Eliminar Alan Turing?',
   });

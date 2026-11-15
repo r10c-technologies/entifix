@@ -19,6 +19,8 @@ export const es = {
         tier: 'Categoría',
         parent: 'Sucursal de',
       },
+      related: { invoices: 'Facturas' },
+      regions: { invoices: 'Facturas', branches: 'Sucursales' },
       values: {
         tier: { standard: 'Estándar', preferred: 'Preferente' },
       },
@@ -27,6 +29,7 @@ export const es = {
       form: { editTitle: 'Editar factura', newTitle: 'Nueva factura' },
       label: 'Factura',
       plural: 'Facturas',
+      regions: { payments: 'Pagos' },
       fields: {
         id: 'ID',
         number: 'Número',

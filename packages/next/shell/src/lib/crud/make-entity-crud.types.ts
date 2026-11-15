@@ -108,7 +108,11 @@ export interface EntityCrudLink<TAdapters, TEntity extends Entity = Entity> {
    * resolving an id goes through that domain's own read path.
    */
   readonly repository: AdapterKey<TAdapters, Context<EntityRepositoryTag>>;
-  /** Defaults to `'name'`. */
+  /**
+   * What the picker shows for a candidate. Defaults to `'name'`. The picker's
+   * display only: a list, a read form and a confirm name the target through
+   * the member's `references` and the host's `ReferenceLabelsHost`.
+   */
   readonly labelProperty?: string;
   /** Defaults to `'name'`. Must be `filterable` on the target. */
   readonly searchProperty?: string;
@@ -144,10 +148,63 @@ export interface EntityCrudLink<TAdapters, TEntity extends Entity = Entity> {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type AnyFilterGroup = FilterGroup<any>;
 
+/**
+ * A column whose value lives in another entity — a price that points at the
+ * offering, the stock held of it, the brand it names — read in **one request
+ * per column per page** through the target's own read path
+ * ([ADR 0030](../../../../../../docs/adr/0030-a-reference-names-its-target-through-the-owners-read-port.md)).
+ *
+ * Matched one of two ways, never both:
+ *
+ * - `via` — a member of **this** entity that `references` the target, so the
+ *   target is read by `id=in=(…)` over the page's values of it;
+ * - `match` — a member of the **target** holding this record's id, so the
+ *   target is read by `<match>=in=(…)` over the page's ids. It must be
+ *   `filterable` on the target.
+ *
+ * Zero matches read `—`, one reads its `member` through the target's own
+ * descriptor (money reads as money), and more than one reads as a count. The
+ * column is never sortable or filterable: its value is in another store, and a
+ * sort the server cannot run would be a lie.
+ */
+export interface EntityCrudRelated<TAdapters> {
+  /** The column's identity, unique among the list's columns. */
+  readonly key: string;
+  /** Catalog key for its header, e.g. `entity:product-offering.related.price`. */
+  readonly labelKey: string;
+  readonly target: EntityConstructor<Entity>;
+  /** Which adapter holds the target's repository. The column names no adapter of its own. */
+  readonly repository: AdapterKey<TAdapters, Context<EntityRepositoryTag>>;
+  readonly via?: string;
+  readonly match?: string;
+  /** Narrows the matches, AND-ed with the match — the current price, the active stock. */
+  readonly filtering?: AnyFilterGroup;
+  /** The target's member the column shows. */
+  readonly member: string;
+  /** How one match renders, in place of its member's value — a picture, say. */
+  readonly render?: (match: Entity) => ReactNode;
+}
+
 /** The keys of `TAdapters` whose value is assignable to `TValue`. */
 export type AdapterKey<TAdapters, TValue> = {
   [K in keyof TAdapters]: TAdapters[K] extends TValue ? K : never;
 }[keyof TAdapters];
+
+/** A related region: this entity's records that refer to another record. */
+export interface EntityCrudRelatedListProps<TEntity extends Entity> {
+  /** Which records — those referring to the record whose page this is. Fixed, and shown as no chip. */
+  readonly filtering: FilterGroup<TEntity>;
+  /** Catalog key for the region's `h2`, and its entry in the page's section nav. */
+  readonly labelKey: string;
+  /**
+   * The members a "New" from this region opens already set — the parent
+   * record's id under the member that refers to it.
+   */
+  readonly prefill?: Readonly<Record<string, string>>;
+  /** Where "New" goes, in place of this crud's create page with `prefill`. */
+  readonly newHref?: string;
+  readonly pageSize?: number;
+}
 
 export interface EntityCrudOptions<TAdapters, TEntity extends Entity> {
   /** The domain shell's adapters hook, e.g. `useMarketplaceAdminAdapters`. */
@@ -213,6 +270,16 @@ export interface EntityCrudOptions<TAdapters, TEntity extends Entity> {
   readonly delete?: 'confirm' | 'undo' | 'typed';
   /** Frozen at factory time — see `use-entity-link-sources.ts`. */
   readonly links?: readonly EntityCrudLink<TAdapters, TEntity>[];
+  /** Columns whose values live in another entity, read per page. */
+  readonly related?: readonly EntityCrudRelated<TAdapters>[];
+  /**
+   * The records that refer to this one, as regions under its form — each
+   * usually another crud's `RelatedList`, held to this record's id. Rendered
+   * for an existing record only, never on create. Not master-detail: each
+   * region writes its own records through its own owner, with its own Save,
+   * and there is no page-wide Save across stores.
+   */
+  readonly regions?: (record: TEntity) => readonly ReactNode[];
   /**
    * Where the entity's served affordances come from — `GET /api/<entity>/$metadata`.
    *
@@ -317,6 +384,10 @@ export interface EntityCrud<TEntity extends Entity> {
   readonly basePath: string;
   readonly ListPage: () => ReactElement;
   readonly SingleViewPage: (props?: EntityCrudSingleViewProps) => ReactElement;
+  /** This entity's records referring to another record, as a region of that record's page. */
+  readonly RelatedList: (
+    props: EntityCrudRelatedListProps<TEntity>,
+  ) => ReactElement;
 }
 
 /**

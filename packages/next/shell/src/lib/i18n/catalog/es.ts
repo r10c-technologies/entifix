@@ -79,6 +79,14 @@ export const shell = {
    * thing: nothing here counts down, since a number that moves invites a person
    * to watch it rather than to save their work.
    */
+  /** A list column whose value lives in another entity, when more than one record matches. */
+  /** The section nav above a record's related regions. */
+  regions: {
+    nav: 'Secciones del registro',
+  },
+  related: {
+    count: '{{count}} {{noun}}',
+  },
   session: {
     expiringSoon:
       'Tu sesión está por expirar. Guarda tu trabajo e inicia sesión de nuevo para continuar.',

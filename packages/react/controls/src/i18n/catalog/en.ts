@@ -165,6 +165,9 @@ export const controls: EsControls = {
     errorSummary_one: '{{count}} cell has errors',
     errorSummary_other: '{{count}} cells have errors',
   },
+  reference: {
+    unresolved: '{{noun}} {{id}}',
+  },
   value: {
     none: '— none —',
     yes: 'Yes',

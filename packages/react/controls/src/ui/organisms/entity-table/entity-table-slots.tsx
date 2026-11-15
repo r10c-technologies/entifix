@@ -17,6 +17,8 @@ export interface EntityColumnProps<TEntity extends Entity = Entity> {
   label?: string;
   header?: ReactNode;
   type?: MetaAccessorType;
+  /** The narrowest the column reads at, in `rem` — what the pivot counts it as. */
+  minWidth?: number;
   order?: number;
   sortable?: boolean;
   filterable?: boolean;

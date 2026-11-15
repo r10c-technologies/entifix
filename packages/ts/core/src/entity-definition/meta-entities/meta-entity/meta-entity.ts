@@ -59,6 +59,17 @@ export interface MetaEntityOptions {
    * ([ADR 0026](../../../../../../../docs/adr/0026-actions-hierarchy-overflow-and-destructive-verbs.md)).
    */
   creatable?: boolean;
+  /**
+   * The member a record is called by — a `string`, a `localized`, a `number`
+   * or a reference, in which case the record is called by its target's name.
+   * Every surface that names a record (a row, a card's heading, a confirm
+   * dialog, a breadcrumb, a toast) reads it through `recordLabel()`.
+   * Undeclared, the first filled-in member that is not a key is used. Checked
+   * when the entity is described: a member that does not exist, is hidden or
+   * is a collection fails
+   * ([ADR 0030](../../../../../../../docs/adr/0030-a-reference-names-its-target-through-the-owners-read-port.md)).
+   */
+  labelMember?: string;
 }
 
 export class MetaEntity {
@@ -71,6 +82,7 @@ export class MetaEntity {
   readonly cardinality?: EntityCardinality;
   readonly views?: Readonly<Record<string, EntityViewOptions>>;
   readonly creatable: boolean;
+  readonly labelMember?: string;
   //#endregion
 
   //#region Constructors
@@ -84,6 +96,7 @@ export class MetaEntity {
     this.cardinality = options?.cardinality;
     this.views = options?.views;
     this.creatable = options?.creatable ?? true;
+    this.labelMember = options?.labelMember;
   }
   //#endregion
 

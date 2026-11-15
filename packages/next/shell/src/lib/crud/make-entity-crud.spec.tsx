@@ -45,6 +45,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EntityNavProvider } from '../workspace/entity-nav.js';
 import { PendingFlowsProvider } from '../workspace/pending-flows.js';
 import { makeEntityCrud } from './make-entity-crud.js';
+import { ReferenceLabelsHost } from './reference-labels.js';
 import { CATALOG_NEW_SLUG } from './slug.js';
 
 /** A refusal the way a domain declares one: a code the catalog translates. */
@@ -58,9 +59,12 @@ class AlreadyRetired extends Failure.declined<AlreadyRetired>()(
 const push = vi.fn();
 let slug = 'new';
 
+const searchParams = new URLSearchParams();
+
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push }),
   useParams: () => ({ slug }),
+  useSearchParams: () => searchParams,
 }));
 
 /**
@@ -77,6 +81,7 @@ vi.mock('next/navigation', () => ({
   key: 'product-brand',
   labelKey: 'entity:product-brand.label',
   pluralKey: 'entity:product-brand.plural',
+  labelMember: 'name',
 })
 class Brand implements Entity {
   #id?: EntityId;
@@ -88,10 +93,12 @@ class Brand implements Entity {
     this.#name = name;
   }
 
+  // Filterable, so a reference to a brand can be read in one request.
   @accessor({
     type: 'id',
     label: 'ID',
     labelKey: 'entity:product-brand.fields.id',
+    filterable: true,
   })
   get id(): EntityId {
     return this.#id;
@@ -184,6 +191,7 @@ class Product implements Entity {
   @accessor({
     type: 'string',
     label: 'Brand',
+    references: { entity: 'testing:product-brand' },
     // The catalog key is `brand`, not `brandId`: the field holds an id but the
     // label names the thing.
     labelKey: 'entity:product-specification.fields.brand',
@@ -804,7 +812,7 @@ describe('the generated list page, opted into affordances', () => {
     // hides members from the *form*, not from the listing.
     await user.click(
       within(screen.getByRole('table')).getByRole('checkbox', {
-        name: 'Seleccionar brand-001',
+        name: 'Seleccionar Acme',
       }),
     );
     // The served document arrives asynchronously — which is the accepted cost
@@ -834,7 +842,7 @@ describe('the generated list page, opted into affordances', () => {
     );
     await user.click(
       within(screen.getByRole('table')).getByRole('checkbox', {
-        name: 'Seleccionar brand-001',
+        name: 'Seleccionar Acme',
       }),
     );
     await user.click(await screen.findByRole('button', { name: 'Retirar' }));
@@ -1955,7 +1963,7 @@ describe('the generated Delete (ADR 0026)', () => {
     await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
     expect(
       within(screen.getByTestId('toast-region')).getByRole('status'),
-    ).toHaveTextContent('Se eliminó Marca.');
+    ).toHaveTextContent('Se eliminó Marca b-2.');
   });
 
   it('shows a failed Undo where every failure is shown', async () => {
@@ -1975,8 +1983,8 @@ describe('the generated Delete (ADR 0026)', () => {
   });
 });
 
-describe('the generated list’s links (#200)', () => {
-  it('names the record an id refers to, never its id', async () => {
+describe('the generated list’s references (ADR 0030)', () => {
+  it('names the record an id refers to, and the noun and id of one it cannot read', async () => {
     const product = new Product('Widget');
     product.id = 'p-1';
     product.brandId = 'b-1';
@@ -1990,17 +1998,24 @@ describe('the generated list’s links (#200)', () => {
       orphan,
       bare,
     ] as Entity[]);
+    const registrations = [
+      [Brand, Context.make(EntityRepositoryTag, repositories.brand)],
+    ] as const;
 
-    renderPage(<productCrud.ListPage />);
+    render(
+      <EntifixQueryProvider>
+        <ReferenceLabelsHost registrations={registrations}>
+          <productCrud.ListPage />
+        </ReferenceLabelsHost>
+      </EntifixQueryProvider>,
+    );
 
     await screen.findAllByText('Widget');
     await waitFor(() =>
       expect(screen.getAllByText('Acme').length).toBeGreaterThan(0),
     );
-    // Never the key: an id with no record, and no id, both read as empty.
+    // Never the bare key: an id with no record reads as the noun and the id.
     expect(screen.queryByText('b-1')).not.toBeInTheDocument();
-    await waitFor(() =>
-      expect(screen.queryByText('b-404')).not.toBeInTheDocument(),
-    );
+    expect(screen.getAllByText('Marca b-404').length).toBeGreaterThan(0);
   });
 });

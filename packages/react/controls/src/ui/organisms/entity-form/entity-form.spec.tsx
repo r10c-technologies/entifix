@@ -17,6 +17,10 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { RenderLinkProps } from '../../actions/index.js';
 import { LiveUpdatesProvider } from '../../utils/live-updates.js';
+import {
+  type ReferenceLabelLookup,
+  ReferenceLabelsProvider,
+} from '../../utils/reference-labels.js';
 import { EntityForm } from './entity-form.js';
 import type { EntityFormField, EntityFormProps } from './entity-form.types.js';
 import { EntityActions, EntityField } from './entity-form-slots.js';
@@ -1461,24 +1465,72 @@ describe('the built-in Delete', () => {
     ).toBeInTheDocument();
   });
 
-  it('asks for the name the host gives the record, over its first field', async () => {
+  it('asks for the name the entity declares, resolved when it is a reference', async () => {
+    // A shipment's first filled-in member is its order's id; its label member
+    // is the offering it ships, which another store names.
+    @entity({
+      domain: 'shipping',
+      key: 'shipment',
+      labelMember: 'offeringId',
+    })
+    class Shipment implements Entity {
+      #id?: EntityId;
+      #orderId?: string;
+      #offeringId?: string;
+      @accessor({ type: 'id', hidden: true })
+      get id(): EntityId {
+        return this.#id;
+      }
+      set id(value: EntityId) {
+        this.#id = value;
+      }
+      @accessor({ type: 'string', references: { entity: 'sales:order' } })
+      get orderId(): string | undefined {
+        return this.#orderId;
+      }
+      set orderId(value: string | undefined) {
+        this.#orderId = value;
+      }
+      @accessor({
+        type: 'string',
+        references: { entity: 'catalog:offering' },
+      })
+      get offeringId(): string | undefined {
+        return this.#offeringId;
+      }
+      set offeringId(value: string | undefined) {
+        this.#offeringId = value;
+      }
+    }
+    const lookup: ReferenceLabelLookup = {
+      label: (entityKey, id) =>
+        entityKey === 'catalog:offering' && id === 'offering-10'
+          ? { status: 'named', label: 'Flange' }
+          : { status: 'notFound' },
+    };
     render(
-      <Harness
-        mode="edit"
-        initial={{ code: 'G-1' }}
-        deletePolicy="typed"
-        recordLabel="gadget-key"
-        onDelete={vi.fn()}
-      />,
+      <ReferenceLabelsProvider lookup={lookup}>
+        <EntityForm<Shipment>
+          entityConstructor={Shipment}
+          mode="edit"
+          values={{
+            id: '79ce50c8-0a1b-4c2d-8e3f-1234567890ab',
+            orderId: '0a1b2c3d-0a1b-4c2d-8e3f-1234567890ab',
+            offeringId: 'offering-10',
+          }}
+          deletePolicy="typed"
+          onDelete={vi.fn()}
+        />
+      </ReferenceLabelsProvider>,
     );
 
     await userEvent.click(screen.getByRole('button', { name: 'Eliminar' }));
 
     expect(screen.getByRole('alertdialog')).toHaveAccessibleName(
-      '¿Eliminar gadget-key?',
+      '¿Eliminar Flange?',
     );
     expect(
-      screen.getByLabelText('Escriba gadget-key para confirmar'),
+      screen.getByLabelText('Escriba Flange para confirmar'),
     ).toBeInTheDocument();
   });
 

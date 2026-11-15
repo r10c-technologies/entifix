@@ -1,4 +1,4 @@
-import type { Entity, MetaAccessorType } from '@entifix/core';
+import type { CardRole, Entity, MetaAccessorType } from '@entifix/core';
 
 import type {
   EntityTableColumn,
@@ -52,23 +52,74 @@ const STEPS: readonly (readonly [number, string, string])[] = [
   [80, 'hidden @7xl/entity-table:block', '@7xl/entity-table:hidden'],
 ];
 
+/** A column's narrowest reading width: declared, its type's, or the default. */
+export const columnWidth = <TEntity extends Entity>(
+  column: EntityTableColumn<TEntity>,
+): number =>
+  column.minWidth ?? TYPE_MIN_WIDTH[column.type] ?? DEFAULT_MIN_WIDTH;
+
+/** How many `meta` or `subtitle` columns a row needs beside its title to be read. */
+export const ESSENTIAL_META = 2;
+
+/** What {@link pivotWidths} weighs a table's columns by. */
+export interface PivotColumns<TEntity extends Entity> {
+  readonly columns: readonly EntityTableColumn<TEntity>[];
+  /** The column a row reads as, kept in view while the grid scrolls. */
+  readonly title: EntityTableColumn<TEntity> | undefined;
+  readonly roleOf: (column: EntityTableColumn<TEntity>) => CardRole;
+  /** The selection and actions columns. */
+  readonly extra: number;
+  readonly breakpoint?: EntityTablePivotBreakpoint;
+}
+
 /**
- * The container width, in `rem`, at which a table's visible columns fit side
- * by side: the sum of their widths and of the selection and actions columns —
- * or a declared breakpoint's, which overrides it.
+ * Two container widths, in `rem`
+ * ([ADR 0027](../../../../../../../docs/adr/0027-the-table-evolves-natively.md)):
+ *
+ * - `essential` — what a row needs to be read as a row: its title, its
+ *   badges, up to {@link ESSENTIAL_META} `meta` or `subtitle` columns, and the
+ *   selection and actions columns. The grid shows at and above it; cards
+ *   only below, where a row really cannot be read across.
+ * - `full` — every visible column side by side. Between the two the grid
+ *   scrolls sideways, its title column held in view.
+ *
+ * Summing every column made an eleven-column list need 97rem, so a window with
+ * its sidebar open always got nine labelled lines per record. A declared
+ * breakpoint still overrides both.
  */
-export function pivotWidth<TEntity extends Entity>(
-  columns: readonly EntityTableColumn<TEntity>[],
-  extra: number,
-  breakpoint?: EntityTablePivotBreakpoint,
-): number {
-  if (breakpoint !== undefined) return BREAKPOINT_WIDTH[breakpoint];
-  return columns.reduce(
-    (sum, column) =>
-      sum +
-      (column.minWidth ?? TYPE_MIN_WIDTH[column.type] ?? DEFAULT_MIN_WIDTH),
+export function pivotWidths<TEntity extends Entity>({
+  columns,
+  title,
+  roleOf,
+  extra,
+  breakpoint,
+}: PivotColumns<TEntity>): { essential: number; full: number } {
+  const full = columns.reduce(
+    (sum, column) => sum + columnWidth(column),
     extra,
   );
+  if (breakpoint !== undefined) {
+    const width = BREAKPOINT_WIDTH[breakpoint];
+    return { essential: width, full: width };
+  }
+  const rest = columns.filter(column => column !== title);
+  const essentials = [
+    ...(title === undefined ? [] : [title]),
+    ...rest.filter(column => roleOf(column) === 'badge'),
+    ...rest
+      .filter(column => {
+        const role = roleOf(column);
+        return role === 'meta' || role === 'subtitle';
+      })
+      .slice(0, ESSENTIAL_META),
+  ];
+  return {
+    essential: essentials.reduce(
+      (sum, column) => sum + columnWidth(column),
+      extra,
+    ),
+    full,
+  };
 }
 
 /**

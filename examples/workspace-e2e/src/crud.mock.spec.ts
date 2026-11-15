@@ -16,6 +16,9 @@ import { expect, failOnPageErrors, test } from './support';
 test('lists the seed, edits a record and shows the edit in the list', async ({
   page,
 }) => {
+  // A customer's page now holds two related regions, so its keyboard walk
+  // crosses far more stops than a bare form did.
+  test.slow();
   failOnPageErrors(page);
   await page.goto('/es/customers');
 

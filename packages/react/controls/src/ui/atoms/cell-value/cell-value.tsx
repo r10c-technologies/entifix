@@ -11,6 +11,7 @@ import {
   localize,
   type MetaAccessorType,
 } from '@entifix/core';
+import { useCallback } from 'react';
 
 import {
   useEnumLabel,
@@ -18,6 +19,10 @@ import {
   useLocale,
   useT,
 } from '../../../i18n/index.js';
+import {
+  useReferenceLabel,
+  useUnresolvedReference,
+} from '../../utils/reference-labels.js';
 import { Money } from '../money/money.js';
 import { currencyOf } from '../money/money-math.js';
 import { Skeleton } from '../skeleton/index.js';
@@ -127,6 +132,90 @@ function formatByType(
   }
 }
 
+/** The formatting {@link formatByType} reads, resolved for the reader. */
+function useCellFormatting(): (
+  descriptor: EntityFieldDescriptor,
+) => CellFormatting {
+  const t = useT();
+  const formatters = useFormatters();
+  const enumLabel = useEnumLabel();
+  const locale = useLocale();
+  return useCallback(
+    descriptor => ({
+      formatters,
+      yes: t('value.yes'),
+      no: t('value.no'),
+      enumLabel: raw => enumLabel(descriptor, raw),
+      rowCount: count => t('value.rowCount', { count }),
+      locale,
+    }),
+    [enumLabel, formatters, locale, t],
+  );
+}
+
+/**
+ * A filled-in member's value as one line of text, exactly as its cell reads
+ * it — for the places that need words rather than an element: a checkbox's
+ * name, a confirm dialog's object, a toast.
+ */
+export function useValueText(): (
+  value: unknown,
+  descriptor: EntityFieldDescriptor,
+) => string {
+  const formatting = useCellFormatting();
+  return useCallback(
+    (value, descriptor) =>
+      formatByType(
+        value,
+        descriptor.type,
+        descriptor.linkLabelProperty,
+        formatting(descriptor),
+      ),
+    [formatting],
+  );
+}
+
+/**
+ * A reference reads as its target's name, in every state the read can be in
+ * ([ADR 0030](../../../../../../../docs/adr/0030-a-reference-names-its-target-through-the-owners-read-port.md)):
+ * a skeleton while it resolves (the noun and short id for a screen reader); the name; the entity's noun and the short id,
+ * muted, when no record answered or the read failed — never an alert, since a
+ * list that loaded has not failed because one name could not be read; and the
+ * raw id, muted, when the host registered nothing to read it with.
+ */
+function ReferenceValue({ entity, id }: { entity: string; id: string }) {
+  const state = useReferenceLabel(entity, id);
+  const unresolved = useUnresolvedReference();
+  const locale = useLocale();
+  switch (state.status) {
+    case 'resolving':
+      // The skeleton is hidden from assistive tech, so the noun and short id
+      // stand in for it there: a record's title link is never nameless.
+      return (
+        <>
+          <Skeleton shape="line" className="w-16" />
+          <span className="sr-only">{unresolved(entity, id)}</span>
+        </>
+      );
+    case 'named': {
+      const { label } = state;
+      if (typeof label === 'string') return <span>{label}</span>;
+      const text = localize(label, locale);
+      return (label[locale] ?? '') === '' ? (
+        <span lang={defaultLocale()}>{text}</span>
+      ) : (
+        <span>{text}</span>
+      );
+    }
+    case 'unregistered':
+      return <span className="text-content-muted">{id}</span>;
+    default:
+      return (
+        <span className="text-content-muted">{unresolved(entity, id)}</span>
+      );
+  }
+}
+
 /**
  * Tabular figures, applied once, here — not on `--font-sans` and not per call
  * site. A column of numbers or dates must align on the digit; a paragraph must
@@ -154,13 +243,21 @@ export interface CellValueProps {
  * "the value of an accessor", and only the descriptor decides how they read.
  */
 export function CellValue({ value, descriptor, record }: CellValueProps) {
-  const t = useT();
-  const formatters = useFormatters();
-  const enumLabel = useEnumLabel();
+  const formatting = useCellFormatting();
   const locale = useLocale();
 
   if (value === undefined || value === null || value === '') {
     return <span className="text-content-muted">{EMPTY}</span>;
+  }
+
+  // A key into another entity reads as that record's name, never as itself.
+  if (descriptor.references !== undefined) {
+    return (
+      <ReferenceValue
+        entity={descriptor.references.entity}
+        id={String(value)}
+      />
+    );
   }
 
   // An amount reads as money in the reader's locale, never as the stored
@@ -199,14 +296,7 @@ export function CellValue({ value, descriptor, record }: CellValueProps) {
     value,
     descriptor.type,
     descriptor.linkLabelProperty,
-    {
-      formatters,
-      yes: t('value.yes'),
-      no: t('value.no'),
-      enumLabel: raw => enumLabel(descriptor, raw),
-      rowCount: count => t('value.rowCount', { count }),
-      locale,
-    },
+    formatting(descriptor),
   );
 
   if (text === '') {

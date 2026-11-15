@@ -16,6 +16,7 @@ export type CustomerTier = (typeof CUSTOMER_TIERS)[number];
   key: 'customer',
   labelKey: 'entity:customer.label',
   pluralKey: 'entity:customer.plural',
+  labelMember: 'name',
 })
 export class Customer implements Entity {
   #id?: EntityId;
@@ -78,10 +79,12 @@ export class Customer implements Entity {
   // table nests them. Not `hidden`: a hidden member is never serialized, and a
   // parent that does not travel is a tree that arrives flat. A `string` rather
   // than an `id`, because a picker writes the parent's id into a foreign key.
+  // A reference to its own entity, so a list names the parent account.
   @accessor({
     type: 'string',
     labelKey: 'entity:customer.fields.parent',
     parent: true,
+    references: { entity: 'billing:customer' },
   })
   get parentId(): string | undefined {
     return this.#parentId;

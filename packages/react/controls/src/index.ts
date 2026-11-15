@@ -66,6 +66,7 @@ export * from './ui/utils/fold-script/index.js';
 export * from './ui/utils/keep-section/index.js';
 export * from './ui/utils/live-updates.js';
 export * from './ui/utils/media-query/index.js';
+export * from './ui/utils/reference-labels.js';
 export { useFocusOnArrival } from './ui/utils/use-focus-on-arrival.js';
 export {
   type HotkeyOptions,

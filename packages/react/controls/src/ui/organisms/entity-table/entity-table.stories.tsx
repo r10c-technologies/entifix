@@ -16,7 +16,9 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 
+import { Money } from '../../atoms/money/money.js';
 import { EntityTable } from './entity-table.js';
+import { EntityColumn } from './entity-table-slots.js';
 
 /**
  * A decorated fixture, because the table builds itself from metadata — there is
@@ -44,8 +46,10 @@ class StoryWidget implements Entity {
     this.#id = value;
   }
 
-  // Wide enough that three columns no longer fit in 400px: 6 + 16 + 6 = 28rem.
-  @accessor({ type: 'string', label: 'Name', minWidth: 16 })
+  // Wide enough that a row's essentials no longer fit in 400px (25rem): the
+  // name and the stock, 20 + 6 = 26rem — the id is off the card, so it does
+  // not count.
+  @accessor({ type: 'string', label: 'Name', minWidth: 20 })
   get name(): string | undefined {
     return this.#name;
   }
@@ -128,6 +132,10 @@ export const Reloading: Story = {
   ),
 };
 
+/**
+ * Nothing yet: the region's empty state alone — no table header over no rows,
+ * no empty card list — with the result still announced.
+ */
 export const Empty: Story = {
   render: () => (
     <EntityTable<StoryWidget>
@@ -138,6 +146,14 @@ export const Empty: Story = {
       totalItems={0}
     />
   ),
+  play: async ({ canvasElement }) => {
+    await expect(canvasElement.querySelector('table')).toBeNull();
+    await expect(canvasElement.querySelector('ul[role=list]')).toBeNull();
+    // The result is still said, by the polite status beside the toolbar.
+    await expect(
+      within(canvasElement).getAllByRole('status').length,
+    ).toBeGreaterThan(0);
+  },
 };
 
 /** The verbs a selection can be acted on with, as the service reports them. */
@@ -428,22 +444,47 @@ export const ResizeKeepsSelection: Story = {
   },
 };
 
-/** A filter emptied the list: it says so, and offers Clear filters. */
-export const NoResults: Story = {
-  render: () => (
+function FilteredEmpty() {
+  const [filtering, setFiltering] = useState<FilterGroup<StoryWidget>>({
+    operator: 'and',
+    values: [{ property: 'name', operator: 'like', value: 'zz' }],
+  });
+  const items = filtering.values.length === 0 ? WIDGETS : [];
+  return (
     <EntityTable<StoryWidget>
       entityConstructor={StoryWidget}
-      items={[]}
+      items={items}
       isLoading={false}
       {...pager}
-      totalItems={0}
-      filtering={{
-        operator: 'and',
-        values: [{ property: 'name', operator: 'like', value: 'zz' }],
-      }}
-      onFilteringChange={() => undefined}
+      totalItems={items.length}
+      filtering={filtering}
+      onFilteringChange={setFiltering}
     />
-  ),
+  );
+}
+
+/**
+ * A filter emptied the list: it says so, and offers Clear filters — with no
+ * table under it. Clearing brings the rows back, and focus stays on the
+ * control that filters rather than falling to the page.
+ */
+export const NoResults: Story = {
+  render: () => <FilteredEmpty />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvasElement.querySelector('table')).toBeNull();
+    await expect(canvasElement.querySelector('ul[role=list]')).toBeNull();
+    await expect(canvas.getAllByRole('status').length).toBeGreaterThan(0);
+
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Limpiar filtros' }),
+    );
+    // Back in the DOM: which layout shows is the container's call.
+    await waitFor(() =>
+      expect(canvasElement.querySelector('table')).not.toBeNull(),
+    );
+    await expect(canvas.getByRole('button', { name: 'Filtros' })).toHaveFocus();
+  },
 };
 
 /** A load that failed, over the rows from before it, with Retry. */
@@ -458,4 +499,57 @@ export const LoadError: Story = {
       onRetry={() => undefined}
     />
   ),
+};
+
+/**
+ * Columns whose values live in another entity — a price, a picture — as a
+ * host's related columns render them: read through the target's own
+ * descriptor, and never sortable, so their headers carry no sort button and no
+ * `aria-sort`.
+ */
+export const RelatedColumns: Story = {
+  parameters: { gate: { viewport: { width: 1680, height: 900 } } },
+  render: () => (
+    <EntityTable<StoryWidget>
+      entityConstructor={StoryWidget}
+      items={WIDGETS}
+      isLoading={false}
+      {...pager}
+      onSortingChange={() => undefined}
+    >
+      <EntityColumn<StoryWidget>
+        field="price"
+        label="Precio"
+        type="number"
+        render={widget => (
+          <Money
+            amount={(widget.stock ?? 0) * 7}
+            currency="GTQ"
+            unit="minor"
+            locale="es"
+          />
+        )}
+      />
+      <EntityColumn<StoryWidget>
+        field="picture"
+        label="Imagen"
+        render={widget => (
+          <img
+            src={`data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'/%3E`}
+            alt={widget.name ?? ''}
+            width={32}
+            height={32}
+          />
+        )}
+      />
+    </EntityTable>
+  ),
+  play: async ({ canvasElement }) => {
+    const table = within(canvasElement).getByRole('table');
+    for (const name of ['Precio', 'Imagen']) {
+      const header = within(table).getByRole('columnheader', { name });
+      await expect(header).not.toHaveAttribute('aria-sort');
+      await expect(within(header).queryByRole('button')).toBeNull();
+    }
+  },
 };

@@ -33,3 +33,66 @@ test('a record and its breadcrumb name it, never its id', async ({ page }) => {
   await expect(crumbs).toContainText('INV-0001');
   await expect(page.getByRole('main')).not.toContainText(RAW_ID);
 });
+
+/**
+ * A payment names the invoice it settles, and a branch names its parent
+ * account: references read in one request per entity, through the host's
+ * registry (ADR 0030).
+ */
+for (const [list, name, cells] of [
+  // The invoice a payment settles, by its number.
+  ['payments', 'INV-0001', 1],
+  // Grace Hopper's own row, and the branch whose parent she is.
+  ['customers', 'Grace Hopper', 2],
+] as const) {
+  test(`the ${list} list names every record it refers to`, async ({ page }) => {
+    failOnPageErrors(page);
+    await page.goto(`/es/${list}`);
+    await new EntityTablePage(page).waitForRows();
+    await expect(
+      page.getByRole('table').getByRole('cell', { name, exact: true }),
+    ).toHaveCount(cells);
+    await expect(page.getByRole('main')).not.toContainText(RAW_ID);
+  });
+}
+
+/**
+ * A related column: each customer's invoices, read for the whole page in one
+ * request — the number when there is one, a dash when there is none — and a
+ * header that offers no sort, since the value lives in another store.
+ */
+test('a list shows a related entity’s value as a column', async ({ page }) => {
+  failOnPageErrors(page);
+  await page.goto('/es/customers');
+  await new EntityTablePage(page).waitForRows();
+  const table = page.getByRole('table');
+  const header = table.getByRole('columnheader', { name: 'Facturas' });
+  await expect(header).toBeVisible();
+  await expect(header).not.toHaveAttribute('aria-sort');
+  await expect(header.getByRole('button')).toHaveCount(0);
+  await expect(
+    table.getByRole('row', { name: /Ada Lovelace/ }).getByText('INV-0001'),
+  ).toBeVisible();
+});
+
+/**
+ * A record page composes the records that refer to it: a customer's invoices
+ * and branches, each a labelled region under the form, reached from a section
+ * nav — and a New from a region opens with the customer already set.
+ */
+test('a record page composes regions of the records that refer to it', async ({
+  page,
+}) => {
+  failOnPageErrors(page);
+  await page.goto('/es/customers/c-1');
+  const invoices = page.getByRole('region', { name: 'Facturas' });
+  await expect(invoices.getByRole('heading', { level: 2 })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Sucursales' })).toBeVisible();
+  const nav = page.getByRole('navigation', { name: 'Secciones del registro' });
+  await expect(nav.getByRole('link', { name: 'Facturas' })).toBeVisible();
+  await expect(invoices.getByRole('table').getByText('INV-0001')).toBeVisible();
+  await expect(invoices.getByRole('link', { name: 'Nuevo' })).toHaveAttribute(
+    'href',
+    /\/invoices\/new\?prefill\.customerId=c-1$/,
+  );
+});

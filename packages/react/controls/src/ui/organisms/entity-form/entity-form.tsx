@@ -30,7 +30,7 @@ import {
 } from '../../actions/index.js';
 import { useVerbInvoker } from '../../actions/use-verb-invoker.js';
 import { Button, button } from '../../atoms/button/index.js';
-import { CellValue } from '../../atoms/cell-value/index.js';
+import { CellValue, useRecordLabel } from '../../atoms/cell-value/index.js';
 import { FieldControl } from '../../atoms/field-control/index.js';
 import { LocalizedFieldControl } from '../../atoms/localized-field-control/index.js';
 import { Skeleton } from '../../atoms/skeleton/index.js';
@@ -124,7 +124,6 @@ export function EntityForm<TEntity extends Entity>({
   onSubmit,
   onDelete,
   deletePolicy = 'confirm',
-  recordLabel: hostRecordLabel,
   embedded = false,
   isLoading = false,
   skeleton = true,
@@ -267,17 +266,12 @@ export function EntityForm<TEntity extends Entity>({
     busy,
     served: metadata?.useCases,
   });
-  // What a confirmation names: the record as the reader knows it — its first
-  // filled-in field — or, for a record with nothing filled in, the entity.
+  // What a confirmation names — the object in "Delete {record}?" and the text
+  // the typed policy asks for — through the one derivation every surface
+  // shares: the entity's `labelMember`, resolved if it is a reference.
   const metaEntity = extractMetaEntity(entityConstructor);
-  const named = fields.find(
-    field => field.type !== 'id' && readDraftString(draft, field.name) !== '',
-  );
-  const recordLabel =
-    hostRecordLabel ??
-    (named === undefined
-      ? entityNoun(metaEntity)
-      : readDraftString(draft, named.name));
+  const nameOf = useRecordLabel();
+  const recordLabel = nameOf(entityConstructor, draft);
   const invoke = (descriptor: UseCaseDescriptor) =>
     verbs.invoke({
       descriptor,

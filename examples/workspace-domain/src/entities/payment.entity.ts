@@ -14,6 +14,7 @@ export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
   labelKey: 'entity:payment.label',
   pluralKey: 'entity:payment.plural',
   creatable: false,
+  labelMember: 'reference',
 })
 export class Payment implements Entity {
   #id?: EntityId;
@@ -44,7 +45,11 @@ export class Payment implements Entity {
     this.#reference = value;
   }
 
-  @accessor({ type: 'string', labelKey: 'entity:payment.fields.invoice' })
+  @accessor({
+    type: 'string',
+    labelKey: 'entity:payment.fields.invoice',
+    references: { entity: 'billing:invoice' },
+  })
   get invoiceId(): string | undefined {
     return this.#invoiceId;
   }

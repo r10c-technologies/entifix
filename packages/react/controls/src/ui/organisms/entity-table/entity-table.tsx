@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  canNameRecord,
   emptySelection,
   type Entity,
   type EntityId,
@@ -11,6 +12,7 @@ import {
   hierarchyOf,
   isSelected,
   queryPropertyFor,
+  recordLabel,
   selectionSize,
   toggleSelected,
   type UseCaseDescriptor,
@@ -37,7 +39,7 @@ import {
 } from '../../actions/index.js';
 import { useVerbInvoker } from '../../actions/use-verb-invoker.js';
 import { Button, button } from '../../atoms/button/index.js';
-import { CellValue } from '../../atoms/cell-value/index.js';
+import { CellValue, useRecordLabel } from '../../atoms/cell-value/index.js';
 import { Checkbox } from '../../atoms/field/index.js';
 import { Skeleton } from '../../atoms/skeleton/index.js';
 import {
@@ -67,6 +69,7 @@ import { RegionState } from '../../molecules/region-state/index.js';
 import { SortBuilder } from '../../molecules/sort-builder/index.js';
 import { TableToolbar } from '../../molecules/table-toolbar/index.js';
 import { useFocusOnLoss } from '../../utils/use-focus-on-arrival.js';
+import { cardRoles } from './card-roles.js';
 import type {
   EntityTableColumn,
   EntityTableProps,
@@ -76,8 +79,9 @@ import { shownTreeRows, TreeCell, treeRows } from './entity-table-tree.js';
 import { nextHeaderSorting, sortKeys } from './header-sort.js';
 import {
   ACTIONS_WIDTH,
+  columnWidth,
   pivotClasses,
-  pivotWidth,
+  pivotWidths,
   SELECTION_WIDTH,
 } from './pivot.js';
 import { useEntityTableColumns } from './use-entity-table-columns.js';
@@ -238,19 +242,46 @@ export function EntityTable<TEntity extends Entity>({
    * viewport breakpoint was wrong inside a split view, a drawer or a wizard
    * step, and a JS measurement would guess during SSR and correct after mount.
    */
-  const pivot = pivotClasses(
-    pivotWidth(
-      visibleColumns,
+  /**
+   * The column every row reads as — the entity's `labelMember`, else its
+   * declared card title, else the first that can name a record — held in view
+   * at the inline start while a grid wider than its container scrolls.
+   */
+  const stickyTitle =
+    visibleColumns.find(column => column.name === metaEntity.labelMember) ??
+    visibleColumns.find(column => column.card === 'title') ??
+    visibleColumns.find(canNameRecord);
+  const widths = pivotWidths({
+    columns: visibleColumns,
+    title: stickyTitle,
+    roleOf: cardRoles(visibleColumns),
+    extra:
       (selectable ? SELECTION_WIDTH : 0) + (hasRowAction ? ACTIONS_WIDTH : 0),
-      pivotBreakpoint,
-    ),
-  );
+    breakpoint: pivotBreakpoint,
+  });
+  const pivot = pivotClasses(widths.essential);
+  /**
+   * The sticky title's cells: opaque, so the columns scrolling under it never
+   * show through — a header cell on the header's surface, a row's on the
+   * row's, following its hover.
+   */
+  const stickyClass = (
+    column: EntityTableColumn<TEntity>,
+    part: 'header' | 'body',
+  ) =>
+    column !== stickyTitle
+      ? undefined
+      : part === 'header'
+        ? 'sticky start-0 z-2 bg-surface'
+        : 'sticky start-0 z-1 bg-surface-elevated group-hover/row:bg-surface';
   /**
    * The first load has nothing to show and is held with a skeleton; a refetch
    * already has rows, so it keeps them and only marks the region busy. Splitting
    * the two is what stops every pagination click flashing grey.
    */
   const isFirstLoad = isLoading && items.length === 0;
+  /** Loaded, nothing came back, and nothing failed: there are no rows to lay out. */
+  const settledEmpty = items.length === 0 && !isLoading && error === undefined;
 
   /** `true`/omitted → the built-in default; a node → that node; `false` → none. */
   const customSkeleton = typeof skeleton === 'boolean' ? undefined : skeleton;
@@ -267,17 +298,30 @@ export function EntityTable<TEntity extends Entity>({
    */
   const busy = isLoading || undefined;
 
-  /** The column a row reads *as*: the first non-identifier one it filled in. */
-  const titleColumn = (item: TEntity) =>
-    visibleColumns.find(column => {
-      if (column.type === 'id') return false;
-      const value = (item as Record<string, unknown>)[column.name];
-      return value != null && String(value) !== '';
-    });
+  const nameOf = useRecordLabel();
 
-  /** The column that links to the record: one declared `card: 'title'`, else the row's title. */
+  /**
+   * The column a row reads *as*: the member `recordLabel()` names it by, when
+   * the reader has not hidden that column; else one declared `card: 'title'`;
+   * else the first visible one it filled in that is not a key — an id, a
+   * reference or a link names a row no better than its position does.
+   */
   const declaredTitle = visibleColumns.find(column => column.card === 'title');
-  const linkColumn = (item: TEntity) => declaredTitle ?? titleColumn(item);
+  const linkColumn = (item: TEntity) => {
+    const label = recordLabel(entityConstructor, item);
+    const named =
+      label.kind === 'fallback'
+        ? undefined
+        : visibleColumns.find(column => column.name === label.member.name);
+    return (
+      named ??
+      declaredTitle ??
+      visibleColumns.find(column => {
+        const value = (item as Record<string, unknown>)[column.name];
+        return canNameRecord(column) && value != null && String(value) !== '';
+      })
+    );
+  };
 
   /**
    * What a record's card shows, by each member's declared `card` role or the
@@ -285,12 +329,7 @@ export function EntityTable<TEntity extends Entity>({
    * {@link UNDECLARED_META_CAP} more members are meta — a card is a summary,
    * and the grid holds the rest.
    */
-  const firstEnum = visibleColumns.find(
-    column => column.card === undefined && column.type === 'enum',
-  );
-  const roleOf = (column: EntityTableColumn<TEntity>) =>
-    column.card ??
-    (column.type === 'id' ? 'hidden' : column === firstEnum ? 'badge' : 'meta');
+  const roleOf = cardRoles(visibleColumns);
   const cardParts = (item: TEntity) => {
     const title = linkColumn(item);
     const rest = visibleColumns.filter(column => column !== title);
@@ -425,30 +464,12 @@ export function EntityTable<TEntity extends Entity>({
   };
 
   /**
-   * How a row names itself to a screen reader.
-   *
-   * The first visible column's value, because that is what the user reads the
-   * row *as* — "Seleccionar Acme" rather than "Seleccionar fila 3", which tells
-   * them the position they can already see and not the thing they cannot.
+   * How a row names itself — to a screen reader on its checkbox, in a confirm
+   * dialog, a bulk result, a tree toggle: what the reader reads the row *as*
+   * ("Seleccionar Acme", never "Seleccionar fila 3" and never a whole id),
+   * through the one derivation every surface shares.
    */
-  const rowLabel = (item: TEntity): string => {
-    // The first non-identifier column **that this row actually filled in**.
-    //
-    // An id names a row the way "row 3" does: it repeats what the user can
-    // already see. But skipping only the id is not enough — measured against
-    // the seeded catalog, where `code` is the first non-id column and is empty
-    // on every brand, so the label fell straight through to the id and never
-    // reached `name`. A column that is blank on this row names it no better
-    // than its position does, so the search continues past it.
-    //
-    // The id remains the last resort, because a row with nothing rendered
-    // still has to announce itself.
-    const named = titleColumn(item);
-
-    return named
-      ? String((item as Record<string, unknown>)[named.name])
-      : String(item.id);
-  };
+  const rowLabel = (item: TEntity): string => nameOf(entityConstructor, item);
 
   const selectionCell = (
     item: TEntity,
@@ -661,12 +682,20 @@ export function EntityTable<TEntity extends Entity>({
   const headerCell = (column: EntityTableColumn<TEntity>) => {
     const label = column.header ?? column.label;
     if (!column.sortable || onSortingChange === undefined)
-      return <TableHeaderCell key={column.name}>{label}</TableHeaderCell>;
+      return (
+        <TableHeaderCell
+          key={column.name}
+          className={stickyClass(column, 'header')}
+        >
+          {label}
+        </TableHeaderCell>
+      );
     const position = keys.findIndex(key => key.member === column.name);
     const type = keys[position]?.type;
     return (
       <TableHeaderCell
         key={column.name}
+        className={stickyClass(column, 'header')}
         aria-sort={
           position === 0
             ? type === 'asc'
@@ -709,6 +738,7 @@ export function EntityTable<TEntity extends Entity>({
   const panelToggle = (which: Exclude<Panel, 'none'>, count: number) => (
     <Button
       type="button"
+      id={`${panelId}-${which}`}
       variant={panel === which ? 'primary' : 'secondary'}
       size="sm"
       aria-expanded={panel === which}
@@ -874,13 +904,18 @@ export function EntityTable<TEntity extends Entity>({
         onClearFilters={
           onFilteringChange === undefined
             ? undefined
-            : () =>
+            : () => {
+                // The button goes with the empty state it sits in, so focus
+                // moves first to the control that filters — still there, and
+                // where a reader would go next — never to `<body>`.
+                document.getElementById(`${panelId}-filters`)?.focus();
                 onFilteringChange({
                   // Only offered under a filter, so there is one to keep the
                   // logic of.
                   operator: (filtering as FilterGroup<TEntity>).operator,
                   values: [],
-                })
+                });
+              }
         }
         emptyAction={
           mayCreate
@@ -894,192 +929,239 @@ export function EntityTable<TEntity extends Entity>({
         }
       />
 
-      {/* Wide viewports: a grid. */}
-      <div className={pivot.grid} aria-busy={busy}>
-        {/* Held to most of the viewport so the header can stick above the
+      {/*
+        A settled empty answer is the region's state alone: a grid's header
+        over no rows, announced after "nothing here", told the reader there
+        was a table to read (ADR 0028). Loading keeps the skeleton's geometry,
+        and a failure keeps whatever rows it had, so nothing already on screen
+        moves.
+      */}
+      {!settledEmpty && (
+        <>
+          {/* Wide viewports: a grid. */}
+          <div className={pivot.grid} aria-busy={busy}>
+            {/* Held to most of the viewport so the header can stick above the
             rows; the scroll padding keeps a focused row out from under it. */}
-        <Table
-          caption={caption}
-          containerClassName="max-h-(--table-max-block) scroll-pt-12"
-        >
-          <TableHead>
-            {slots.header ? (
-              slots.header.render(visibleColumns)
-            ) : (
-              <tr>
-                {selectable && (
-                  <TableHeaderCell>
-                    <Checkbox
-                      aria-label={t('table.selectAllOnPage')}
-                      checked={allOnPageSelected}
-                      indeterminate={someOnPageSelected}
-                      disabled={isBulkRunning || items.length === 0}
-                      onChange={event =>
-                        toggleAllOnPage(
-                          event.currentTarget.checked,
-                          selectionState,
-                        )
-                      }
-                    />
-                  </TableHeaderCell>
+            <Table
+              caption={caption}
+              containerClassName="max-h-(--table-max-block) scroll-pt-12"
+              // Never narrower than its columns side by side: between the
+              // essential width and that, the grid scrolls rather than crushing
+              // every column into an unreadable sliver.
+              style={{ minWidth: `${widths.full}rem` }}
+              // A focused cell scrolled sideways is never left under the
+              // sticky title column (WCAG 2.4.11).
+              containerStyle={
+                stickyTitle === undefined
+                  ? undefined
+                  : {
+                      scrollPaddingInlineStart: `${columnWidth(stickyTitle)}rem`,
+                    }
+              }
+            >
+              <TableHead>
+                {slots.header ? (
+                  slots.header.render(visibleColumns)
+                ) : (
+                  <tr>
+                    {selectable && (
+                      <TableHeaderCell>
+                        <Checkbox
+                          aria-label={t('table.selectAllOnPage')}
+                          checked={allOnPageSelected}
+                          indeterminate={someOnPageSelected}
+                          disabled={isBulkRunning || items.length === 0}
+                          onChange={event =>
+                            toggleAllOnPage(
+                              event.currentTarget.checked,
+                              selectionState,
+                            )
+                          }
+                        />
+                      </TableHeaderCell>
+                    )}
+                    {visibleColumns.map(headerCell)}
+                    {hasRowAction && (
+                      <TableHeaderCell>{t('table.actions')}</TableHeaderCell>
+                    )}
+                  </tr>
                 )}
-                {visibleColumns.map(headerCell)}
-                {hasRowAction && (
-                  <TableHeaderCell>{t('table.actions')}</TableHeaderCell>
-                )}
-              </tr>
-            )}
-          </TableHead>
-          <TableBody>
-            {/* Skeleton rows rather than the word "Loading", and one per column
+              </TableHead>
+              <TableBody>
+                {/* Skeleton rows rather than the word "Loading", and one per column
                 rather than a single full-width blob: the placeholder occupies
                 the real grid, so the swap to rows shifts nothing sideways.
                 `TableMessageRow` is deliberately bypassed — it is one centred
                 full-span cell and cannot express the geometry. */}
-            {showSkeleton &&
-              (customSkeleton ? (
-                <TableMessageRow colSpan={columnCount}>
-                  {customSkeleton}
-                </TableMessageRow>
-              ) : (
-                skeletonRows.map(row => (
-                  <TableRow key={row}>
-                    {selectable && (
-                      <TableCell>
-                        <Skeleton shape="line" className="w-4" />
-                      </TableCell>
-                    )}
-                    {visibleColumns.map(column => (
-                      <TableCell key={column.name}>
-                        <Skeleton shape="line" className="w-full" />
-                      </TableCell>
-                    ))}
-                    {hasRowAction && (
-                      <TableCell>
-                        <Skeleton shape="line" className="w-16" />
-                      </TableCell>
-                    )}
-                  </TableRow>
-                ))
-              ))}
-            {shown.map(({ item, depth, hasChildren }, index) =>
-              slots.row ? (
-                // A Fragment carries the key without wrapping the custom row in
-                // an element `<tbody>` would reject.
-                <Fragment key={String(item.id ?? index)}>
-                  {slots.row.render(item, visibleColumns)}
-                </Fragment>
-              ) : (
-                <TableRow
-                  key={String(item.id ?? index)}
-                  data-record-id={`${rowScope}${String(item.id)}`}
-                >
-                  {selectionState && (
-                    <TableCell>
-                      {selectionCell(item, index, selectionState)}
-                    </TableCell>
-                  )}
-                  {visibleColumns.map((column, columnIndex) => (
-                    <TableCell key={column.name}>
-                      {treeKeys !== undefined && columnIndex === 0 ? (
-                        <TreeCell
-                          depth={depth}
-                          hasChildren={hasChildren}
-                          expanded={!collapsed.has(treeKeys.idOf(item))}
-                          label={t(
-                            collapsed.has(treeKeys.idOf(item))
-                              ? 'table.expandRow'
-                              : 'table.collapseRow',
-                            { record: rowLabel(item) },
-                          )}
-                          onToggle={() => toggleCollapsed(treeKeys.idOf(item))}
-                        >
-                          {renderCell(column, item)}
-                        </TreeCell>
-                      ) : (
-                        renderCell(column, item)
-                      )}
-                    </TableCell>
+                {showSkeleton &&
+                  (customSkeleton ? (
+                    <TableMessageRow colSpan={columnCount}>
+                      {customSkeleton}
+                    </TableMessageRow>
+                  ) : (
+                    skeletonRows.map(row => (
+                      <TableRow key={row}>
+                        {selectable && (
+                          <TableCell>
+                            <Skeleton shape="line" className="w-4" />
+                          </TableCell>
+                        )}
+                        {visibleColumns.map(column => (
+                          <TableCell key={column.name}>
+                            <Skeleton shape="line" className="w-full" />
+                          </TableCell>
+                        ))}
+                        {hasRowAction && (
+                          <TableCell>
+                            <Skeleton shape="line" className="w-16" />
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    ))
                   ))}
-                  {hasRowAction && <TableCell>{recordAction(item)}</TableCell>}
-                </TableRow>
-              ),
-            )}
-          </TableBody>
-        </Table>
-      </div>
+                {shown.map(({ item, depth, hasChildren }, index) =>
+                  slots.row ? (
+                    // A Fragment carries the key without wrapping the custom row in
+                    // an element `<tbody>` would reject.
+                    <Fragment key={String(item.id ?? index)}>
+                      {slots.row.render(item, visibleColumns)}
+                    </Fragment>
+                  ) : (
+                    <TableRow
+                      key={String(item.id ?? index)}
+                      data-record-id={`${rowScope}${String(item.id)}`}
+                      className="group/row"
+                    >
+                      {selectionState && (
+                        <TableCell>
+                          {selectionCell(item, index, selectionState)}
+                        </TableCell>
+                      )}
+                      {visibleColumns.map((column, columnIndex) => (
+                        <TableCell
+                          key={column.name}
+                          className={stickyClass(column, 'body')}
+                        >
+                          {treeKeys !== undefined && columnIndex === 0 ? (
+                            <TreeCell
+                              depth={depth}
+                              hasChildren={hasChildren}
+                              expanded={!collapsed.has(treeKeys.idOf(item))}
+                              label={t(
+                                collapsed.has(treeKeys.idOf(item))
+                                  ? 'table.expandRow'
+                                  : 'table.collapseRow',
+                                { record: rowLabel(item) },
+                              )}
+                              onToggle={() =>
+                                toggleCollapsed(treeKeys.idOf(item))
+                              }
+                            >
+                              {renderCell(column, item)}
+                            </TreeCell>
+                          ) : (
+                            renderCell(column, item)
+                          )}
+                        </TableCell>
+                      ))}
+                      {hasRowAction && (
+                        <TableCell>{recordAction(item)}</TableCell>
+                      )}
+                    </TableRow>
+                  ),
+                )}
+              </TableBody>
+            </Table>
+          </div>
 
-      {/* Narrow containers: the same columns pivoted into a list of cards. */}
-      <div className={pivot.cards} aria-busy={busy}>
-        {/* The card pivot gets card-shaped placeholders, not a bare shimmer
+          {/* Narrow containers: the same columns pivoted into a list of cards. */}
+          <div className={pivot.cards} aria-busy={busy}>
+            {/* The card pivot gets card-shaped placeholders, not a bare shimmer
             block: the border, radius and padding are the geometry here. */}
-        {showSkeleton &&
-          (customSkeleton ?? (
-            <ul role="list" className="m-0 p-0 flex list-none flex-col gap-2xs">
-              {skeletonRows.map(row => (
-                <li key={row}>
-                  <EntityRecordCard
-                    title={<Skeleton shape="line" className="w-32" />}
-                    meta={visibleColumns.slice(1).map(column => ({
-                      key: column.name,
-                      label: column.label,
-                      value: <Skeleton shape="line" className="w-24" />,
-                    }))}
-                  />
-                </li>
-              ))}
-            </ul>
-          ))}
-        {shown.length > 0 && (
-          <ul role="list" className="m-0 p-0 flex list-none flex-col gap-2xs">
-            {shown.map(({ item, depth }, index) => {
-              const parts = cardParts(item);
-              return (
-                <li
-                  key={String(item.id ?? index)}
-                  data-record-id={`${rowScope}${String(item.id)}`}
-                  // A tree's card says how deep it sits, as its row does.
-                  aria-level={treeKeys === undefined ? undefined : depth + 1}
-                  style={
-                    treeKeys === undefined
-                      ? undefined
-                      : { marginInlineStart: `${depth * 1.5}rem` }
-                  }
+            {showSkeleton &&
+              (customSkeleton ?? (
+                <ul
+                  role="list"
+                  className="m-0 p-0 flex list-none flex-col gap-2xs"
                 >
-                  <EntityRecordCard
-                    // The same renderers as the grid, so the two layouts agree.
-                    title={
-                      parts.title === undefined
-                        ? rowLabel(item)
-                        : renderCell(parts.title, item)
-                    }
-                    subtitle={
-                      parts.subtitle === undefined
-                        ? undefined
-                        : renderCell(parts.subtitle, item)
-                    }
-                    badges={parts.badges.map(column => ({
-                      key: column.name,
-                      value: renderCell(column, item),
-                    }))}
-                    meta={parts.meta.map(column => ({
-                      key: column.name,
-                      label: column.header ?? column.label,
-                      value: renderCell(column, item),
-                    }))}
-                    leading={
-                      selectionState
-                        ? selectionCell(item, index, selectionState)
-                        : undefined
-                    }
-                    actions={recordAction(item)}
-                  />
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
+                  {skeletonRows.map(row => (
+                    <li key={row}>
+                      <EntityRecordCard
+                        title={<Skeleton shape="line" className="w-32" />}
+                        meta={visibleColumns.slice(1).map(column => ({
+                          key: column.name,
+                          label: column.label,
+                          value: <Skeleton shape="line" className="w-24" />,
+                        }))}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              ))}
+            {shown.length > 0 && (
+              <ul
+                role="list"
+                className="m-0 p-0 flex list-none flex-col gap-2xs"
+              >
+                {shown.map(({ item, depth }, index) => {
+                  const parts = cardParts(item);
+                  return (
+                    <li
+                      key={String(item.id ?? index)}
+                      data-record-id={`${rowScope}${String(item.id)}`}
+                      // A tree's card says how deep it sits, as its row does.
+                      aria-level={
+                        treeKeys === undefined ? undefined : depth + 1
+                      }
+                      style={
+                        treeKeys === undefined
+                          ? undefined
+                          : { marginInlineStart: `${depth * 1.5}rem` }
+                      }
+                    >
+                      <EntityRecordCard
+                        // The same renderers as the grid, so the two layouts agree.
+                        title={
+                          parts.title === undefined
+                            ? hrefFor === undefined || onSelect !== undefined
+                              ? rowLabel(item)
+                              : renderLink({
+                                  href: hrefFor(item.id),
+                                  className: linkClassName,
+                                  children: rowLabel(item),
+                                  intent: { kind: 'open', id: item.id },
+                                })
+                            : renderCell(parts.title, item)
+                        }
+                        subtitle={
+                          parts.subtitle === undefined
+                            ? undefined
+                            : renderCell(parts.subtitle, item)
+                        }
+                        badges={parts.badges.map(column => ({
+                          key: column.name,
+                          value: renderCell(column, item),
+                        }))}
+                        meta={parts.meta.map(column => ({
+                          key: column.name,
+                          label: column.header ?? column.label,
+                          value: renderCell(column, item),
+                        }))}
+                        leading={
+                          selectionState
+                            ? selectionCell(item, index, selectionState)
+                            : undefined
+                        }
+                        actions={recordAction(item)}
+                      />
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        </>
+      )}
 
       <Pagination
         currentPage={currentPage}
