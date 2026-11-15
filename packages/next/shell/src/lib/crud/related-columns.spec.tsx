@@ -10,6 +10,7 @@ import { EntifixQueryProvider } from '@entifix/react-integration';
 import { makeInMemoryEntityRepository } from '@entifix/testing-unit';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import { Context } from 'effect';
+import { createContext, useContext } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { makeEntityCrud } from './make-entity-crud.js';
@@ -312,5 +313,59 @@ describe('a related column (ADR 0030)', () => {
         },
       ]),
     ).toThrow();
+  });
+});
+
+/**
+ * A provider another slice mounts above the crud, holding a repository this
+ * shell may not build — the stock beside an offering list.
+ */
+const StockContext = createContext<
+  Context.Context<EntityRepositoryTag> | undefined
+>(undefined);
+const useStock = () => {
+  const stock = useContext(StockContext);
+  if (stock === undefined) throw new Error('No stock provider.');
+  return stock;
+};
+
+describe('a related column the host supplies a repository for', () => {
+  const pricedThroughHost = makeEntityCrud<Offering, Adapters>(Offering, {
+    useAdapters,
+    basePath: '/catalog/offering',
+    catalogKey: 'offering',
+    repository: 'offerings',
+    related: [
+      {
+        key: 'hostPrice',
+        labelKey: 'entity:offering.related.price',
+        target: Price,
+        repository: { useRepository: useStock },
+        match: 'offeringId',
+        member: 'amount',
+      },
+    ],
+  });
+
+  it('reads through the supplied repository, once per page, and not the adapters', async () => {
+    const supplied = counted([
+      new Price({ id: 'p-9', offeringId: 'o-1', amount: 1250, active: true }),
+    ]);
+    render(
+      <EntifixQueryProvider>
+        <StockContext.Provider value={supplied.context}>
+          <pricedThroughHost.ListPage />
+        </StockContext.Provider>
+      </EntifixQueryProvider>,
+    );
+    const table = await screen.findByRole('table');
+    const link = await within(table).findByRole('link', { name: 'Flange' });
+    const row = link.closest('tr') as HTMLElement;
+
+    await waitFor(() =>
+      expect(within(row).getByText(/12,50/)).toBeInTheDocument(),
+    );
+    expect(supplied.loads).toHaveLength(1);
+    expect(prices.loads).toHaveLength(0);
   });
 });

@@ -59,8 +59,40 @@ describe('resolveEntityTableColumns', () => {
       [],
       {},
     );
-    expect(names(columns)).toEqual(['id', 'code', 'name']);
-    expect(names(visibleColumns)).toEqual(['id', 'code', 'name']);
+    expect(names(columns)).toEqual(['code', 'name']);
+    expect(names(visibleColumns)).toEqual(['code', 'name']);
+  });
+
+  // The record's own key is how it is addressed, never how a person reads it:
+  // a list leaves it out unless the host asks for it.
+  it("leaves out the record's own key unless the host shows it", () => {
+    const shown = resolveEntityTableColumns<Gadget>(
+      described(),
+      [],
+      {},
+      [],
+      true,
+    );
+    expect(names(shown.columns)).toEqual(['id', 'code', 'name']);
+  });
+
+  it('keeps a key that references another record', () => {
+    const withReference = [
+      ...described(),
+      {
+        ...described()[0],
+        name: 'ownerId',
+        key: 'ownerId',
+        references: { entity: 'sales:owner' },
+      },
+    ] as Array<EntityTableColumn<Gadget>>;
+    const { columns } = resolveEntityTableColumns<Gadget>(
+      withReference,
+      [],
+      {},
+    );
+    expect(names(columns)).toContain('ownerId');
+    expect(names(columns)).not.toContain('id');
   });
 
   it('applies a slot override without changing the column set', () => {
@@ -69,7 +101,7 @@ describe('resolveEntityTableColumns', () => {
       [{ field: 'code', label: 'SKU' }],
       {},
     );
-    expect(names(columns)).toEqual(['id', 'code', 'name']);
+    expect(names(columns)).toEqual(['code', 'name']);
     expect(columns.find(column => column.name === 'code')?.label).toBe('SKU');
   });
 
@@ -98,9 +130,9 @@ describe('resolveEntityTableColumns', () => {
 
   it('reorders per the stored personalization', () => {
     const { columns } = resolveEntityTableColumns<Gadget>(described(), [], {
-      order: ['name', 'code', 'id'],
+      order: ['name', 'code'],
     });
-    expect(names(columns)).toEqual(['name', 'code', 'id']);
+    expect(names(columns)).toEqual(['name', 'code']);
   });
 
   it('keeps columns missing from a stored order, at the end', () => {
@@ -108,22 +140,22 @@ describe('resolveEntityTableColumns', () => {
     const { columns } = resolveEntityTableColumns<Gadget>(described(), [], {
       order: ['name'],
     });
-    expect(names(columns)).toEqual(['name', 'id', 'code']);
+    expect(names(columns)).toEqual(['name', 'code']);
   });
 
   it('ignores stale names in a stored order', () => {
     const { columns } = resolveEntityTableColumns<Gadget>(described(), [], {
       order: ['removed', 'name'],
     });
-    expect(names(columns)).toEqual(['name', 'id', 'code']);
+    expect(names(columns)).toEqual(['name', 'code']);
   });
 
   it('drops hidden columns from the visible set only', () => {
     const { columns, visibleColumns, hidden } =
-      resolveEntityTableColumns<Gadget>(described(), [], { hidden: ['id'] });
-    expect(names(columns)).toContain('id');
-    expect(names(visibleColumns)).toEqual(['code', 'name']);
-    expect(hidden).toEqual(['id']);
+      resolveEntityTableColumns<Gadget>(described(), [], { hidden: ['code'] });
+    expect(names(columns)).toContain('code');
+    expect(names(visibleColumns)).toEqual(['name']);
+    expect(hidden).toEqual(['code']);
   });
 
   // A withheld column is not a hidden one: it leaves the set the settings, the
@@ -136,8 +168,8 @@ describe('resolveEntityTableColumns', () => {
       { order: ['code', 'name', 'id'] },
       ['code'],
     );
-    expect(names(columns)).toEqual(['name', 'id']);
-    expect(names(visibleColumns)).toEqual(['name', 'id']);
+    expect(names(columns)).toEqual(['name']);
+    expect(names(visibleColumns)).toEqual(['name']);
   });
 
   it('withholds a column a slot added', () => {
@@ -147,7 +179,7 @@ describe('resolveEntityTableColumns', () => {
       {},
       ['margin'],
     );
-    expect(names(columns)).toEqual(['id', 'code', 'name']);
+    expect(names(columns)).toEqual(['code', 'name']);
   });
 
   it('refuses to withhold a column it does not have', () => {

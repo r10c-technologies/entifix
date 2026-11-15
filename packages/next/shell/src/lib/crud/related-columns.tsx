@@ -29,7 +29,10 @@ import { useQueries } from '@tanstack/react-query';
 import { Context, Effect } from 'effect';
 import type { ReactElement } from 'react';
 
-import type { EntityCrudRelated } from './make-entity-crud.types.js';
+import type {
+  EntityCrudRelated,
+  EntityCrudSuppliedRepository,
+} from './make-entity-crud.types.js';
 
 /**
  * How many matches one related read asks for. A page names far fewer for a
@@ -95,6 +98,28 @@ export function planRelated<TAdapters>(
   });
 }
 
+/** Whether a related column reads through a repository the host supplies. */
+export const isSuppliedRepository = (
+  repository: unknown,
+): repository is EntityCrudSuppliedRepository =>
+  typeof repository === 'object' && repository !== null;
+
+/**
+ * The repositories the host supplies, one per plan — `undefined` for a plan
+ * read through an adapter key. The plans are fixed when the screen is
+ * generated, so each supplied hook is called in the same order on every
+ * render.
+ */
+export function useSuppliedRepositories<TAdapters>(
+  plans: readonly RelatedPlan<TAdapters>[],
+): readonly (Context.Context<EntityRepositoryTag> | undefined)[] {
+  return plans.map(plan =>
+    isSuppliedRepository(plan.repository)
+      ? plan.repository.useRepository()
+      : undefined,
+  );
+}
+
 const valueOf = (record: Entity, member: string): unknown =>
   (record as unknown as Record<string, unknown>)[member];
 
@@ -111,6 +136,7 @@ export function useRelatedColumns<TAdapters, TEntity extends Entity>(
   items: readonly TEntity[],
   repositoryOf: (
     plan: RelatedPlan<TAdapters>,
+    index: number,
   ) => Context.Context<EntityRepositoryTag>,
 ): ReactElement[] {
   const translateKey = useTranslateKey();
@@ -128,7 +154,7 @@ export function useRelatedColumns<TAdapters, TEntity extends Entity>(
     ].sort();
 
   const results = useQueries({
-    queries: plans.map(plan => {
+    queries: plans.map((plan, planIndex) => {
       const keys = keysOf(plan);
       const property = plan.via === undefined ? (plan.match as string) : 'id';
       const filtering: FilterGroup<Entity> = {
@@ -156,7 +182,7 @@ export function useRelatedColumns<TAdapters, TEntity extends Entity>(
           Effect.runPromise(
             Effect.provide(
               loadUCFactory<Entity>(),
-              repositoryOf(plan).pipe(
+              repositoryOf(plan, planIndex).pipe(
                 Context.add(EntityLoadRequestTag, request),
               ),
             ),

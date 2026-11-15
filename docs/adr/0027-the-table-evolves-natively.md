@@ -4,6 +4,7 @@
 - Revised: 2026-11-09 — facet counts show for enum and boolean members (a link's count would show ids, not names); the pivot widths and default card roles are as built in #193
 - Revised: 2026-11-14 by [ADR 0030](0030-a-reference-names-its-target-through-the-owners-read-port.md) — the pivot switches at a row's essential width, not every column's, and the grid scrolls with its title sticky in between (#231)
 - Revised: 2026-11-15 — a list may open sorted, its header saying so from the first render; and a host may withhold a column from a reader, which is not a hidden column the reader can restore
+- Revised: 2026-11-15 by [ADR 0030](0030-a-reference-names-its-target-through-the-owners-read-port.md) — the sticky title is a text column, or a leading record column when none names the row; the record's own key is not a column unless the host shows it
 - Date: 2026-11-05
 - Area: ui
 - Read when: a list shows cards inside a wide workspace pane or a cramped table in a narrow one, a screen reader cannot tell how a list is sorted or how many rows a filter kept, a table's horizontal scroll cannot be reached by keyboard, choosing between `table` and `grid` semantics, or about to add `@tanstack/react-table` or another table engine

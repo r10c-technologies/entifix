@@ -49,8 +49,13 @@ for (const [list, name, cells] of [
     failOnPageErrors(page);
     await page.goto(`/es/${list}`);
     await new EntityTablePage(page).waitForRows();
+    // By text, not accessible name: a parent's own name cell also holds its
+    // tree toggle, named "Contraer Grace Hopper".
     await expect(
-      page.getByRole('table').getByRole('cell', { name, exact: true }),
+      page
+        .getByRole('table')
+        .getByRole('cell')
+        .filter({ hasText: new RegExp(`^${name}$`) }),
     ).toHaveCount(cells);
     await expect(page.getByRole('main')).not.toContainText(RAW_ID);
   });

@@ -11,6 +11,7 @@ import {
   type FilterGroup,
   hierarchyOf,
   isSelected,
+  isTextMember,
   queryPropertyFor,
   recordLabel,
   selectionSize,
@@ -103,6 +104,12 @@ const SKELETON_ROW_CAP = 5;
 const UNDECLARED_META_CAP = 3;
 
 /**
+ * The name of the leading column a table adds when nothing on screen names a
+ * row. Not a member name an entity can declare, so it never collides.
+ */
+const RECORD_COLUMN = '$record';
+
+/**
  * A table that builds itself from an entity's metadata: columns, labels, value
  * formatting and the filter/sort controls all come from `@accessor()`
  * declarations, so listing a new entity needs no bespoke table.
@@ -144,6 +151,7 @@ export function EntityTable<TEntity extends Entity>({
   onSelect,
   preferencesKey,
   hiddenColumns,
+  showKey = false,
   showControls = true,
   pivotBreakpoint,
   filtering,
@@ -173,14 +181,72 @@ export function EntityTable<TEntity extends Entity>({
   const slots = readEntityTableSlots<TEntity>(children);
   const [panel, setPanel] = useState<Panel>('none');
 
-  const { columns, visibleColumns, hidden, setPersonalization } =
-    useEntityTableColumns<TEntity>(
-      entityConstructor,
-      slots.columns,
-      items[0],
-      `entity-table:${preferencesKey ?? metaEntity.key ?? metaEntity.name}`,
-      hiddenColumns,
-    );
+  const {
+    columns,
+    visibleColumns: resolvedColumns,
+    hidden,
+    setPersonalization,
+  } = useEntityTableColumns<TEntity>(
+    entityConstructor,
+    slots.columns,
+    items[0],
+    `entity-table:${preferencesKey ?? metaEntity.key ?? metaEntity.name}`,
+    hiddenColumns,
+    showKey,
+  );
+  const nameOf = useRecordLabel();
+  /**
+   * How a row names itself — to a screen reader on its checkbox, in a confirm
+   * dialog, a bulk result, a tree toggle: what the reader reads the row *as*
+   * ("Seleccionar Acme", never "Seleccionar fila 3" and never a whole id),
+   * through the one derivation every surface shares.
+   */
+  const rowLabel = (item: TEntity): string => nameOf(entityConstructor, item);
+
+  /**
+   * The column every row reads as — the entity's `labelMember`, else its
+   * declared card title, else the first **text** member that is not a key. A
+   * status, a quantity or a date is a value the record holds, never what it is
+   * called, which is the rule `recordLabel()` names a record by.
+   */
+  const titleOf = (candidates: Array<EntityTableColumn<TEntity>>) =>
+    candidates.find(column => column.name === metaEntity.labelMember) ??
+    candidates.find(column => column.card === 'title') ??
+    candidates.find(column => canNameRecord(column) && isTextMember(column));
+  /**
+   * A record nothing on screen names — an order, a movement, a payout, or a
+   * row whose naming column the reader has hidden — gets a leading column of
+   * its own that reads as the record: its noun and short id, as every other
+   * surface names it. Without it the grid's link landed on a number or an
+   * enum, or on no cell at all.
+   */
+  const namedTitle = titleOf(resolvedColumns);
+  /**
+   * The title column, held in view at the inline start while a grid wider than
+   * its container scrolls — the naming column, or the record column above.
+   */
+  const stickyTitle: EntityTableColumn<TEntity> = namedTitle ?? {
+    name: RECORD_COLUMN,
+    key: RECORD_COLUMN,
+    label: entityNoun(metaEntity),
+    type: 'string',
+    sortable: false,
+    filterable: false,
+    order: -1,
+    readonly: false,
+    required: false,
+    linkLabelProperty: 'name',
+    linkSearchProperty: 'name',
+    linkSerialization: 'id',
+    resetOnClone: false,
+    card: 'title',
+    render: rowLabel,
+    virtual: true,
+  };
+  const visibleColumns =
+    namedTitle === undefined
+      ? [stickyTitle, ...resolvedColumns]
+      : resolvedColumns;
 
   // A picker's table is choosing *one* value; a multi-selection there would
   // offer a set to a form member that holds a single reference, and the two
@@ -244,15 +310,6 @@ export function EntityTable<TEntity extends Entity>({
    * viewport breakpoint was wrong inside a split view, a drawer or a wizard
    * step, and a JS measurement would guess during SSR and correct after mount.
    */
-  /**
-   * The column every row reads as — the entity's `labelMember`, else its
-   * declared card title, else the first that can name a record — held in view
-   * at the inline start while a grid wider than its container scrolls.
-   */
-  const stickyTitle =
-    visibleColumns.find(column => column.name === metaEntity.labelMember) ??
-    visibleColumns.find(column => column.card === 'title') ??
-    visibleColumns.find(canNameRecord);
   const widths = pivotWidths({
     columns: visibleColumns,
     title: stickyTitle,
@@ -300,13 +357,13 @@ export function EntityTable<TEntity extends Entity>({
    */
   const busy = isLoading || undefined;
 
-  const nameOf = useRecordLabel();
-
   /**
    * The column a row reads *as*: the member `recordLabel()` names it by, when
    * the reader has not hidden that column; else one declared `card: 'title'`;
-   * else the first visible one it filled in that is not a key — an id, a
-   * reference or a link names a row no better than its position does.
+   * else the first visible text one it filled in that is not a key; else the
+   * table's title column, whose empty cell then reads as the record's label.
+   * So every row has exactly one open link, and it is never a number or an
+   * enum.
    */
   const declaredTitle = visibleColumns.find(column => column.card === 'title');
   const linkColumn = (item: TEntity) => {
@@ -320,8 +377,14 @@ export function EntityTable<TEntity extends Entity>({
       declaredTitle ??
       visibleColumns.find(column => {
         const value = (item as Record<string, unknown>)[column.name];
-        return canNameRecord(column) && value != null && String(value) !== '';
-      })
+        return (
+          canNameRecord(column) &&
+          isTextMember(column) &&
+          value != null &&
+          String(value) !== ''
+        );
+      }) ??
+      stickyTitle
     );
   };
 
@@ -374,9 +437,12 @@ export function EntityTable<TEntity extends Entity>({
     column: EntityTableColumn<TEntity>,
     item: TEntity,
   ): ReactNode => {
-    const value = renderValue(column, item);
+    if (linkColumn(item).name !== column.name) return renderValue(column, item);
+    // The row's title cell left empty still reads as the record.
+    const raw = (item as Record<string, unknown>)[column.name];
+    const blank = column.render === undefined && (raw == null || raw === '');
+    const value = blank ? rowLabel(item) : renderValue(column, item);
     if (hrefFor === undefined || onSelect !== undefined) return value;
-    if (linkColumn(item)?.name !== column.name) return value;
     return renderLink({
       href: hrefFor(item.id),
       className: linkClassName,
@@ -464,14 +530,6 @@ export function EntityTable<TEntity extends Entity>({
     anchorIndex.current = undefined;
     setSelection(next);
   };
-
-  /**
-   * How a row names itself — to a screen reader on its checkbox, in a confirm
-   * dialog, a bulk result, a tree toggle: what the reader reads the row *as*
-   * ("Seleccionar Acme", never "Seleccionar fila 3" and never a whole id),
-   * through the one derivation every surface shares.
-   */
-  const rowLabel = (item: TEntity): string => nameOf(entityConstructor, item);
 
   const selectionCell = (
     item: TEntity,
@@ -953,13 +1011,9 @@ export function EntityTable<TEntity extends Entity>({
               style={{ minWidth: `${widths.full}rem` }}
               // A focused cell scrolled sideways is never left under the
               // sticky title column (WCAG 2.4.11).
-              containerStyle={
-                stickyTitle === undefined
-                  ? undefined
-                  : {
-                      scrollPaddingInlineStart: `${columnWidth(stickyTitle)}rem`,
-                    }
-              }
+              containerStyle={{
+                scrollPaddingInlineStart: `${columnWidth(stickyTitle)}rem`,
+              }}
             >
               <TableHead>
                 {slots.header ? (
@@ -1123,18 +1177,7 @@ export function EntityTable<TEntity extends Entity>({
                     >
                       <EntityRecordCard
                         // The same renderers as the grid, so the two layouts agree.
-                        title={
-                          parts.title === undefined
-                            ? hrefFor === undefined || onSelect !== undefined
-                              ? rowLabel(item)
-                              : renderLink({
-                                  href: hrefFor(item.id),
-                                  className: linkClassName,
-                                  children: rowLabel(item),
-                                  intent: { kind: 'open', id: item.id },
-                                })
-                            : renderCell(parts.title, item)
-                        }
+                        title={renderCell(parts.title, item)}
                         subtitle={
                           parts.subtitle === undefined
                             ? undefined

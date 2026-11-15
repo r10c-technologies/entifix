@@ -108,8 +108,19 @@ function withhold<TEntity extends Entity>(
 }
 
 /**
+ * Whether a column is the record's own key — the entity's `id`, not a
+ * reference to another record's.
+ */
+function isOwnKey<TEntity extends Entity>(
+  column: EntityTableColumn<TEntity>,
+): boolean {
+  return column.type === 'id' && column.references === undefined;
+}
+
+/**
  * The whole column pipeline as a pure function — metadata descriptors, then
- * slot overrides, then what the host withholds, then the user's stored layout.
+ * slot overrides, then what the host withholds and the record's own key
+ * (unless `showKey`), then the user's stored layout.
  * Kept separate from the hook so the resolution rules can be reasoned about
  * (and tested) without React.
  */
@@ -118,13 +129,15 @@ export function resolveEntityTableColumns<TEntity extends Entity>(
   slotColumns: Array<EntityColumnProps<TEntity>>,
   personalization: ColumnPersonalization,
   withheld: readonly string[] = NONE_WITHHELD,
+  showKey = false,
 ): {
   columns: Array<EntityTableColumn<TEntity>>;
   visibleColumns: Array<EntityTableColumn<TEntity>>;
   hidden: string[];
 } {
+  const kept = withhold(mergeSlots(described, slotColumns), withheld);
   const columns = applyOrder(
-    withhold(mergeSlots(described, slotColumns), withheld),
+    showKey ? kept : kept.filter(column => !isOwnKey(column)),
     personalization.order,
   );
   const hidden = personalization.hidden ?? [];
@@ -156,6 +169,7 @@ export function useEntityTableColumns<TEntity extends Entity>(
   sample: TEntity | undefined,
   preferenceKey: string,
   withheld: readonly string[] = NONE_WITHHELD,
+  showKey = false,
 ): UseEntityTableColumnsResult<TEntity> {
   const { value: personalization, setValue: setPersonalization } =
     useUiPreference<ColumnPersonalization>(
@@ -183,6 +197,7 @@ export function useEntityTableColumns<TEntity extends Entity>(
     slotColumns,
     personalization,
     withheld,
+    showKey,
   );
 
   return {
