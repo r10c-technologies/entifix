@@ -1,3 +1,17 @@
+## 0.21.0 (2026-11-15)
+
+### 🚀 Features
+
+- ⚠️ **source:** a reference names its target, and a record names itself ([#240](https://github.com/r10c-technologies/entifix/pull/240))
+
+### ⚠️ Breaking Changes
+
+- **source:** a reference names its target, and a record names itself ([#240](https://github.com/r10c-technologies/entifix/pull/240))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.20.3 (2026-11-13)
 
 ### 🚀 Features
