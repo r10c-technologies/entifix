@@ -548,6 +548,109 @@ describe('describeEntityColumns money', () => {
     });
   });
 
+  describe('enumTones', () => {
+    const tonedEntity = (
+      key: string,
+      options: Parameters<typeof accessor>[0],
+    ) => {
+      @entity({ key })
+      class Toned implements Entity {
+        #id?: EntityId;
+        #status = '';
+
+        @accessor({ type: 'id' })
+        get id(): EntityId {
+          return this.#id;
+        }
+        set id(value: EntityId) {
+          this.#id = value;
+        }
+
+        @accessor(options)
+        get status(): string {
+          return this.#status;
+        }
+        set status(value: string) {
+          this.#status = value;
+        }
+      }
+      return Toned;
+    };
+
+    it('carries the tones of an enum onto its descriptor', () => {
+      const Toned = tonedEntity('toned', {
+        type: 'enum',
+        enumValues: ['draft', 'published', 'retired'],
+        enumTones: { published: 'success', retired: 'danger' },
+      });
+
+      const status = describeEntityColumns(Toned).find(
+        d => d.name === 'status',
+      );
+      expect(status?.enumTones).toEqual({
+        published: 'success',
+        retired: 'danger',
+      });
+    });
+
+    it('leaves an enum without tones without them', () => {
+      const Plain = tonedEntity('untoned', {
+        type: 'enum',
+        enumValues: ['card', 'cash'],
+      });
+
+      expect(
+        describeEntityColumns(Plain).find(d => d.name === 'status'),
+      ).not.toHaveProperty('enumTones');
+    });
+
+    it('refuses tones on a member that is not an enum', () => {
+      const Bad = tonedEntity('toned-string', {
+        type: 'string',
+        enumTones: { draft: 'neutral' },
+      });
+
+      expect(() => describeEntityColumns(Bad)).toThrow(
+        /"status" is a string and declares enumTones/,
+      );
+    });
+
+    it('refuses a tone keyed by a value outside enumValues', () => {
+      const Bad = tonedEntity('toned-stray', {
+        type: 'enum',
+        enumValues: ['draft', 'published'],
+        enumTones: { archived: 'warning' },
+      });
+
+      expect(() => describeEntityColumns(Bad)).toThrow(
+        /declares a tone for "archived", which is not one of its enumValues \(draft, published\)/,
+      );
+    });
+
+    it('refuses a tone keyed on an enum with no enumValues', () => {
+      const Bad = tonedEntity('toned-empty', {
+        type: 'enum',
+        enumTones: { draft: 'info' },
+      });
+
+      expect(() => describeEntityColumns(Bad)).toThrow(
+        /declares a tone for "draft", which is not one of its enumValues \(\)/,
+      );
+    });
+
+    it('refuses a tone that is not one of the five', () => {
+      const Bad = tonedEntity('toned-unknown', {
+        type: 'enum',
+        enumValues: ['draft'],
+        enumTones: { draft: 'pink' as 'info' },
+      });
+
+      expect(() => describeEntityColumns(Bad)).toThrow(
+        /declares tone "pink" for "draft" — a tone is one of success, warning, danger, info, neutral/,
+      );
+    });
+  });
+
   it('refuses money on a member that is not a number', () => {
     @entity({ key: 'bad-money' })
     class BadMoney implements Entity {
