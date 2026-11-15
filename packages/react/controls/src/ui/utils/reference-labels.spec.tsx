@@ -196,8 +196,27 @@ describe('useRecordLabel', () => {
     expect(name(undefined, { offeringId: 'o-1' })).toBe('o-1');
   });
 
-  it('names a record by a value as its cell reads it', () => {
-    expect(name(undefined, { weight: 1500 })).toBe('1500');
+  it('names a record by a declared value as its cell reads it', () => {
+    @entity({ domain: 'shipping', key: 'crate', labelMember: 'weight' })
+    class Crate implements Entity {
+      constructor(readonly values: Record<string, unknown> = {}) {}
+      @accessor({ type: 'id' })
+      get id(): EntityId {
+        return this.values['id'] as EntityId;
+      }
+      @accessor({ type: 'number' })
+      get weight(): number {
+        return this.values['weight'] as number;
+      }
+    }
+    const { result } = renderHook(() => useRecordLabel(), {
+      wrapper: wrap(),
+    });
+    expect(result.current(Crate, { weight: 1500 })).toBe('1500');
+  });
+
+  it('never names a record by a number it was not declared to be called by', () => {
+    expect(name(undefined, { id: ID, weight: 1500 })).toBe('shipment 79ce50c8');
   });
 
   it('calls a composition row without an entity by its class name', () => {

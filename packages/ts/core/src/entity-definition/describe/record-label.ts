@@ -87,6 +87,11 @@ function labelFrom(
       };
 }
 
+/** A member whose value reads as words: only such a member names a record undeclared. */
+function isText(descriptor: EntityFieldDescriptor): boolean {
+  return descriptor.type === 'string' || descriptor.type === 'localized';
+}
+
 /**
  * What a record is called — the **one derivation** every surface that names a
  * record goes through: a row's title and checkbox, a card's heading, a confirm
@@ -94,8 +99,10 @@ function labelFrom(
  *
  * 1. the entity's declared `labelMember`, or the member it declares the card's
  *    `title`, when filled in — a reference is answered as one, to resolve;
- * 2. the first filled-in member that is neither an id, a reference, a link nor
- *    a collection;
+ * 2. the first filled-in **text** member — a `string` or a `localized` — that
+ *    is not a reference: a status, a payment method, a weight or a date is a
+ *    value the record holds, never what it is called, and an order named
+ *    "card" or a shipment named "dispatched" is the guess this replaced;
  * 3. the fallback: the noun and the id's {@link shortId}.
  *
  * `record` is read by member name, so an entity instance, a plain record and a
@@ -119,6 +126,7 @@ export function recordLabel(
   const undeclared = descriptors.find(
     descriptor =>
       canNameRecord(descriptor) &&
+      isText(descriptor) &&
       isFilled(descriptor, values[descriptor.name]),
   );
   if (undeclared !== undefined) {

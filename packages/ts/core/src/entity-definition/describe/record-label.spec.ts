@@ -43,7 +43,7 @@ class Shipment extends Values implements Entity {
   }
 }
 
-/** Undeclared: the first filled-in member that is not a key. */
+/** Undeclared: the first filled-in text member that is not a key. */
 @entity({ domain: 'shipping', key: 'parcel' })
 class Parcel extends Values implements Entity {
   @accessor({ type: 'id' })
@@ -69,6 +69,10 @@ class Parcel extends Values implements Entity {
   @accessor({ type: 'number' })
   get weight(): number {
     return this.read('weight');
+  }
+  @accessor({ type: 'enum', enumValues: ['packed', 'sent'] })
+  get state(): string {
+    return this.read('state');
   }
 }
 
@@ -233,7 +237,7 @@ describe('recordLabel', () => {
     expect(label).toEqual({ kind: 'fallback', shortId: '79ce50c8' });
   });
 
-  it('takes the first filled-in member that is not a key when nothing is declared', () => {
+  it('takes the first filled-in text member that is not a key when nothing is declared', () => {
     const base = {
       id: uuid,
       orderId: uuid,
@@ -243,9 +247,20 @@ describe('recordLabel', () => {
     expect(
       recordLabel(Parcel, { ...base, title: { en: 'Books' } }),
     ).toMatchObject({ kind: 'value', value: { en: 'Books' } });
+  });
+
+  it('never names a record by a number, an enum or a date it holds', () => {
+    // A weight of 3 is what the parcel weighs, not what it is called; an order
+    // named "card" or a shipment named "dispatched" was this guess.
     expect(
-      recordLabel(Parcel, { ...base, title: { en: '' }, weight: 3 }),
-    ).toMatchObject({ kind: 'value', member: { name: 'weight' }, value: 3 });
+      recordLabel(Parcel, {
+        id: uuid,
+        orderId: uuid,
+        title: { en: '' },
+        weight: 3,
+        state: 'sent',
+      }),
+    ).toEqual({ kind: 'fallback', shortId: '79ce50c8' });
   });
 
   it('reads a card title as the declared label', () => {
