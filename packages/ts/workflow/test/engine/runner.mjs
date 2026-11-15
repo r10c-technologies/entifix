@@ -138,6 +138,8 @@ const runtime = ManagedRuntime.make(
       source: 'chaos',
       // A blocked call is ended by killing its runner, never by a bound.
       dials: { attemptTimeoutMs: 600_000, stepTimeoutMs: 600_000 },
+      // Past any run of the suite: nothing it starts is purged under it.
+      journalRetention: '1 day',
     },
     {
       host: 'localhost',

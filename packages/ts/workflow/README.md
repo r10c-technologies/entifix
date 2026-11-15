@@ -20,6 +20,14 @@ pnpm add @effect/platform-node
 | `@entifix/workflow/postgres`      | `SingleRunnerFlowEngineLayer` and the SQL status store, over the host's `SqlClient`                                    |
 | `@entifix/workflow/socket-runner` | `SocketRunnerFlowEngineLayer`, one runner among several; needs `@effect/platform-node`                                 |
 
+Both runner layers take `journalRetention` beside the interpreter's options:
+how long a finished flow keeps its journal (`'30 days'`, any `Duration`
+input). There is no default — a layer without it fails to build with
+`JournalRetentionUnset` — because the journal holds every flow's inputs. A
+purge runs beside the runner every `purgeInterval` (an hour by default) and
+empties the journal of flows that ended more than that long ago, keeping their
+status row; `onPurge` hears what each pass did.
+
 ---
 
 Tier 2 (adapters) of entifix — a package depends only on its own tier or below. See [the tiers](https://github.com/r10c-technologies/entifix#the-tiers-and-what-you-are-allowed-to-install). MIT licensed.

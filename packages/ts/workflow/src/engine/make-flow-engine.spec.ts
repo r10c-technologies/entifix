@@ -32,6 +32,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import {
   FlowWaitTimedOut,
   type InterpreterOptions,
+  SlipWorkflow,
 } from '../interpreter/slip-workflow.js';
 import {
   flowStates,
@@ -489,6 +490,57 @@ describe('the slip interpreter', () => {
     expect(new FlowWaitTimedOut({ step: 'await' }).message).toBe(
       "the wait at 'await' timed out",
     );
+  });
+
+  it('answers a start of a flow that already ended, and runs nothing again', async () => {
+    let calls = 0;
+    const { engine, store } = await engineOver(() =>
+      Effect.sync(() => {
+        calls += 1;
+      }),
+    );
+    // A flow that ended and whose journal is gone: only its status row is
+    // left, so the engine has nothing that remembers it ran.
+    const slip = slipOf(['reserve']);
+    const executionId = await Effect.runPromise(
+      SlipWorkflow.executionId({ key: 'k-ended', slip }),
+    );
+    await Effect.runPromise(
+      store.register('k-ended', {
+        flowId: 'flow-x',
+        executionId,
+        state: 'completed',
+      }),
+    );
+
+    expect(await Effect.runPromise(engine.start(slip, 'k-ended'))).toEqual({
+      flowId: 'flow-x',
+    });
+    await Effect.runPromise(Effect.sleep('50 millis'));
+
+    expect(calls).toBe(0);
+    expect(await Effect.runPromise(engine.status('flow-x'))).toEqual({
+      flowId: 'flow-x',
+      state: 'completed',
+    });
+  });
+
+  it('leaves an ended flow in the state it ended in when interrupted', async () => {
+    const { engine, store } = await engineOver(() => Effect.never);
+    await Effect.runPromise(
+      store.register('k3', {
+        flowId: 'flow-z',
+        executionId: 'gone',
+        state: 'completed',
+      }),
+    );
+
+    await Effect.runPromise(engine.interrupt('flow-z'));
+
+    expect(await Effect.runPromise(engine.status('flow-z'))).toEqual({
+      flowId: 'flow-z',
+      state: 'completed',
+    });
   });
 
   it('interrupts a flow that has not reached a step', async () => {

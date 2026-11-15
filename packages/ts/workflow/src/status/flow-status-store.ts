@@ -148,3 +148,19 @@ export const makeInMemoryFlowStatusStore = (): FlowStatusStore => {
       }),
   };
 };
+
+/**
+ * The states a flow ends in. Nothing resumes a flow from one, so its journal
+ * has nothing left to replay.
+ */
+export const TERMINAL_FLOW_STATES = [
+  'completed',
+  'compensated',
+  'failed',
+  'interrupted',
+  'stranded',
+] as const satisfies readonly FlowState[];
+
+/** Whether a flow in `state` has ended. */
+export const isTerminalFlowState = (state: FlowState): boolean =>
+  (TERMINAL_FLOW_STATES as readonly FlowState[]).includes(state);

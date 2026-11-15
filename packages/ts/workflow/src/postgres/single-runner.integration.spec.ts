@@ -79,7 +79,11 @@ describeFlowEngineContract(
       }),
     );
     const runtime = ManagedRuntime.make(
-      SingleRunnerFlowEngineLayer({ catalog, source: 'integration' }).pipe(
+      SingleRunnerFlowEngineLayer({
+        catalog,
+        source: 'integration',
+        journalRetention: '1 day',
+      }).pipe(
         Layer.provide(
           Layer.mergeAll(
             outbox,
