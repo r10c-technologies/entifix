@@ -3,6 +3,7 @@
 - Status: Accepted
 - Revised: 2026-11-15 — record search finds a record through the one it refers to, and a record search result names itself as every other surface does
 - Revised: 2026-11-15 — an undeclared name is a text member only: a number, an enum or a date the record holds never names it
+- Revised: 2026-11-15 — a related column may read through a repository the host supplies
 - Revised: 2026-11-15 — a table's open link and sticky title follow the same text-only rule, a row nothing on screen names opens from a leading column that reads as its label, and a list leaves out the record's own key
 - Date: 2026-11-14
 - Area: entities
@@ -169,6 +170,9 @@ batched over the page's ids:
   than one read as a count ("3 prices"). A related column is never sortable or
   filterable: the value is in another store, and a sort the server cannot run
   would be a lie.
+  Its repository is one of the crud's own adapters, or one the host supplies
+  (`{ useRepository }`, a hook called inside the crud's render tree) when the
+  target lives in another slice whose adapter the list's shell may not build.
 - **A related region** on a record page is the target entity's own list, held to
   the records that refer to this one by a fixed filter that is not a removable
   chip, with its own heading, its own states (ADR 0028) and its own writes.

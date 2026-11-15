@@ -168,14 +168,30 @@ export type AnyFilterGroup = FilterGroup<any>;
  * column is never sortable or filterable: its value is in another store, and a
  * sort the server cannot run would be a lie.
  */
+export interface EntityCrudSuppliedRepository {
+  /**
+   * A hook returning the target's repository, called inside the crud's render
+   * tree on every render — so a provider the host mounts above it (another
+   * slice's adapters) resolves it. Same read plan as an adapter key: one read
+   * per page.
+   */
+  readonly useRepository: () => Context<EntityRepositoryTag>;
+}
+
 export interface EntityCrudRelated<TAdapters> {
   /** The column's identity, unique among the list's columns. */
   readonly key: string;
   /** Catalog key for its header, e.g. `entity:product-offering.related.price`. */
   readonly labelKey: string;
   readonly target: EntityConstructor<Entity>;
-  /** Which adapter holds the target's repository. The column names no adapter of its own. */
-  readonly repository: AdapterKey<TAdapters, Context<EntityRepositoryTag>>;
+  /**
+   * Where the target's repository comes from: the key of one of this crud's
+   * own adapters, or — when the target lives in another slice, whose adapter
+   * this shell may not build — a repository the host supplies.
+   */
+  readonly repository:
+    | AdapterKey<TAdapters, Context<EntityRepositoryTag>>
+    | EntityCrudSuppliedRepository;
   readonly via?: string;
   readonly match?: string;
   /** Narrows the matches, AND-ed with the match — the current price, the active stock. */

@@ -74,7 +74,11 @@ import {
   RecordRegions,
   useRegion,
 } from './regions.js';
-import { planRelated, useRelatedColumns } from './related-columns.js';
+import {
+  planRelated,
+  useRelatedColumns,
+  useSuppliedRepositories,
+} from './related-columns.js';
 import { CATALOG_NEW_SLUG, slugToEntityId } from './slug.js';
 import { useCrudRenderLink } from './use-crud-render-link.js';
 import { useEntityAffordances } from './use-entity-affordances.js';
@@ -412,10 +416,13 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     });
 
     // Values that live in another entity, one read per column per page.
+    const supplied = useSuppliedRepositories(relatedPlans);
     const relatedColumns = useRelatedColumns<TAdapters, TEntity>(
       relatedPlans,
       pager.items,
-      plan => crudContextOf(adapters, plan.repository),
+      (plan, index) =>
+        supplied[index] ??
+        crudContextOf(adapters, plan.repository as keyof TAdapters),
     );
 
     const facetCounts = useFacetCounts<TEntity>({
