@@ -1,5 +1,9 @@
 import type { ComponentPropsWithoutRef, ReactNode } from 'react';
 
+import {
+  MediaImage,
+  type MediaImageLoader,
+} from '../../atoms/media-image/index.js';
 import { cn } from '../../utils/cn.js';
 
 export interface MediaGalleryItem {
@@ -8,6 +12,20 @@ export interface MediaGalleryItem {
   readonly src: string;
   /** What the image shows. Empty only for an image that adds nothing to the text beside it. */
   readonly alt: string;
+  /** Intrinsic width in pixels, when known. */
+  readonly width?: number;
+  /** Intrinsic height in pixels, when known. */
+  readonly height?: number;
+}
+
+/** What the gallery decided for one slide, handed to a host's own renderer. */
+export interface MediaGallerySlide {
+  /** The slide's position, from 0. */
+  readonly index: number;
+  /** The first slide is fetched first and at once; every other one lazily. */
+  readonly priority: boolean;
+  /** The `sizes` the slide is shown at. */
+  readonly sizes: string;
 }
 
 export interface MediaGalleryLabels {
@@ -25,8 +43,21 @@ export interface MediaGalleryProps extends Omit<
 > {
   items: readonly MediaGalleryItem[];
   labels: MediaGalleryLabels;
-  /** Renders one image; a plain `<img>` when omitted (a Next host passes `next/image`). */
-  renderMedia?: (item: MediaGalleryItem) => ReactNode;
+  /**
+   * How wide a slide is shown at, as a `sizes` attribute. Defaults to the full
+   * viewport width, which is right only when the gallery is.
+   */
+  sizes?: string;
+  /** Width over height of every slide's box. Defaults to `1`, a square. */
+  aspectRatio?: number;
+  /** Resizes a slide's image per width, so the browser can fetch a smaller one. */
+  loader?: MediaImageLoader;
+  /**
+   * Renders one image; a {@link MediaImage} when omitted. A host rendering its
+   * own sized image receives the gallery's decisions for the slide, and the
+   * slide's box stays reserved around whatever it returns.
+   */
+  renderMedia?: (item: MediaGalleryItem, slide: MediaGallerySlide) => ReactNode;
 }
 
 const slideId = (item: MediaGalleryItem) => `media-${item.id}`;
@@ -44,13 +75,10 @@ const STEP =
 export function MediaGallery({
   items,
   labels,
-  renderMedia = item => (
-    <img
-      src={item.src}
-      alt={item.alt}
-      className="h-auto w-full object-contain"
-    />
-  ),
+  sizes = '100vw',
+  aspectRatio = 1,
+  loader,
+  renderMedia,
   className,
   ...props
 }: MediaGalleryProps) {
@@ -70,13 +98,38 @@ export function MediaGallery({
       {items.map((item, index) => {
         const previous = items[index - 1];
         const next = items[index + 1];
+        const slide: MediaGallerySlide = {
+          index,
+          priority: index === 0,
+          sizes,
+        };
         return (
           <figure
             key={item.id}
             id={slideId(item)}
             className="m-0 flex w-full shrink-0 snap-center flex-col gap-2xs"
           >
-            {renderMedia(item)}
+            {/* The box is reserved before any image arrives, whoever renders
+                it, so a late image shifts nothing below it. */}
+            <div
+              className="flex w-full items-center justify-center overflow-hidden"
+              style={{ aspectRatio }}
+            >
+              {renderMedia === undefined ? (
+                <MediaImage
+                  src={item.src}
+                  alt={item.alt}
+                  width={item.width}
+                  height={item.height}
+                  aspectRatio={aspectRatio}
+                  sizes={sizes}
+                  priority={slide.priority}
+                  loader={loader}
+                />
+              ) : (
+                renderMedia(item, slide)
+              )}
+            </div>
             <figcaption className="flex items-center justify-between gap-s text-step-xs text-content-muted">
               {previous ? (
                 <a href={`#${slideId(previous)}`} className={STEP}>
