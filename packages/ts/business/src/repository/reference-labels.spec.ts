@@ -41,12 +41,16 @@ class Offering extends Values {
   }
 }
 
-/** No label member: named by its record label's undeclared rung. */
+/** No label member: named by its record label's undeclared rung, a text. */
 @entity({ domain: 'catalog', key: 'brand' })
 class Brand extends Values {
   @accessor({ type: 'number' })
   get rank(): number {
     return this.read('rank');
+  }
+  @accessor({ type: 'string' })
+  get name(): string {
+    return this.read('name');
   }
 }
 
@@ -174,15 +178,18 @@ describe('createReferenceLabels', () => {
       [
         Brand,
         repositoryFor([
-          new Brand({ id: 'b-1', rank: 3 }),
-          new Brand({ id: 'b-2' }),
+          new Brand({ id: 'b-1', rank: 3, name: 'Acme' }),
+          new Brand({ id: 'b-2', rank: 4 }),
         ]).context,
       ],
     ]);
     const byCode = await resolve(context, 'catalog:offering', ['o-1', 'o-2']);
-    const byRank = await resolve(context, 'catalog:brand', ['b-1', 'b-2']);
+    // `b-2` holds only a number, which is a value rather than a name.
+    const byName = await resolve(context, 'catalog:brand', ['b-1', 'b-2']);
     expect(Exit.isSuccess(byCode) && [...byCode.value]).toEqual([['o-1', 'F']]);
-    expect(Exit.isSuccess(byRank) && [...byRank.value]).toEqual([['b-1', '3']]);
+    expect(Exit.isSuccess(byName) && [...byName.value]).toEqual([
+      ['b-1', 'Acme'],
+    ]);
   });
 
   it('fails the read when the repository fails, and an unregistered key', async () => {
