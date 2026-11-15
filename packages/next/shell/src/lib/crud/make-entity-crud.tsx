@@ -595,11 +595,17 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
           {...(regionPageSize === undefined
             ? {}
             : { listPageSize: regionPageSize })}
-          // The row's menu hands focus back to its trigger as it closes, and
-          // a verb that settles fast settles before that. Focusing on the
-          // next frame lands after the menu's restore, never under it.
+          // The row's menu hands focus back to its trigger two frames after
+          // the click, unless focus already sits on a tabbable element — and
+          // this heading, at `tabIndex={-1}`, is not one. A verb that settles
+          // inside those two frames would be focused and then taken back.
+          // Frame callbacks run in the order they were asked for, and these
+          // are asked for after the click's, so two frames from the settle
+          // always run after the restore, never under it.
           onVerbSettled={() =>
-            requestAnimationFrame(() => headingRef.current?.focus())
+            requestAnimationFrame(() =>
+              requestAnimationFrame(() => headingRef.current?.focus()),
+            )
           }
         />
       </section>
