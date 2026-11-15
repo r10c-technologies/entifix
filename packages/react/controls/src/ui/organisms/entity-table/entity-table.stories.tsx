@@ -101,6 +101,32 @@ export const Default: Story = {
 };
 
 /**
+ * A column this reader does not get — a member that would only ever name the
+ * reader themselves. It is gone from the header, the column settings and the
+ * filters, not merely hidden, so nothing offers to bring it back.
+ */
+export const WithheldColumn: Story = {
+  render: () => (
+    <EntityTable<StoryWidget>
+      entityConstructor={StoryWidget}
+      items={WIDGETS}
+      isLoading={false}
+      {...pager}
+      hiddenColumns={['stock']}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.getByRole('columnheader', { name: /Name/ }),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.queryByRole('columnheader', { name: /Units in stock/ }),
+    ).not.toBeInTheDocument();
+  },
+};
+
+/**
  * The first load. One shimmer cell per visible column rather than a single
  * full-width blob, so the swap to real rows shifts nothing sideways.
  */

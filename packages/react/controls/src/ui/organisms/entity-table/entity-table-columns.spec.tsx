@@ -125,6 +125,36 @@ describe('resolveEntityTableColumns', () => {
     expect(names(visibleColumns)).toEqual(['code', 'name']);
     expect(hidden).toEqual(['id']);
   });
+
+  // A withheld column is not a hidden one: it leaves the set the settings, the
+  // filters and the sort choices are built from, so the reader cannot restore
+  // it — and a stored layout naming it does not bring it back either.
+  it('drops a withheld column from every set', () => {
+    const { columns, visibleColumns } = resolveEntityTableColumns<Gadget>(
+      described(),
+      [],
+      { order: ['code', 'name', 'id'] },
+      ['code'],
+    );
+    expect(names(columns)).toEqual(['name', 'id']);
+    expect(names(visibleColumns)).toEqual(['name', 'id']);
+  });
+
+  it('withholds a column a slot added', () => {
+    const { columns } = resolveEntityTableColumns<Gadget>(
+      described(),
+      [{ field: 'margin', label: 'Margin', type: 'number' }],
+      {},
+      ['margin'],
+    );
+    expect(names(columns)).toEqual(['id', 'code', 'name']);
+  });
+
+  it('refuses to withhold a column it does not have', () => {
+    expect(() =>
+      resolveEntityTableColumns<Gadget>(described(), [], {}, ['vendor']),
+    ).toThrow(/"vendor", which is not one of its columns/);
+  });
 });
 
 describe('readEntityTableSlots', () => {

@@ -270,6 +270,17 @@ export interface EntityCrudOptions<TAdapters, TEntity extends Entity> {
    */
   readonly initialSorting?: EntitySorting<TEntity>;
   /**
+   * How the list reads for whoever is reading it — a hook the host supplies,
+   * called on every render of the list page and of each `RelatedList`. A
+   * vendor reading their own statement gets "My payouts" over a list with no
+   * "Vendor" column, where an operator gets "Vendor payouts" and the column.
+   *
+   * Copy and presentation only. It decides nothing about what the reader may
+   * read: the service narrows the records, and a column withheld here is a
+   * column whose value the service still sends.
+   */
+  readonly useListView?: () => EntityCrudListView;
+  /**
    * How the record page's Delete is made safe
    * ([ADR 0026](../../../../../../docs/adr/0026-actions-hierarchy-overflow-and-destructive-verbs.md)):
    * `confirm` (the default) asks in an alert dialog naming the record; `typed`
@@ -392,6 +403,12 @@ export interface EntityCrud<TEntity extends Entity> {
   readonly entityLabelKey: string;
   /** `@entity({ pluralKey })` — how the collection is named. A list tab's title. */
   readonly entityPluralKey: string;
+  /**
+   * The list's title for whoever is reading it: the `titleKey` the host's
+   * `useListView` answers, else {@link entityPluralKey}. A hook, so a host
+   * titles a list's tab exactly as the page titles itself.
+   */
+  readonly useListTitleKey: () => string;
   readonly basePath: string;
   readonly ListPage: () => ReactElement;
   readonly SingleViewPage: (props?: EntityCrudSingleViewProps) => ReactElement;
@@ -399,6 +416,22 @@ export interface EntityCrud<TEntity extends Entity> {
   readonly RelatedList: (
     props: EntityCrudRelatedListProps<TEntity>,
   ) => ReactElement;
+}
+
+/** What {@link EntityCrudOptions.useListView} answers for one reader. */
+export interface EntityCrudListView {
+  /**
+   * The list's title, as a catalog key, in place of the entity's own
+   * `pluralKey`. Also what {@link EntityCrud.useListTitleKey} answers, so a
+   * host titles the list's tab the same way.
+   */
+  readonly titleKey?: string;
+  /**
+   * Columns this reader does not get, passed to `EntityTable` as
+   * `hiddenColumns`: gone from the header, the settings, the filters, the sort
+   * choices and the cards. A name that is not a column throws.
+   */
+  readonly hiddenColumns?: readonly string[];
 }
 
 /**

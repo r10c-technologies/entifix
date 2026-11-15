@@ -33,6 +33,7 @@ import {
   act,
   fireEvent,
   render,
+  renderHook,
   screen,
   waitFor,
   within,
@@ -666,6 +667,64 @@ describe('the generated list page, given an initial sorting', () => {
     expect(
       screen.getAllByRole('heading', { level: 3 }).map(h => h.textContent),
     ).toEqual(['Gamma', 'Beta', 'Acme']);
+  });
+});
+
+/** The reader the host says is reading — a vendor reading their own list. */
+let reader: 'vendor' | 'operator' = 'operator';
+const readerBrandCrud = makeEntityCrud<Brand, TestAdapters>(Brand, {
+  useAdapters,
+  basePath: '/catalog/brand',
+  catalogKey: 'product-brand',
+  repository: 'brandRest',
+  useListView: () =>
+    reader === 'vendor'
+      ? { titleKey: 'entity:product-brand.label', hiddenColumns: ['code'] }
+      : {},
+});
+
+describe('the generated list page, read by someone in particular', () => {
+  beforeEach(() => {
+    reader = 'operator';
+  });
+
+  it('titles and lays out the list as the host says for this reader', async () => {
+    reader = 'vendor';
+    renderPage(<readerBrandCrud.ListPage />);
+
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Marca' }),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getAllByText('Acme').length).toBeGreaterThan(0),
+    );
+    expect(screen.queryByText('brand-001')).not.toBeInTheDocument();
+  });
+
+  it('keeps the entity’s own title and every column for anyone else', async () => {
+    renderPage(<readerBrandCrud.ListPage />);
+
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Marcas' }),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getAllByText('brand-001').length).toBeGreaterThan(0),
+    );
+  });
+
+  // A host titles the list's tab from the same answer the page titles itself
+  // from, so the strip and the heading never disagree.
+  it('answers the title key a tab is named with', () => {
+    reader = 'vendor';
+    const vendor = renderHook(() => readerBrandCrud.useListTitleKey());
+    expect(vendor.result.current).toBe('entity:product-brand.label');
+
+    reader = 'operator';
+    const operator = renderHook(() => readerBrandCrud.useListTitleKey());
+    expect(operator.result.current).toBe('entity:product-brand.plural');
+    expect(renderHook(() => brandCrud.useListTitleKey()).result.current).toBe(
+      'entity:product-brand.plural',
+    );
   });
 });
 

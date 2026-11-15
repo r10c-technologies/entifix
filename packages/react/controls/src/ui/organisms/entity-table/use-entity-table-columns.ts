@@ -14,6 +14,7 @@ import type { EntityTableColumn } from './entity-table.types.js';
 import type { EntityColumnProps } from './entity-table-slots.js';
 
 const EMPTY_PERSONALIZATION: ColumnPersonalization = {};
+const NONE_WITHHELD: readonly string[] = [];
 
 /**
  * Applies `<EntityColumn>` overrides on top of the metadata descriptors, and
@@ -86,21 +87,44 @@ function applyOrder<TEntity extends Entity>(
 }
 
 /**
+ * Drops the columns the host withholds from this reader. Not a hidden column
+ * the reader can bring back: it is gone from the settings, the filters, the
+ * sort choices and the cards. A name that is no column throws, because a
+ * withheld column that is still on screen is the failure nobody would notice.
+ */
+function withhold<TEntity extends Entity>(
+  columns: Array<EntityTableColumn<TEntity>>,
+  withheld: readonly string[],
+): Array<EntityTableColumn<TEntity>> {
+  for (const name of withheld) {
+    if (!columns.some(column => column.name === name)) {
+      throw new Error(
+        `EntityTable was asked to hide "${name}", which is not one of its columns. ` +
+          'Name a member the entity declares, or a column a slot adds.',
+      );
+    }
+  }
+  return columns.filter(column => !withheld.includes(column.name));
+}
+
+/**
  * The whole column pipeline as a pure function — metadata descriptors, then
- * slot overrides, then the user's stored layout. Kept separate from the hook so
- * the resolution rules can be reasoned about (and tested) without React.
+ * slot overrides, then what the host withholds, then the user's stored layout.
+ * Kept separate from the hook so the resolution rules can be reasoned about
+ * (and tested) without React.
  */
 export function resolveEntityTableColumns<TEntity extends Entity>(
   described: Array<EntityTableColumn<TEntity>>,
   slotColumns: Array<EntityColumnProps<TEntity>>,
   personalization: ColumnPersonalization,
+  withheld: readonly string[] = NONE_WITHHELD,
 ): {
   columns: Array<EntityTableColumn<TEntity>>;
   visibleColumns: Array<EntityTableColumn<TEntity>>;
   hidden: string[];
 } {
   const columns = applyOrder(
-    mergeSlots(described, slotColumns),
+    withhold(mergeSlots(described, slotColumns), withheld),
     personalization.order,
   );
   const hidden = personalization.hidden ?? [];
@@ -131,6 +155,7 @@ export function useEntityTableColumns<TEntity extends Entity>(
   slotColumns: Array<EntityColumnProps<TEntity>>,
   sample: TEntity | undefined,
   preferenceKey: string,
+  withheld: readonly string[] = NONE_WITHHELD,
 ): UseEntityTableColumnsResult<TEntity> {
   const { value: personalization, setValue: setPersonalization } =
     useUiPreference<ColumnPersonalization>(
@@ -157,6 +182,7 @@ export function useEntityTableColumns<TEntity extends Entity>(
     described,
     slotColumns,
     personalization,
+    withheld,
   );
 
   return {

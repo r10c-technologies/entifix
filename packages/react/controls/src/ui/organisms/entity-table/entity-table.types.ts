@@ -102,6 +102,13 @@ export interface EntityTableProps<TEntity extends Entity> {
 
   /** Scope for persisted personalization. Defaults to the entity's key. */
   preferencesKey?: string;
+  /**
+   * Columns this reader does not get — a member that is always the reader
+   * themselves, say. Unlike a column the reader hides from the settings, it is
+   * gone from the settings, the filters, the sort choices and the cards, and
+   * the reader cannot bring it back. A name that is not a column throws.
+   */
+  hiddenColumns?: readonly string[];
   /** Hide the toolbar (columns, filters, sorting) — a bare listing. */
   showControls?: boolean;
   /**
