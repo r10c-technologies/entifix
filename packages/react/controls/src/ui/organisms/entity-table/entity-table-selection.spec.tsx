@@ -451,9 +451,10 @@ describe('EntityTable selection', () => {
       onSelectionChange: () => undefined,
     });
 
-    // One shimmer per visible column plus the selection cell.
+    // One shimmer per visible column (the key is not one) plus the selection
+    // cell.
     const firstRow = grid().getAllByRole('row')[1];
-    expect(within(firstRow!).getAllByRole('cell')).toHaveLength(3);
+    expect(within(firstRow!).getAllByRole('cell')).toHaveLength(2);
   });
 
   /**

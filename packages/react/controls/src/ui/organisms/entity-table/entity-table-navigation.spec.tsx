@@ -107,7 +107,8 @@ describe('header sort', () => {
       0: { property: 'name', type: 'asc' },
       1: { property: 'code', type: 'desc' },
     };
-    renderTable({ sorting, onSortingChange });
+    // The key is shown so its header can be checked: never sortable.
+    renderTable({ sorting, onSortingChange, showKey: true });
 
     expect(header(/Name/)).toHaveAttribute('aria-sort', 'ascending');
     expect(header(/Code/)).not.toHaveAttribute('aria-sort');

@@ -109,6 +109,13 @@ export interface EntityTableProps<TEntity extends Entity> {
    * the reader cannot bring it back. A name that is not a column throws.
    */
   hiddenColumns?: readonly string[];
+  /**
+   * Shows the record's own key (its `id`) as a column. Off by default: an id
+   * is how a record is addressed, never how a person reads it, and a row
+   * already opens by its name — or by its noun and short id when it has none.
+   * A reference's id is unaffected, and `id=in=` still queries.
+   */
+  showKey?: boolean;
   /** Hide the toolbar (columns, filters, sorting) — a bare listing. */
   showControls?: boolean;
   /**

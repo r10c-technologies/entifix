@@ -462,10 +462,10 @@ describe('EntityTable controls', () => {
       const { container } = renderTable({ items: [], isLoading: true });
 
       const firstRow = container.querySelector('tbody tr');
-      expect(firstRow?.querySelectorAll('td')).toHaveLength(4);
+      expect(firstRow?.querySelectorAll('td')).toHaveLength(3);
       expect(
         firstRow?.querySelectorAll('[data-testid="skeleton"]'),
-      ).toHaveLength(4);
+      ).toHaveLength(3);
     });
 
     // A row action is part of the geometry too, so the placeholder grows a
@@ -479,7 +479,7 @@ describe('EntityTable controls', () => {
 
       expect(
         container.querySelector('tbody tr')?.querySelectorAll('td'),
-      ).toHaveLength(5);
+      ).toHaveLength(4);
     });
 
     it('lets a caller replace the placeholder', () => {
@@ -742,12 +742,14 @@ describe('EntityTable controls', () => {
       const { user } = renderTable();
       await user.click(screen.getByRole('button', { name: 'Columnas' }));
 
-      await user.click(screen.getByRole('button', { name: 'Subir Name' }));
+      await user.click(
+        screen.getByRole('button', { name: 'Subir Units in stock' }),
+      );
 
       await waitFor(() =>
         expect(
           screen.getAllByRole('columnheader').map(cell => cell.textContent),
-        ).toEqual(['Name', 'ID', 'Units in stock', 'Brand']),
+        ).toEqual(['Units in stock', 'Name', 'Brand']),
       );
     });
   });

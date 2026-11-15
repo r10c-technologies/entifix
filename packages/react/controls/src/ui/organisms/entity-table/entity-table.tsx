@@ -144,6 +144,7 @@ export function EntityTable<TEntity extends Entity>({
   onSelect,
   preferencesKey,
   hiddenColumns,
+  showKey = false,
   showControls = true,
   pivotBreakpoint,
   filtering,
@@ -180,6 +181,7 @@ export function EntityTable<TEntity extends Entity>({
       items[0],
       `entity-table:${preferencesKey ?? metaEntity.key ?? metaEntity.name}`,
       hiddenColumns,
+      showKey,
     );
 
   // A picker's table is choosing *one* value; a multi-selection there would
