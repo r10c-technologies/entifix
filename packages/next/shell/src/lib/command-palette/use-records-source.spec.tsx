@@ -137,6 +137,31 @@ describe('useRecordsSource', () => {
     expect(groupsOf(result.current)[0].options[0].sublabel).toBeUndefined();
   });
 
+  // A record nothing names reads as a table names it: the noun and its short
+  // id, never the bare id the response carries.
+  it('puts the entity’s noun to a record nothing names', async () => {
+    const body = answer();
+    respond({
+      ...body,
+      groups: [
+        {
+          ...body.groups[0],
+          items: [
+            { ...body.groups[0].items[0], label: '8a564966', unnamed: true },
+          ],
+        },
+      ],
+    });
+    const { result } = renderHook(() => useRecordsSource('acme', true));
+    await settle();
+
+    await waitFor(() =>
+      expect(groupsOf(result.current)[0].options[0]?.label).toBe(
+        'Producto 8a564966',
+      ),
+    );
+  });
+
   it('names a source that is out of scope without painting it as an outage', async () => {
     respond(
       answer({

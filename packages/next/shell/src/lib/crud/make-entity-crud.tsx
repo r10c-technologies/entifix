@@ -27,7 +27,9 @@ import {
   Internal,
   isFailure,
   parseRsql,
+  parseSort,
   serializeRsql,
+  serializeSort,
   settled,
   type UseCaseDescriptor,
 } from '@entifix/core';
@@ -61,6 +63,7 @@ import type {
   AnyFilterGroup,
   EntityCrud,
   EntityCrudLinkSource,
+  EntityCrudListView,
   EntityCrudOptions,
   EntityCrudRelatedListProps,
   EntityCrudSingleViewProps,
@@ -251,6 +254,8 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     toolbar,
     pageSize,
     initialFiltering,
+    initialSorting,
+    useListView,
     links = [],
     related = [],
     regions,
@@ -286,6 +291,11 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
   if (initialRsql !== '') {
     coerceFiltering(entityConstructor, parseRsql(initialRsql));
   }
+  // The same posture for the order it opens in: parsed back through the
+  // allowlist a service applies to a `sort` parameter.
+  if (initialSorting !== undefined) {
+    parseSort(entityConstructor, serializeSort([initialSorting]));
+  }
 
   const meta = extractMetaEntity(entityConstructor);
   if (meta.key !== catalogKey) {
@@ -307,6 +317,12 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
   }
   // Narrowed once, for the closures below that TypeScript cannot follow.
   const pluralKey: string = entityPluralKey;
+
+  // The host's reading of who is reading, or nobody in particular. Called the
+  // same way on every render — whether there is a hook is fixed with the
+  // factory — so it is a hook call the rules allow.
+  const useReaderView = (): EntityCrudListView => useListView?.() ?? {};
+  const useListTitleKey = (): string => useReaderView().titleKey ?? pluralKey;
 
   // Computed once: a descriptor is a property of the class, so nothing about it
   // depends on the record being edited. `linkLabelProperty`/`linkSearchProperty`
@@ -367,6 +383,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     onVerbSettled?: () => void;
   }) {
     const adapters = useAdapters();
+    const { hiddenColumns } = useReaderView();
     // Every internal href carries the locale. An unprefixed one still resolves —
     // the middleware redirects it — but the visitor pays a round trip per click.
     const withLocale = useLocaleHref();
@@ -390,6 +407,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
       ...(listInitialFiltering === undefined
         ? {}
         : { initialFiltering: listInitialFiltering }),
+      ...(initialSorting === undefined ? {} : { initialSorting }),
       ...(baseFiltering === undefined ? {} : { baseFiltering }),
     });
 
@@ -479,6 +497,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     return (
       <EntityTable
         entityConstructor={entityConstructor}
+        {...(hiddenColumns === undefined ? {} : { hiddenColumns })}
         {...pager}
         items={pager.items}
         totalItems={pager.totalItems}
@@ -506,6 +525,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     const heading = useRef<HTMLHeadingElement>(null);
     useFocusOnArrival(heading);
     const et = useT('entity');
+    const titleKey = useListTitleKey();
 
     return (
       <div className="flex flex-col gap-s">
@@ -514,7 +534,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
           tabIndex={-1}
           className="m-0 text-step-2 font-semibold text-content focus-ring"
         >
-          {et(pluralKey.replace(/^entity:/, ''))}
+          {et(titleKey.replace(/^entity:/, ''))}
         </h1>
         <ListBody
           {...(initialFiltering === undefined
@@ -892,6 +912,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     entityKey: catalogKey,
     entityLabelKey,
     entityPluralKey,
+    useListTitleKey,
     basePath,
     ListPage,
     SingleViewPage,

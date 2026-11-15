@@ -74,12 +74,99 @@ const unavailable = (
   },
 });
 
+type Fetched =
+  | { readonly ok: true; readonly body: unknown; readonly status: number }
+  | { readonly ok: false; readonly outcome: SourceOutcome };
+
+/**
+ * One upstream read for a source, as a body or as the outcome that says why
+ * there is none — the source named either way.
+ */
+const fetchBody = async (
+  source: RecordSearchSource,
+  url: string,
+  token: string | undefined,
+  timeoutMs: number,
+): Promise<Fetched> => {
+  let upstream: Response;
+  try {
+    upstream = await fetch(url, {
+      headers: bearerHeader(token),
+      cache: 'no-store',
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+  } catch (error) {
+    // `AbortSignal.timeout` rejects with a `DOMException` named `TimeoutError`;
+    // branching on the name rather than the class keeps this reachable from a
+    // test without fabricating a platform error.
+    return {
+      ok: false,
+      outcome: unavailable(
+        source,
+        (error as { name?: string }).name === 'TimeoutError'
+          ? new Timeout({ dependency: source.key })
+          : new UpstreamUnavailable({ upstream: source.key }),
+      ),
+    };
+  }
+
+  // The service says why, in a problem body; the code is the reason. A body
+  // that is not one decodes as `protocol` — still named, never silent.
+  if (!upstream.ok) {
+    const body: unknown = await upstream.json().catch(() => undefined);
+    return {
+      ok: false,
+      outcome: unavailable(
+        source,
+        decodeProblem(body, upstream.status),
+        upstream.status,
+      ),
+    };
+  }
+
+  return {
+    ok: true,
+    body: await upstream.json().catch(() => undefined),
+    status: upstream.status,
+  };
+};
+
+const unreadable = (source: RecordSearchSource, status: number) =>
+  unavailable(
+    source,
+    new ProtocolFailure({
+      reason: `${source.key} answered a page the source cannot read`,
+      upstreamStatus: status,
+    }),
+    status,
+  );
+
+const groupOf = (
+  source: RecordSearchSource,
+  page: { items: RecordSearchGroup['items']; total: number },
+): SourceOutcome => ({
+  ok: true,
+  group: {
+    source: source.key,
+    entity: source.entity,
+    labelKey: source.labelKey,
+    items: page.items,
+    total: page.total,
+  },
+});
+
 /**
  * Ask one source, and **never reject**.
  *
  * Returning a typed outcome rather than throwing is what makes the fan-out a
  * plain `Promise.all`: isolation comes from this catch, not from
  * `allSettled` — whose rejected arm would then be unreachable and untestable.
+ *
+ * A source searched through a reference takes two reads, one after the
+ * other, both under the caller's own session: the referenced records whose
+ * name matches the term, at their owner, then this source's records that
+ * refer to them. No match is an empty group without the second read, and
+ * either read failing degrades the group exactly as one read would.
  */
 const runSource = async (
   source: RecordSearchSource,
@@ -89,57 +176,31 @@ const runSource = async (
   token: string | undefined,
   timeoutMs: number,
 ): Promise<SourceOutcome> => {
-  let upstream: Response;
-  try {
-    upstream = await fetch(source.url(term, limit, locale), {
-      headers: bearerHeader(token),
-      cache: 'no-store',
-      signal: AbortSignal.timeout(timeoutMs),
-    });
-  } catch (error) {
-    // `AbortSignal.timeout` rejects with a `DOMException` named `TimeoutError`;
-    // branching on the name rather than the class keeps this reachable from a
-    // test without fabricating a platform error.
-    return unavailable(
+  let names: ReadonlyMap<string, string> | undefined;
+  let url: string;
+  if (source.through === undefined) {
+    url = source.url(term, limit, locale);
+  } else {
+    const matched = await fetchBody(
       source,
-      (error as { name?: string }).name === 'TimeoutError'
-        ? new Timeout({ dependency: source.key })
-        : new UpstreamUnavailable({ upstream: source.key }),
+      source.through.url(term, limit, locale),
+      token,
+      timeoutMs,
     );
+    if (!matched.ok) return matched.outcome;
+    const matches = source.through.read(matched.body, locale);
+    if (matches === undefined) return unreadable(source, matched.status);
+    if (matches.length === 0) return groupOf(source, { items: [], total: 0 });
+    names = new Map(matches.map(match => [match.id, match.label]));
+    url = source.through.urlFor([...names.keys()], limit);
   }
 
-  // The service says why, in a problem body; the code is the reason. A body
-  // that is not one decodes as `protocol` — still named, never silent.
-  if (!upstream.ok) {
-    const body: unknown = await upstream.json().catch(() => undefined);
-    return unavailable(
-      source,
-      decodeProblem(body, upstream.status),
-      upstream.status,
-    );
-  }
-
-  const body = await upstream.json().catch(() => undefined);
-  const page = source.read(body, locale);
+  const fetched = await fetchBody(source, url, token, timeoutMs);
+  if (!fetched.ok) return fetched.outcome;
+  const page = source.read(fetched.body, locale, names);
   return page === undefined
-    ? unavailable(
-        source,
-        new ProtocolFailure({
-          reason: `${source.key} answered a page the source cannot read`,
-          upstreamStatus: upstream.status,
-        }),
-        upstream.status,
-      )
-    : {
-        ok: true,
-        group: {
-          source: source.key,
-          entity: source.entity,
-          labelKey: source.labelKey,
-          items: page.items,
-          total: page.total,
-        },
-      };
+    ? unreadable(source, fetched.status)
+    : groupOf(source, page);
 };
 
 /**

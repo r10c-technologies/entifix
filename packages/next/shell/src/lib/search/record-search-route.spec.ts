@@ -446,3 +446,122 @@ describe('createRecordSearchRoute', () => {
     });
   });
 });
+
+/**
+ * A source searched through a reference: the referenced records whose name
+ * matches first, then the records referring to them — two reads, one after
+ * the other, under the caller's own session.
+ */
+describe('a source searched through a reference', () => {
+  const stock: RecordSearchSource = {
+    key: 'stock',
+    entity: 'stock',
+    labelKey: 'entity:stock.plural',
+    url: () => {
+      throw new Error(
+        'a source searched through a reference reads its own URL',
+      );
+    },
+    read: (body, _locale, names) =>
+      (body as { rows?: string[] } | undefined)?.rows === undefined
+        ? undefined
+        : {
+            items: (body as { rows: string[] }).rows.map(offering => ({
+              id: `stock-of-${offering}`,
+              label: names?.get(offering) ?? offering,
+              entity: 'stock',
+              href: `/stock/stock-of-${offering}`,
+            })),
+            total: (body as { rows: string[] }).rows.length,
+          },
+    through: {
+      url: (term, limit, locale) =>
+        `http://offerings.test/api/offering?like=${term}&pageSize=${limit}&locale=${locale}`,
+      read: body =>
+        (body as { matches?: { id: string; label: string }[] } | undefined)
+          ?.matches,
+      urlFor: (ids, limit) =>
+        `http://stock.test/api/stock?in=${ids.join('|')}&pageSize=${limit}`,
+    },
+  };
+
+  it('names what it finds by the records it refers to', async () => {
+    const fetchMock = stubFetch(url =>
+      url.startsWith('http://offerings.test')
+        ? answering(200, {
+            matches: [
+              { id: 'o-2', label: 'Café de altura' },
+              { id: 'o-1', label: 'Café molido' },
+            ],
+          })
+        : answering(200, { rows: ['o-2', 'o-1'] }),
+    );
+
+    const { body } = await get('?q=cafe', { sources: [stock] });
+
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
+      'http://offerings.test/api/offering?like=cafe&pageSize=5&locale=es',
+      'http://stock.test/api/stock?in=o-2|o-1&pageSize=5',
+    ]);
+    expect(body.groups[0]?.items.map(item => item.label)).toEqual([
+      'Café de altura',
+      'Café molido',
+    ]);
+  });
+
+  it('answers an empty group without the second read when nothing matched', async () => {
+    const fetchMock = stubFetch(() => answering(200, { matches: [] }));
+
+    const { body } = await get('?q=cafe', { sources: [stock] });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(body.groups).toEqual([
+      {
+        source: 'stock',
+        entity: 'stock',
+        labelKey: 'entity:stock.plural',
+        items: [],
+        total: 0,
+      },
+    ]);
+  });
+
+  it.each([
+    [
+      'the referenced records could not be read',
+      (url: string) =>
+        url.startsWith('http://offerings.test')
+          ? answering(
+              503,
+              problemOf(new Unavailable({ dependency: 'offerings' })),
+            )
+          : answering(200, { rows: [] }),
+      { reason: 'unavailable', status: 503 },
+    ],
+    [
+      'the referenced records came back unreadable',
+      () => answering(200, { nothing: true }),
+      { reason: 'protocol', status: 200 },
+    ],
+    [
+      'the records referring to them could not be read',
+      (url: string) =>
+        url.startsWith('http://offerings.test')
+          ? answering(200, { matches: [{ id: 'o-1', label: 'Café' }] })
+          : answering(
+              403,
+              problemOf(new Forbidden({ permission: 'stock:read' })),
+            ),
+      { reason: 'forbidden', status: 403 },
+    ],
+  ])('degrades the group when %s', async (_case, handler, expected) => {
+    stubFetch(handler);
+
+    const { body } = await get('?q=cafe', { sources: [stock] });
+
+    expect(body.groups).toEqual([]);
+    expect(body.unavailable).toEqual([
+      expect.objectContaining({ source: 'stock', ...expected }),
+    ]);
+  });
+});

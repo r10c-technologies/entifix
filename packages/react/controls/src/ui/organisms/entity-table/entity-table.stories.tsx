@@ -101,6 +101,32 @@ export const Default: Story = {
 };
 
 /**
+ * A column this reader does not get — a member that would only ever name the
+ * reader themselves. It is gone from the header, the column settings and the
+ * filters, not merely hidden, so nothing offers to bring it back.
+ */
+export const WithheldColumn: Story = {
+  render: () => (
+    <EntityTable<StoryWidget>
+      entityConstructor={StoryWidget}
+      items={WIDGETS}
+      isLoading={false}
+      {...pager}
+      hiddenColumns={['stock']}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.getByRole('columnheader', { name: /Name/ }),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.queryByRole('columnheader', { name: /Units in stock/ }),
+    ).not.toBeInTheDocument();
+  },
+};
+
+/**
  * The first load. One shimmer cell per visible column rather than a single
  * full-width blob, so the swap to real rows shifts nothing sideways.
  */
@@ -274,8 +300,13 @@ export const BulkPartialFailure: Story = {
  * Sorted from a header and filtered from the panel, with what changed said in
  * the status region: a list a keyboard and a screen reader can drive whole.
  */
-function SortAndFilterDemo() {
-  const [sorting, setSorting] = useState<EntitySorting<StoryWidget>>({});
+function SortAndFilterDemo({
+  initialSorting = {},
+}: {
+  readonly initialSorting?: EntitySorting<StoryWidget>;
+}) {
+  const [sorting, setSorting] =
+    useState<EntitySorting<StoryWidget>>(initialSorting);
   const [filtering, setFiltering] = useState<FilterGroup<StoryWidget>>({
     operator: 'and',
     values: [],
@@ -296,6 +327,27 @@ function SortAndFilterDemo() {
     />
   );
 }
+
+/**
+ * A list that opens sorted — a worklist putting what needs acting on first.
+ * The header says so before anyone touches it, and a click still moves it.
+ */
+export const OpensSorted: Story = {
+  render: () => (
+    <SortAndFilterDemo
+      initialSorting={{ 0: { property: 'name', type: 'desc' } }}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const name = canvas.getByRole('columnheader', { name: /Name/ });
+    await expect(name).toHaveAttribute('aria-sort', 'descending');
+
+    // Descending is the end of the header's cycle, so a click lifts it.
+    await userEvent.click(within(name).getByRole('button'));
+    await expect(name).not.toHaveAttribute('aria-sort');
+  },
+};
 
 export const SortAndFilter: Story = {
   render: () => <SortAndFilterDemo />,

@@ -279,6 +279,35 @@ describe('useDataLoading filtering and sorting', () => {
     await waitFor(() => expect(result.current.items).toHaveLength(10));
   });
 
+  // A list that opens sorted asks for that order on its very first request, and
+  // reads as sorted by it; a header click replaces it like any other sort.
+  it('opens on an initial sorting the user can replace', async () => {
+    const requests = recording();
+    const { result } = renderHook(
+      () =>
+        useDataLoading<Widget, EntityRepositoryTag>({
+          uc: loadUCFactory<Widget>(),
+          ctx: makeContext(),
+          initialSorting: { 0: { property: 'name', type: 'desc' } },
+        }),
+      { wrapper },
+    );
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(requests[0]?.sorting).toEqual([
+      { 0: { property: 'name', type: 'desc' } },
+    ]);
+    expect(result.current.items[0]?.name).toBe('Widget 9');
+    expect(result.current.sorting).toEqual({
+      0: { property: 'name', type: 'desc' },
+    });
+
+    act(() =>
+      result.current.onSortingChange({ 0: { property: 'name', type: 'asc' } }),
+    );
+    await waitFor(() => expect(result.current.items[0]?.name).toBe('Widget 1'));
+  });
+
   it('holds the request back while disabled', async () => {
     const { result, rerender } = renderHook(
       ({ enabled }: { enabled: boolean }) =>

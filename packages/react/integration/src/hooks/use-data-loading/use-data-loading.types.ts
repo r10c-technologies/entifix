@@ -73,4 +73,14 @@ export interface UseDataLoadingOptions<TEntity extends Entity, TContext> {
    * Read once, on mount, like {@link initialPageSize}; a later value is ignored.
    */
   initialFiltering?: FilterGroup<TEntity>;
+  /**
+   * The order the list *opens* in: sent with the first load and handed back as
+   * `sorting`, so the header reads as sorted by it exactly as if the user had
+   * clicked it — and a click replaces it. What a worklist opens on: the stock
+   * that is out first, the oldest order first.
+   *
+   * Read once, on mount, like {@link initialFiltering}; a later value is
+   * ignored.
+   */
+  initialSorting?: EntitySorting<TEntity>;
 }

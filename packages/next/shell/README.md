@@ -2,7 +2,7 @@
 
 The Next.js application shell. `makeEntityCrud` derives the list, detail and edit screens for an entity from its metadata; `BackOfficeShell` and `WorkspaceShell` provide the chrome, sidebar navigation, breadcrumbs, workspace tabs and command palette around them. Drafts and pending writes persist in IndexedDB.
 
-`makeEntityCrud` takes a `delete` policy (`confirm`, `undo` or `typed`) and a `facets` adapter, announces saves and deletions, names a record in its rows, toasts and breadcrumb rather than by its id, and keeps focus on a heading after every write. `ConfirmAction` asks before a Server Action acts, with or without JavaScript; the action guards itself with `whenConfirmed`. `AccountMenu` offers theme and density.
+`makeEntityCrud` takes a `delete` policy (`confirm`, `undo` or `typed`), a `facets` adapter, the filter and order a list opens on (`initialFiltering`, `initialSorting`) and a `useListView` hook that titles the list and withholds columns for whoever is reading it, announces saves and deletions, names a record in its rows, toasts and breadcrumb rather than by its id, and keeps focus on a heading after every write. `ConfirmAction` asks before a Server Action acts, with or without JavaScript; the action guards itself with `whenConfirmed`. `AccountMenu` offers theme and density.
 
 The `server` entry holds the route handlers a Next backend needs: a same-origin proxy to your services, session refresh and cookies, health, and record search across services — and `whenConfirmed` and `readThemeCookies`.
 
@@ -20,6 +20,8 @@ const REFERENCE_LABELS: ReferenceLabelRegistration[] = [
 ```
 
 Every screen then shows the target's name where it would have shown the key, read in one request per target entity per page and cached per id, so a record's page reuses what its list read. A target's `id` must be `filterable`. An entity no registration reads shows its raw id, muted, and `onUnregistered` is told its key once, for the host to warn about in development.
+
+Record search follows the same references. A source declared with `reference: { entityConstructor, baseUrl }` is searched through the record its `searchProperty` refers to — a stock level by its product's name — and labelled by it; a source with no `labelProperty` names each record as every other screen does, and one nothing names reads as its noun and short id.
 
 ## Install
 

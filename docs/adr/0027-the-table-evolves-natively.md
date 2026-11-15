@@ -3,6 +3,7 @@
 - Status: Accepted
 - Revised: 2026-11-09 — facet counts show for enum and boolean members (a link's count would show ids, not names); the pivot widths and default card roles are as built in #193
 - Revised: 2026-11-14 by [ADR 0030](0030-a-reference-names-its-target-through-the-owners-read-port.md) — the pivot switches at a row's essential width, not every column's, and the grid scrolls with its title sticky in between (#231)
+- Revised: 2026-11-15 — a list may open sorted, its header saying so from the first render; and a host may withhold a column from a reader, which is not a hidden column the reader can restore
 - Date: 2026-11-05
 - Area: ui
 - Read when: a list shows cards inside a wide workspace pane or a cramped table in a narrow one, a screen reader cannot tell how a list is sorted or how many rows a filter kept, a table's horizontal scroll cannot be reached by keyboard, choosing between `table` and `grid` semantics, or about to add `@tanstack/react-table` or another table engine
@@ -64,6 +65,17 @@ reason.
   - Shift+click adds a secondary key.
   - The sort builder stays for anything more complex.
   - The arrow glyph is `aria-hidden`.
+  - **A list may open sorted** — a worklist putting what needs acting on
+    first. The order is the reader's from the first render: the header carries
+    `aria-sort` for it and a click moves it like any other. A generated list
+    checks the opening order against the `sortable` allowlist when the screen
+    is generated, as it checks its opening filter.
+- **A host may withhold a column from a reader** — a member that would only
+  ever name the reader themselves. It is not a column the reader hid: it is
+  gone from the header, the column settings, the filters, the sort choices and
+  the cards, so nothing offers to bring it back. It is presentation, never
+  access: the service still decides which records, and which values, the
+  reader receives.
 - **The table is named by a caption** stating entity, count and sort ("Brands,
   48 results, sorted by name"). It is visually hidden where the screen already
   has a heading.
