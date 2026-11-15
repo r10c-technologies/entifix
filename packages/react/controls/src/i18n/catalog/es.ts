@@ -94,6 +94,10 @@ export const controls = {
     empty: 'Aquí aparecerán sus {{plural}}.',
     saved: 'Se guardó {{object}}.',
   },
+  summary: {
+    loading: 'Cargando…',
+    failed: 'No se pudo cargar {{label}}.',
+  },
   pagination: {
     label: 'Páginas',
     summary: 'Página {{current}} de {{total}} · {{items}} registros',

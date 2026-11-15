@@ -73,6 +73,10 @@ export const controls: EsControls = {
     empty: 'Your {{plural}} will appear here.',
     saved: 'Saved {{object}}.',
   },
+  summary: {
+    loading: 'Loading…',
+    failed: 'Could not load {{label}}.',
+  },
   pagination: {
     label: 'Pages',
     summary: 'Page {{current}} of {{total}} · {{items}} items',
