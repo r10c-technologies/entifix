@@ -1,3 +1,13 @@
+## 0.22.3 (2026-11-15)
+
+### 🚀 Features
+
+- **react-controls,next-shell:** lists open by name, hide the own key, read host repositories ([#252](https://github.com/r10c-technologies/entifix/pull/252))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.22.2 (2026-11-15)
 
 ### 🩹 Fixes
