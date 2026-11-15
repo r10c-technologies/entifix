@@ -5,6 +5,9 @@ import {
   type EntityFieldDescriptor,
   type EntityLoadRequest,
   envelopeEntityName,
+  type Locale,
+  localizedQueryProperty,
+  queryPropertyFor,
   readEntityPageEnvelope,
   serializeLoadRequestParams,
 } from '@entifix/core';
@@ -46,10 +49,18 @@ export interface RecordSearchSource {
   readonly entity: string;
   readonly labelKey: string;
   /** The upstream URL for one term. */
-  readonly url: (term: string, limit: number) => string;
-  /** `undefined` when the body is not a readable `entityPage` envelope. */
+  /**
+   * The upstream URL for one term, in the reader's locale — which a localized
+   * search or label member is filtered and sorted in.
+   */
+  readonly url: (term: string, limit: number, locale: Locale) => string;
+  /**
+   * `undefined` when the body is not a readable `entityPage` envelope. A
+   * localized label reads in `locale`.
+   */
   readonly read: (
     body: unknown,
+    locale: Locale,
   ) => { items: RecordSearchOption[]; total: number } | undefined;
 }
 
@@ -115,13 +126,14 @@ export const defineRecordSearchSource = <TEntity extends Entity>({
   }
   // A `like` against anything else reaches `coerceValue`, which rejects a
   // partial term — so an enum member reads as declarable and is permanently
-  // broken: every keystroke short of a whole value answers `400`.
-  if (search.type !== 'string') {
+  // broken: every keystroke short of a whole value answers `400`. A localized
+  // member is text too, searched in the reader's locale.
+  if (search.type !== 'string' && search.type !== 'localized') {
     throw rejection(
       entityName,
       searchProperty,
       `the member is a ${search.type}, and a partial term is not a valid value for it.`,
-      'Search a string member instead.',
+      'Search a string or localized member instead.',
     );
   }
 
@@ -137,17 +149,8 @@ export const defineRecordSearchSource = <TEntity extends Entity>({
   // The group is sorted by the label, so the flag is load-bearing: without it
   // the service rejects the sort and the group degrades whole. Unsorted was the
   // alternative and is worse — the services apply no default order, so results
-  // would arrive in storage order and shuffle as records are rewritten.
-  // A localized label sorts one locale at a time, and a search that fans out
-  // across services holds none: the bare member would answer `400`.
-  if (label.type === 'localized') {
-    throw rejection(
-      entityName,
-      labelProperty,
-      'the label member is localized, and the search has no locale to sort it in.',
-      'Label records by a string member.',
-    );
-  }
+  // would arrive in storage order and shuffle as records are rewritten. A
+  // localized label sorts in the reader's locale.
   if (!label.sortable) {
     throw rejection(
       entityName,
@@ -172,6 +175,7 @@ export const defineRecordSearchSource = <TEntity extends Entity>({
 
   const read = (
     body: unknown,
+    locale: Locale,
   ): { items: RecordSearchOption[]; total: number } | undefined => {
     const page = Effect.runSyncExit(
       readEntityPageEnvelope(entityConstructor, body),
@@ -182,17 +186,21 @@ export const defineRecordSearchSource = <TEntity extends Entity>({
       .filter(record => (record as Entity).id != null)
       .map(record => {
         const row = record as unknown as Record<string, unknown>;
-        const raw = row[labelProperty];
+        const raw = localizedQueryProperty(label, locale).read(
+          row[labelProperty],
+        );
         const id = String((record as Entity).id);
+        const sublabelText =
+          sublabel === undefined
+            ? undefined
+            : localizedQueryProperty(sublabel, locale).read(row[sublabel.name]);
         return {
           id,
           // A blank label is as useless as a missing one, so both fall back to
           // the id — an unnamed record must stay distinguishable from the one
           // above it. Same rule the relation picker's `labelOf` applies.
-          label: raw == null || raw === '' ? id : String(raw),
-          ...(sublabel !== undefined && row[sublabel.name] != null
-            ? { sublabel: String(row[sublabel.name]) }
-            : {}),
+          label: raw === undefined || raw === '' ? id : raw,
+          ...(sublabelText === undefined ? {} : { sublabel: sublabelText }),
           entity,
           href: href(id),
         } satisfies RecordSearchOption;
@@ -211,16 +219,23 @@ export const defineRecordSearchSource = <TEntity extends Entity>({
      * any of `;,()'"=!<>\` or whitespace, so `Acme, Inc.` stays one value
      * instead of splitting the expression into two comparisons.
      */
-    url: (term, limit) => {
+    url: (term, limit, locale) => {
       const request = {
         filtering: [
           {
-            property: search.key,
+            property: queryPropertyFor(search, locale),
             operator: 'like' as const,
             value: term,
           },
         ],
-        sorting: [{ 0: { property: label.key, type: 'asc' as const } }],
+        sorting: [
+          {
+            0: {
+              property: queryPropertyFor(label, locale),
+              type: 'asc' as const,
+            },
+          },
+        ],
         page: 1,
         pageSize: limit,
       } as unknown as EntityLoadRequest;

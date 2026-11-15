@@ -23,6 +23,8 @@ class Thing implements Entity {
   #secret?: string;
   #status?: string;
   #unsortable?: string;
+  #title?: Readonly<Record<string, string>>;
+  #motto?: Readonly<Record<string, string>>;
 
   @accessor({ type: 'id' })
   get id(): EntityId {
@@ -74,7 +76,18 @@ class Thing implements Entity {
 
   @accessor({ type: 'localized' })
   get title(): Readonly<Record<string, string>> | undefined {
-    return undefined;
+    return this.#title;
+  }
+  set title(value: Readonly<Record<string, string>> | undefined) {
+    this.#title = value;
+  }
+
+  @accessor({ type: 'localized', filterable: false })
+  get motto(): Readonly<Record<string, string>> | undefined {
+    return this.#motto;
+  }
+  set motto(value: Readonly<Record<string, string>> | undefined) {
+    this.#motto = value;
   }
 }
 
@@ -93,7 +106,7 @@ const define = (over: Record<string, unknown> = {}) =>
 const optionsOf = (
   source: ReturnType<typeof define>,
   body: unknown,
-): RecordSearchOption[] => source.read(body)?.items ?? [];
+): RecordSearchOption[] => source.read(body, 'es')?.items ?? [];
 
 const aPage = (
   rows: ReadonlyArray<Record<string, unknown>>,
@@ -125,7 +138,7 @@ describe('defineRecordSearchSource', () => {
       // The member's wire key, not its accessor name: `name` is aliased to
       // `display_name`, and the allowlist is keyed on both — but what the
       // service filters on is the column.
-      expect(define().url('Acme', 5)).toBe(
+      expect(define().url('Acme', 5, 'es')).toBe(
         'http://things.test/api/thing?rsql=display_name%3Dlike%3DAcme&sort=%2Bdisplay_name&page=1&pageSize=5',
       );
     });
@@ -133,9 +146,9 @@ describe('defineRecordSearchSource', () => {
     // Not tidiness: hand-building the expression would split this term into two
     // comparisons at the comma and search for something nobody typed.
     it('quotes a term carrying reserved characters', () => {
-      const rsql = new URL(define().url("Acme, Inc.'s", 5)).searchParams.get(
-        'rsql',
-      );
+      const rsql = new URL(
+        define().url("Acme, Inc.'s", 5, 'es'),
+      ).searchParams.get('rsql');
 
       expect(rsql).toBe("display_name=like='Acme, Inc.\\'s'");
     });
@@ -168,9 +181,15 @@ describe('defineRecordSearchSource', () => {
       );
     });
 
-    it('refuses a localized label member, which it has no locale to sort in', () => {
-      expect(() => define({ labelProperty: 'title' })).toThrow(
-        /the label member is localized/,
+    it('takes a localized search and label member, queried in a locale', () => {
+      expect(() =>
+        define({ searchProperty: 'title', labelProperty: 'title' }),
+      ).not.toThrow();
+    });
+
+    it('refuses a localized search member that is not filterable', () => {
+      expect(() => define({ searchProperty: 'motto' })).toThrow(
+        /not filterable/,
       );
     });
 
@@ -197,12 +216,59 @@ describe('defineRecordSearchSource', () => {
     });
   });
 
+  describe('a localized label', () => {
+    const localized = () =>
+      define({
+        searchProperty: 'title',
+        labelProperty: 'title',
+        sublabelProperty: 'motto',
+      });
+
+    it.each([
+      ['es', 'title.es'],
+      ['en', 'title.en'],
+    ])('is searched and sorted in %s', (locale, property) => {
+      const url = new URL(localized().url('cafe', 5, locale));
+
+      expect(url.searchParams.get('rsql')).toBe(`${property}=like=cafe`);
+      expect(url.searchParams.get('sort')).toBe(`+${property}`);
+    });
+
+    it.each([
+      ['es', 'Café', 'Lema'],
+      ['en', 'Coffee', 'Motto'],
+    ])('reads in %s', (locale, label, sublabel) => {
+      const [option] = localized().read(
+        aPage([
+          {
+            id: 't-1',
+            title: { es: 'Café', en: 'Coffee' },
+            motto: { es: 'Lema', en: 'Motto' },
+          },
+        ]),
+        locale,
+      )!.items;
+
+      expect(option).toMatchObject({ label, sublabel });
+    });
+
+    it('falls back to the id when the label holds no text', () => {
+      const [option] = localized().read(
+        aPage([{ id: 't-1', title: { es: '' } }]),
+        'en',
+      )!.items;
+
+      expect(option?.label).toBe('t-1');
+      expect(option).not.toHaveProperty('sublabel');
+    });
+  });
+
   describe('reading an answer', () => {
     it('maps a page to options', () => {
       const source = define({ sublabelProperty: 'code' });
 
       expect(
-        source.read(aPage([{ id: 't-1', name: 'Acme', code: 'C-1' }], 7)),
+        source.read(aPage([{ id: 't-1', name: 'Acme', code: 'C-1' }], 7), 'es'),
       ).toEqual({
         items: [
           {
@@ -246,7 +312,7 @@ describe('defineRecordSearchSource', () => {
     });
 
     it('drops a record with no id, since it cannot be routed to', () => {
-      expect(define().read(aPage([{ name: 'Acme' }]))?.items).toEqual([]);
+      expect(define().read(aPage([{ name: 'Acme' }]), 'es')?.items).toEqual([]);
     });
 
     it.each([
@@ -255,7 +321,7 @@ describe('defineRecordSearchSource', () => {
       ['null', null],
       ['a string', 'nope'],
     ])('reads %s as unreadable', (_case, body) => {
-      expect(define().read(body)).toBeUndefined();
+      expect(define().read(body, 'es')).toBeUndefined();
     });
   });
 });

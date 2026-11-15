@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-20
 - Revised: 2026-11-02 by [#126](https://github.com/r10c-technologies/entifix/issues/126) — the `EntifixError` tree is deleted; a declaration that cannot be honoured throws a plain `Error`.
+- Revised: 2026-11-15 by [#237](https://github.com/r10c-technologies/entifix/issues/237) — the link picker and the record search query a localized member in the reader's locale rather than refusing it.
 - Area: entities
 - Read when: declaring locales, holding text in several languages, writing a validation rule a consumer keeps repeating, publishing an entity narrower than it is stored, serving records that arrive as JSON, or about to write a second in-memory filter — the host declares its locales, a localized member is queried one locale at a time, and untyped records go through `validateRecords` before anything serves them
 
@@ -47,9 +48,11 @@ it with a message naming the path, and rejects a locale the host did not
 declare. Mongo reads the dotted path natively; SQL compares `"title"->>$1` over
 a `jsonb` column with the locale bound as a parameter. Completeness is
 all-or-nothing: absent is absent, and once any locale holds text every declared
-locale must. Two places cannot hold one and refuse it at definition rather than
-guess — a composition child (a row is a flat string map) and the link picker and
-record search (neither holds a locale to query in).
+locale must. A composition child cannot hold one (a row is a flat string map)
+and refuses it at definition rather than guess. The link picker and the record
+search take the reader's locale and query a localized member in it — filtered
+and sorted as `name.es`, read with the same fallback — so a host's vocabulary
+can be written per language without giving up being picked or found.
 
 **Constraints live in metadata.** `minItems` / `maxItems` on a collection,
 `notBefore` between two dates, `cardinality` on the entity. A declaration that
@@ -84,5 +87,7 @@ see that it installed an adapter, and it is one.
   `EntityDraftMessages` gains `minItems`, `maxItems`, `notBefore` and `locale`.
 - A new published package needs a bootstrap publish before trusted publishing can
   be configured for it ([ADR 0003](0003-releasing-without-a-credential.md)).
-- Querying a localized member from the link picker or the record search is not
-  supported; both refuse one loudly. A composition child cannot hold one.
+- The link picker and the record search query a localized member in the
+  reader's locale, and refuse one only when it is not `filterable` (a record
+  search label also needs `sortable`), as for any member. A composition child
+  cannot hold one.

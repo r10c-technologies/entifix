@@ -7,6 +7,7 @@ import type {
   EntityId,
   EntityPage,
   FilterGroup,
+  Locale,
 } from '@entifix/core';
 import type { Context, Effect } from 'effect';
 
@@ -59,4 +60,10 @@ export interface UseEntityLinkSourceOptions<TTarget extends Entity> {
    * spares the label request entirely.
    */
   selectedEntity?: TTarget;
+  /**
+   * The reader's locale. A `localized` search member is filtered and sorted
+   * in it (`name.es`), and a `localized` label reads in it. Defaults to the
+   * host's default locale.
+   */
+  locale?: Locale;
 }

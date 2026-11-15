@@ -10,6 +10,8 @@ export interface SearchRecordsOptions {
   readonly sources?: readonly string[];
   /** Records per group. */
   readonly limit?: number;
+  /** The reader's locale, which a localized member is searched and read in. */
+  readonly locale?: string;
 }
 
 /**
@@ -26,13 +28,14 @@ export interface SearchRecordsOptions {
  */
 export const searchRecords = async (
   term: string,
-  { signal, sources, limit }: SearchRecordsOptions = {},
+  { signal, sources, limit, locale }: SearchRecordsOptions = {},
 ): Promise<RecordSearchResponse> => {
   const params = new URLSearchParams({ q: term });
   if (sources !== undefined && sources.length > 0) {
     params.set('sources', sources.join(','));
   }
   if (limit !== undefined) params.set('limit', String(limit));
+  if (locale !== undefined) params.set('locale', locale);
 
   const response = await fetch(`${RECORD_SEARCH_PATH}?${params.toString()}`, {
     cache: 'no-store',

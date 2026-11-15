@@ -2,12 +2,15 @@
 
 import { EntityIdTag, EntityLoadRequestTag } from '@entifix/business';
 import {
+  defaultLocale,
   describeEntityColumns,
   type EntifixFailure,
   type Entity,
+  type EntityFieldDescriptor,
   type EntityLinkSource,
   type EntityLoadRequest,
   type EntityPage,
+  localizedQueryProperty,
 } from '@entifix/core';
 import { useQuery } from '@tanstack/react-query';
 import { Context, Effect } from 'effect';
@@ -28,30 +31,23 @@ const DEFAULT_QUICK_PAGE_SIZE = 10;
 const DEFAULT_DEBOUNCE_MS = 250;
 
 /**
- * Fails loudly on a search property the service will reject.
+ * Fails loudly on a search property the service will reject, and returns its
+ * descriptor.
  *
  * A member's `filterable` metadata is also the server-side filter allowlist, so a
  * quick search over a member that lacks it answers `400` — as an empty
  * suggestion list, which reads to the user as "there are no brands". Better to
- * break the developer's build than to lie to them.
+ * break the developer's build than to lie to them. A `localized` member is
+ * searchable like any other: it is queried in the reader's locale.
  */
 function assertSearchable<TTarget extends Entity>(
   config: EntityLinkSourceConfig<TTarget, unknown>,
   searchProperty: string,
-): void {
+): EntityFieldDescriptor {
   const target = describeEntityColumns(config.entityConstructor).find(
     column => column.name === searchProperty,
   );
-  if (target?.type === 'localized') {
-    // Queried one locale at a time, and this hook holds no locale: the bare
-    // member is what the service would refuse.
-    throw new Error(
-      `Cannot search ${config.entityConstructor.name} by "${searchProperty}": ` +
-        'the member is localized, and a quick search has no locale to search ' +
-        'it in. Point the relation at a string member with `linkSearchProperty`.',
-    );
-  }
-  if (target?.filterable === true) return;
+  if (target?.filterable === true) return target;
 
   throw new Error(
     `Cannot search ${config.entityConstructor.name} by "${searchProperty}": ` +
@@ -88,6 +84,7 @@ export function useEntityLinkSource<TTarget extends Entity, TContext>(
     descriptor,
     selectedId,
     selectedEntity,
+    locale = defaultLocale(),
   }: UseEntityLinkSourceOptions<TTarget>,
 ): EntityLinkSource<TTarget> {
   const {
@@ -100,11 +97,18 @@ export function useEntityLinkSource<TTarget extends Entity, TContext>(
     debounceMs = DEFAULT_DEBOUNCE_MS,
   } = config;
 
-  const searchProperty = descriptor.linkSearchProperty;
-  assertSearchable(
+  const searchDescriptor = assertSearchable(
     config as unknown as EntityLinkSourceConfig<TTarget, unknown>,
-    searchProperty,
+    descriptor.linkSearchProperty,
   );
+  // A localized member is filtered and sorted one locale at a time — the
+  // reader's — and its options read in that locale.
+  const search = localizedQueryProperty(searchDescriptor, locale);
+  const searchProperty = search.property;
+  const labelDescriptor = describeEntityColumns(entityConstructor).find(
+    column => column.name === descriptor.linkLabelProperty,
+  );
+  const isLocalizedSearch = searchDescriptor.type === 'localized';
 
   // Callers rebuild `loadUc`/`getUc`/`ctx` inline on every render, so the latest
   // are held in refs and kept out of the query keys — keying on their identity
@@ -147,8 +151,21 @@ export function useEntityLinkSource<TTarget extends Entity, TContext>(
       pageSize: quickPageSize,
     };
     if (filtering) request.filtering = [filtering];
+    // Suggestions in one locale's order, so they do not reshuffle as records
+    // are rewritten — the service applies no order of its own.
+    if (isLocalizedSearch) {
+      request.sorting = [
+        { 0: { property: searchProperty as keyof TTarget, type: 'asc' } },
+      ];
+    }
     return request;
-  }, [baseFiltering, debouncedTerm, quickPageSize, searchProperty]);
+  }, [
+    baseFiltering,
+    debouncedTerm,
+    isLocalizedSearch,
+    quickPageSize,
+    searchProperty,
+  ]);
 
   const quickQuery = useQuery<EntityPage<TTarget>, EntifixFailure>({
     queryKey: [
@@ -203,14 +220,17 @@ export function useEntityLinkSource<TTarget extends Entity, TContext>(
   // an unnamed row must still be distinguishable from the row above it.
   const labelOf = useCallback(
     (target: TTarget) => {
-      const label = (target as Record<string, unknown>)[
+      const raw = (target as Record<string, unknown>)[
         descriptor.linkLabelProperty
       ];
-      return label == null || label === ''
-        ? String(target.id ?? '')
-        : String(label);
+      // A label member the target does not declare reads as nothing, so the
+      // option falls back to its id.
+      const label =
+        labelDescriptor &&
+        localizedQueryProperty(labelDescriptor, locale).read(raw);
+      return label ? label : String(target.id ?? '');
     },
-    [descriptor.linkLabelProperty],
+    [descriptor.linkLabelProperty, labelDescriptor, locale],
   );
 
   const resolved = selectedEntity ?? labelQuery.data;
