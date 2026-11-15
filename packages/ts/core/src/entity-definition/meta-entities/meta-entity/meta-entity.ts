@@ -64,7 +64,9 @@ export interface MetaEntityOptions {
    * or a reference, in which case the record is called by its target's name.
    * Every surface that names a record (a row, a card's heading, a confirm
    * dialog, a breadcrumb, a toast) reads it through `recordLabel()`.
-   * Undeclared, the first filled-in member that is not a key is used. Checked
+   * Undeclared, the first filled-in text member that is not a key is used —
+   * never a number, an enum or a date, which hold a value rather than a name;
+   * with none, the record is the noun and its short id. Checked
    * when the entity is described: a member that does not exist, is hidden or
    * is a collection fails
    * ([ADR 0030](../../../../../../../docs/adr/0030-a-reference-names-its-target-through-the-owners-read-port.md)).

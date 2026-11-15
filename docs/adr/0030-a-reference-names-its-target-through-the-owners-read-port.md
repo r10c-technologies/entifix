@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Revised: 2026-11-15 — record search finds a record through the one it refers to, and a record search result names itself as every other surface does
+- Revised: 2026-11-15 — an undeclared name is a text member only: a number, an enum or a date the record holds never names it
 - Date: 2026-11-14
 - Area: entities
 - Read when: a list, a form, a confirm dialog or a breadcrumb shows `product-offering-10` or a UUID where a person needs a name, a member holds another entity's id and cannot be a `link` because the target lives in another store, a list needs a column whose value lives in another entity (a price, a stock level, a picture), a record page needs the records that point at it, or about to add another "first filled-in member" guess at what a record is called
@@ -81,9 +82,13 @@ a text, a reference to resolve, or a fallback carrying the short id — and
 
 1. the declared `labelMember` — or, failing one, the member declared the card's
    `title`, which already says the same thing — resolved if it is a reference;
-2. undeclared: the first filled-in member that is neither an `id`, a reference,
-   a `link`, a hidden member nor a collection (the current heuristic, minus the
-   kinds that are keys);
+2. undeclared: the first filled-in **text** member — a `string` or a
+   `localized` — that is neither an `id`, a reference, a `link`, a hidden
+   member nor a collection. A number, an enum or a date is a value the record
+   holds, not what it is called: with the kinds that are keys excluded but
+   those left in, an order with no text member was called by its payment
+   method ("card") and a shipment by its status ("dispatched"). A host that
+   wants a number to name a record declares it as the `labelMember`;
 3. nothing: the entity's noun with the id's short form — an id of twelve
    characters or fewer whole, a longer one cut to its first eight ("Shipment
    79ce50c8"). A whole UUID is never a label, and `offering-12` is not cut to
