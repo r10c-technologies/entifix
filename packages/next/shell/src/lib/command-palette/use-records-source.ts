@@ -72,6 +72,7 @@ export function useRecordsSource(
   enabled: boolean,
 ): CommandSource {
   const t = useT('shell');
+  const controls = useT();
   const translateKey = useTranslateKey();
   const locale = useLocale();
   const withLocale = useLocaleHref();
@@ -182,7 +183,15 @@ export function useRecordsSource(
       label: translateKey(group.labelKey),
       options: group.items.map(item => ({
         id: `record:${group.source}:${item.id}`,
-        label: item.label,
+        // A record nothing names reads as a table names it: the entity's noun
+        // and its short id, never the bare id.
+        label:
+          item.unnamed === true
+            ? controls('reference.unresolved', {
+                noun: translateKey(`entity:${item.entity}.label`),
+                id: item.label,
+              })
+            : item.label,
         ...(item.sublabel === undefined ? {} : { sublabel: item.sublabel }),
         href: withLocale(item.href),
       })),
@@ -214,5 +223,5 @@ export function useRecordsSource(
     }
 
     return { key: 'records', groups };
-  }, [active, enabled, state, term, t, translateKey, withLocale]);
+  }, [active, controls, enabled, state, term, t, translateKey, withLocale]);
 }

@@ -35,6 +35,12 @@ export type RecordSearchUnavailableReason = string;
 export interface RecordSearchOption {
   readonly id: string;
   readonly label: string;
+  /**
+   * Nothing names this record: {@link label} is its short id, and a caller
+   * puts it into words with the entity's noun — "Order 8a564966" — the way a
+   * table names a record nothing names.
+   */
+  readonly unnamed?: true;
   /** A secondary line — a code, a role. Absent when the source declared none. */
   readonly sublabel?: string;
   /**
