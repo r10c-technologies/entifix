@@ -1,3 +1,13 @@
+## 0.22.1 (2026-11-15)
+
+### 🚀 Features
+
+- **source:** close UX 1's gaps — opening sort, per-reader list, search through a reference ([#244](https://github.com/r10c-technologies/entifix/pull/244))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.22.0 (2026-11-15)
 
 ### 🚀 Features
