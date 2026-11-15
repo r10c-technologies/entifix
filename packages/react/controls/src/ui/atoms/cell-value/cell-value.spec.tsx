@@ -81,6 +81,51 @@ describe('CellValue', () => {
     expect(screen.getByText(expected)).toBeInTheDocument();
   });
 
+  describe('statuses', () => {
+    const toned = (
+      enumTones?: EntityFieldDescriptor['enumTones'],
+    ): EntityFieldDescriptor => ({
+      ...descriptor('enum'),
+      enumValues: ['draft', 'published', 'retired'],
+      ...(enumTones === undefined ? {} : { enumTones }),
+    });
+
+    it('renders a toned enum value as a tag in its tone, beside its words', () => {
+      render(
+        <CellValue
+          value="published"
+          descriptor={toned({ published: 'success', retired: 'danger' })}
+        />,
+      );
+
+      const tag = screen.getByText('published');
+      expect(tag).toHaveAttribute('data-tone', 'success');
+    });
+
+    it('reads a value given no tone as neutral', () => {
+      render(
+        <CellValue value="draft" descriptor={toned({ retired: 'danger' })} />,
+      );
+
+      expect(screen.getByText('draft')).toHaveAttribute('data-tone', 'neutral');
+    });
+
+    it('keeps an enum without tones as plain text', () => {
+      const { container } = render(
+        <CellValue value="draft" descriptor={toned()} />,
+      );
+
+      expect(container.querySelector('[data-tone]')).toBeNull();
+      expect(container).toMatchInlineSnapshot(`
+        <div>
+          <span>
+            draft
+          </span>
+        </div>
+      `);
+    });
+  });
+
   describe('booleans', () => {
     // Rendering `true`/`false` would leak the wire representation into the UI.
     it.each([

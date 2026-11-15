@@ -8,6 +8,10 @@ import {
 
 import { FlowEngineLayer } from '../engine/make-flow-engine.js';
 import type { InterpreterOptions } from '../interpreter/slip-workflow.js';
+import {
+  JournalPurgeLayer,
+  type JournalRetention,
+} from '../postgres/journal-retention.js';
 import { SqlFlowStatusStoreLayer } from '../postgres/sql-flow-status-store.js';
 
 export interface SocketRunnerOptions {
@@ -30,13 +34,15 @@ export interface SocketRunnerOptions {
  * ([ADR 0016](../../../../../docs/adr/0016-a-flow-engine-port-and-a-durable-workflow-adapter.md)):
  * runners register in the shared SQL database, shards are spread between
  * them, and a runner that dies has its flows resumed by another. Every
- * replica runs this with its own port.
+ * replica runs this with its own port, and each one purges finished flows'
+ * journals after `journalRetention` — a pass skips rows another holds.
  */
 export const SocketRunnerFlowEngineLayer = (
-  options: InterpreterOptions,
+  options: InterpreterOptions & JournalRetention,
   runner: SocketRunnerOptions,
 ) =>
   FlowEngineLayer(options).pipe(
+    Layer.merge(JournalPurgeLayer(options)),
     Layer.provide(SqlFlowStatusStoreLayer),
     Layer.provide(
       ClusterWorkflowEngine.layer.pipe(

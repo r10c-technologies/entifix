@@ -58,19 +58,59 @@ describe('MediaGallery', () => {
     expect(last.queryByRole('link', { name: 'Next' })).not.toBeInTheDocument();
   });
 
-  it('renders plain images, or what the host renders', () => {
-    const { rerender } = render(<MediaGallery items={ITEMS} labels={LABELS} />);
-    expect(screen.getByRole('img', { name: 'Side' })).toHaveAttribute(
-      'src',
-      '/b.jpg',
+  it('fetches the first slide at once and every later one lazily', () => {
+    render(<MediaGallery items={ITEMS} labels={LABELS} />);
+
+    expect(screen.getByRole('img', { name: 'Front' })).toHaveAttribute(
+      'fetchpriority',
+      'high',
     );
-    rerender(
+    for (const name of ['Side', 'Back']) {
+      const image = screen.getByRole('img', { name });
+      expect(image).toHaveAttribute('loading', 'lazy');
+      expect(image).not.toHaveAttribute('fetchpriority');
+    }
+  });
+
+  it('passes its sizes, ratio, loader and known dimensions to each image', () => {
+    render(
+      <MediaGallery
+        items={[{ ...ITEMS[0]!, width: 800, height: 600 }]}
+        labels={LABELS}
+        sizes="50vw"
+        aspectRatio={4 / 3}
+        loader={(src, width) => `${src}?w=${width}`}
+      />,
+    );
+    const image = screen.getByRole('img', { name: 'Front' });
+
+    expect(image).toHaveAttribute('sizes', '50vw');
+    expect(image).toHaveAttribute('width', '800');
+    expect(image.getAttribute('srcset')).toContain('/a.jpg?w=320 320w');
+    expect(image.parentElement?.style.aspectRatio).toBe('1.33333 / 1');
+  });
+
+  it("hands a host's renderer the slide's decisions, inside the reserved box", () => {
+    const seen: unknown[] = [];
+    render(
       <MediaGallery
         items={ITEMS}
         labels={LABELS}
-        renderMedia={item => <span data-testid={`media-${item.id}`} />}
+        sizes="33vw"
+        renderMedia={(item, slide) => {
+          seen.push(slide);
+          return <span data-testid={`media-${item.id}`} />;
+        }}
       />,
     );
-    expect(screen.getByTestId('media-c')).toBeInTheDocument();
+
+    expect(seen).toEqual([
+      { index: 0, priority: true, sizes: '33vw' },
+      { index: 1, priority: false, sizes: '33vw' },
+      { index: 2, priority: false, sizes: '33vw' },
+    ]);
+    expect(screen.getByTestId('media-c').parentElement?.style.aspectRatio).toBe(
+      '1 / 1',
+    );
   });
 });

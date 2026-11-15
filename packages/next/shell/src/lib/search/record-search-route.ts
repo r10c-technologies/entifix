@@ -1,7 +1,12 @@
 import {
   decodeProblem,
+  defaultLocale,
   type EntifixFailure,
   InvalidQuery,
+  isLocale,
+  type Locale,
+  LOCALE_COOKIE,
+  LOCALE_HEADER,
   ProtocolFailure,
   Timeout,
   Unauthenticated,
@@ -21,6 +26,8 @@ import type { RecordSearchSource } from './record-search-source.js';
 export const SEARCH_TERM_PARAM = 'q';
 export const SEARCH_SOURCES_PARAM = 'sources';
 export const SEARCH_LIMIT_PARAM = 'limit';
+/** The reader's locale, which a localized member is searched, sorted and read in. */
+export const SEARCH_LOCALE_PARAM = 'locale';
 
 /**
  * Below this, nothing is queried at all.
@@ -78,12 +85,13 @@ const runSource = async (
   source: RecordSearchSource,
   term: string,
   limit: number,
+  locale: Locale,
   token: string | undefined,
   timeoutMs: number,
 ): Promise<SourceOutcome> => {
   let upstream: Response;
   try {
-    upstream = await fetch(source.url(term, limit), {
+    upstream = await fetch(source.url(term, limit, locale), {
       headers: bearerHeader(token),
       cache: 'no-store',
       signal: AbortSignal.timeout(timeoutMs),
@@ -112,7 +120,7 @@ const runSource = async (
   }
 
   const body = await upstream.json().catch(() => undefined);
-  const page = source.read(body);
+  const page = source.read(body, locale);
   return page === undefined
     ? unavailable(
         source,
@@ -132,6 +140,25 @@ const runSource = async (
           total: page.total,
         },
       };
+};
+
+/**
+ * The locale a search runs in: the one the caller names, else the one the
+ * host's locale proxy forwarded, else the reader's locale cookie, else the
+ * host's default. Anything that is not a declared locale is passed over.
+ */
+const requestLocale = (request: Request, params: URLSearchParams): Locale => {
+  const cookie = (request.headers.get('cookie') ?? '')
+    .split(';')
+    .map(part => part.trim().split('='))
+    .find(([name]) => name === LOCALE_COOKIE)?.[1];
+  return (
+    [
+      params.get(SEARCH_LOCALE_PARAM),
+      request.headers.get(LOCALE_HEADER),
+      cookie,
+    ].find(isLocale) ?? defaultLocale()
+  );
 };
 
 const clampLimit = (raw: string | null, fallback: number): number => {
@@ -202,8 +229,11 @@ export const createRecordSearchRoute = ({
     }
 
     const limit = clampLimit(params.get(SEARCH_LIMIT_PARAM), defaultLimit);
+    const locale = requestLocale(request, params);
     const outcomes = await Promise.all(
-      selected.map(source => runSource(source, term, limit, token, timeoutMs)),
+      selected.map(source =>
+        runSource(source, term, limit, locale, token, timeoutMs),
+      ),
     );
 
     return answer({

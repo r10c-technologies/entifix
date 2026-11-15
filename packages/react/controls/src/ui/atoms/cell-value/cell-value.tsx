@@ -26,6 +26,7 @@ import {
 import { Money } from '../money/money.js';
 import { currencyOf } from '../money/money-math.js';
 import { Skeleton } from '../skeleton/index.js';
+import { StatusTag } from '../status-tag/index.js';
 
 /** Stand-in for an absent value, so an empty cell still reads as intentional. */
 const EMPTY = '—';
@@ -301,6 +302,17 @@ export function CellValue({ value, descriptor, record }: CellValueProps) {
 
   if (text === '') {
     return <span className="text-content-muted">{EMPTY}</span>;
+  }
+
+  // A status reads as a tag in its declared tone, its words beside the
+  // colour; a value given no tone reads neutral. An enum that declared no
+  // tones is not a status, and stays text.
+  if (descriptor.type === 'enum' && descriptor.enumTones !== undefined) {
+    return (
+      <StatusTag tone={descriptor.enumTones[String(value)] ?? 'neutral'}>
+        {text}
+      </StatusTag>
+    );
   }
 
   // Text the reader's locale lacks falls back to the default locale's, and is

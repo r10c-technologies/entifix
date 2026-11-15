@@ -7,6 +7,7 @@ import {
   type EntityLinkSource,
   readDraftString,
 } from '@entifix/core';
+import { useLocale } from '@entifix/react-controls';
 import { useEntityLinkSource } from '@entifix/react-integration';
 
 import type { EntityCrudLinkSource } from './make-entity-crud.types.js';
@@ -37,6 +38,8 @@ export function useEntityLinkSources(
   links: readonly EntityCrudLinkSource[],
   { values, selection }: UseEntityLinkSourcesOptions,
 ): Record<string, EntityLinkSource<Entity>> {
+  // A localized member is searched and read in the reader's own locale.
+  const locale = useLocale();
   const sources: Record<string, EntityLinkSource<Entity>> = {};
   for (const link of links) {
     // Read as a string: a relation's draft value is a foreign key, and a
@@ -50,6 +53,7 @@ export function useEntityLinkSources(
       // reference across a store boundary, so `''` would be a dangling id.
       selectedId: held === '' ? undefined : held,
       selectedEntity: selection[link.field],
+      locale,
     });
   }
   return sources;

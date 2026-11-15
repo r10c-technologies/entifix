@@ -7,3 +7,4 @@ export * from './use-crud-render-link.js';
 export * from './use-entity-affordances.js';
 export * from './use-entity-bulk.js';
 export * from './use-entity-link-sources.js';
+export * from './use-entity-total.js';

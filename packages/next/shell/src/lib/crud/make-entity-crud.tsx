@@ -575,7 +575,12 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
           {...(regionPageSize === undefined
             ? {}
             : { listPageSize: regionPageSize })}
-          onVerbSettled={() => headingRef.current?.focus()}
+          // The row's menu hands focus back to its trigger as it closes, and
+          // a verb that settles fast settles before that. Focusing on the
+          // next frame lands after the menu's restore, never under it.
+          onVerbSettled={() =>
+            requestAnimationFrame(() => headingRef.current?.focus())
+          }
         />
       </section>
     );

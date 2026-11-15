@@ -1,13 +1,15 @@
 import {
+  defineLocales,
   Failure,
   Forbidden,
   InvalidQuery,
   NotFound,
   problemOf,
+  resetLocales,
   Unauthenticated,
   Unavailable,
 } from '@entifix/core';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { RecordSearchResponse } from './record-search.types.js';
 import { createRecordSearchRoute } from './record-search-route.js';
@@ -45,15 +47,16 @@ const fakeSource = (
   key,
   entity: key,
   labelKey: `entity:${key}.plural`,
-  url: (term, limit) => `${origin}/api/${key}?rsql=${term}&pageSize=${limit}`,
-  read: body =>
+  url: (term, limit, locale) =>
+    `${origin}/api/${key}?rsql=${term}&pageSize=${limit}&locale=${locale}`,
+  read: (body, locale) =>
     (body as { rows?: unknown[] } | undefined)?.rows === undefined
       ? undefined
       : {
           items: [
             {
               id: `${key}-1`,
-              label: 'Acme',
+              label: `Acme (${locale})`,
               entity: key,
               href: `/${key}/${key}-1`,
             },
@@ -86,13 +89,14 @@ const get = async (
   options: Parameters<typeof createRecordSearchRoute>[0] = {
     sources: [things, people],
   },
+  headers: Record<string, string> = {},
 ): Promise<{
   status: number;
   body: RecordSearchResponse;
   response: Response;
 }> => {
   const response = await createRecordSearchRoute(options)(
-    new Request(`http://app.test/api/search${query}`),
+    new Request(`http://app.test/api/search${query}`, { headers }),
   );
   return {
     status: response.status,
@@ -101,12 +105,49 @@ const get = async (
   };
 };
 
+beforeEach(() => defineLocales({ locales: ['es', 'en'], defaultLocale: 'es' }));
+
 afterEach(() => {
+  resetLocales();
   vi.unstubAllGlobals();
   cookieValue.mockReturnValue('the-token');
 });
 
 describe('createRecordSearchRoute', () => {
+  describe('the locale a search runs in', () => {
+    it.each([
+      ['the one the caller names', '?q=cafe&locale=en', {}, 'en'],
+      [
+        'the forwarded one, when the caller names none',
+        '?q=cafe',
+        { 'x-entifix-locale': 'en' },
+        'en',
+      ],
+      [
+        'the cookie, when nothing is forwarded',
+        '?q=cafe',
+        { cookie: 'theme=dark; entifix_locale=en' },
+        'en',
+      ],
+      [
+        'the default, past anything undeclared',
+        '?q=cafe&locale=fr',
+        { 'x-entifix-locale': 'de', cookie: 'entifix_locale=pt' },
+        'es',
+      ],
+      ['the default, when nothing names one', '?q=cafe', {}, 'es'],
+    ])('is %s', async (_case, query, headers, locale) => {
+      const fetchMock = stubFetch(() => answering(200));
+
+      const { body } = await get(query, { sources: [things] }, headers);
+
+      expect(String(fetchMock.mock.calls[0]?.[0])).toContain(
+        `locale=${locale}`,
+      );
+      expect(body.groups[0]?.items[0]?.label).toBe(`Acme (${locale})`);
+    });
+  });
+
   describe('before anything is asked upstream', () => {
     // `catalog-reference` reads are unauthenticated at the service, so without
     // this a signed-out caller gets brand matches and the answer reads as a

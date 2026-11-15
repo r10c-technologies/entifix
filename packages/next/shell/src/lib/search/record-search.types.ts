@@ -59,9 +59,10 @@ export interface RecordSearchGroup {
   readonly source: string;
   readonly entity: string;
   /**
-   * The heading, as the entity's own `pluralKey`. A key rather than copy,
-   * because the server has no locale — and the entity catalogs already carry one
-   * for every source, so record search introduces no copy of its own.
+   * The heading, as the entity's own `pluralKey`. A key rather than copy:
+   * the entity catalogs already carry one for every source, so record search
+   * introduces no copy of its own. (The search runs in the reader's locale,
+   * but only a localized member's value depends on it.)
    */
   readonly labelKey: string;
   readonly items: readonly RecordSearchOption[];

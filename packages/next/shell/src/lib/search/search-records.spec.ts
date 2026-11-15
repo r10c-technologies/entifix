@@ -46,6 +46,15 @@ describe('searchRecords', () => {
     const params = urlOf(fetchMock).searchParams;
     expect(params.has('sources')).toBe(false);
     expect(params.has('limit')).toBe(false);
+    expect(params.has('locale')).toBe(false);
+  });
+
+  it('names the reader’s locale when the caller gives one', async () => {
+    const fetchMock = stubFetch(ok());
+
+    await searchRecords('cafe', { locale: 'en' });
+
+    expect(urlOf(fetchMock).searchParams.get('locale')).toBe('en');
   });
 
   it('narrows to the named sources', async () => {

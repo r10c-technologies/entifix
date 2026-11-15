@@ -6,7 +6,7 @@ import type {
   CommandUnavailableSeverity,
   FailureCategory,
 } from '@entifix/core';
-import { useT, useTranslateKey } from '@entifix/react-controls';
+import { useLocale, useT, useTranslateKey } from '@entifix/react-controls';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { useLocaleHref } from '../i18n/index.js';
@@ -73,6 +73,7 @@ export function useRecordsSource(
 ): CommandSource {
   const t = useT('shell');
   const translateKey = useTranslateKey();
+  const locale = useLocale();
   const withLocale = useLocaleHref();
 
   const [state, setState] = useState<RecordsState>(NOTHING_YET);
@@ -96,7 +97,7 @@ export function useRecordsSource(
     pending.current = term;
 
     const timer = setTimeout(() => {
-      void searchRecords(term, { signal: controller.signal })
+      void searchRecords(term, { signal: controller.signal, locale })
         .then(response => {
           if (pending.current !== term) return;
           setState({ term, response, failed: false });
@@ -113,7 +114,7 @@ export function useRecordsSource(
       clearTimeout(timer);
       controller.abort();
     };
-  }, [active, term]);
+  }, [active, locale, term]);
 
   return useMemo(() => {
     const heading = t('commandPalette.groups.records');

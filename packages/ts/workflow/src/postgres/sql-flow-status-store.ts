@@ -7,6 +7,7 @@ import {
   type FlowRecord,
   type FlowStatusStore,
   FlowStatusStoreTag,
+  isTerminalFlowState,
 } from '../status/flow-status-store.js';
 
 // A type alias, not an interface: a row must be assignable to the record a
@@ -54,10 +55,22 @@ export const ensureFlowStatusTable = (sql: SqlClient.SqlClient) =>
         step text,
         waiting_for text,
         correlation text,
-        accepts text
+        accepts text,
+        terminal_at timestamptz,
+        purged_at timestamptz
       )`;
     yield* sql`
       ALTER TABLE entifix_flow_status ADD COLUMN IF NOT EXISTS accepts text`;
+    yield* sql`
+      ALTER TABLE entifix_flow_status
+        ADD COLUMN IF NOT EXISTS terminal_at timestamptz`;
+    yield* sql`
+      ALTER TABLE entifix_flow_status
+        ADD COLUMN IF NOT EXISTS purged_at timestamptz`;
+    // What the journal purge walks: ended flows whose journal is still held.
+    yield* sql`
+      CREATE INDEX IF NOT EXISTS entifix_flow_status_terminal_at
+        ON entifix_flow_status (terminal_at) WHERE purged_at IS NULL`;
   }).pipe(Effect.mapError(fault));
 
 /**
@@ -80,7 +93,8 @@ export const makeSqlFlowStatusStore = (
       const [existing] = yield* sql<FlowStatusRow>`
         SELECT * FROM entifix_flow_status
         WHERE idempotency_key = ${key} OR flow_id = ${record.flowId}`;
-      // Gone between the two statements cannot happen: nothing deletes a flow.
+      // Gone between the two statements cannot happen: nothing deletes a
+      // flow's row — the journal purge empties its payload and keeps it.
       return recordOf(existing as FlowStatusRow);
     }).pipe(Effect.mapError(fault)),
 
@@ -111,7 +125,11 @@ export const makeSqlFlowStatusStore = (
           correlation = ${patch.correlation ?? null},
           accepts = ${
             patch.accepts === undefined ? null : JSON.stringify(patch.accepts)
-          }
+          },
+          -- When the flow ended, kept from the first terminal write: the
+          -- journal purge counts its retention from here.
+          terminal_at = CASE WHEN ${isTerminalFlowState(patch.state)}
+            THEN COALESCE(terminal_at, now()) END
       WHERE flow_id = ${flowId}`.pipe(Effect.asVoid, Effect.mapError(fault)),
 
   claimWait: (flowId, token) =>

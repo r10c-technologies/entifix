@@ -6,6 +6,8 @@ import {
   type CardRole,
   type ChildConstructor,
   type EntityLinkSerialization,
+  type EnumTone,
+  EnumTones,
   type MemberReference,
   MetaAccessor,
   MetaAccessorType,
@@ -42,6 +44,8 @@ export interface EntityFieldDescriptor {
   enumValues?: readonly string[];
   /** Catalog prefix for {@link enumValues}; a value reads as `${enumLabelKey}.${value}`. */
   enumLabelKey?: string;
+  /** The tone each value reads in as a status, when the member declares them. */
+  enumTones?: Readonly<Record<string, EnumTone>>;
   /** Property of a `link` target used as its display label. */
   linkLabelProperty: string;
   /** Property of a `link` target a picker searches on. Defaults to the label. */
@@ -289,6 +293,34 @@ function assertMoneyType(metaAccessor: MetaAccessor, type: MetaAccessorType) {
   );
 }
 
+/**
+ * Tones belong to an enum's values: on any other member, or keyed by a value
+ * the enum does not have, they would colour nothing — or the wrong thing.
+ */
+function assertEnumTones(metaAccessor: MetaAccessor, type: MetaAccessorType) {
+  const { enumTones } = metaAccessor;
+  if (enumTones === undefined) return;
+  const name = String(metaAccessor.name);
+  if (type !== 'enum') {
+    throw new Error(
+      `"${name}" is a ${type} and declares enumTones — only an enum member's values have a tone.`,
+    );
+  }
+  const values = metaAccessor.enumValues ?? [];
+  for (const [value, tone] of Object.entries(enumTones)) {
+    if (!values.includes(value)) {
+      throw new Error(
+        `"${name}" declares a tone for "${value}", which is not one of its enumValues (${values.join(', ')}).`,
+      );
+    }
+    if (!(EnumTones as readonly string[]).includes(tone)) {
+      throw new Error(
+        `"${name}" declares tone "${String(tone)}" for "${value}" — a tone is one of ${EnumTones.join(', ')}.`,
+      );
+    }
+  }
+}
+
 /** A width is a positive length; zero or less would never switch layouts. */
 function assertMinWidth(metaAccessor: MetaAccessor) {
   const { minWidth } = metaAccessor;
@@ -377,6 +409,7 @@ function toDescriptor(
   assertParentType(metaAccessor, type);
   assertReference(target, metaAccessor, type);
   assertMoneyType(metaAccessor, type);
+  assertEnumTones(metaAccessor, type);
   assertMinWidth(metaAccessor);
   // A localized member is queried one locale at a time (`name.en`), which
   // makes it as queryable as the text each locale holds.
@@ -396,6 +429,9 @@ function toDescriptor(
     required: metaAccessor.required ?? false,
     enumValues: metaAccessor.enumValues,
     enumLabelKey: metaAccessor.enumLabelKey,
+    ...(metaAccessor.enumTones === undefined
+      ? {}
+      : { enumTones: metaAccessor.enumTones }),
     linkLabelProperty,
     linkSearchProperty: metaAccessor.linkSearchProperty ?? linkLabelProperty,
     linkSerialization: metaAccessor.linkSerialization ?? 'id',

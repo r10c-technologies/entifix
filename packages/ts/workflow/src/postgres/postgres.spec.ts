@@ -120,11 +120,24 @@ describe('the SQL flow status store', () => {
       }),
     );
 
+    // The last flag before the id says whether the state ends the flow, which
+    // stamps when it ended for the journal purge.
     expect(fake.executions.map(({ params }) => params)).toEqual([
-      ['waiting', 'await', 'await', null, null, 'flow-1'],
-      ['completed', null, null, null, null, 'flow-1'],
-      ['waiting', 'await', 'await', 'order-7', '["delivered"]', 'flow-1'],
+      ['waiting', 'await', 'await', null, null, false, 'flow-1'],
+      ['completed', null, null, null, null, true, 'flow-1'],
+      [
+        'waiting',
+        'await',
+        'await',
+        'order-7',
+        '["delivered"]',
+        false,
+        'flow-1',
+      ],
     ]);
+    expect(fake.executions[1]?.sql).toContain(
+      'THEN COALESCE(terminal_at, now()) END',
+    );
   });
 
   it('claims a wait with one conditional update, and answers whether it held', async () => {
@@ -170,9 +183,18 @@ describe('the SQL flow status store', () => {
     expect(fake.executions[0]?.sql).toContain(
       'CREATE TABLE IF NOT EXISTS entifix_flow_status',
     );
-    // A table an earlier release created gains the column it lacks.
+    // A table an earlier release created gains the columns it lacks.
     expect(fake.executions[1]?.sql).toContain(
       'ADD COLUMN IF NOT EXISTS accepts',
+    );
+    expect(fake.executions[2]?.sql).toContain(
+      'ADD COLUMN IF NOT EXISTS terminal_at',
+    );
+    expect(fake.executions[3]?.sql).toContain(
+      'ADD COLUMN IF NOT EXISTS purged_at',
+    );
+    expect(fake.executions[4]?.sql).toContain(
+      'entifix_flow_status_terminal_at',
     );
   });
 });
@@ -184,13 +206,18 @@ describe('the durable engine layers', () => {
         SingleRunnerFlowEngineLayer({
           catalog: flowEngineContractCatalog,
           source: 'spec',
+          journalRetention: '30 days',
         }),
       ),
     ).toBe(true);
     expect(
       Layer.isLayer(
         SocketRunnerFlowEngineLayer(
-          { catalog: flowEngineContractCatalog, source: 'spec' },
+          {
+            catalog: flowEngineContractCatalog,
+            source: 'spec',
+            journalRetention: '30 days',
+          },
           {
             host: 'localhost',
             port: 34103,

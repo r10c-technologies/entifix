@@ -14,7 +14,10 @@ import {
   waitFor,
 } from '../interpreter/slip-workflow.js';
 import type { FlowRecord } from '../status/flow-status-store.js';
-import { FlowStatusStoreTag } from '../status/flow-status-store.js';
+import {
+  FlowStatusStoreTag,
+  isTerminalFlowState,
+} from '../status/flow-status-store.js';
 
 /**
  * The flow engine port over Effect Workflow
@@ -93,7 +96,13 @@ export const makeFlowEngine = Effect.gen(function* () {
           executionId,
           state: 'running',
         });
-        if (record.executionId === executionId && record.flowId === slip.flowId)
+        // A flow that already ended is answered, never executed again: its
+        // journal may have been purged, and executing it would run it anew.
+        if (
+          record.executionId === executionId &&
+          record.flowId === slip.flowId &&
+          !isTerminalFlowState(record.state)
+        )
           yield* within(SlipWorkflow.execute(payload, { discard: true }));
         return { flowId: record.flowId };
       }),
@@ -130,6 +139,9 @@ export const makeFlowEngine = Effect.gen(function* () {
     interrupt: flowId =>
       Effect.gen(function* () {
         const record = yield* known(flowId);
+        // An ended flow has nothing to interrupt, and its state stays the
+        // one it ended in.
+        if (isTerminalFlowState(record.state)) return;
         yield* within(SlipWorkflow.interrupt(record.executionId));
         yield* store.update(flowId, {
           state: 'interrupted',

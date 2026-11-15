@@ -1,9 +1,14 @@
+import type { EnumTone } from '@entifix/core';
 import type { ComponentPropsWithoutRef, ReactNode } from 'react';
 
 import { cn } from '../../utils/cn.js';
-import { type Tone, TONE_SURFACE } from '../alert/tone.js';
+import { TONE_SURFACE } from '../alert/tone.js';
 
-export type StatusTagTone = Tone | 'neutral';
+/**
+ * The tones a status reads in. One vocabulary with core's {@link EnumTone},
+ * so an enum member's declared `enumTones` render here unmapped.
+ */
+export type StatusTagTone = EnumTone;
 
 const TONE_CLASS: Record<StatusTagTone, string> = {
   ...TONE_SURFACE,

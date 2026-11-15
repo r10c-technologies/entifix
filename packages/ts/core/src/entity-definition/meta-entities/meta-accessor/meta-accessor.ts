@@ -87,6 +87,15 @@ export interface MetaAccessorOptions {
    * shared with another member can point both at one vocabulary.
    */
   enumLabelKey?: string;
+  /**
+   * The tone each value reads in where it is shown as a status: `success`,
+   * `warning`, `danger`, `info` or `neutral`. Legal only on an `enum` member,
+   * and every key must be one of its {@link enumValues}; a value left out reads
+   * `neutral`. Declared, a screen shows the value as a tag in that tone beside
+   * its words; undeclared, the value stays plain text — not every enum is a
+   * status. Presentation only.
+   */
+  enumTones?: Readonly<Record<string, EnumTone>>;
   /** Property of a `link` target used as its display label. Default `name`. */
   linkLabelProperty?: string;
   /**
@@ -211,6 +220,19 @@ export interface MetaAccessorOptions {
   autocomplete?: string;
 }
 
+/**
+ * The tone an enum value reads in as a status. Words always go beside it — a
+ * tone never carries a meaning alone.
+ */
+export const EnumTones = [
+  'success',
+  'warning',
+  'danger',
+  'info',
+  'neutral',
+] as const;
+export type EnumTone = (typeof EnumTones)[number];
+
 /** The entity a reference member points at, as `domain:key`. */
 export interface MemberReference {
   readonly entity: string;
@@ -246,6 +268,7 @@ export class MetaAccessor {
   readonly order?: number;
   readonly enumValues?: readonly string[];
   readonly enumLabelKey?: string;
+  readonly enumTones?: Readonly<Record<string, EnumTone>>;
   readonly linkLabelProperty?: string;
   readonly linkSearchProperty?: string;
   readonly linkSerialization?: EntityLinkSerialization;
@@ -283,6 +306,7 @@ export class MetaAccessor {
     this.order = options?.order;
     this.enumValues = options?.enumValues;
     this.enumLabelKey = options?.enumLabelKey;
+    this.enumTones = options?.enumTones;
     this.linkLabelProperty = options?.linkLabelProperty;
     this.linkSearchProperty = options?.linkSearchProperty;
     this.linkSerialization = options?.linkSerialization;

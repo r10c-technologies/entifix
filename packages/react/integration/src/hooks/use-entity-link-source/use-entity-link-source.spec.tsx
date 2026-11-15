@@ -6,18 +6,23 @@ import {
 import { Unavailable } from '@entifix/core';
 import {
   accessor,
+  defineLocales,
   describeEntityColumns,
   type Entity,
   entity,
   type EntityFieldDescriptor,
   type EntityId,
   EntityLink,
+  type EntityLoadRequest,
+  type Locale,
+  type LocalizedText,
+  resetLocales,
 } from '@entifix/core';
 import { makeInMemoryEntityRepository } from '@entifix/testing-unit';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { Context } from 'effect';
 import type { ReactNode } from 'react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { EntifixQueryProvider } from '../../query/query-provider.js';
 import { useEntityLinkSource } from './use-entity-link-source.js';
@@ -53,8 +58,8 @@ class SourceBrand implements Entity {
     this.#notes = value;
   }
 
-  /** Filterable one locale at a time, which a quick search has none of. */
-  @accessor({ type: 'localized' })
+  /** Localized, and declared not filterable: refused in every locale. */
+  @accessor({ type: 'localized', filterable: false })
   get motto(): Readonly<Record<string, string>> | undefined {
     return undefined;
   }
@@ -285,14 +290,6 @@ describe('useEntityLinkSource', () => {
     ).toThrow(Error);
   });
 
-  it('refuses to search a localized member, having no locale to search it in', () => {
-    expect(() =>
-      renderSource({
-        descriptor: brandDescriptor({ linkSearchProperty: 'motto' }),
-      }),
-    ).toThrow(/the member is localized/);
-  });
-
   it('refuses to search a member that does not exist', () => {
     expect(() =>
       renderSource({
@@ -306,5 +303,153 @@ describe('useEntityLinkSource', () => {
     const { result } = renderSource();
 
     await waitFor(() => expect(result.current.quick.error).toBeDefined());
+  });
+});
+
+@entity({ key: 'source-category' })
+class SourceCategory implements Entity {
+  #id?: EntityId;
+  #name?: LocalizedText;
+
+  @accessor({ type: 'id' })
+  get id(): EntityId {
+    return this.#id;
+  }
+  set id(value: EntityId) {
+    this.#id = value;
+  }
+
+  @accessor({ type: 'localized' })
+  get name(): LocalizedText | undefined {
+    return this.#name;
+  }
+  set name(value: LocalizedText | undefined) {
+    this.#name = value;
+  }
+}
+
+@entity({ key: 'source-offering' })
+class SourceOffering implements Entity {
+  #id?: EntityId;
+  #category = new EntityLink(SourceCategory);
+
+  @accessor({ type: 'id' })
+  get id(): EntityId {
+    return this.#id;
+  }
+  set id(value: EntityId) {
+    this.#id = value;
+  }
+
+  @accessor({ type: 'link', label: 'Category' })
+  get category(): EntityLink<SourceCategory> {
+    return this.#category;
+  }
+}
+
+const category = (id: string, name: LocalizedText): SourceCategory => {
+  const instance = new SourceCategory();
+  instance.id = id;
+  instance.name = name;
+  return instance;
+};
+
+describe('useEntityLinkSource over a localized member', () => {
+  const loads: EntityLoadRequest[] = [];
+  let categories: ReturnType<typeof makeInMemoryEntityRepository>;
+
+  beforeEach(() => {
+    defineLocales({ locales: ['es', 'en'], defaultLocale: 'es' });
+    loads.length = 0;
+    categories = makeInMemoryEntityRepository([
+      category('c-1', { es: 'Café', en: 'Coffee' }),
+      category('c-2', { es: 'Té', en: 'Tea' }),
+      category('c-3', { es: 'Azúcar' }),
+    ]);
+  });
+  afterEach(() => resetLocales());
+
+  const renderCategories = (locale: Locale) =>
+    renderHook(
+      () =>
+        useEntityLinkSource<SourceCategory, Ctx>(
+          {
+            entityConstructor: SourceCategory,
+            loadUc: loadUCFactory<SourceCategory>(),
+            ctx: Context.make(EntityRepositoryTag, {
+              ...categories,
+              load: (request: EntityLoadRequest) => {
+                loads.push(request);
+                return categories.load(request);
+              },
+            } as never),
+            debounceMs: 0,
+          },
+          {
+            descriptor: describeEntityColumns(SourceOffering).find(
+              column => column.name === 'category',
+            )!,
+            locale,
+          },
+        ),
+      { wrapper },
+    );
+
+  it.each([
+    ['es', 'name.es', 'Café'],
+    ['en', 'name.en', 'Coffee'],
+  ] as const)(
+    'filters and sorts in %s, matching an accented name from a bare term',
+    async (locale, property, label) => {
+      const { result } = renderCategories(locale);
+      await waitFor(() => expect(result.current.quick.isLoading).toBe(false));
+
+      act(() =>
+        result.current.quick.setTerm(locale === 'es' ? 'cafe' : 'coff'),
+      );
+
+      await waitFor(() =>
+        expect(result.current.quick.options.map(option => option.id)).toEqual([
+          'c-1',
+        ]),
+      );
+      const last = loads.at(-1)!;
+      expect(last.filtering?.[0]).toMatchObject({
+        values: [{ property, operator: 'like' }],
+      });
+      expect(last.sorting).toEqual([{ 0: { property, type: 'asc' } }]);
+      expect(result.current.labelOf(result.current.quick.options[0]!)).toBe(
+        label,
+      );
+    },
+  );
+
+  it('reads a name the locale lacks in the default one', async () => {
+    const { result } = renderCategories('en');
+    await waitFor(() => expect(result.current.quick.options).toHaveLength(3));
+
+    const sugar = result.current.quick.options.find(
+      option => option.id === 'c-3',
+    )!;
+    expect(result.current.labelOf(sugar)).toBe('Azúcar');
+  });
+
+  it('reads an option by its id when its label member is not declared', async () => {
+    const { result } = renderSource({
+      descriptor: brandDescriptor({ linkLabelProperty: 'nope' }),
+    });
+    await waitFor(() => expect(result.current.quick.options).toHaveLength(3));
+
+    expect(result.current.labelOf(result.current.quick.options[0]!)).toBe(
+      'b-1',
+    );
+  });
+
+  it('still refuses a localized member that is not filterable', () => {
+    expect(() =>
+      renderSource({
+        descriptor: brandDescriptor({ linkSearchProperty: 'motto' }),
+      }),
+    ).toThrow(/the member is not filterable/);
   });
 });

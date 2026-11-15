@@ -93,6 +93,8 @@ describe('useRecordsSource', () => {
     expect(fetchMock).not.toHaveBeenCalled();
     await settle();
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    // In the reader's locale, so a localized label reads in it.
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain('locale=es');
   });
 
   it('renders one group per source, titled by the entity’s own plural key', async () => {
