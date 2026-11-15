@@ -1,3 +1,17 @@
+## 0.22.0 (2026-11-15)
+
+### 🚀 Features
+
+- ⚠️ **source:** close UX 1 — status tags, media, summary tiles, retention ([#242](https://github.com/r10c-technologies/entifix/pull/242))
+
+### ⚠️ Breaking Changes
+
+- **source:** close UX 1 — status tags, media, summary tiles, retention ([#242](https://github.com/r10c-technologies/entifix/pull/242))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.21.0 (2026-11-15)
 
 ### 🚀 Features
