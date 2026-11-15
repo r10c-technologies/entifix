@@ -1,3 +1,13 @@
+## 0.22.2 (2026-11-15)
+
+### 🩹 Fixes
+
+- **core:** a record is never named by a number, an enum or a date it holds ([#247](https://github.com/r10c-technologies/entifix/pull/247))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.22.1 (2026-11-15)
 
 ### 🚀 Features
