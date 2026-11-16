@@ -1,3 +1,13 @@
+## 0.22.4 (2026-11-16)
+
+### 🚀 Features
+
+- **react-controls,next-shell:** host regions in the nav, money slots, list tiles ([#257](https://github.com/r10c-technologies/entifix/pull/257))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.22.3 (2026-11-15)
 
 ### 🚀 Features
