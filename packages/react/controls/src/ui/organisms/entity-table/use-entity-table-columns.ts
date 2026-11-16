@@ -56,6 +56,7 @@ function mergeSlots<TEntity extends Entity>(
       // reset — the value is computed from members that are cloned themselves.
       resetOnClone: false,
       ...(slot.minWidth === undefined ? {} : { minWidth: slot.minWidth }),
+      ...(slot.money === undefined ? {} : { money: slot.money }),
       header: slot.header,
       render: slot.render,
       virtual: true,
