@@ -5,6 +5,7 @@
 - Revised: 2026-11-15 — an undeclared name is a text member only: a number, an enum or a date the record holds never names it
 - Revised: 2026-11-15 — a related column may read through a repository the host supplies
 - Revised: 2026-11-15 — a table's open link and sticky title follow the same text-only rule, a row nothing on screen names opens from a leading column that reads as its label, and a list leaves out the record's own key
+- Revised: 2026-11-15 — a region the host writes joins the record's section nav through `useRegion`, now exported from `@entifix/next-shell`
 - Date: 2026-11-14
 - Area: entities
 - Read when: a list, a form, a confirm dialog or a breadcrumb shows `product-offering-10` or a UUID where a person needs a name, a member holds another entity's id and cannot be a `link` because the target lives in another store, a list needs a column whose value lives in another entity (a price, a stock level, a picture), a record page needs the records that point at it, or about to add another "first filled-in member" guess at what a record is called
@@ -176,6 +177,9 @@ batched over the page's ids:
 - **A related region** on a record page is the target entity's own list, held to
   the records that refer to this one by a fixed filter that is not a removable
   chip, with its own heading, its own states (ADR 0028) and its own writes.
+  Once a page has two regions, a section nav lists them. A region the host
+  writes itself, which is not a related list (a record's pictures), joins that
+  nav by calling `useRegion(id, heading)` and rendering `<section id={id}>`.
 
 **Record search reaches a reference the same way.** A record a person knows
 by the record it refers to — a stock level by its product — is searched

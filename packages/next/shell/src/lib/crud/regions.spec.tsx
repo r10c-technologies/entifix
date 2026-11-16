@@ -16,6 +16,7 @@ import userEvent from '@testing-library/user-event';
 import { Context, Effect } from 'effect';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { useRegion } from './index.js';
 import { makeEntityCrud } from './make-entity-crud.js';
 import { PREFILL_PARAM, readPrefill } from './regions.js';
 
@@ -211,6 +212,31 @@ const oneRegionCrud = makeEntityCrud(Account, {
   ],
 });
 
+/** A region the host writes itself: not a related list, still in the nav. */
+function PicturesRegion() {
+  useRegion('pictures', 'Pictures');
+  return (
+    <section id="pictures" aria-labelledby="pictures-heading">
+      <h2 id="pictures-heading">Pictures</h2>
+    </section>
+  );
+}
+
+const hostRegionCrud = makeEntityCrud(Account, {
+  useAdapters,
+  basePath: '/accounts',
+  catalogKey: 'account',
+  repository: 'accounts',
+  regions: account => [
+    <PicturesRegion key="pictures" />,
+    <noteCrud.RelatedList
+      key="notes"
+      labelKey="entity:note.region"
+      filtering={byAccount(account) as never}
+    />,
+  ],
+});
+
 beforeEach(() => {
   slug = 'a-1';
   searchParams = new URLSearchParams();
@@ -291,6 +317,23 @@ describe('a record page’s related regions (ADR 0030)', () => {
         within(notes).getByRole('link', { name: 'Nuevo' }),
       ).toHaveAttribute('href', '/es/elsewhere'),
     );
+  });
+
+  it('lists a region the host writes beside a related list', async () => {
+    renderPage(<hostRegionCrud.SingleViewPage />);
+    await screen.findByRole('region', { name: 'note.region' });
+    const nav = await screen.findByRole('navigation', {
+      name: 'Secciones del registro',
+    });
+    expect(within(nav).getByRole('link', { name: 'Pictures' })).toHaveAttribute(
+      'href',
+      '#pictures',
+    );
+    expect(
+      within(nav)
+        .getAllByRole('link')
+        .map(link => link.textContent),
+    ).toEqual(['Pictures', 'note.region']);
   });
 
   it('renders no regions on a create', () => {
