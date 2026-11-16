@@ -39,6 +39,19 @@ describe('SummaryTile', () => {
     ).toBeInTheDocument();
   });
 
+  // An article does not take its name from its content, so a link around one
+  // reads as nameless to a spec-following tree. jsdom is lenient and reads a
+  // name anyway, so the structure is what is asserted here; the Storybook gate
+  // reads the name in Chromium.
+  it('is a link inside its article, named by its heading, figure and status', () => {
+    renderTile({ count: 2, status: { tone: 'danger', label: 'Atrasados' } });
+
+    const link = screen.getByRole('link');
+    expect(link).toHaveAccessibleName(/Envíos por despachar\s*2\s*Atrasados/);
+    expect(link.parentElement?.tagName).toBe('ARTICLE');
+    expect(link.querySelector('article')).toBeNull();
+  });
+
   it('states zero as a figure, not as nothing', () => {
     renderTile({});
 

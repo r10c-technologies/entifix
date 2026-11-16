@@ -15,3 +15,11 @@ export async function enterGateEnvironment(
 ): Promise<() => Promise<void>> {
   return async () => undefined;
 }
+
+/**
+ * The links and buttons the browser's accessibility tree leaves without a
+ * name. Only the Vitest gate can read that tree; here there is none to read.
+ */
+export async function unnamedControls(): Promise<readonly string[]> {
+  return [];
+}

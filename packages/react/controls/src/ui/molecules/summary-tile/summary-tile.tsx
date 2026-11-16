@@ -74,7 +74,7 @@ export interface SummaryTileProps {
 const SURFACE =
   'flex min-h-(--target-min) flex-col gap-2xs rounded-xl border border-border bg-surface-elevated p-s text-content';
 const LINK =
-  'block rounded-xl text-content no-underline focus-ring hover:shadow-overlay';
+  'rounded-xl text-content no-underline focus-ring hover:shadow-overlay';
 const HEADING_LINK = 'focus-ring rounded-sm text-content hover:underline';
 const ITEM_LINK = `inline-flex min-h-(--target-min) items-center ${HEADING_LINK}`;
 
@@ -202,17 +202,27 @@ export function SummaryTile({
       formatters.number(count ?? 0)
     );
 
-  return link(
-    <article className={cn(SURFACE, className)}>
-      <h3 className="text-step-sm font-semibold">{label}</h3>
-      <div className="text-step-2 font-semibold tabular-nums">{figure}</div>
-      {state === 'ready' && status !== undefined && (
-        <StatusTag tone={status.tone} className="self-start">
-          {status.label}
-        </StatusTag>
+  // The link sits inside the article, never around it: an article does not
+  // take its name from its content, so a link wrapping one reads as nameless
+  // to a spec-following tree and to every query by role. Inside, the link is
+  // named by its heading, its figure and its status.
+  return (
+    <article className={cn('flex flex-col', className)}>
+      {link(
+        <>
+          <h3 className="text-step-sm font-semibold">{label}</h3>
+          <span className="text-step-2 font-semibold tabular-nums">
+            {figure}
+          </span>
+          {state === 'ready' && status !== undefined && (
+            <StatusTag tone={status.tone} className="self-start">
+              {status.label}
+            </StatusTag>
+          )}
+        </>,
+        cn(SURFACE, LINK, 'flex-1'),
       )}
-    </article>,
-    LINK,
+    </article>
   );
 }
 
