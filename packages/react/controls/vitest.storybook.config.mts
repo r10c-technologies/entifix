@@ -66,6 +66,10 @@ const cell = (name: keyof typeof CELLS): TestProjectInlineConfiguration => ({
             forcedColors: active ? 'active' : 'none',
           });
         },
+        // The story's accessibility tree as Playwright computes it, which is
+        // what a consumer's e2e reads a name from.
+        ariaSnapshot: async context =>
+          context.iframe.locator('body').ariaSnapshot(),
       },
     },
   },

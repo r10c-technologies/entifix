@@ -76,6 +76,7 @@ export const controls: EsControls = {
   summary: {
     loading: 'Loading…',
     failed: 'Could not load {{label}}.',
+    empty: 'Nothing here yet.',
   },
   pagination: {
     label: 'Pages',

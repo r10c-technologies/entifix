@@ -128,6 +128,26 @@ describe('resolveEntityTableColumns', () => {
     expect(columns.find(column => column.name === 'price')?.minWidth).toBe(11);
   });
 
+  it("carries a slot column's money format, so its cell prints an amount", () => {
+    const money = { unit: 'minor', currency: 'GTQ' } as const;
+    const { columns } = resolveEntityTableColumns<Gadget>(
+      described(),
+      [{ field: 'price', type: 'number', money }],
+      {},
+    );
+    expect(columns.find(column => column.name === 'price')?.money).toEqual(
+      money,
+    );
+    const { columns: plain } = resolveEntityTableColumns<Gadget>(
+      described(),
+      [{ field: 'price', type: 'number' }],
+      {},
+    );
+    expect(plain.find(column => column.name === 'price')).not.toHaveProperty(
+      'money',
+    );
+  });
+
   it('reorders per the stored personalization', () => {
     const { columns } = resolveEntityTableColumns<Gadget>(described(), [], {
       order: ['name', 'code'],

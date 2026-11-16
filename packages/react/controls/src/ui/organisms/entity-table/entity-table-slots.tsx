@@ -1,4 +1,4 @@
-import type { Entity, MetaAccessorType } from '@entifix/core';
+import type { Entity, MetaAccessorType, MoneyFormat } from '@entifix/core';
 import { Children, isValidElement, type ReactNode } from 'react';
 
 import type { EntityTableColumn } from './entity-table.types.js';
@@ -19,6 +19,11 @@ export interface EntityColumnProps<TEntity extends Entity = Entity> {
   type?: MetaAccessorType;
   /** The narrowest the column reads at, in `rem` — what the pivot counts it as. */
   minWidth?: number;
+  /**
+   * The column holds an amount: printed as `Money` in its currency, never as
+   * the stored number. A computed column has no accessor to declare it on.
+   */
+  money?: MoneyFormat;
   order?: number;
   sortable?: boolean;
   filterable?: boolean;

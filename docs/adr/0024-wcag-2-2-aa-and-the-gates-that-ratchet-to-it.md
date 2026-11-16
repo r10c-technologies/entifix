@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Revised: 2026-11-05 — fingerprints from axe's ancestry after the page settles; the walk starts at the top, reads the visible main, positions per scroll container, and 2.4.11 on an entirely hidden stop
+- Revised: 2026-11-15 — every story is also held to a name for each link and button in the tree Playwright computes in Chromium, which is stricter than axe's and jsdom's
 - Date: 2026-11-05
 - Area: ui
 - Read when: a control fails an accessibility check, adding a component or a story, a story renders blank while `build-storybook` stays green, writing an e2e journey that a screen-level check should cover, or about to add an axe rule exception, a jsx-a11y suppression or a `'todo'` entry
@@ -66,6 +67,12 @@ it. AAA criteria are not targets. Where one is cheap and the product benefits
   `*.stories.tsx`. A component with an open state — menu, popover, dialog,
   drawer, toast, palette, disclosure — has a story that opens it through a
   `play` function. A conventions spec fails on a folder without a story.
+- Every link and button a story renders has a name in the accessibility tree
+  Playwright computes in Chromium (`.storybook/gate-browser.vitest.ts`), which
+  is what an adopter's e2e queries by role read. Axe and jsdom compute names
+  more leniently: both read a name through an `article` nested in a link,
+  which the accessible-name spec does not, so a tile passed every other check
+  while no query could find it.
 
 ### The component gate: addon-a11y under Vitest, ratcheted
 

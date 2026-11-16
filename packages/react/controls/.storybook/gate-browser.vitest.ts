@@ -7,6 +7,7 @@ export type { GateEnvironment } from './gate-browser.js';
 declare module 'vitest/browser' {
   interface BrowserCommands {
     emulateForcedColors: (active: boolean) => Promise<void>;
+    ariaSnapshot: () => Promise<string>;
   }
 }
 
@@ -42,4 +43,18 @@ export async function enterGateEnvironment({
   }
   current = { viewport, forcedColors };
   return async () => undefined;
+}
+
+/** A link or button line in an aria snapshot that carries no quoted name. */
+const UNNAMED = /^\s*- (link|button)(?: \[[^\]]*\])*:?$/;
+
+/**
+ * The links and buttons left without a name, read from the tree Playwright
+ * computes in Chromium. jsdom's name computation is more lenient than the
+ * accessible-name spec: it read a name through an `article` nested inside a
+ * link, where the spec, and every e2e query by role, reads none.
+ */
+export async function unnamedControls(): Promise<readonly string[]> {
+  const snapshot = await commands.ariaSnapshot();
+  return snapshot.split('\n').filter(line => UNNAMED.test(line));
 }

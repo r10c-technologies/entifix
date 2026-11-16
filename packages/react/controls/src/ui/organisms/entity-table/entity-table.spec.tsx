@@ -843,6 +843,28 @@ describe('EntityTable keying and personalization scope', () => {
     ).toBeInTheDocument();
     expect(screen.getAllByText('computed')).toHaveLength(2);
   });
+
+  it('prints a computed money column as an amount in the grid and the cards', () => {
+    const widget = makeWidget();
+    Object.defineProperty(widget, 'price', { value: 6499 });
+    render(
+      <EntityTable<Widget>
+        entityConstructor={Widget}
+        items={[widget]}
+        {...pager}
+      >
+        <EntityColumn
+          field="price"
+          label="Price"
+          type="number"
+          money={{ unit: 'minor', currency: 'GTQ' }}
+        />
+      </EntityTable>,
+    );
+
+    expect(screen.getAllByText(/64,99/)).toHaveLength(2);
+    expect(screen.queryByText('6499')).not.toBeInTheDocument();
+  });
 });
 
 describe('EntityTable defaults', () => {

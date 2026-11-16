@@ -2,6 +2,7 @@ export * from './entity-crud-form.js';
 export * from './make-entity-crud.js';
 export * from './make-entity-crud.types.js';
 export * from './reference-labels.js';
+export { useRegion } from './regions.js';
 export * from './slug.js';
 export * from './use-crud-render-link.js';
 export * from './use-entity-affordances.js';

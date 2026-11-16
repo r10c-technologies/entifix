@@ -8,7 +8,11 @@ import { createElement } from 'react';
 
 import todo from '../a11y-todo.json' with { type: 'json' };
 import { I18nProvider } from '../src/i18next/index.js';
-import { enterGateEnvironment, type GateEnvironment } from './gate-browser.js';
+import {
+  enterGateEnvironment,
+  type GateEnvironment,
+  unnamedControls,
+} from './gate-browser.js';
 import { targetMin, undersizedTargets } from './target-size.js';
 
 /**
@@ -58,9 +62,21 @@ const preview: Preview = {
   //
   // At fixed + compact, the smallest any control is painted, every target's
   // hit area must reach `--target-min` (ADR 0025, `target-size.ts`).
-  afterEach: ({ canvasElement, title, name }) => {
+  //
+  // Every link and button has a name in the tree the browser computes, which
+  // is stricter than the one axe and jsdom compute: a name that only they can
+  // read is one no query by role finds.
+  afterEach: async ({ canvasElement, title, name }) => {
     if (!canvasElement.hasChildNodes()) {
       throw new Error(`${title} › ${name} rendered nothing into its root.`);
+    }
+    if (TODO[title] === undefined) {
+      const unnamed = await unnamedControls();
+      if (unnamed.length > 0) {
+        throw new Error(
+          `${title} › ${name}: links or buttons with no accessible name:\n  ${unnamed.join('\n  ')}`,
+        );
+      }
     }
     if (
       CELL?.scale === 'fixed' &&
