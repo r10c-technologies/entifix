@@ -125,6 +125,87 @@ describe('SummaryTile', () => {
   });
 });
 
+describe('SummaryTile with a short list', () => {
+  const orders = [
+    { href: '/pedidos/1', label: 'Pedido 1042', meta: '14 nov.' },
+    { href: '/pedidos/2', label: 'Pedido 1041' },
+  ];
+
+  it('links its heading to all of them, and each item to its own record', () => {
+    renderTile({ label: 'Últimos pedidos', href: '/pedidos', items: orders });
+
+    const heading = screen.getByRole('heading', {
+      level: 3,
+      name: 'Últimos pedidos',
+    });
+    expect(within(heading).getByRole('link')).toHaveAttribute(
+      'href',
+      '/pedidos',
+    );
+    const list = screen.getByRole('list');
+    const links = within(list).getAllByRole('link');
+    expect(links.map(link => link.getAttribute('href'))).toEqual([
+      '/pedidos/1',
+      '/pedidos/2',
+    ]);
+    expect(links[0]).toHaveAccessibleName('Pedido 1042');
+    expect(screen.getByText('14 nov.')).toBeInTheDocument();
+    // No link holds another: the tile itself is not one.
+    expect(screen.getAllByRole('link')).toHaveLength(3);
+  });
+
+  it('says an empty list is empty, in its own words or a neutral one', () => {
+    renderTile({ items: [], emptyLabel: 'Aún no hay pedidos.' });
+    expect(screen.getByText('Aún no hay pedidos.')).toBeInTheDocument();
+    expect(screen.queryByRole('list')).toBeNull();
+  });
+
+  it('falls back to a neutral empty line', () => {
+    renderTile({
+      items: [],
+      status: { tone: 'info', label: 'Al día' },
+    });
+    expect(screen.getByText('Nada por ahora.')).toBeInTheDocument();
+    expect(screen.getByText('Al día')).toBeInTheDocument();
+  });
+
+  it('holds its place while it loads, with its heading still a link', () => {
+    renderTile({ state: 'loading', items: orders });
+    expect(screen.getByText('Cargando…')).toBeInTheDocument();
+    expect(screen.queryByText('Pedido 1042')).toBeNull();
+    expect(screen.getAllByRole('link')).toHaveLength(1);
+  });
+
+  it('fails like any tile', () => {
+    renderTile({ state: 'failed', items: orders });
+    expect(
+      screen.getByText('No se pudo cargar Envíos por despachar.'),
+    ).toBeInTheDocument();
+  });
+
+  it('lets a host render every link it holds', () => {
+    renderTile({
+      items: orders,
+      renderLink: ({ href, className, children }) => (
+        <a href={href} className={className} data-router="yes">
+          {children}
+        </a>
+      ),
+    });
+    for (const link of screen.getAllByRole('link'))
+      expect(link).toHaveAttribute('data-router', 'yes');
+  });
+
+  it('is a figure, not a list, when it states money', () => {
+    renderTile({
+      items: orders,
+      money: { amount: 6499, currency: 'GTQ', unit: 'minor' },
+    });
+    expect(screen.queryByRole('list')).toBeNull();
+    expect(screen.getByRole('link')).toHaveTextContent(/64,99/);
+  });
+});
+
 describe('SummaryTileList', () => {
   it('is a list with one item per tile, and passes other children through', () => {
     render(

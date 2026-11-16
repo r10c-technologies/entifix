@@ -97,6 +97,7 @@ export const controls = {
   summary: {
     loading: 'Cargando…',
     failed: 'No se pudo cargar {{label}}.',
+    empty: 'Nada por ahora.',
   },
   pagination: {
     label: 'Páginas',

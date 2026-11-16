@@ -47,6 +47,43 @@ export const MoneyFigure: Story = {
   },
 };
 
+/**
+ * A short list rather than a figure: the heading leads to all of them, and
+ * each item to its own record.
+ */
+export const ShortList: Story = {
+  args: {
+    label: 'Últimos pedidos',
+    href: '#pedidos',
+    items: [
+      { href: '#pedido-1042', label: 'Pedido 1042', meta: '14 nov.' },
+      { href: '#pedido-1041', label: 'Pedido 1041', meta: '13 nov.' },
+      { href: '#pedido-1040', label: 'Pedido 1040', meta: '12 nov.' },
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.getByRole('link', { name: 'Últimos pedidos' }),
+    ).toBeVisible();
+    const items = within(canvas.getByRole('list')).getAllByRole('link');
+    await expect(items).toHaveLength(3);
+    for (const item of items)
+      await expect(item.getBoundingClientRect().height).toBeGreaterThanOrEqual(
+        24,
+      );
+  },
+};
+
+/** A list with nothing in it says so. */
+export const EmptyList: Story = {
+  args: {
+    label: 'Últimos pedidos',
+    items: [],
+    emptyLabel: 'Aún no hay pedidos.',
+  },
+};
+
 /** Its place held while its source answers. */
 export const Loading: Story = { args: { state: 'loading' } };
 
