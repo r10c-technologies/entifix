@@ -188,10 +188,10 @@ entity:
   `409`.
 - **`create` and `update` declare `idempotent: 'edge'`** (`:673-675`, which
   today takes it only from an override; the generic handler writes through no
-  unit of work, so the edge guard is the layer that remembers the key). A save that landed but whose response was
-  lost is retried by the REST adapter under the same `Idempotency-Key`, and
-  the service replays the first answer instead of refusing the old revision
-  with a `409`.
+  unit of work, so the edge guard is the layer that remembers the key). A
+  save that landed but whose response was lost is retried by the REST
+  adapter under the same `Idempotency-Key`, and the service replays the first
+  answer instead of refusing the old revision with a `409`.
 - Overrides and `@useCase()` verbs write through their own handlers and are
   not checked by the shell (§6).
 
