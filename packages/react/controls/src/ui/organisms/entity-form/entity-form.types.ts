@@ -182,6 +182,19 @@ export interface EntityFormProps<TEntity extends Entity> {
   error?: EntifixFailure;
   /** Loads the record again — what a failed load offers as Retry. */
   onRetry?: () => void;
+  /**
+   * What a save refused as `staleRevision` offers, when `error` is one: the
+   * record changed underneath the form (ADR 0032). The fields keep what was
+   * typed either way, and **nothing here saves** — the person decides, then
+   * presses Save again.
+   *
+   * `onKeepMine` takes the newer revision as the one the next Save names, so
+   * that Save replaces the newer version with what was typed. `onLoadCurrent`
+   * drops what was typed and loads the record as it now stands. Each button
+   * renders only when its handler is given.
+   */
+  onKeepMine?: () => void;
+  onLoadCurrent?: () => void;
 
   /** Link to return to, rendered as a `Back` action. Omit to hide it. */
   backHref?: string;

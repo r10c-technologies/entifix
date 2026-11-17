@@ -1,5 +1,11 @@
-import { accessor, type Entity, entity, type EntityId } from '@entifix/core';
-import { render, screen } from '@testing-library/react';
+import {
+  accessor,
+  type Entity,
+  entity,
+  type EntityId,
+  StaleRevision,
+} from '@entifix/core';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { EntityForm } from './entity-form.js';
@@ -50,5 +56,60 @@ describe('a form over an entity that declares a revision', () => {
     expect(screen.getByLabelText('Text')).toBeTruthy();
     expect(screen.queryByLabelText('Revision')).toBeNull();
     expect(screen.queryByText('Revision')).toBeNull();
+  });
+});
+
+describe('a form whose save was refused because the record changed', () => {
+  const conflicted = (handlers = {}) =>
+    render(
+      <EntityForm<Memo>
+        entityConstructor={Memo}
+        mode="edit"
+        values={{ text: 'typed', revision: '3' }}
+        error={new StaleRevision({ current: 4 })}
+        onFieldChange={vi.fn()}
+        onSubmit={vi.fn()}
+        {...handlers}
+      />,
+    );
+
+  it('keeps the typed values, announces the conflict and takes focus', () => {
+    conflicted();
+
+    expect(screen.getByLabelText('Text')).toHaveValue('typed');
+    const conflict = screen.getByTestId('entity-form-conflict');
+    expect(conflict).toHaveFocus();
+    expect(within(conflict).getByRole('alert')).toBeTruthy();
+    // The generic error alert and Retry are not shown beside it.
+    expect(screen.queryByTestId('region-state-error')).toBeNull();
+  });
+
+  it('offers each choice only when it is handled, and never saves by itself', () => {
+    const onSubmit = vi.fn();
+    const onKeepMine = vi.fn();
+    const onLoadCurrent = vi.fn();
+    conflicted({ onSubmit, onKeepMine, onLoadCurrent });
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /conservar mis cambios/i }),
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: /cargar el registro actual/i }),
+    );
+
+    expect(onKeepMine).toHaveBeenCalledTimes(1);
+    expect(onLoadCurrent).toHaveBeenCalledTimes(1);
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('offers no button without a handler', () => {
+    conflicted();
+
+    expect(
+      screen.queryByRole('button', { name: /conservar mis cambios/i }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: /registro actual/i }),
+    ).toBeNull();
   });
 });

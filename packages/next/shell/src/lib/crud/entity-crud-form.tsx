@@ -6,6 +6,7 @@ import {
   type EntityConstructor,
   type EntityMetadataSource,
   reconstructEntity,
+  REVISION_KEY,
 } from '@entifix/core';
 import {
   EntityField,
@@ -42,6 +43,16 @@ export interface EntityCrudFormProps<TEntity extends Entity> {
   readonly error?: EntifixFailure;
   /** Loads the record again — offered as Retry on a failed load. */
   readonly onRetry?: () => void;
+  /**
+   * A save refused as `staleRevision` was answered with "keep my changes": the
+   * host forgets the failure so the form is ready for the next, explicit, Save.
+   */
+  readonly onConflictResolved?: () => void;
+  /**
+   * A save refused as `staleRevision` was answered with "load the current
+   * record": the host drops the draft and the failure and loads it again.
+   */
+  readonly onLoadCurrent?: () => void;
   readonly onSave: (entity: TEntity) => void;
   /** Omitted for a create — there is nothing to delete yet. */
   readonly onDelete?: () => void;
@@ -92,6 +103,8 @@ export function EntityCrudForm<TEntity extends Entity>({
   isDeleting = false,
   error,
   onRetry,
+  onConflictResolved,
+  onLoadCurrent,
   onSave,
   onDelete,
   deletePolicy,
@@ -145,6 +158,21 @@ export function EntityCrudForm<TEntity extends Entity>({
     }
   }, [linkSources, selection, hydrateLink]);
 
+  // A save refused because the record moved on (ADR 0032). Keeping the typed
+  // values is what this form already does; "keep mine" only takes the newer
+  // revision as the one the next save names, and nothing here saves.
+  const staleCurrent =
+    error?.code === 'staleRevision'
+      ? (error as { current?: unknown }).current
+      : undefined;
+  const keepMine =
+    typeof staleCurrent === 'number' && onConflictResolved !== undefined
+      ? () => {
+          form.setField(REVISION_KEY, String(staleCurrent));
+          onConflictResolved();
+        }
+      : undefined;
+
   const affordances = useEntityAffordances(entityConstructor, metadataSource);
 
   /**
@@ -196,6 +224,8 @@ export function EntityCrudForm<TEntity extends Entity>({
       isDeleting={isDeleting}
       error={error}
       onRetry={onRetry}
+      onKeepMine={keepMine}
+      onLoadCurrent={onLoadCurrent}
       backHref={backHref}
       renderLink={renderLink}
       // `entity` is undefined until the record lands, so testing it alone

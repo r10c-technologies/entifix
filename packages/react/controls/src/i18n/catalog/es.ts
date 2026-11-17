@@ -75,6 +75,13 @@ export const controls = {
     back: 'Volver',
     loading: 'Cargando…',
     pending: 'Esperando al servidor…',
+    conflictTitle: 'Este registro cambió mientras lo editaba',
+    conflictBody:
+      'Otra persona guardó una versión más reciente. Lo que escribió sigue abajo y no se guardó nada.',
+    conflictKeep: 'Conservar mis cambios',
+    conflictKeepHint:
+      'Su próximo Guardar reemplazará la versión más reciente con lo que escribió.',
+    conflictLoad: 'Descartar los míos y cargar el registro actual',
     /** El resumen de un guardado rechazado: toma el foco, enlaza cada campo. */
     errorSummary_one: 'Revise {{count}} campo antes de guardar',
     errorSummary_other: 'Revise {{count}} campos antes de guardar',
