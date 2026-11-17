@@ -100,6 +100,13 @@ function resolveExpression(
     String(property),
     requirement,
   );
+  if (requirement === 'filterable' && descriptor.type === 'scalarCollection') {
+    // A scalar collection has no column mapping in this adapter yet: comparing
+    // it as a scalar would match nothing, silently. Refuse loudly instead.
+    throw new Error(
+      `"${descriptor.name}" is a scalarCollection and the SQL adapter cannot filter it yet — its array storage is not decided.`,
+    );
+  }
   return {
     key,
     expression:

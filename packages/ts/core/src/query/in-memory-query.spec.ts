@@ -447,3 +447,40 @@ describe('countFacets', () => {
     expect(countFacets([], [{ member: 'brand' }])).toEqual({ brand: [] });
   });
 });
+
+describe('a scalar array member', () => {
+  const rows = [
+    { id: '1', fits: ['a', 'b'] },
+    { id: '2', fits: ['c'] },
+    { id: '3', fits: [] },
+  ] as unknown as Entity[];
+  const q = (f: unknown) =>
+    applyFiltering(rows, [f as EntityFiltering<Entity>]).map(r => r.id);
+
+  it('== means contains and =in= means contains any', () => {
+    expect(q({ property: 'fits', operator: 'eq', value: 'b' })).toEqual(['1']);
+    expect(q({ property: 'fits', operator: 'in', values: ['c', 'b'] })).toEqual(
+      ['1', '2'],
+    );
+  });
+
+  it('!= and =out= mean contains none', () => {
+    expect(q({ property: 'fits', operator: 'ne', value: 'b' })).toEqual([
+      '2',
+      '3',
+    ]);
+    expect(
+      q({ property: 'fits', operator: 'nin', values: ['c', 'b'] }),
+    ).toEqual(['3']);
+  });
+
+  it('counts facets per element', () => {
+    expect(countFacets(rows, [{ member: 'fits' }] as never)).toEqual({
+      fits: [
+        { value: 'a', count: 1 },
+        { value: 'b', count: 1 },
+        { value: 'c', count: 1 },
+      ],
+    });
+  });
+});

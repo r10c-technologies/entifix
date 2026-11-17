@@ -16,10 +16,11 @@ export interface EntityFacetCounterContractOptions {
     seed: ContractWidget[],
   ): EntityFacetCounter | Promise<EntityFacetCounter>;
   /**
-   * `false` for a counter reached through the query protocol. A collection
-   * member is never `filterable` — core refuses to declare one so — and the
-   * protocol counts only filterable members, so over the wire an array member
-   * is a `400` before any counter sees it. Defaults to `true`.
+   * `false` for a counter that cannot count an array member — for instance one
+   * reached through a protocol that counts only filterable members, when the
+   * entity under test declares its array member unfilterable. A
+   * `scalarCollection` may be `filterable`, so the contract's own `tags` is
+   * countable over the wire too. Defaults to `true`.
    */
   readonly countsCollections?: boolean;
 }

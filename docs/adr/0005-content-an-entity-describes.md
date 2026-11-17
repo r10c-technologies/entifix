@@ -4,6 +4,7 @@
 - Date: 2026-10-20
 - Revised: 2026-11-02 by [#126](https://github.com/r10c-technologies/entifix/issues/126) — the `EntifixError` tree is deleted; a declaration that cannot be honoured throws a plain `Error`.
 - Revised: 2026-11-15 by [#237](https://github.com/r10c-technologies/entifix/issues/237) — the link picker and the record search query a localized member in the reader's locale rather than refusing it.
+- Revised: 2026-11-17 by [#273](https://github.com/r10c-technologies/entifix/issues/273) — a `scalarCollection` may be `filterable`; sortable on any collection still throws.
 - Area: entities
 - Read when: declaring locales, holding text in several languages, writing a validation rule a consumer keeps repeating, publishing an entity narrower than it is stored, serving records that arrive as JSON, or about to write a second in-memory filter — the host declares its locales, a localized member is queried one locale at a time, and untyped records go through `validateRecords` before anything serves them
 
@@ -57,7 +58,9 @@ can be written per language without giving up being picked or found.
 **Constraints live in metadata.** `minItems` / `maxItems` on a collection,
 `notBefore` between two dates, `cardinality` on the entity. A declaration that
 cannot be honoured is a thrown `Error` when the entity is described, the
-same posture as a collection declared sortable.
+same posture as a collection declared sortable. A `scalarCollection` may be
+`filterable` — an equality on it means "any element matches" — while sortable
+on any collection, and filterable on a `linkCollection` or `composition`, throw.
 
 **Untyped records go through one check, in core.** `validateRecords` sits beside
 the deserializer it makes up for, so every adapter that reads JSON shares it,

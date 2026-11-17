@@ -31,6 +31,7 @@ class Widget implements Entity {
   #size?: number;
   #active?: boolean;
   #secret?: string;
+  #tags: readonly string[] = [];
 
   @accessor({ type: 'id' })
   get id(): EntityId {
@@ -62,6 +63,14 @@ class Widget implements Entity {
   }
   set active(value: boolean | undefined) {
     this.#active = value;
+  }
+
+  @accessor({ type: 'scalarCollection', filterable: true })
+  get tags(): readonly string[] {
+    return this.#tags;
+  }
+  set tags(value: readonly string[]) {
+    this.#tags = value;
   }
 
   /** Declared unqueryable, so the allowlist has something to reject. */
@@ -284,6 +293,12 @@ describe('translateFiltering', () => {
       '("size" >= $1 AND translate("widget_name", $2, $3) ILIKE $4)',
       [10, FOLD_TRANSLATION.from, FOLD_TRANSLATION.to, '%x%'],
     ]);
+  });
+
+  it('refuses a filterable scalarCollection, which has no column mapping yet', () => {
+    expect(() =>
+      where([{ property: 'tags', operator: 'eq', value: 'blue' }]),
+    ).toThrow(/scalarCollection.*cannot filter/);
   });
 
   it('rejects a member the entity did not declare filterable', () => {
