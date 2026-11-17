@@ -4,6 +4,7 @@
 - Date: 2026-10-26
 - Revised: 2026-10-29 by [ADR 0020](0020-endpoints-are-descriptors-and-the-shell-builds-an-httpapi.md) — `$facets` is an endpoint of `entityApi`, registered before `/:id`; `makeEntityFacetRoutes` stays until every consumer has moved
 - Revised: 2026-11-02 by [#126](https://github.com/r10c-technologies/entifix/issues/126) — `makeEntityFacetRoutes` and `makeEntityRoutes` are deleted; `$facets` is served only by `entityApi`.
+- Revised: 2026-11-17 by [#273](https://github.com/r10c-technologies/entifix/issues/273) — a `scalarCollection` may be `filterable`, so it is countable over the wire, per element.
 - Area: adapters
 - Read when: a listing has to show how many records each filter choice would keep ("Aurora (12)"), adding a count or an aggregation to a store, or about to put counts on `EntityPage` or a method on `EntityRepository`
 
@@ -53,8 +54,8 @@ never part of it.**
   under `rsql.<member>`, parsed against the entity's metadata. **Only a
   `filterable` member may be counted**: a count reveals the values a member
   holds, which is a question about what a filter would choose between. A
-  `localized` member and a collection member are therefore never countable over
-  the wire, the second because no collection member is ever filterable.
+  `localized` member is therefore never countable over the wire, and a
+  collection member only when it is a `filterable` `scalarCollection`.
 - A read scope is conjoined into every facet's filtering, never substituted, so
   no query string counts past it — the rule `list` already follows.
 - The semantics are Mongo's `$facet` of `$match`, `$unwind` and `$group`: an

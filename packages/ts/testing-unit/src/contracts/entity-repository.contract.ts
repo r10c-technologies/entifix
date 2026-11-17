@@ -42,7 +42,7 @@ export class ContractWidget implements Entity {
     this.#size = value;
   }
 
-  @accessor({ type: 'scalarCollection' })
+  @accessor({ type: 'scalarCollection', filterable: true })
   get tags(): readonly string[] {
     return this.#tags;
   }
@@ -253,6 +253,31 @@ export const describeEntityRepositoryReadContract = (
             }),
           );
           expect(untagged.items.map(item => item.id)).toEqual(['w-2']);
+        },
+        [
+          makeContractWidget('w-1', 'Alpha', 10, ['blue', 'green']),
+          makeContractWidget('w-2', 'Beta', 20, ['green']),
+          makeContractWidget('w-3', 'Gamma', 30, ['red']),
+        ],
+      );
+    });
+
+    it('matches `==` against any element of an array member', async () => {
+      await withRepository(
+        async repository => {
+          const blue = await run(
+            repository.load<ContractWidget>({
+              filtering: [{ property: 'tags', operator: 'eq', value: 'blue' }],
+            }),
+          );
+          expect(blue.items.map(item => item.id)).toEqual(['w-1']);
+
+          const green = await run(
+            repository.load<ContractWidget>({
+              filtering: [{ property: 'tags', operator: 'eq', value: 'green' }],
+            }),
+          );
+          expect(green.items.map(item => item.id)).toEqual(['w-1', 'w-2']);
         },
         [
           makeContractWidget('w-1', 'Alpha', 10, ['blue', 'green']),

@@ -38,7 +38,6 @@ describeEntityFacetCounterContract('rest adapter over msw', {
     );
     return { count };
   },
-  countsCollections: false,
 });
 
 describe('buildEntityRestAdapterFacets', () => {

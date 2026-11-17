@@ -142,7 +142,7 @@ function positiveTest<TEntity extends Entity>(
     case 'eq':
     case 'ne':
       return {
-        test: actual => isEqual(actual, filter.value),
+        test: actual => matchesAny(actual, [filter.value]),
         negated: filter.operator === 'ne',
       };
     case 'gt':

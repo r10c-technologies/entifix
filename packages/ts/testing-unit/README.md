@@ -56,7 +56,7 @@ A read-only adapter runs `describeEntityRepositoryReadContract` alone;
 semantics — each member under its own filtering, an array member counted per
 element, a missing value not counted — and `makeInMemoryFacetCounter` is the
 double that passes it. A counter reached through the query protocol passes
-`countsCollections: false`, since no collection member is ever `filterable`.
+`countsCollections: false`, for a counter that cannot count an array member (a `scalarCollection` may be `filterable`, so the REST counter can).
 
 `describeUnitOfWorkContract` holds a unit of work to the same rules whatever
 its store: writes, events and the claim commit or vanish together, a taken

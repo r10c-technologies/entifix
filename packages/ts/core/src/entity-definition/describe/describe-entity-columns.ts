@@ -139,8 +139,10 @@ function inferType(name: string, value: unknown): MetaAccessorType {
 }
 
 /**
- * A collection member declared queryable is always a mistake, so it breaks the
- * developer rather than the query — the same posture as `applyEntityLinks`
+ * A collection member declared sortable is always a mistake, and so is a link
+ * or composition collection declared filterable — only a `scalarCollection`
+ * may be filtered, an equality on it meaning "any element matches". The
+ * mistake breaks the developer rather than the query — the same posture as `applyEntityLinks`
  * throwing on an `embedded` link it cannot build.
  *
  * Silently clamping to `false` was the alternative and is worse: the author
@@ -152,10 +154,14 @@ function assertNotQueryable(
   type: MetaAccessorType,
 ) {
   if (!COLLECTION_TYPES.includes(type)) return;
-  if (metaAccessor.sortable !== true && metaAccessor.filterable !== true)
-    return;
+  // An array of scalars may be filtered (an equality means "any element
+  // matches"); sortable stays forbidden for every collection, and a link or
+  // composition collection is not filterable either.
+  const queryableFilter =
+    type !== 'scalarCollection' && metaAccessor.filterable === true;
+  if (metaAccessor.sortable !== true && !queryableFilter) return;
   throw new Error(
-    `"${String(metaAccessor.name)}" is a ${type} and cannot be sortable or filterable — member metadata is the server-side query allowlist, and a collection compared as a scalar matches nothing.`,
+    `"${String(metaAccessor.name)}" is a ${type} and cannot be sortable, and only a scalarCollection may be filterable — member metadata is the server-side query allowlist, and a collection compared as a scalar matches nothing.`,
   );
 }
 

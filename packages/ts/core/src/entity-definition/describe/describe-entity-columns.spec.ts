@@ -421,7 +421,9 @@ describe('the accessor-type partition', () => {
 
   it.each([
     ['sortable', { type: 'scalarCollection', sortable: true }],
+    ['sortable', { type: 'composition', sortable: true }],
     ['filterable', { type: 'composition', filterable: true }],
+    ['filterable', { type: 'linkCollection', filterable: true }],
   ] as const)('throws when a collection is declared %s', (_which, options) => {
     @entity({ key: 'bad-bag' })
     class BadBag implements Entity {
@@ -446,6 +448,34 @@ describe('the accessor-type partition', () => {
     }
 
     expect(() => describeEntityColumns(BadBag)).toThrow(Error);
+  });
+
+  it('allows a scalarCollection to be filterable', () => {
+    @entity({ key: 'ok-bag' })
+    class OkBag implements Entity {
+      #id?: EntityId;
+      #ids: readonly string[] = [];
+
+      @accessor({ type: 'id' })
+      get id(): EntityId {
+        return this.#id;
+      }
+      set id(value: EntityId) {
+        this.#id = value;
+      }
+
+      @accessor({ type: 'scalarCollection', filterable: true })
+      get ids(): readonly string[] {
+        return this.#ids;
+      }
+      set ids(value: readonly string[]) {
+        this.#ids = value;
+      }
+    }
+
+    expect(
+      describeEntityColumns(OkBag).find(c => c.name === 'ids')?.filterable,
+    ).toBe(true);
   });
 
   /**
