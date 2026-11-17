@@ -28,7 +28,7 @@ const translatorFor = (instance: I18nInstance, locale: Locale): Translator => ({
     const fixed = instance.getFixedT(
       locale,
       (ns ?? null) as Parameters<I18nInstance['getFixedT']>[1],
-    ) as (key: string, params?: Record<string, unknown>) => string;
+    ) as unknown as (key: string, params?: Record<string, unknown>) => string;
     return fixed(key, params);
   },
 });

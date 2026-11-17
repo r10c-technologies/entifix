@@ -62,12 +62,12 @@
     "@swc/helpers": "0.5.23"
   },
   "peerDependencies": {
-    "i18next": ">=26 <27",
+    "i18next": ">=26 <28",
     "next": ">=16"
   },
   "devDependencies": {
-    "i18next": "26.6.0",
-    "next": "16.4.3"
+    "i18next": "27.1.1",
+    "next": "16.4.6"
   },
   "peerDependenciesMeta": {
     "i18next": {

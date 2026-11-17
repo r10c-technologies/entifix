@@ -56,9 +56,9 @@
     "@storybook/addon-vitest": "^10.6.6",
     "@storybook/react-vite": "^10.6.6",
     "effect": "4.0.7",
-    "i18next": "26.6.0",
+    "i18next": "27.1.1",
     "react": "19.3.1",
-    "react-i18next": "17.1.10",
+    "react-i18next": "18.0.1",
     "storybook": "^10.6.6"
   },
   "nx": {
@@ -112,9 +112,9 @@
   "peerDependencies": {
     "@entifix/i18n": "workspace:*",
     "effect": "^4.0.7",
-    "i18next": ">=26 <27",
+    "i18next": ">=26 <28",
     "react": ">=19 <20",
-    "react-i18next": ">=17 <18"
+    "react-i18next": ">=17 <19"
   },
   "peerDependenciesMeta": {
     "@entifix/i18n": {
