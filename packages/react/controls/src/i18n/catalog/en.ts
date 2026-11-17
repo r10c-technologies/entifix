@@ -59,6 +59,13 @@ export const controls: EsControls = {
     back: 'Back',
     loading: 'Loading…',
     pending: 'Waiting for the server…',
+    conflictTitle: 'This record changed while you were editing it',
+    conflictBody:
+      'Someone else saved a newer version. What you typed is still below and nothing was saved.',
+    conflictKeep: 'Keep my changes',
+    conflictKeepHint:
+      'Your next Save will replace the newer version with what you typed.',
+    conflictLoad: 'Discard mine and load the current record',
     errorSummary_one: 'Fix {{count}} field before saving',
     errorSummary_other: 'Fix {{count}} fields before saving',
     requiredHint: 'Fields marked * are required.',

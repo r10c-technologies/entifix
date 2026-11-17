@@ -3,6 +3,7 @@ import {
   type Entity,
   entity,
   type EntityId,
+  StaleRevision,
   Unavailable,
   type UseCaseDescriptor,
 } from '@entifix/core';
@@ -160,6 +161,26 @@ export const LoadError: Story = {
       onRetry={() => undefined}
     />
   ),
+};
+
+/** A save refused because the record changed: the typed values stay. */
+export const Conflict: Story = {
+  render: () => (
+    <EntityForm<StoryGadget>
+      entityConstructor={StoryGadget}
+      entity={GADGET}
+      values={{ id: 'g-1', name: 'My edit', code: 'SPR-001', stock: '1200' }}
+      mode="edit"
+      error={new StaleRevision({ current: 4 })}
+      onKeepMine={() => undefined}
+      onLoadCurrent={() => undefined}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByTestId('entity-form-conflict')).toHaveFocus();
+    await expect(canvas.getByDisplayValue('My edit')).toBeTruthy();
+  },
 };
 
 /** A declared verb, as the service reports it after filtering by permission. */

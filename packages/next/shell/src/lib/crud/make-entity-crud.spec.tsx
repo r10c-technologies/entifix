@@ -1,5 +1,5 @@
 import { EntityRepositoryTag } from '@entifix/business';
-import { Unavailable } from '@entifix/core';
+import { StaleRevision, Unavailable } from '@entifix/core';
 import {
   accessor,
   type BulkOutcome,
@@ -205,7 +205,50 @@ class Product implements Entity {
   }
 }
 
+/** An entity that declares a revision (ADR 0032), so its save is conditional. */
+@entity({
+  domain: 'testing',
+  key: 'revised-note',
+  labelKey: 'entity:product-brand.label',
+  pluralKey: 'entity:product-brand.plural',
+})
+class Note implements Entity {
+  #id?: EntityId;
+  #text = '';
+  #revision?: number;
+
+  @accessor({ type: 'id', label: 'ID' })
+  get id(): EntityId {
+    return this.#id;
+  }
+  set id(value: EntityId) {
+    this.#id = value;
+  }
+
+  @accessor({
+    type: 'string',
+    label: 'Texto',
+    labelKey: 'entity:product-brand.fields.name',
+    required: true,
+  })
+  get text(): string {
+    return this.#text;
+  }
+  set text(value: string) {
+    this.#text = value;
+  }
+
+  @accessor({ type: 'revision', label: 'Revision' })
+  get revision(): number | undefined {
+    return this.#revision;
+  }
+  set revision(value: number | undefined) {
+    this.#revision = value;
+  }
+}
+
 interface TestAdapters {
+  noteRest: Context.Context<EntityRepositoryTag>;
   brandRest: Context.Context<EntityRepositoryTag>;
   productRest: Context.Context<EntityRepositoryTag>;
   brandMetadata: EntityMetadataSource;
@@ -222,6 +265,7 @@ function draftStore(draft?: EntityDraft) {
 }
 
 let repositories: {
+  note: ReturnType<typeof makeInMemoryEntityRepository>;
   brand: ReturnType<typeof makeInMemoryEntityRepository>;
   product: ReturnType<typeof makeInMemoryEntityRepository>;
 };
@@ -252,6 +296,7 @@ const brandWrite = {
 } as EntityWriter;
 
 const useAdapters = (): TestAdapters => ({
+  noteRest: Context.make(EntityRepositoryTag, repositories.note),
   brandRest: Context.make(EntityRepositoryTag, repositories.brand),
   productRest: Context.make(EntityRepositoryTag, repositories.product),
   brandMetadata: { fetchMetadata: () => fetchMetadata() },
@@ -271,6 +316,14 @@ const brandCrud = makeEntityCrud<Brand, TestAdapters>(Brand, {
       render={brand => <span>{brand.website ?? '—'}</span>}
     />
   ),
+});
+
+const noteCrud = makeEntityCrud<Note, TestAdapters>(Note, {
+  useAdapters,
+  basePath: '/catalog/note',
+  catalogKey: 'revised-note',
+  repository: 'noteRest',
+  hiddenFields: ['id'],
 });
 
 // No `labelProperty`/`searchProperty`, so the picker falls back to `'name'`.
@@ -410,6 +463,9 @@ beforeEach(() => {
   writeDelete.mockReset();
   slug = 'new';
   repositories = {
+    note: makeInMemoryEntityRepository([
+      Object.assign(new Note(), { id: 'n-1', text: 'first', revision: 1 }),
+    ] as Entity[]),
     brand: makeInMemoryEntityRepository([
       makeBrand('b-1', 'Acme', 'brand-001'),
     ] as Entity[]),
@@ -2121,5 +2177,82 @@ describe('the generated list’s references (ADR 0030)', () => {
     // Never the bare key: an id with no record reads as the noun and the id.
     expect(screen.queryByText('b-1')).not.toBeInTheDocument();
     expect(screen.getAllByText('Marca b-404').length).toBeGreaterThan(0);
+  });
+});
+
+describe('the generated form, when the record changed underneath it (ADR 0032)', () => {
+  /** Another person saves the record: its revision moves past the form's. */
+  const someoneElseSaves = async () => {
+    const stored = Object.assign(new Note(), {
+      id: 'n-1',
+      text: 'theirs',
+      revision: 1,
+    });
+    await Effect.runPromise(repositories.note.save(stored));
+  };
+
+  const openStale = async (store = draftStore()) => {
+    slug = 'n-1';
+    const user = userEvent.setup();
+    renderPage(<noteCrud.SingleViewPage slug="n-1" draft={store} />);
+    await waitFor(() =>
+      expect(screen.getByLabelText(/nombre/i)).toHaveValue('first'),
+    );
+    await user.clear(screen.getByLabelText(/nombre/i));
+    await user.type(screen.getByLabelText(/nombre/i), 'mine');
+    await someoneElseSaves();
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+    await screen.findByTestId('entity-form-conflict');
+    return { user, store };
+  };
+
+  it('keeps what was typed, says so, and does not save again by itself', async () => {
+    await openStale();
+
+    expect(screen.getByLabelText(/nombre/i)).toHaveValue('mine');
+    expect(screen.getByTestId('entity-form-conflict')).toHaveFocus();
+    expect(push).not.toHaveBeenCalled();
+    const stored = await Effect.runPromise(repositories.note.get('n-1'));
+    expect((stored as Note).text).toBe('theirs');
+  });
+
+  it('saves what was typed only when the person keeps it and saves again', async () => {
+    const { user, store } = await openStale();
+
+    await user.click(screen.getByRole('button', { name: /conservar/i }));
+    expect(screen.queryByTestId('entity-form-conflict')).toBeNull();
+    expect(push).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+    await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
+    expect(store.clear).toHaveBeenCalled();
+  });
+
+  it('drops what was typed and shows the record as it now stands', async () => {
+    const { user, store } = await openStale();
+
+    await user.click(screen.getByRole('button', { name: /descartar/i }));
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/nombre/i)).toHaveValue('theirs'),
+    );
+    expect(store.clear).toHaveBeenCalled();
+    expect(screen.queryByTestId('entity-form-conflict')).toBeNull();
+  });
+
+  it('offers no keep-mine when the failure names no current revision', async () => {
+    slug = 'n-1';
+    const user = userEvent.setup();
+    renderPage(<noteCrud.SingleViewPage slug="n-1" />);
+    await waitFor(() =>
+      expect(screen.getByLabelText(/nombre/i)).toHaveValue('first'),
+    );
+    repositories.note.failNext(new StaleRevision({}));
+
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    await screen.findByTestId('entity-form-conflict');
+    expect(screen.queryByRole('button', { name: /conservar/i })).toBeNull();
+    expect(screen.getByRole('button', { name: /descartar/i })).toBeVisible();
   });
 });

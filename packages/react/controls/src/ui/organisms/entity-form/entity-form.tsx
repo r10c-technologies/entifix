@@ -29,6 +29,7 @@ import {
   useCasesForSurface,
 } from '../../actions/index.js';
 import { useVerbInvoker } from '../../actions/use-verb-invoker.js';
+import { Alert } from '../../atoms/alert/index.js';
 import { Button, button } from '../../atoms/button/index.js';
 import { CellValue, useRecordLabel } from '../../atoms/cell-value/index.js';
 import { FieldControl } from '../../atoms/field-control/index.js';
@@ -132,6 +133,8 @@ export function EntityForm<TEntity extends Entity>({
   isDeleting = false,
   error,
   onRetry,
+  onKeepMine,
+  onLoadCurrent,
   backHref,
   renderLink = renderAnchor,
   title,
@@ -323,6 +326,16 @@ export function EntityForm<TEntity extends Entity>({
     setAttempt(current => current + 1);
     onSubmit?.(draft);
   };
+  // A save refused because the record moved on. It is told apart by its code,
+  // the one thing a failure decoded in a browser is sure to carry, and it is
+  // not a retry: the fields keep what was typed and the person chooses.
+  const conflicted = error?.code === 'staleRevision';
+  const conflict = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    // Focus moves to the explanation, so a keyboard or screen-reader user is
+    // not left on a Save that silently did nothing.
+    if (conflicted) conflict.current?.focus();
+  }, [conflicted, error]);
   const summary = useRef<HTMLDivElement>(null);
   const summaryId = useId();
   const invalid = editing
@@ -463,9 +476,53 @@ export function EntityForm<TEntity extends Entity>({
         {isLoading ? t('form.loading') : ''}
       </span>
 
+      {conflicted && (
+        <div
+          ref={conflict}
+          tabIndex={-1}
+          data-testid="entity-form-conflict"
+          className="rounded-lg focus-ring"
+        >
+          <Alert
+            tone="danger"
+            title={t('form.conflictTitle')}
+            action={
+              onKeepMine === undefined &&
+              onLoadCurrent === undefined ? undefined : (
+                <span className="flex flex-wrap gap-3xs">
+                  {onKeepMine !== undefined && (
+                    <Button
+                      type="button"
+                      variant="primary"
+                      size="sm"
+                      onClick={onKeepMine}
+                    >
+                      {t('form.conflictKeep')}
+                    </Button>
+                  )}
+                  {onLoadCurrent !== undefined && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={onLoadCurrent}
+                    >
+                      {t('form.conflictLoad')}
+                    </Button>
+                  )}
+                </span>
+              )
+            }
+          >
+            {t('form.conflictBody')}
+            {onKeepMine !== undefined && ` ${t('form.conflictKeepHint')}`}
+          </Alert>
+        </div>
+      )}
+
       <RegionState
         plural={entityNoun(metaEntity, 'plural')}
-        error={error}
+        error={conflicted ? undefined : error}
         onRetry={onRetry}
         // Only a load that can be retried leaves an out-of-date record; a
         // failed save leaves what the reader typed, which is current.

@@ -2,6 +2,7 @@
 
 - Status: Proposed
 - Date: 2026-11-16
+- Revised: 2026-11-17 — the form's conflict state is built (§8): `EntityForm` renders it on `staleRevision`, `makeEntityCrud` wires it, and the autosaved draft holds the revision it read.
 - Area: adapters
 - Read when: two people edit one record and the second save silently erases the first, a save answers `409 staleRevision`, an update arrives without a `revision`, a form or an autosaved draft has to keep what a record looked like when it was read, writing a verb or a host cell that changes a record a form may also be editing, or about to make a member `hidden` or `readonly` so that it stays off a form
 
@@ -128,7 +129,7 @@ class StaleRevision extends defineFailure('conflict')<StaleRevision>()('StaleRev
   you read it" from "deleted since" (`NotFound`) without a second request.
 
 What a form does with it — keep what was typed, say the record changed, offer
-the current one, never retry by itself — is the next change's
+the current one, never retry by itself — is §8
 (`react-controls`, `next-shell`), and it reads this failure by its code.
 
 ### 4. Each adapter's seam
@@ -243,6 +244,26 @@ A service-shell spec covers the rest:
 - a stale update answers `409` with `code: 'staleRevision'`;
 - a `prepare` that rewrites the revision is caught.
 
+### 8. A form keeps what was typed when the save answers `staleRevision`
+
+`EntityForm` tells the failure by its code. It then renders, instead of the
+generic error alert, one conflict alert (`role="alert"`) that takes focus and
+says the record changed and nothing was saved. The fields keep what was typed,
+because the form is controlled and the failure never touches the draft.
+
+It offers two choices and **retries neither**: the person decides, then
+presses Save again.
+
+- **Keep my changes** (`onKeepMine`) takes the failure's `current` as the
+  revision the draft names, so the next Save replaces the newer version with
+  what was typed. It is offered only when the failure carries `current`.
+- **Discard mine and load the current record** (`onLoadCurrent`) drops the
+  draft and reloads the record; the form remounts on the new revision.
+
+`makeEntityCrud` wires both. A draft autosaved in a workspace tab holds the
+`revision` beside the values, so a draft restored after someone else saved
+answers `staleRevision` on its first Save, and the same state appears.
+
 ## Consequences
 
 - **Breaking, in three places a host sees.**
@@ -271,7 +292,7 @@ A service-shell spec covers the rest:
 - **Not decided here:**
   - conditional **delete** (`DELETE` has no body, and a stale delete is a
     separate question);
-  - the form's conflict state (the next change);
+  - showing the current record beside what was typed (the form offers to load it, not to compare);
   - what a flow does with `StaleRevision` mid-flight. It is business, so
     it is never retried; whether it compensates or fails the flow is the
     host's flow design.

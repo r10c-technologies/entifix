@@ -28,6 +28,7 @@ import {
   isFailure,
   parseRsql,
   parseSort,
+  readRevision,
   serializeRsql,
   serializeSort,
   settled,
@@ -879,7 +880,8 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     const form = (
       <EntityCrudForm<TEntity>
         // Remounts (and reseeds the fields) once the record arrives.
-        key={String(entity?.id ?? CATALOG_NEW_SLUG)}
+        // A newer revision remounts too, so "load the current record" reseeds.
+        key={`${String(entity?.id ?? CATALOG_NEW_SLUG)}:${readRevision(entity) ?? ''}`}
         entityConstructor={entityConstructor}
         catalogKey={catalogKey}
         metadataSource={metadataSource}
@@ -900,6 +902,18 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
         }
         onSave={handleSave}
         onRetry={loadError === undefined ? undefined : reload}
+        onConflictResolved={saveMutation.reset}
+        onLoadCurrent={
+          id == null
+            ? undefined
+            : () => {
+                // What was typed is given up on purpose: its draft goes, so
+                // the reseed shows the record as it now stands.
+                draft?.clear();
+                saveMutation.reset();
+                void reload();
+              }
+        }
         onDelete={id == null ? undefined : handleDelete}
         deletePolicy={deletePolicy}
         onUseCase={handleUseCase}
