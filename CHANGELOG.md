@@ -1,3 +1,14 @@
+## 0.23.1 (2026-11-17)
+
+### 🚀 Features
+
+- **docs:** ship the decision records and their reader at the fleet's version ([#291](https://github.com/r10c-technologies/entifix/pull/291))
+- **react-controls:** a form keeps what was typed when the record changed underneath it ([#292](https://github.com/r10c-technologies/entifix/pull/292))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.23.0 (2026-11-17)
 
 ### 🚀 Features
