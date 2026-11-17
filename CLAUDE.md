@@ -47,6 +47,7 @@ packages/react/*     react-controls, react-integration
 packages/next/*      next-shell, next-i18n
 packages/effect/*    service-shell
 packages/style       CSS-only tokens and presets (ships src, no build)
+packages/docs        the decision records at the release's version, and their reader
 tools/tiers          the tier register and its check
 tools/docs           documentation assertions
 tools/dev            the consumer sync

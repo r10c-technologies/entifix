@@ -113,6 +113,9 @@
     },
     {
       "path": "./packages/style"
+    },
+    {
+      "path": "./packages/docs"
     }
   ],
   "compilerOptions": {

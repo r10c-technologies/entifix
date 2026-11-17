@@ -4,6 +4,8 @@ packages:
   - 'packages/next/*'
   - 'packages/effect/*'
   - 'packages/style'
+  # Content, not code: the records at the release's version, and their reader.
+  - 'packages/docs'
   # The examples are the composability proof and the only e2e this framework
   # has. They are workspace members so they consume the packages through the
   # source condition, and they are excluded from `nx release` so they never
