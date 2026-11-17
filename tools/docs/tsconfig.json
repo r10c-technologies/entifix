@@ -10,5 +10,9 @@
     "rootDir": "."
   },
   "include": ["src/**/*.ts"],
-  "references": []
+  "references": [
+    {
+      "path": "../../packages/docs"
+    }
+  ]
 }

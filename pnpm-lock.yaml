@@ -563,6 +563,8 @@ importers:
         specifier: 1.65.1
         version: 1.65.1
 
+  packages/docs: {}
+
   packages/effect/service-shell:
     dependencies:
       '@entifix/authz':
@@ -1186,6 +1188,9 @@ importers:
 
   tools/docs:
     devDependencies:
+      '@entifix/docs':
+        specifier: workspace:*
+        version: link:../../packages/docs
       ajv:
         specifier: 8.20.0
         version: 8.20.0

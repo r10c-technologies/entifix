@@ -75,3 +75,7 @@ graphify-out
 # Playwright
 .playwright-mcp
 .vitest
+
+# `@entifix/docs` generates these from docs/adr at build time
+/packages/docs/records
+/packages/docs/records.json

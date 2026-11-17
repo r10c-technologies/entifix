@@ -1,0 +1,72 @@
+{
+  "name": "@entifix/docs",
+  "version": "0.23.0",
+  "description": "entifix's decision records as they stood at this release, an index of them, and the reader that parses a collection in their format.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/r10c-technologies/entifix.git",
+    "directory": "packages/docs"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "exports": {
+    "./package.json": "./package.json",
+    "./records.json": "./records.json",
+    "./records/*": "./records/*",
+    "./reader": {
+      "@entifix/source": "./src/reader/index.ts",
+      "types": "./dist/reader/index.d.ts",
+      "import": "./dist/reader/index.js",
+      "default": "./dist/reader/index.js"
+    }
+  },
+  "files": [
+    "records",
+    "records.json",
+    "dist",
+    "!**/*.tsbuildinfo",
+    "LICENSE"
+  ],
+  "nx": {
+    "tags": [
+      "tier:0"
+    ],
+    "sourceRoot": "packages/docs/src",
+    "targets": {
+      "compile": {
+        "executor": "@nx/js:swc",
+        "outputs": [
+          "{options.outputPath}"
+        ],
+        "options": {
+          "outputPath": "packages/docs/dist",
+          "main": "packages/docs/src/reader/index.ts",
+          "tsConfig": "packages/docs/tsconfig.lib.json",
+          "skipTypeCheck": true,
+          "stripLeadingPaths": true
+        }
+      },
+      "build": {
+        "executor": "nx:run-commands",
+        "dependsOn": [
+          "compile"
+        ],
+        "inputs": [
+          "production",
+          "{workspaceRoot}/docs/adr/**"
+        ],
+        "outputs": [
+          "{projectRoot}/records",
+          "{projectRoot}/records.json"
+        ],
+        "options": {
+          "command": "node scripts/build-records.mjs",
+          "cwd": "packages/docs"
+        }
+      }
+    }
+  }
+}

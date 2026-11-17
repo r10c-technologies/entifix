@@ -1,0 +1,15 @@
+{
+  "jsc": {
+    "target": "es2022",
+    "parser": {
+      "syntax": "typescript"
+    },
+    "externalHelpers": false,
+    "loose": true
+  },
+  "module": {
+    "type": "es6"
+  },
+  "sourceMaps": true,
+  "exclude": [".*\\.spec.tsx?$", ".*\\.test.tsx?$", ".*.js$"]
+}

@@ -43,6 +43,7 @@ export interface PackageDeclaration {
 export const PACKAGES: readonly PackageDeclaration[] = [
   // T0 — standalone. Nothing below them; each is usable on its own.
   { name: '@entifix/style', dir: 'packages/style', tier: 0 },
+  { name: '@entifix/docs', dir: 'packages/docs', tier: 0 },
   {
     name: '@entifix/tooling',
     dir: 'packages/ts/tooling',

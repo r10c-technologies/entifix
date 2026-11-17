@@ -10,6 +10,8 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { ENTIFIX_AREAS, readRecords } from '@entifix/docs/reader';
+
 export const REPO_ROOT = join(import.meta.dirname, '..', '..', '..');
 export const DOCS_ROOT = join(REPO_ROOT, 'docs');
 export const ADR_ROOT = join(DOCS_ROOT, 'adr');
@@ -34,20 +36,10 @@ export const allDocs = (): string[] => [
 ];
 
 /**
- * The areas a record can be filed under, in the order an index would render
- * them.
- *
- * A fixed list rather than free text, because the value is a grouping key: one
- * record filed under `adapters` and another under `Adapters` would render two
- * sections that look like two subjects.
+ * The areas a record can be filed under: the reader's own list, so the check
+ * and the package that ships the index agree on one.
  */
-export const ADR_AREAS = [
-  'entities',
-  'adapters',
-  'ui',
-  'platform',
-  'testing',
-] as const;
+export const ADR_AREAS = ENTIFIX_AREAS;
 
 export type AdrArea = (typeof ADR_AREAS)[number];
 
@@ -70,21 +62,24 @@ export interface AdrRecord {
   readonly readWhen: string;
 }
 
-const header = (text: string, name: string): string => {
-  const match = new RegExp(`^- ${name}:\\s*(.+(?:\\n  .+)*)$`, 'm').exec(text);
-  return match === null ? '' : match[1].replace(/\n\s+/g, ' ').trim();
-};
+/**
+ * What the one parser, `@entifix/docs/reader`, says is wrong with the
+ * collection: a record missing a header, filed under an unknown area, numbered
+ * twice or superseded by a record that does not exist.
+ */
+export const adrProblems = (): readonly string[] =>
+  readRecords(ADR_ROOT, { areas: ADR_AREAS }).problems;
 
-export const adrRecords = (): AdrRecord[] =>
-  adrFiles().map(file => {
-    const text = read('docs', 'adr', file);
-    return {
-      file,
-      id: file.slice(0, 4),
-      title: (/^# .*$/m.exec(text) ?? [''])[0].replace(/^# /, ''),
-      status: header(text, 'Status'),
-      text,
-      area: header(text, 'Area'),
-      readWhen: header(text, 'Read when'),
-    };
-  });
+/** Every record, its fields read by `@entifix/docs/reader`, its text kept. */
+export const adrRecords = (): AdrRecord[] => {
+  const { records } = readRecords(ADR_ROOT, { areas: ADR_AREAS });
+  return records.map(record => ({
+    file: record.file,
+    id: record.id,
+    title: `${record.number}. ${record.title}`,
+    status: record.status,
+    text: read('docs', 'adr', record.file),
+    area: record.area,
+    readWhen: record.readWhen,
+  }));
+};

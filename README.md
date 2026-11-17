@@ -93,7 +93,7 @@ adoptable without.
 
 | Tier |               | Packages                                                                                                         |
 | ---- | ------------- | ---------------------------------------------------------------------------------------------------------------- |
-| T0   | standalone    | `style` · `tooling`                                                                                              |
+| T0   | standalone    | `style` · `docs` · `tooling`                                                                                     |
 | T1   | entity        | `core` · `business`                                                                                              |
 | T2   | adapters      | `mongo` · `sql` · `static` · `redis` · `amqp` · `rest` · `transactions` · `jwt` · `zitadel` · `posthog` · `i18n` |
 | T3   | ui            | `react-controls` · `react-integration`                                                                           |

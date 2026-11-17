@@ -3,7 +3,7 @@ import { dirname, resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { ADR_AREAS, adrRecords, allDocs, read, REPO_ROOT } from './corpus.js';
+import { adrProblems, adrRecords, allDocs, read, REPO_ROOT } from './corpus.js';
 
 /** `[text](target)` — relative markdown links only; http(s) and mailto are not ours to check. */
 const LINK = /\[[^\]]*\]\(([^)\s]+)\)/g;
@@ -70,14 +70,13 @@ describe('Every record carries the headers an index is built from', () => {
     expect(records.length).toBeGreaterThan(0);
   });
 
-  it.each(records.map(r => [r.file, r] as const))('%s', (_file, record) => {
-    expect(record.title).not.toBe('');
-    expect(record.status).not.toBe('');
+  it('is read by the one parser without a problem', () => {
     // `- Area:` and `- Read when:` are what a router's decision index is
     // generated from. A record missing either cannot be indexed, and an
-    // unindexed record is one nobody reads before designing in its area.
-    expect(ADR_AREAS).toContain(record.area);
-    expect(record.readWhen).not.toBe('');
+    // unindexed record is one nobody reads before designing in its area. The
+    // parser is `@entifix/docs/reader`, the one every site reads a record
+    // with (ADR 0031), so a header this accepts is one every site can render.
+    expect(adrProblems()).toEqual([]);
   });
 
   it('numbers each record once, and agrees with its own heading', () => {

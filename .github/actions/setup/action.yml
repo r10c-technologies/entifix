@@ -61,6 +61,7 @@ runs:
           node_modules
           packages/*/*/node_modules
           packages/style/node_modules
+          packages/docs/node_modules
           tools/*/node_modules
           examples/*/node_modules
     - if: inputs.install == 'true' && steps.deps.outputs.cache-hit != 'true'
@@ -77,6 +78,7 @@ runs:
           node_modules
           packages/*/*/node_modules
           packages/style/node_modules
+          packages/docs/node_modules
           tools/*/node_modules
           examples/*/node_modules
 
