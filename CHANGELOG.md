@@ -1,3 +1,18 @@
+## 0.23.0 (2026-11-17)
+
+### 🚀 Features
+
+- ⚠️ a save names the revision it read ([#289](https://github.com/r10c-technologies/entifix/pull/289))
+- **core:** a scalar collection may be filterable, and an equality matches any element ([#278](https://github.com/r10c-technologies/entifix/pull/278))
+
+### ⚠️ Breaking Changes
+
+- a save names the revision it read ([#289](https://github.com/r10c-technologies/entifix/pull/289))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.22.4 (2026-11-16)
 
 ### 🚀 Features
