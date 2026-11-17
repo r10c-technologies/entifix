@@ -1,9 +1,11 @@
 import {
   countFacets,
+  declaresRevision,
   type EntifixFailure,
   type Entity,
   type EntityConstructor,
   type EntityId,
+  Invalid,
   InvalidQuery,
   makeEntityEnvelope,
   makeEntityFacetsEnvelope,
@@ -12,6 +14,8 @@ import {
   parseFacetQueryParams,
   PROBLEM_CONTENT_TYPE,
   problemOf,
+  readRevision,
+  StaleRevision,
 } from '@entifix/core';
 import { http, HttpResponse, type RequestHandler } from 'msw';
 
@@ -36,6 +40,9 @@ export const entityRestHandlers = <TEntity extends Entity>(
   { baseUrl, data = [] }: EntityRestHandlerOptions<TEntity>,
 ): RequestHandler[] => {
   const rows = data;
+  // A declared entity is served as the framework serves it (ADR 0032): a
+  // create never overwrites, an update names the revision it read and moves it.
+  const revised = declaresRevision(entityConstructor);
 
   const findById = (id: string): TEntity | undefined =>
     rows.find(row => String(row.id) === id);
@@ -85,10 +92,18 @@ export const entityRestHandlers = <TEntity extends Entity>(
 
     http.post(baseUrl, async ({ request }) => {
       const body = (await request.json()) as { data: Record<string, unknown> };
+      if (
+        revised &&
+        body.data['id'] != null &&
+        findById(String(body.data['id']))
+      ) {
+        return problem(new StaleRevision({}));
+      }
       // The service is what mints an id on create; echoing the request back
       // unchanged would hide that the adapter must read the response.
       const created = Object.assign(new entityConstructor(), body.data, {
         id: body.data['id'] ?? `generated-${rows.length + 1}`,
+        ...(revised ? { revision: 1 } : {}),
       }) as TEntity;
       rows.push(created);
       return HttpResponse.json(makeEntityEnvelope(entityConstructor, created), {
@@ -104,6 +119,27 @@ export const entityRestHandlers = <TEntity extends Entity>(
         new entityConstructor(),
         body.data,
       ) as TEntity;
+      if (revised) {
+        const read = readRevision(updated);
+        if (read === undefined) {
+          return problem(
+            new Invalid({
+              errors: [
+                {
+                  pointer: '/data/revision',
+                  detail: 'An update names the revision it read.',
+                  code: 'required',
+                },
+              ],
+            }),
+          );
+        }
+        if (index === -1) return problem(new NotFound());
+        const current = readRevision(rows[index]);
+        if (current !== read) return problem(new StaleRevision({ current }));
+        updated.id = id;
+        (updated as { revision?: number }).revision = read + 1;
+      }
       if (index === -1) {
         rows.push(updated);
       } else {

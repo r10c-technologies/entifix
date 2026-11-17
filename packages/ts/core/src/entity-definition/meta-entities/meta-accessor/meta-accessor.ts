@@ -6,6 +6,9 @@ export type MetaAccessorKind = 'getter' | 'setter';
  * TypeScript mirror: `id` and `enum` are strings at runtime but are rendered,
  * sorted and filtered differently.
  *
+ * `revision` is a number the store owns: the version of the record a save read
+ * (ADR 0032). It travels in the body, and presents as nothing.
+ *
  * `localized` holds a text per locale (`LocalizedText`). It is queried only
  * through one locale at a time — `name.en` — never as the whole object.
  */
@@ -21,6 +24,7 @@ export const MetaAccessorTypes = [
   'composition',
   'scalarCollection',
   'localized',
+  'revision',
 ] as const;
 export type MetaAccessorType = (typeof MetaAccessorTypes)[number];
 

@@ -333,11 +333,14 @@ describe('the accessor-type partition', () => {
     const REFERENCE_TYPES: MetaAccessorType[] = ['id', 'link'];
     // One object queried a locale at a time: neither a scalar nor a collection.
     const LOCALIZED_TYPES: MetaAccessorType[] = ['localized'];
+    // The store's own number: travels, and is never queried or entered.
+    const REVISION_TYPES: MetaAccessorType[] = ['revision'];
     const classified = [
       ...SCALAR_TYPES,
       ...COLLECTION_TYPES,
       ...REFERENCE_TYPES,
       ...LOCALIZED_TYPES,
+      ...REVISION_TYPES,
     ];
 
     expect([...classified].sort()).toEqual([...MetaAccessorTypes].sort());

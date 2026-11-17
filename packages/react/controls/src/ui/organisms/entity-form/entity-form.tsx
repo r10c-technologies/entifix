@@ -146,10 +146,14 @@ export function EntityForm<TEntity extends Entity>({
   // The *field* descriptors, which stay local and synchronous — a column is a
   // property of the class every caller holds. Only an action's availability is
   // a property of the caller, which is why that half arrives as `metadata`.
+  // A member that presents as nothing (a `revision`) stays in the draft and is
+  // never drawn.
   const columnDescriptors = describeEntityColumns(
     entityConstructor,
     entity,
-  ) as Array<EntityFormField<TEntity>>;
+  ).filter(descriptor => descriptor.presentation !== 'none') as Array<
+    EntityFormField<TEntity>
+  >;
   // Before slots resolve, so an `<EntityField label>` override still wins.
   const described = useLocalizedDescriptors(columnDescriptors);
   const resolved = resolveEntityFormFields(described, slots.fields);

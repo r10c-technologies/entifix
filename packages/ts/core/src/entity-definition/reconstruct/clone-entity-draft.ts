@@ -65,7 +65,10 @@ export function cloneEntityDraft<TEntity extends Entity>(
     }
     // An `id` member is reset unless it is the parent: a copy of a node is its
     // sibling, and a copy that came out as a root would be moved, not copied.
-    const isIdentityLike = descriptor.type === 'id' && !descriptor.parent;
+    // A `revision` is the original's version of itself: a copy is a create.
+    const isIdentityLike =
+      (descriptor.type === 'id' && !descriptor.parent) ||
+      descriptor.type === 'revision';
     if (!isIdentityLike && !descriptor.resetOnClone) continue;
     if (!(descriptor.name in cloned)) continue;
     cloned[descriptor.name] = '';

@@ -144,7 +144,7 @@ Static only reads.
     `findOne({ id })` to tell `NotFound` from `StaleRevision { current }`.
     That read only names the failure; the write already decided it.
   - A create is atomic only against a **unique index on `id`**, which no
-    collection has today. The repository factory ensures `{ id: 1 }` unique
+    collection has today. The repository ensures `{ id: 1 }` unique
     once per collection per database, memoized, the way the outbox and the
     inbox ensure theirs. Without it, two concurrent creates with one client
     id both insert.
@@ -186,11 +186,12 @@ entity:
 - `StaleRevision` is added to the declared errors of `create` and `update`
   (`:664-671`), so the served contract and the OpenAPI document state the
   `409`.
-- **`create` and `update` declare `idempotent`** (`:673-675`, which today
-  takes it only from an override). A save that landed but whose response was
-  lost is retried by the REST adapter under the same `Idempotency-Key`, and
-  the service replays the first answer instead of refusing the old revision
-  with a `409`.
+- **`create` and `update` declare `idempotent: 'edge'`** (`:673-675`, which
+  today takes it only from an override; the generic handler writes through no
+  unit of work, so the edge guard is the layer that remembers the key). A
+  save that landed but whose response was lost is retried by the REST
+  adapter under the same `Idempotency-Key`, and the service replays the first
+  answer instead of refusing the old revision with a `409`.
 - Overrides and `@useCase()` verbs write through their own handlers and are
   not checked by the shell (§6).
 

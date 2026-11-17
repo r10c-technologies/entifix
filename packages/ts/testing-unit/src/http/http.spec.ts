@@ -6,6 +6,10 @@ import { accessor, type Entity, entity, type EntityId } from '@entifix/core';
 import { describe, expect, it } from 'vitest';
 
 import {
+  makeRevisedWidget,
+  RevisedWidget,
+} from '../contracts/entity-repository.contract.js';
+import {
   entityRestHandlers,
   respondWith404,
   respondWith500,
@@ -318,4 +322,82 @@ describe('the failure handlers', () => {
       ).toBe(500);
     },
   );
+});
+
+describe('entityRestHandlers for an entity that declares a revision', () => {
+  const REVISED_URL = 'http://service/api/revised-widget';
+  let stored: RevisedWidget[] = [];
+
+  const useRevised = (data: RevisedWidget[]) => {
+    stored = data;
+    server.use(
+      ...entityRestHandlers(RevisedWidget, { baseUrl: REVISED_URL, data }),
+    );
+  };
+
+  const put = (id: string, data: Record<string, unknown>) =>
+    getJson(`${REVISED_URL}/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ data }),
+    });
+
+  it('creates at revision 1', async () => {
+    useRevised([]);
+
+    const { body } = await getJson(REVISED_URL, {
+      method: 'POST',
+      body: JSON.stringify({ data: { name: 'Alpha', revision: 7 } }),
+    });
+
+    expect((body as { data: { revision: number } }).data.revision).toBe(1);
+  });
+
+  it('refuses a create over an existing id with a 409', async () => {
+    useRevised([makeRevisedWidget('r-1', 'Alpha', 1)]);
+
+    const { status, body } = await getJson(REVISED_URL, {
+      method: 'POST',
+      body: JSON.stringify({ data: { id: 'r-1', name: 'Again' } }),
+    });
+
+    expect(status).toBe(409);
+    expect((body as { code: string }).code).toBe('staleRevision');
+    expect(stored[0]?.name).toBe('Alpha');
+  });
+
+  it('moves the revision on an update at the revision it read', async () => {
+    useRevised([makeRevisedWidget('r-1', 'Alpha', 1)]);
+
+    const { body } = await put('r-1', { id: 'r-1', name: 'Beta', revision: 1 });
+
+    expect((body as { data: { revision: number } }).data.revision).toBe(2);
+    expect(stored[0]?.name).toBe('Beta');
+  });
+
+  it('refuses a stale update with a 409 naming the current revision', async () => {
+    useRevised([makeRevisedWidget('r-1', 'Alpha', 3)]);
+
+    const { status, body } = await put('r-1', { name: 'Beta', revision: 1 });
+
+    expect(status).toBe(409);
+    expect((body as { current: number }).current).toBe(3);
+    expect(stored[0]?.name).toBe('Alpha');
+  });
+
+  it('refuses an update of a missing record with a 404', async () => {
+    useRevised([]);
+
+    const { status } = await put('r-9', { name: 'Beta', revision: 1 });
+
+    expect(status).toBe(404);
+  });
+
+  it('refuses an update that names no revision with a 400', async () => {
+    useRevised([makeRevisedWidget('r-1', 'Alpha', 1)]);
+
+    const { status, body } = await put('r-1', { name: 'Beta' });
+
+    expect(status).toBe(400);
+    expect((body as { code: string }).code).toBe('invalid');
+  });
 });

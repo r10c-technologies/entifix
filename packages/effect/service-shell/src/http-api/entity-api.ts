@@ -37,6 +37,7 @@ import {
 } from '@entifix/business';
 import {
   type AnyEndpoint,
+  declaresRevision,
   defineEndpoint,
   describeEntityUseCases,
   type EndpointGuard,
@@ -50,6 +51,8 @@ import {
   Envelope,
   implement,
   type Implemented,
+  Internal,
+  Invalid,
   InvalidQuery,
   JsonBody,
   makeEntityEnvelope,
@@ -60,6 +63,8 @@ import {
   parseFacetQueryParams,
   parseLoadRequestParams,
   readEntityEnvelope,
+  readRevision,
+  StaleRevision,
   verbPath,
 } from '@entifix/core';
 import { Effect, Option, Schema } from 'effect';
@@ -213,6 +218,15 @@ type OverrideRequirements<V> = V extends { readonly handler: infer H }
   ? ReturnRequirements<H>
   : never;
 
+/**
+ * An entity that declares a `revision` member has its generic `create` and
+ * `update` served idempotent at the edge (ADR 0032 §5), so a save that landed
+ * but whose response was lost replays instead of answering `409`. Read from the
+ * member's presence on the class, which is what the runtime reads from its
+ * metadata.
+ */
+type RevisionIdempotency<T> = 'revision' extends keyof T ? 'edge' : never;
+
 /** What the host's `prepare` and overrides need. */
 export type OptionsRequirements<O> =
   | ReturnRequirements<O extends { readonly prepare: infer P } ? P : never>
@@ -259,7 +273,10 @@ export const entityApi = <
   declaration: EntityApiDeclaration<T, K, O>,
   serving: EntityApiServing = {},
 ): EndpointGroup<
-  EntityEndpoint<EntityGuardKinds<O>, EntityIdempotencies<O>>,
+  EntityEndpoint<
+    EntityGuardKinds<O>,
+    EntityIdempotencies<O> | RevisionIdempotency<T>
+  >,
   | OptionsRequirements<O>
   | EntityRepositoryFactoryTag
   | PolicyDecisionTag
@@ -521,6 +538,8 @@ export const entityApi = <
       );
     });
 
+  const revised = declaresRevision(entityConstructor);
+
   const save = (verb: 'create' | 'update', body: unknown, id?: string) =>
     Effect.gen(function* () {
       const caller = yield* context;
@@ -528,8 +547,33 @@ export const entityApi = <
       // On update the path is authoritative, so a record cannot be renamed
       // onto another one by editing its payload.
       if (id !== undefined) entity.id = id;
-      if (options.prepare !== undefined)
+      if (revised) {
+        if (verb === 'create') {
+          // The server owns the first revision, whatever the body said.
+          (entity as { revision?: number }).revision = undefined;
+        } else if (readRevision(entity) === undefined) {
+          // Never a create and never an overwrite: an update names what it read.
+          return yield* Effect.fail(
+            new Invalid({
+              errors: [
+                {
+                  pointer: '/data/revision',
+                  detail: 'An update names the revision it read.',
+                  code: 'required',
+                },
+              ],
+            }),
+          );
+        }
+      }
+      const read = revised ? readRevision(entity) : undefined;
+      if (options.prepare !== undefined) {
         entity = yield* options.prepare(entity, { ...caller, verb });
+        // A `prepare` that moves the revision is a defect, not a request.
+        if (revised && readRevision(entity) !== read) {
+          return yield* Effect.fail(new Internal());
+        }
+      }
       const saved = yield* saveUCFactory<T>().pipe(
         Effect.provideService(EntityRepositoryTag, yield* repository(caller)),
         Effect.provideService(EntityTag, entity),
@@ -667,12 +711,15 @@ export const entityApi = <
           : []),
         ...(verb === 'list' ? [InvalidQuery] : []),
         ...(takesBody ? (options.errors ?? []) : []),
+        ...(revised && takesBody ? [StaleRevision] : []),
         ...(override?.errors ?? []),
       ],
       guard: endpointGuard(entityConstructor, guardFor(verb), ACTION[verb]),
-      ...(override?.idempotent === undefined
-        ? {}
-        : { idempotent: override.idempotent }),
+      ...(override?.idempotent !== undefined
+        ? { idempotent: override.idempotent }
+        : revised && takesBody
+          ? { idempotent: 'edge' }
+          : {}),
     } as AnyEndpoint);
 
     return implement(descriptor, ((request: EntityApiRequest) => {

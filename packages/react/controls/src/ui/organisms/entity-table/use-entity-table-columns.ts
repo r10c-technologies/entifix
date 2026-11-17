@@ -180,9 +180,9 @@ export function useEntityTableColumns<TEntity extends Entity>(
 
   const metadata = useMemo(
     () =>
-      describeEntityColumns(entityConstructor, sample) as Array<
-        EntityTableColumn<TEntity>
-      >,
+      describeEntityColumns(entityConstructor, sample).filter(
+        descriptor => descriptor.presentation !== 'none',
+      ) as Array<EntityTableColumn<TEntity>>,
     [entityConstructor, sample],
   );
 

@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ContractWidget,
   describeEntityRepositoryContract,
+  describeEntityRepositoryRevisionContract,
   makeContractWidget,
 } from '../contracts/entity-repository.contract.js';
 import { run, runExit } from '../effect/run.js';
@@ -428,4 +429,8 @@ describe('makeInMemoryEntityRepository value comparison', () => {
       await ids([{ property: 'area', operator: 'in', values: ['a-1'] }]),
     ).toEqual(['n-1']);
   });
+});
+
+describeEntityRepositoryRevisionContract('in-memory fake', {
+  makeRepository: seed => makeInMemoryEntityRepository(seed),
 });
