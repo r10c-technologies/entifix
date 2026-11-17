@@ -83,6 +83,12 @@ export interface EntityFieldDescriptor {
    * A screen shows that record's name in its place.
    */
   references?: MemberReference;
+  /**
+   * `'none'`: the member travels with the record and is never shown — a form
+   * keeps it in its draft without a field, a table without a column. Today
+   * only a `revision` member presents as nothing.
+   */
+  presentation?: 'none';
 }
 
 /** Types whose values are scalars a user can meaningfully sort/filter on. */
@@ -205,6 +211,52 @@ function assertParentType(metaAccessor: MetaAccessor, type: MetaAccessorType) {
   throw new Error(
     `"${String(metaAccessor.name)}" is a ${type} and cannot be the parent member — a parent is one record's id, so it is an id or a string.`,
   );
+}
+
+/** The one name a revision member may have: the wire key is part of the contract. */
+export const REVISION_MEMBER = 'revision';
+
+/**
+ * A revision is the store's, not the author's: it is one number named
+ * `revision` that every save carries and no query uses, so it cannot be
+ * renamed, required, queried, hidden (it would not be serialized) or
+ * `readonly` (the same). One name makes one member, so an entity has one at
+ * most. Checked against every
+ * accessor before hidden ones are dropped, since a hidden revision is exactly
+ * the one describing would never see.
+ */
+function assertRevisionMembers(members: readonly MetaAccessor[]) {
+  const revisions = members.filter(member => member.type === 'revision');
+  for (const member of revisions) {
+    const name = String(member.name);
+    if (name !== REVISION_MEMBER || member.alias !== undefined) {
+      throw new Error(
+        `"${name}" is a revision member and must be named "${REVISION_MEMBER}", with no alias — the wire key is part of the contract.`,
+      );
+    }
+    for (const flag of [
+      'required',
+      'filterable',
+      'sortable',
+      'hidden',
+      'readonly',
+    ] as const) {
+      if (member[flag] === true) {
+        throw new Error(
+          `"${name}" is a revision member and cannot be ${flag} — it travels with every record and is never queried or entered.`,
+        );
+      }
+    }
+  }
+}
+
+/** A composition's child has no save of its own, so it carries no revision. */
+function assertChildHasNoRevision(child: ChildConstructor) {
+  if (extractMetaAccessors(child).some(member => member.type === 'revision')) {
+    throw new Error(
+      `${child.name} is the child of a composition and declares a revision member — a child has no save of its own, so its master's revision covers it.`,
+    );
+  }
 }
 
 /** A reference's entity, as `@entity({ domain, key })` names it: two kebab-case words. */
@@ -411,6 +463,8 @@ function toDescriptor(
   assertMoneyType(metaAccessor, type);
   assertEnumTones(metaAccessor, type);
   assertMinWidth(metaAccessor);
+  const child = type === 'composition' ? metaAccessor.childType?.() : undefined;
+  if (child !== undefined) assertChildHasNoRevision(child);
   // A localized member is queried one locale at a time (`name.en`), which
   // makes it as queryable as the text each locale holds.
   const isScalar = SCALAR_TYPES.includes(type) || type === 'localized';
@@ -449,6 +503,7 @@ function toDescriptor(
       ? {}
       : { autocomplete: metaAccessor.autocomplete }),
     parent: metaAccessor.parent ?? false,
+    ...(type === 'revision' ? { presentation: 'none' as const } : {}),
     ...(metaAccessor.references === undefined
       ? {}
       : { references: metaAccessor.references }),
@@ -478,6 +533,7 @@ export function describeEntityColumns<TTarget extends object>(
 ): EntityFieldDescriptor[] {
   const seen = new Set<string>();
   assertParentVisible(extractMetaAccessors(entityConstructor));
+  assertRevisionMembers(extractMetaAccessors(entityConstructor));
 
   const descriptors = extractMetaAccessors(entityConstructor)
     .filter(metaAccessor => {

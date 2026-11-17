@@ -180,6 +180,7 @@ function checkScalar(
 ): void {
   switch (descriptor.type) {
     case 'number':
+    case 'revision':
       if (typeof value !== 'number' || Number.isNaN(value)) {
         report(descriptor.name, `holds ${JSON.stringify(value)}, not a number`);
       }

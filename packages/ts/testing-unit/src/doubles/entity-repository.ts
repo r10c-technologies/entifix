@@ -2,6 +2,7 @@ import type { EntityRepository, RepositoryFailure } from '@entifix/business';
 import {
   applyFiltering,
   applySorting,
+  declaresRevision,
   deserializeSingleEntity,
   type EntifixFailure,
   type Entity,
@@ -10,8 +11,11 @@ import {
   type EntityLoadRequest,
   type EntityPage,
   extractMetaAccessors,
+  extractMetaEntity,
   NotFound,
+  readRevision,
   serializeEntity,
+  StaleRevision,
 } from '@entifix/core';
 import { Effect } from 'effect';
 
@@ -118,8 +122,53 @@ export const makeInMemoryEntityRepository = (
         : copyOf(found as TEntity);
     });
 
+  /**
+   * The revision rule (ADR 0032): a create never overwrites, an update names
+   * the revision it read, and a mismatch writes nothing. The decision and the
+   * write share one synchronous step, so two saves cannot both pass at one
+   * revision — the property the adapters get from one conditional statement.
+   */
+  const saveRevised = <TEntity extends Entity>(entity: TEntity) => {
+    const key = extractMetaEntity(
+      entity.constructor as EntityConstructor<TEntity>,
+    ).key;
+    entity.id = entity.id ?? globalThis.crypto.randomUUID();
+    return copyOf(entity).pipe(
+      Effect.flatMap(stored =>
+        Effect.suspend(() => {
+          const read = readRevision(entity);
+          const index = items.findIndex(item => item.id === stored.id);
+          if (read === undefined) {
+            if (index !== -1) {
+              return Effect.fail(new StaleRevision({ entity: key }));
+            }
+          } else {
+            if (index === -1) return Effect.fail(new NotFound({ entity: key }));
+            const current = readRevision(items[index]);
+            if (current !== read) {
+              return Effect.fail(new StaleRevision({ entity: key, current }));
+            }
+          }
+          const next = (read ?? 0) + 1;
+          (stored as { revision?: number }).revision = next;
+          (entity as { revision?: number }).revision = next;
+          if (index === -1) items.push(stored);
+          else items[index] = stored;
+          return copyOf(stored);
+        }),
+      ),
+    );
+  };
+
   const save = <TEntity extends Entity>(entity: TEntity) =>
-    guard(() => {
+    guard(() =>
+      declaresRevision(entity.constructor as EntityConstructor<TEntity>)
+        ? saveRevised(entity)
+        : storeCopy(entity),
+    );
+
+  const storeCopy = <TEntity extends Entity>(entity: TEntity) =>
+    Effect.suspend(() => {
       // A create arrives without an id, so the store mints one — same rule the
       // Mongo adapter follows. The Web Crypto global rather than `node:crypto`,
       // because a browser bundle cannot resolve a `node:` import and an example

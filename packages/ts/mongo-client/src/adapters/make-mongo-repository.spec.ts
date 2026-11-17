@@ -5,11 +5,14 @@ import {
   type EntityId,
   serializeEntity,
 } from '@entifix/core';
-import { run, runExit } from '@entifix/testing-unit';
+import { run, runExit, runFailure } from '@entifix/testing-unit';
 import {
   ContractWidget,
   describeEntityRepositoryContract,
+  describeEntityRepositoryRevisionContract,
   makeContractWidget,
+  makeRevisedWidget,
+  RevisedWidget,
 } from '@entifix/testing-unit/contracts';
 import { makeFakeMongoDb } from '@entifix/testing-unit/drivers';
 import { Exit } from 'effect';
@@ -199,5 +202,117 @@ describe('makeMongoRepository inside a session', () => {
 
     expect(page.total).toBe(1);
     expect(fake.read(COLLECTION)).toEqual([]);
+  });
+});
+
+const REVISED = 'revised-widget';
+
+const withRevisedDb = (seed: RevisedWidget[] = []) => {
+  const fake = makeFakeMongoDb({
+    [REVISED]: seed.map(widget => serializeEntity(RevisedWidget, widget)),
+  });
+  return {
+    fake,
+    repository: makeMongoRepository(fake.db as Db, RevisedWidget),
+  };
+};
+
+describeEntityRepositoryRevisionContract('mongo adapter over a fake driver', {
+  makeRepository: seed => withRevisedDb(seed).repository,
+});
+
+describe('makeMongoRepository for an entity that declares a revision', () => {
+  const seed = [makeRevisedWidget('r-1', 'Alpha', 1)];
+
+  it('ensures the unique index on id once per database, however many creates', async () => {
+    const { fake, repository } = withRevisedDb();
+
+    await run(repository.save<RevisedWidget>(makeRevisedWidget('a', 'A')));
+    await run(repository.save<RevisedWidget>(makeRevisedWidget('b', 'B')));
+
+    expect(
+      fake.operations.filter(operation => operation.op === 'createIndex'),
+    ).toHaveLength(1);
+  });
+
+  it('does not touch the index on an update', async () => {
+    const { fake, repository } = withRevisedDb(seed);
+
+    await run(
+      repository.save<RevisedWidget>(makeRevisedWidget('r-1', 'Beta', 1)),
+    );
+
+    expect(
+      fake.operations.some(operation => operation.op === 'createIndex'),
+    ).toBe(false);
+    expect(fake.operations.map(operation => operation.op)).not.toContain(
+      'insertOne',
+    );
+  });
+
+  it('writes an update without an upsert, so a missing record is never created', async () => {
+    const { fake, repository } = withRevisedDb();
+
+    const exit = await runExit(
+      repository.save<RevisedWidget>(makeRevisedWidget('r-9', 'Ghost', 1)),
+    );
+
+    expect(Exit.isFailure(exit)).toBe(true);
+    expect(fake.read(REVISED)).toEqual([]);
+  });
+
+  it('tries the index again after it failed, and fails the create meanwhile', async () => {
+    const { fake, repository } = withRevisedDb();
+    fake.failOnce('createIndex', new Error('connection refused'));
+
+    const first = await runExit(
+      repository.save<RevisedWidget>(makeRevisedWidget('a', 'A')),
+    );
+    await run(repository.save<RevisedWidget>(makeRevisedWidget('a', 'A')));
+
+    expect(Exit.isFailure(first)).toBe(true);
+    expect(
+      fake.operations.filter(operation => operation.op === 'createIndex'),
+    ).toHaveLength(2);
+  });
+
+  it.each([
+    ['insertOne', makeRevisedWidget('a', 'A')],
+    ['replaceOne', makeRevisedWidget('r-1', 'Beta', 1)],
+  ])(
+    'fails with the store failure when %s rejects',
+    async (operation, widget) => {
+      const { fake, repository } = withRevisedDb(seed);
+      fake.failOn(operation, new Error('connection refused'));
+
+      const exit = await runExit(repository.save<RevisedWidget>(widget));
+
+      expect(Exit.isFailure(exit)).toBe(true);
+    },
+  );
+
+  it('fails with the store failure when naming a stale save cannot read the record', async () => {
+    const { fake, repository } = withRevisedDb(seed);
+    fake.failOn('findOne', new Error('connection refused'));
+
+    const exit = await runExit(
+      repository.save<RevisedWidget>(makeRevisedWidget('r-1', 'Stale', 9)),
+    );
+
+    expect(Exit.isFailure(exit)).toBe(true);
+  });
+
+  it('answers a stale save with the revision that is stored', async () => {
+    const { repository } = withRevisedDb(seed);
+
+    const failure = await runFailure(
+      repository.save<RevisedWidget>(makeRevisedWidget('r-1', 'Stale', 9)),
+    );
+
+    expect(failure).toMatchObject({
+      _tag: 'StaleRevision',
+      entity: 'revised-widget',
+      current: 1,
+    });
   });
 });

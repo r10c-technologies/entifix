@@ -131,6 +131,12 @@ An entity's metadata says more than how to store and render it:
   names a narrower shape; `serializeEntityCollection(entity, records, { view })`
   publishes through it, and a member a view omits stays `required` everywhere
   else.
+- **A save that names the revision it read.** `@accessor({ type: 'revision' })`
+  on a member named `revision` makes an entity's saves checked on every adapter
+  that writes: a create never overwrites, an update is one conditional write on
+  the revision it read, and a stale one fails `StaleRevision` — `409
+staleRevision` over HTTP — instead of silently erasing the first save. An
+  entity without the member saves as before.
 - **One check for untyped records.** `validateRecords` holds JSON from a build,
   an import or a seed to all of the above, collecting every problem with its
   path. `@entifix/static` runs it before serving bundled records through the

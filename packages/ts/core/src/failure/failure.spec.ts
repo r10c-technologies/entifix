@@ -25,6 +25,7 @@ import {
   NotFound,
   Overloaded,
   ProtocolFailure,
+  StaleRevision,
   Timeout,
   Unauthenticated,
   Unavailable,
@@ -320,6 +321,7 @@ describe('isStoreFault', () => {
     expect(isStoreFault(new Unavailable({}))).toBe(true);
     expect(isStoreFault(new Contention())).toBe(true);
     expect(isStoreFault(new DuplicateKey({}))).toBe(false);
+    expect(isStoreFault(new StaleRevision({}))).toBe(false);
     expect(isStoreFault(null)).toBe(false);
     expect(isStoreFault('Unavailable')).toBe(false);
   });
@@ -335,6 +337,7 @@ describe('the fleet-generic failures', () => {
     [new NoActiveOrganization()],
     [new NotFound({ entity: 'brand' })],
     [new DuplicateKey({ key: 'slug' })],
+    [new StaleRevision({ entity: 'brand', current: 3 })],
     [new Declined({ reason: 'r' })],
     [new Contention()],
     [new Overloaded({ retryAfterSeconds: 3 })],

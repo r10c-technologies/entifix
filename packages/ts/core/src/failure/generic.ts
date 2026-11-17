@@ -90,6 +90,24 @@ export class DuplicateKey extends defineFailure('conflict')<DuplicateKey>()(
   { key: Schema.optionalKey(Schema.String) },
 ) {}
 
+/**
+ * A save named the revision it read, and the record has moved on: someone else
+ * saved first (ADR 0032). A `conflict`, not a `contention` — a retry sends the
+ * same stale revision and loses again; only a person who has seen the current
+ * record can make the save succeed.
+ *
+ * `current` is the stored revision, so a client can tell "changed since you read
+ * it" from "deleted since" (`NotFound`) without a second request.
+ */
+export class StaleRevision extends defineFailure('conflict')<StaleRevision>()(
+  'StaleRevision',
+  'staleRevision',
+  {
+    entity: Schema.optionalKey(Schema.String),
+    current: Schema.optionalKey(Schema.Number),
+  },
+) {}
+
 /** A third party, or a rule over other records, said no. */
 export class Declined extends defineFailure('declined')<Declined>()(
   'Declined',
@@ -180,14 +198,19 @@ export class IdempotencyKeyInFlight extends defineFailure(
  * A port that talks to storage names this as its failure.
  */
 export type StoreFailure =
-  DuplicateKey | Contention | Unavailable | Timeout | ProtocolFailure;
+  | DuplicateKey
+  | StaleRevision
+  | Contention
+  | Unavailable
+  | Timeout
+  | ProtocolFailure;
 
 /**
  * The technical part of {@link StoreFailure}: the store failing to answer, as
  * opposed to answering no. A unit of work rolls back and surfaces these; a
  * business failure — a `DuplicateKey` included — is its abort.
  */
-export type StoreFault = Exclude<StoreFailure, DuplicateKey>;
+export type StoreFault = Exclude<StoreFailure, DuplicateKey | StaleRevision>;
 
 const STORE_FAULT_TAGS: ReadonlySet<string> = new Set([
   'Contention',

@@ -11,6 +11,7 @@ import {
   type EntityRepository,
   EntityRepositoryFactoryTag,
   IdempotencyKeyTag,
+  IdempotencyStoreTag,
   InvalidToken,
   Otherwise,
   type TokenClaims,
@@ -25,14 +26,17 @@ import {
   entity,
   type EntityId,
   Failure,
+  formatIdempotencyKey,
   IDEMPOTENCY_KEY_HEADER,
   readWireSelection,
+  StaleRevision,
   toWireSelection,
   useCase,
 } from '@entifix/core';
 import {
   makeInMemoryEntityRepository,
   makeInMemoryFacetCounter,
+  makeInMemoryIdempotencyStore,
 } from '@entifix/testing-unit';
 import { Effect, Layer, Schema } from 'effect';
 import {
@@ -345,6 +349,50 @@ const notes = entityApi(
   }),
 );
 
+/** An entity that declares a revision: its saves are checked (ADR 0032). */
+@entity({ domain: 'catalog', key: 'memo' })
+class Memo implements Entity {
+  #id?: EntityId;
+  #text?: string;
+  #revision?: number;
+
+  @accessor({ type: 'id' })
+  get id(): EntityId {
+    return this.#id;
+  }
+  set id(value: EntityId) {
+    this.#id = value;
+  }
+
+  @accessor({ type: 'string' })
+  get text(): string | undefined {
+    return this.#text;
+  }
+  set text(value: string | undefined) {
+    this.#text = value;
+  }
+
+  @accessor({ type: 'revision' })
+  get revision(): number | undefined {
+    return this.#revision;
+  }
+  set revision(value: number | undefined) {
+    this.#revision = value;
+  }
+}
+
+const memos = entityApi(
+  defineEntityApi(Memo, 'memo', {
+    verbs: ['get', 'create', 'update'],
+    guard: { kind: 'permission' },
+    // A `prepare` that moves the revision is a defect the shell catches.
+    prepare: memo =>
+      Effect.succeed(
+        memo.text === 'rewrite' ? Object.assign(memo, { revision: 9 }) : memo,
+      ),
+  }),
+);
+
 const fakeTokens = TokenServiceTag.of({
   sign: claims => Effect.succeed(JSON.stringify(claims)),
   verify: token =>
@@ -364,6 +412,8 @@ const GRANTS = {
     'catalog:order:read',
     'catalog:order:ship',
     'catalog:order:archive',
+    'catalog:memo:read',
+    'catalog:memo:write',
   ],
   reader: ['catalog:gadget:read'],
   user: [],
@@ -394,7 +444,7 @@ beforeAll(async () => {
     name: 'spec-entity-api',
     port: 0,
     slices: ['test'],
-    endpoints: [gadgets, owned, orders, notes],
+    endpoints: [gadgets, owned, orders, notes, memos],
     appLayer: Layer.mergeAll(
       Layer.succeed(EntityRepositoryFactoryTag, {
         for: (_entity, scope) =>
@@ -404,6 +454,10 @@ beforeAll(async () => {
         for: () =>
           Effect.succeed(makeInMemoryFacetCounter(ROWS) as EntityFacetCounter),
       }),
+      Layer.succeed(
+        IdempotencyStoreTag,
+        makeInMemoryIdempotencyStore({ retentionMs: 60_000 }),
+      ),
       Layer.succeed(TokenServiceTag, fakeTokens),
       Layer.succeed(PolicyDecisionTag, makeStaticPolicyDecision(GRANTS)),
       Layer.succeed(ServiceCrossingTokenTag, CROSSING),
@@ -466,6 +520,15 @@ describe('entityApi', () => {
       // `inspect` is a crossing verb, so the group reads the crossing tags.
       | ServiceCrossingTokenTag
       | ServiceCrossingPolicyTag
+    >();
+  });
+
+  it('types the idempotency store a revised entity’s saves are served from', () => {
+    expectTypeOf<ServedRequirements<[typeof memos]>>().toEqualTypeOf<
+      | EntityRepositoryFactoryTag
+      | PolicyDecisionTag
+      | TokenServiceTag
+      | IdempotencyStoreTag
     >();
   });
 
@@ -977,5 +1040,127 @@ describe('verbs derived from @useCase()', () => {
         { compositions: POLISHING },
       ),
     ).toThrow("serve 'ship', declared on another entity");
+  });
+});
+
+describe('an entity that declares a revision', () => {
+  const envelope = (data: Record<string, unknown>) => ({
+    meta: { type: 'entity', entity: 'memo' },
+    data,
+  });
+  let keys = 0;
+  const write = (
+    method: 'POST' | 'PUT',
+    path: string,
+    data: Record<string, unknown>,
+    key = `memo-key-${(keys += 1)}`,
+  ) =>
+    call(
+      path,
+      json(method, envelope(data), {
+        ...bearer(['admin']),
+        [IDEMPOTENCY_KEY_HEADER]: formatIdempotencyKey(key),
+      }),
+    );
+  const create = async (text = 'first') => {
+    const answer = await write('POST', '/api/memo', { text, revision: 7 });
+    return answer.body?.data as { id: string; revision: number };
+  };
+
+  it('serves create and update idempotent at the edge, and declares the 409', () => {
+    const verbs = memos.endpoints.filter(({ descriptor }) =>
+      ['create', 'update'].includes(descriptor.name),
+    );
+
+    expect(verbs.map(({ descriptor }) => descriptor.idempotent)).toEqual([
+      'edge',
+      'edge',
+    ]);
+    expect(
+      verbs.every(({ descriptor }) =>
+        descriptor.errors.includes(StaleRevision),
+      ),
+    ).toBe(true);
+    // An entity that declares none is served as it was.
+    expect(
+      gadgets.endpoints.find(({ descriptor }) => descriptor.name === 'update')
+        ?.descriptor.idempotent,
+    ).toBeUndefined();
+  });
+
+  it('creates at revision 1, whatever the body said', async () => {
+    const created = await create();
+
+    expect(created.revision).toBe(1);
+  });
+
+  it('refuses an update that names no revision with core’s invalid', async () => {
+    const { id } = await create();
+
+    const answer = await write('PUT', `/api/memo/${id}`, { text: 'blind' });
+
+    expect(answer.status).toBe(400);
+    expect(answer.body).toMatchObject({
+      code: 'invalid',
+      errors: [{ pointer: '/data/revision', code: 'required' }],
+    });
+  });
+
+  it('moves the revision on an update at the revision it read', async () => {
+    const { id, revision } = await create();
+
+    const answer = await write('PUT', `/api/memo/${id}`, {
+      text: 'second',
+      revision,
+    });
+
+    expect(answer.status).toBe(200);
+    expect(answer.body?.data).toMatchObject({ text: 'second', revision: 2 });
+  });
+
+  it('answers a stale update 409 staleRevision, naming the current one', async () => {
+    const { id, revision } = await create();
+    await write('PUT', `/api/memo/${id}`, { text: 'winner', revision });
+
+    const answer = await write('PUT', `/api/memo/${id}`, {
+      text: 'loser',
+      revision,
+    });
+
+    expect(answer.status).toBe(409);
+    expect(answer.body).toMatchObject({ code: 'staleRevision', current: 2 });
+    const stored = await call(`/api/memo/${id}`, {
+      headers: bearer(['admin']),
+    });
+    expect(stored.body?.data).toMatchObject({ text: 'winner', revision: 2 });
+  });
+
+  it('replays a retried save instead of refusing the revision it already spent', async () => {
+    const { id, revision } = await create();
+    const body = { text: 'once', revision };
+
+    const first = await write('PUT', `/api/memo/${id}`, body, 'retried');
+    const again = await write('PUT', `/api/memo/${id}`, body, 'retried');
+
+    expect(first.status).toBe(200);
+    expect(again.status).toBe(200);
+    expect(again.body).toEqual(first.body);
+  });
+
+  it('leaves exactly one winner when two saves race at one revision', async () => {
+    const { id, revision } = await create();
+
+    const answers = await Promise.all([
+      write('PUT', `/api/memo/${id}`, { text: 'left', revision }),
+      write('PUT', `/api/memo/${id}`, { text: 'right', revision }),
+    ]);
+
+    expect(answers.map(answer => answer.status).sort()).toEqual([200, 409]);
+  });
+
+  it('catches a prepare that rewrites the revision', async () => {
+    const answer = await write('POST', '/api/memo', { text: 'rewrite' });
+
+    expect(answer.status).toBe(500);
   });
 });

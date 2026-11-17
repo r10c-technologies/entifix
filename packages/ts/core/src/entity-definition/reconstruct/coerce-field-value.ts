@@ -40,7 +40,8 @@ export function coerceFieldValue(
     return raw === '' ? [] : raw.split(',');
   }
   if (raw === '') return undefined;
-  if (descriptor.type === 'number') return Number(raw);
+  if (descriptor.type === 'number' || descriptor.type === 'revision')
+    return Number(raw);
   if (descriptor.type === 'date') return new Date(raw);
   return raw;
 }

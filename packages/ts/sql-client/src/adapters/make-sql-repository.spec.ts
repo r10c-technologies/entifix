@@ -1,6 +1,10 @@
 import { accessor, type Entity, entity, type EntityId } from '@entifix/core';
 import { run, runExit } from '@entifix/testing-unit';
 import {
+  makeRevisedWidget,
+  RevisedWidget,
+} from '@entifix/testing-unit/contracts';
+import {
   type FakeSqlClient,
   makeFakeSqlClient,
 } from '@entifix/testing-unit/drivers';
@@ -313,5 +317,110 @@ describe('makeSqlRepository', () => {
 
       expect(failureOf(exit)).toMatchObject({ _tag: 'Unavailable' });
     });
+  });
+});
+
+describe('makeSqlRepository for an entity that declares a revision', () => {
+  const revised = () =>
+    makeSqlRepository(fake.client as SqlClient.SqlClient, RevisedWidget);
+
+  it('creates with an insert that never overwrites, at revision 1', async () => {
+    fake.respondTo('RETURNING "id"', [{ id: 'r-1' }]);
+
+    const created = await run(
+      revised().save<RevisedWidget>(makeRevisedWidget('r-1', 'Alpha')),
+    );
+
+    const insert = executed('INSERT INTO "revised-widget"');
+    expect(insert?.sql).toContain('ON CONFLICT ("id") DO NOTHING');
+    expect(insert?.sql).toContain('RETURNING "id"');
+    expect(insert?.params).toContain(1);
+    expect(created.revision).toBe(1);
+  });
+
+  it('mints an id for a create that has none', async () => {
+    fake.respondTo('RETURNING "id"', [{ id: 'minted' }]);
+
+    const created = await run(
+      revised().save<RevisedWidget>(makeRevisedWidget(undefined, 'Alpha')),
+    );
+
+    expect(created.id).toBeDefined();
+  });
+
+  it('answers StaleRevision when the id already exists', async () => {
+    fake.respondTo('RETURNING "id"', []);
+
+    const exit = await runExit(
+      revised().save<RevisedWidget>(makeRevisedWidget('r-1', 'Alpha')),
+    );
+
+    expect(failureOf(exit)).toMatchObject({
+      _tag: 'StaleRevision',
+      entity: 'revised-widget',
+    });
+  });
+
+  it('updates in one conditional statement, moving the revision', async () => {
+    fake.respondTo('RETURNING "revision"', [{ revision: 3 }]);
+
+    const updated = await run(
+      revised().save<RevisedWidget>(makeRevisedWidget('r-1', 'Beta', 2)),
+    );
+
+    const update = executed('UPDATE "revised-widget"');
+    expect(update?.sql).toContain('"revision" = "revision" + 1');
+    expect(update?.sql).toContain('WHERE "id" = $');
+    expect(update?.sql).toContain('AND "revision" = $');
+    expect(update?.params).toEqual(['Beta', 'r-1', 2]);
+    expect(updated.revision).toBe(3);
+    expect(executed('SELECT "revision"')).toBeUndefined();
+  });
+
+  it('names a stale update by the revision that is stored', async () => {
+    fake.respondTo('RETURNING "revision"', []);
+    fake.respondTo('SELECT "revision"', [{ revision: 5 }]);
+
+    const exit = await runExit(
+      revised().save<RevisedWidget>(makeRevisedWidget('r-1', 'Beta', 2)),
+    );
+
+    expect(failureOf(exit)).toMatchObject({
+      _tag: 'StaleRevision',
+      current: 5,
+    });
+  });
+
+  it('answers NotFound to an update of a record that is gone', async () => {
+    fake.respondTo('RETURNING "revision"', []);
+    fake.respondTo('SELECT "revision"', []);
+
+    const exit = await runExit(
+      revised().save<RevisedWidget>(makeRevisedWidget('r-1', 'Beta', 2)),
+    );
+
+    expect(failureOf(exit)).toMatchObject({ _tag: 'NotFound' });
+  });
+
+  it.each([
+    ['INSERT INTO', makeRevisedWidget('r-1', 'Alpha')],
+    ['UPDATE "revised-widget"', makeRevisedWidget('r-1', 'Beta', 2)],
+  ])('maps a failing %s to Unavailable', async (match, widget) => {
+    fake.failOn(match, 'connection refused');
+
+    const exit = await runExit(revised().save<RevisedWidget>(widget));
+
+    expect(failureOf(exit)).toMatchObject({ _tag: 'Unavailable' });
+  });
+
+  it('maps a failing read of the stored revision to Unavailable', async () => {
+    fake.respondTo('RETURNING "revision"', []);
+    fake.failOn('SELECT "revision"', 'connection refused');
+
+    const exit = await runExit(
+      revised().save<RevisedWidget>(makeRevisedWidget('r-1', 'Beta', 2)),
+    );
+
+    expect(failureOf(exit)).toMatchObject({ _tag: 'Unavailable' });
   });
 });

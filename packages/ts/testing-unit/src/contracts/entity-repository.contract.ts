@@ -3,7 +3,7 @@ import { accessor, type Entity, entity, type EntityId } from '@entifix/core';
 import { Exit } from 'effect';
 import { describe, expect, it } from 'vitest';
 
-import { run, runExit } from '../effect/run.js';
+import { run, runExit, runFailure } from '../effect/run.js';
 
 /**
  * The entity every implementation of the contract is exercised against. It is
@@ -469,4 +469,212 @@ export const describeEntityRepositoryContract = (
 ): void => {
   describeEntityRepositoryReadContract(name, options);
   describeEntityRepositoryWriteContract(name, options);
+};
+
+/**
+ * The entity the revision contract runs against: {@link ContractWidget}'s
+ * shape plus the one member that makes its saves checked (ADR 0032).
+ */
+@entity({ key: 'revised-widget' })
+export class RevisedWidget implements Entity {
+  #id?: EntityId;
+  #name?: string;
+  #revision?: number;
+
+  @accessor({ type: 'id' })
+  get id(): EntityId {
+    return this.#id;
+  }
+  set id(value: EntityId) {
+    this.#id = value;
+  }
+
+  @accessor({ type: 'string' })
+  get name(): string | undefined {
+    return this.#name;
+  }
+  set name(value: string | undefined) {
+    this.#name = value;
+  }
+
+  @accessor({ type: 'revision' })
+  get revision(): number | undefined {
+    return this.#revision;
+  }
+  set revision(value: number | undefined) {
+    this.#revision = value;
+  }
+}
+
+export const makeRevisedWidget = (
+  id: EntityId,
+  name: string,
+  revision?: number,
+): RevisedWidget => {
+  const widget = new RevisedWidget();
+  widget.id = id;
+  widget.name = name;
+  widget.revision = revision;
+  return widget;
+};
+
+export interface EntityRepositoryRevisionContractOptions {
+  /**
+   * Builds a repository over `seed`, whose records are stored at revision 1.
+   * Called fresh for each test.
+   */
+  makeRepository(
+    seed: RevisedWidget[],
+  ): EntityRepository | Promise<EntityRepository>;
+}
+
+/**
+ * What a save of an entity that declares a `revision` means on every adapter
+ * that writes: a create never overwrites, an update names the revision it read
+ * and moves it, and a stale save writes nothing — including when two race.
+ */
+export const describeEntityRepositoryRevisionContract = (
+  name: string,
+  { makeRepository }: EntityRepositoryRevisionContractOptions,
+): void => {
+  describe(`EntityRepository revision contract: ${name}`, () => {
+    const seeded = () => [
+      makeRevisedWidget('r-1', 'Alpha', 1),
+      makeRevisedWidget('r-2', 'Beta', 1),
+    ];
+
+    const failureOf = (effect: ReturnType<EntityRepository['get']>) =>
+      runFailure(effect) as Promise<{ _tag: string; current?: number }>;
+
+    it('carries the revision on a record and on a list row', async () => {
+      const repository = await makeRepository(seeded());
+
+      const one = await run(repository.get<RevisedWidget>('r-1'));
+      const page = await run(repository.load<RevisedWidget>({}));
+
+      expect(one.revision).toBe(1);
+      expect(page.items.map(item => item.revision)).toEqual([1, 1]);
+    });
+
+    it('creates at revision 1, minting an id when there is none', async () => {
+      const repository = await makeRepository(seeded());
+
+      const created = await run(
+        repository.save<RevisedWidget>(makeRevisedWidget(undefined, 'Gamma')),
+      );
+
+      expect(created.id).toBeDefined();
+      expect(created.revision).toBe(1);
+      const stored = await run(repository.get<RevisedWidget>(created.id));
+      expect(stored.revision).toBe(1);
+    });
+
+    it('creates under a client-minted id', async () => {
+      const repository = await makeRepository(seeded());
+
+      const created = await run(
+        repository.save<RevisedWidget>(makeRevisedWidget('r-9', 'Mine')),
+      );
+
+      expect(created.id).toBe('r-9');
+      expect(created.revision).toBe(1);
+    });
+
+    it('refuses a create over an existing id and leaves the record unchanged', async () => {
+      const repository = await makeRepository(seeded());
+
+      const failure = await failureOf(
+        repository.save<RevisedWidget>(makeRevisedWidget('r-1', 'Overwrite')),
+      );
+
+      expect(failure._tag).toBe('StaleRevision');
+      const stored = await run(repository.get<RevisedWidget>('r-1'));
+      expect(stored.name).toBe('Alpha');
+      expect(stored.revision).toBe(1);
+    });
+
+    it('answers revision n + 1 to an update at n', async () => {
+      const repository = await makeRepository(seeded());
+
+      const updated = await run(
+        repository.save<RevisedWidget>(makeRevisedWidget('r-1', 'Renamed', 1)),
+      );
+
+      expect(updated.revision).toBe(2);
+      const stored = await run(repository.get<RevisedWidget>('r-1'));
+      expect(stored.name).toBe('Renamed');
+      expect(stored.revision).toBe(2);
+    });
+
+    it('refuses a second update at the revision already spent, naming the current one', async () => {
+      const repository = await makeRepository(seeded());
+      await run(
+        repository.save<RevisedWidget>(makeRevisedWidget('r-1', 'First', 1)),
+      );
+
+      const failure = await failureOf(
+        repository.save<RevisedWidget>(makeRevisedWidget('r-1', 'Second', 1)),
+      );
+
+      expect(failure._tag).toBe('StaleRevision');
+      expect(failure.current).toBe(2);
+      const stored = await run(repository.get<RevisedWidget>('r-1'));
+      expect(stored.name).toBe('First');
+    });
+
+    it('answers NotFound to an update of a record that is gone', async () => {
+      const repository = await makeRepository(seeded());
+
+      const failure = await failureOf(
+        repository.save<RevisedWidget>(makeRevisedWidget('r-404', 'Ghost', 1)),
+      );
+
+      expect(failure._tag).toBe('NotFound');
+    });
+
+    it('does not check a delete', async () => {
+      const repository = await makeRepository(seeded());
+
+      await run(repository.delete<RevisedWidget>('r-1'));
+
+      const page = await run(repository.load<RevisedWidget>({}));
+      expect(page.items.map(item => item.id)).toEqual(['r-2']);
+    });
+
+    it('leaves exactly one winner when two saves name the same revision', async () => {
+      const repository = await makeRepository(seeded());
+
+      const exits = await Promise.all([
+        runExit(
+          repository.save<RevisedWidget>(makeRevisedWidget('r-1', 'Left', 1)),
+        ),
+        runExit(
+          repository.save<RevisedWidget>(makeRevisedWidget('r-1', 'Right', 1)),
+        ),
+      ]);
+
+      expect(exits.filter(exit => Exit.isSuccess(exit))).toHaveLength(1);
+      expect(exits.filter(exit => Exit.isFailure(exit))).toHaveLength(1);
+      const stored = await run(repository.get<RevisedWidget>('r-1'));
+      expect(stored.revision).toBe(2);
+      expect(['Left', 'Right']).toContain(stored.name);
+    });
+
+    it('leaves exactly one winner when two creates name the same id', async () => {
+      const repository = await makeRepository(seeded());
+
+      const exits = await Promise.all([
+        runExit(
+          repository.save<RevisedWidget>(makeRevisedWidget('r-7', 'Left')),
+        ),
+        runExit(
+          repository.save<RevisedWidget>(makeRevisedWidget('r-7', 'Right')),
+        ),
+      ]);
+
+      expect(exits.filter(exit => Exit.isSuccess(exit))).toHaveLength(1);
+      const page = await run(repository.load<RevisedWidget>({}));
+      expect(page.items.filter(item => item.id === 'r-7')).toHaveLength(1);
+    });
+  });
 };

@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import type { EntityRepository } from '@entifix/business';
 import {
+  declaresRevision,
   deserializeEntityCollection,
   deserializeSingleEntity,
   type Entity,
@@ -12,7 +13,9 @@ import {
   extractMetaEntity,
   InvalidQuery,
   NotFound,
+  readRevision,
   serializeEntity,
+  StaleRevision,
 } from '@entifix/core';
 import { Effect } from 'effect';
 import type { SqlClient } from 'effect/sql';
@@ -146,7 +149,69 @@ export function makeSqlRepository<TEntity extends Entity>(
       return entity as unknown as T;
     });
 
+  const revised = declaresRevision(entityConstructor);
+
+  /**
+   * A save of an entity that declares a revision (ADR 0032): an insert that
+   * never overwrites, or one `UPDATE … WHERE id = $1 AND revision = $2`. The
+   * table needs a `revision integer NOT NULL` column — the host's migration,
+   * since the adapter owns no DDL.
+   */
+  const saveRevised = <T extends Entity>(entity: T) =>
+    Effect.gen(function* () {
+      const key = extractMetaEntity(entityConstructor).key;
+      const serialized = serializeEntity(
+        entityConstructor,
+        entity as unknown as TEntity,
+      );
+      const read = readRevision(entity);
+      const id = entity.id ?? randomUUID();
+      if (read === undefined) {
+        const row: SqlRow = { ...serialized, id, revision: 1 };
+        const inserted = yield* sql<SqlRow>`
+          INSERT INTO ${table} ${sql.insert(row)}
+          ON CONFLICT (${sql('id')}) DO NOTHING
+          RETURNING ${sql('id')}
+        `.pipe(Effect.mapError(error => translateSqlError(error)));
+        if (inserted.length === 0) {
+          return yield* Effect.fail(new StaleRevision({ entity: key }));
+        }
+        entity.id = id;
+        (entity as { revision?: number }).revision = 1;
+        return entity;
+      }
+      const assignments = Object.entries(serialized)
+        .filter(([column]) => column !== 'id' && column !== 'revision')
+        .map(([column, value]) => sql`${sql(column)} = ${value as never}`);
+      const updated = yield* sql<SqlRow>`
+        UPDATE ${table}
+        SET ${sql.csv([...assignments, sql`${sql('revision')} = ${sql('revision')} + 1`])}
+        WHERE ${sql('id')} = ${id} AND ${sql('revision')} = ${read}
+        RETURNING ${sql('revision')}
+      `.pipe(Effect.mapError(error => translateSqlError(error)));
+      if (updated.length === 0) {
+        // The write already decided; this read only names the refusal.
+        const stored = yield* sql<SqlRow>`
+          SELECT ${sql('revision')} FROM ${table} WHERE ${sql('id')} = ${id} LIMIT 1
+        `.pipe(Effect.mapError(error => translateSqlError(error)));
+        return yield* stored.length === 0
+          ? Effect.fail(new NotFound({ entity: key }))
+          : Effect.fail(
+              new StaleRevision({
+                entity: key,
+                current: readRevision(stored[0]),
+              }),
+            );
+      }
+      entity.id = id;
+      (entity as { revision?: number }).revision = read + 1;
+      return entity;
+    });
+
   const save = <T extends Entity>(entity: T) =>
+    revised ? saveRevised(entity) : saveUnchecked(entity);
+
+  const saveUnchecked = <T extends Entity>(entity: T) =>
     Effect.gen(function* () {
       const serialized = serializeEntity(
         entityConstructor,
