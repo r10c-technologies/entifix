@@ -44,8 +44,8 @@ The first adopting host closed the races that mattered one verb at a time — a
 stock hold's conditional `held` write, a shipment's conditional status write,
 an order's `cancelling` claim. Those are races on a **state**. The race left
 open is on a **document**: two people open one specification, both save, and
-the first person's edit is gone without a sign. That host decided (r10c's
-ADR 0079 §4) that the check belongs in the framework, for every adapter, and
+the first person's edit is gone without a sign. That host decided (in
+r10c's ADR 0079 §4) that the check belongs in the framework, for every adapter, and
 that it is a body member called `revision`. It also decided what is excluded:
 quantities, status moves, projections and append-only records.
 
