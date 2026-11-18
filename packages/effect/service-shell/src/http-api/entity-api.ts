@@ -119,6 +119,7 @@ const endpointGuardFor = (
         kind: 'crossing',
         permission: permission(),
         organization: guard.organization,
+        caller: guard.caller,
       };
     default:
       return { kind: guard.kind, permission: permission() };

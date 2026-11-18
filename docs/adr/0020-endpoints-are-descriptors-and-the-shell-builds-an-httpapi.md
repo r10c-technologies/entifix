@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-29
 - Revised: 2026-11-02 by [#126](https://github.com/r10c-technologies/entifix/issues/126) — the `HttpRouter` route makers, `routeFailure`, the guard HOFs and `x-command-id` are deleted; `HttpRouter.route` survives only in the final net and the raw SSE routes.
+- Revised: 2026-11-18 by [r10c#588](https://github.com/r10c-technologies/r10c/issues/588) — a `crossing` guard may name a `caller`; it then accepts that caller's token from `ServiceCrossingCallersTag` and never the service's own, and a caller the composition did not provide refuses every request.
 - Area: platform
 - Read when: adding a route to a service, guarding one, writing an error body or a status by hand, building a link to a verb, a client decoding an error by its status, or about to import `effect/http` or `effect/http-api` outside the service shell
 

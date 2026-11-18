@@ -39,3 +39,21 @@ export class ServiceCrossingTokenTag extends Context.Service<
   ServiceCrossingTokenTag,
   string
 >()('ServiceCrossingTokenTag') {}
+
+/**
+ * The crossing secrets of **named callers**, by name — a token per caller that
+ * is not the service's own crossing token, for an endpoint whose guard names
+ * that caller.
+ *
+ * The service's own token is what the flow coordinator presents; a
+ * browser-facing host that must reach one narrow route needs a secret of its
+ * own, so a leak of either reaches only what it was minted for. An endpoint
+ * guard with `caller` accepts exactly that caller's token and nothing else.
+ *
+ * A reference with an empty default rather than a required service, so a
+ * service that names no caller provides nothing — and a guard naming a caller
+ * the composition never provided refuses every request (fails closed).
+ */
+export const ServiceCrossingCallersTag = Context.Reference<
+  ReadonlyMap<string, string>
+>('ServiceCrossingCallersTag', { defaultValue: () => new Map() });

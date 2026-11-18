@@ -33,6 +33,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import {
   CROSSING_TOKEN_HEADER,
   ORGANIZATION_HEADER,
+  ServiceCrossingCallersTag,
   ServiceCrossingTokenTag,
 } from '../auth/require-service-crossing.js';
 import { IDEMPOTENT_REPLAY_HEADER } from '../idempotency.js';
@@ -178,6 +179,36 @@ const forbiddenCrossing = defineEndpoint({
   },
 });
 
+/** A crossing only one named caller may make, never the coordinator. */
+const lookupLink = defineEndpoint({
+  name: 'lookupLink',
+  method: 'POST',
+  path: '/api/lookup-link',
+  success: Schema.String,
+  errors: [],
+  guard: {
+    kind: 'crossing',
+    permission: 'spec:reservation:write',
+    organization: false,
+    caller: 'storefront',
+  },
+});
+
+/** A crossing naming a caller the composition never provided. */
+const ghostLink = defineEndpoint({
+  name: 'ghostLink',
+  method: 'POST',
+  path: '/api/ghost-link',
+  success: Schema.String,
+  errors: [],
+  guard: {
+    kind: 'crossing',
+    permission: 'spec:reservation:write',
+    organization: false,
+    caller: 'ghost',
+  },
+});
+
 const charge = defineEndpoint({
   name: 'charge',
   method: 'POST',
@@ -270,6 +301,8 @@ const groups = [
     ),
     implement(release, () => Effect.succeed('released')),
     implement(forbiddenCrossing, () => Effect.succeed('never')),
+    implement(lookupLink, () => Effect.succeed('linked')),
+    implement(ghostLink, () => Effect.succeed('never')),
     implement(charge, ({ payload }) =>
       Effect.sync(() => {
         charges += 1;
@@ -309,6 +342,7 @@ const tokenFor = (roles: readonly string[], organization?: string) =>
 
 const CROSSING_SECRET = 'crossing-secret';
 const FLEET_SECRET = 'fleet-secret';
+const STOREFRONT_SECRET = 'storefront-secret';
 
 const routes = serveApi(api, groups, { policy }).pipe(
   Layer.provide(
@@ -319,6 +353,10 @@ const routes = serveApi(api, groups, { policy }).pipe(
         makeStaticPolicyDecision({ admin: ['spec:secret:read'], user: [] }),
       ),
       Layer.succeed(ServiceCrossingTokenTag, CROSSING_SECRET),
+      Layer.succeed(
+        ServiceCrossingCallersTag,
+        new Map([['storefront', STOREFRONT_SECRET]]),
+      ),
       Layer.succeed(
         ServiceCrossingPolicyTag,
         makeStaticServiceCrossingPolicy(['spec:reservation:write']),
@@ -602,6 +640,36 @@ describe('the guards', () => {
     expect(answer.status).toBe(403);
   });
 
+  it('let a named caller through on its own token only', async () => {
+    const asCaller = await call('/api/lookup-link', {
+      method: 'POST',
+      headers: { [CROSSING_TOKEN_HEADER]: STOREFRONT_SECRET },
+    });
+    const asService = await call('/api/lookup-link', {
+      method: 'POST',
+      headers: { [CROSSING_TOKEN_HEADER]: CROSSING_SECRET },
+    });
+    const callerElsewhere = await call('/api/release', {
+      method: 'POST',
+      headers: { [CROSSING_TOKEN_HEADER]: STOREFRONT_SECRET },
+    });
+
+    expect(asCaller.status).toBe(200);
+    expect(asCaller.body).toBe('linked');
+    expect(asService.status).toBe(401);
+    expect(callerElsewhere.status).toBe(401);
+  });
+
+  it('refuse every token for a caller the composition never provided', async () => {
+    for (const token of [CROSSING_SECRET, STOREFRONT_SECRET, '']) {
+      const answer = await call('/api/ghost-link', {
+        method: 'POST',
+        headers: { [CROSSING_TOKEN_HEADER]: token },
+      });
+      expect(answer.status).toBe(401);
+    }
+  });
+
   it('refuse a crossing request that also carries a session', async () => {
     const answer = await call('/api/release', {
       method: 'POST',
@@ -704,7 +772,7 @@ describe('idempotency', () => {
 describe('the built API', () => {
   it('lists its endpoints as METHOD /path', () => {
     expect(endpointsOf(groups)).toContain('POST /api/slug/:slug');
-    expect(endpointsOf(groups)).toHaveLength(16);
+    expect(endpointsOf(groups)).toHaveLength(18);
   });
 
   it('refuses two endpoints on one method and path', () => {
