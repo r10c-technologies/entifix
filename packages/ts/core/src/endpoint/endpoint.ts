@@ -19,7 +19,10 @@ import type { Entity, EntityConstructor } from '../types/Entity.js';
  * - `organization` — the same, acting for the session's active organization.
  * - `crossing` — a service crossing token and `permission`. With
  *   `organization: true` the caller names the organization, because the data's
- *   owner was handed to it rather than chosen.
+ *   owner was handed to it rather than chosen. With `caller` it accepts only
+ *   that named caller's token, never the service's own crossing token: a
+ *   route a browser-facing host reaches must not open to the coordinator's
+ *   secret, nor the coordinator's routes to the host's.
  * - `fleet` — the shared token one service of the fleet presents to another.
  */
 /** A permission as `<domain>:<entityKey>:<action>`. */
@@ -34,6 +37,8 @@ export type EndpointGuard =
       readonly kind: 'crossing';
       readonly permission: EndpointPermission;
       readonly organization: boolean;
+      /** The named caller whose token alone this endpoint accepts. */
+      readonly caller?: string;
     }
   | { readonly kind: 'fleet' };
 

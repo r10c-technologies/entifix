@@ -29,7 +29,12 @@ export type EntityApiGuard =
   | { readonly kind: 'public' }
   | { readonly kind: 'permission' }
   | { readonly kind: 'organization' }
-  | { readonly kind: 'crossing'; readonly organization: boolean };
+  | {
+      readonly kind: 'crossing';
+      readonly organization: boolean;
+      /** The named caller whose token alone this endpoint accepts. */
+      readonly caller?: string;
+    };
 
 /** The affordances an entity's endpoints derive from the verbs they serve. */
 export interface EntityApiLinks {

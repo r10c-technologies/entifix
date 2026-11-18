@@ -31,6 +31,7 @@ import { permits, resolveRequestPrincipal } from '../auth/require-principal.js';
 import {
   CROSSING_TOKEN_HEADER,
   ORGANIZATION_HEADER,
+  ServiceCrossingCallersTag,
   ServiceCrossingTokenTag,
 } from '../auth/require-service-crossing.js';
 import { type SharedToken, tokenMatches } from '../auth/shared-token.js';
@@ -150,8 +151,16 @@ const crossingGuard: Middleware = (httpEffect, options) =>
     // session credential at all, verified or not.
     if (carriesSession(request)) return yield* unauthenticated;
 
-    const expected = yield* ServiceCrossingTokenTag;
-    if (!tokenMatches(request.headers[CROSSING_TOKEN_HEADER], expected))
+    // A guard naming its caller accepts that caller's token alone — never the
+    // service's own — and refuses everything when the caller was not provided.
+    const expected =
+      guard.caller === undefined
+        ? yield* ServiceCrossingTokenTag
+        : (yield* ServiceCrossingCallersTag).get(guard.caller);
+    if (
+      expected === undefined ||
+      !tokenMatches(request.headers[CROSSING_TOKEN_HEADER], expected)
+    )
       return yield* unauthenticated;
 
     const policy = yield* ServiceCrossingPolicyTag;
