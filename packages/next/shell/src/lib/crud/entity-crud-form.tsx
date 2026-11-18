@@ -53,6 +53,12 @@ export interface EntityCrudFormProps<TEntity extends Entity> {
    * record": the host drops the draft and the failure and loads it again.
    */
   readonly onLoadCurrent?: () => void;
+  /**
+   * Told whenever the draft starts or stops differing from the record it was
+   * seeded from. The host uses it to hold a refetched record back while there
+   * is unsaved input (ADR 0032 §8): a newer record must not reseed over it.
+   */
+  readonly onDirtyChange?: (dirty: boolean) => void;
   readonly onSave: (entity: TEntity) => void;
   /** Omitted for a create — there is nothing to delete yet. */
   readonly onDelete?: () => void;
@@ -105,6 +111,7 @@ export function EntityCrudForm<TEntity extends Entity>({
   onRetry,
   onConflictResolved,
   onLoadCurrent,
+  onDirtyChange,
   onSave,
   onDelete,
   deletePolicy,
@@ -131,6 +138,11 @@ export function EntityCrudForm<TEntity extends Entity>({
         reconstructEntity(entityConstructor, values, { existing: entity }),
       ),
   });
+
+  const { isDirty } = form;
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
 
   const linkSources = useEntityLinkSources(links, {
     values: form.values,

@@ -3,6 +3,7 @@
 - Status: Proposed
 - Date: 2026-11-16
 - Revised: 2026-11-17 — the form's conflict state is built (§8): `EntityForm` renders it on `staleRevision`, `makeEntityCrud` wires it, and the autosaved draft holds the revision it read.
+- Revised: 2026-11-17 — a reload no longer reseeds a form holding unsaved input (§8, #294).
 - Area: adapters
 - Read when: two people edit one record and the second save silently erases the first, a save answers `409 staleRevision`, an update arrives without a `revision`, a form or an autosaved draft has to keep what a record looked like when it was read, writing a verb or a host cell that changes a record a form may also be editing, or about to make a member `hidden` or `readonly` so that it stays off a form
 
@@ -263,6 +264,15 @@ presses Save again.
 `makeEntityCrud` wires both. A draft autosaved in a workspace tab holds the
 `revision` beside the values, so a draft restored after someone else saved
 answers `staleRevision` on its first Save, and the same state appears.
+
+A reload that lands while the form holds unsaved input does not reseed it. The
+page reloads the record behind the form on its own — after a verb, or when a
+host asks — and a newer revision used to remount the form over what was typed,
+so the save named the newer revision and went through. While the draft differs
+from its seed, `makeEntityCrud` keeps the form on the record it was seeded from
+and holds the newer one beside it: the save still names the revision the person
+read, and this state appears. A clean form takes the reload, and so does a form
+whose save has committed.
 
 ## Consequences
 

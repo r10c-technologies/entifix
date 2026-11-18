@@ -326,6 +326,17 @@ const noteCrud = makeEntityCrud<Note, TestAdapters>(Note, {
   hiddenFields: ['id'],
 });
 
+/** A revised record with a verb on it: what reloads a form from under its input (#294). */
+const verbNoteCrud = makeEntityCrud<Note, TestAdapters>(Note, {
+  useAdapters,
+  basePath: '/catalog/note',
+  catalogKey: 'revised-note',
+  repository: 'noteRest',
+  hiddenFields: ['id'],
+  metadataSource: { fetchMetadata: () => fetchMetadata() },
+  useCases: 'brandVerbs',
+});
+
 // No `labelProperty`/`searchProperty`, so the picker falls back to `'name'`.
 const productCrud = makeEntityCrud<Product, TestAdapters>(Product, {
   useAdapters,
@@ -2237,6 +2248,76 @@ describe('the generated form, when the record changed underneath it (ADR 0032)',
       expect(screen.getByLabelText(/nombre/i)).toHaveValue('theirs'),
     );
     expect(store.clear).toHaveBeenCalled();
+    expect(screen.queryByTestId('entity-form-conflict')).toBeNull();
+  });
+
+  // #294: the page reloads the record behind the form — after a verb, or when
+  // the host asks — and a newer revision used to remount the form over what
+  // was typed, so the save named the newer revision and went through.
+  const openWithVerb = async () => {
+    slug = 'n-1';
+    const user = userEvent.setup();
+    fetchMetadata.mockResolvedValue({
+      actions: ['read', 'write'],
+      useCases: [
+        {
+          key: 'publish',
+          binding: 'entity',
+          placement: 'context-independent',
+          labelKey: 'entity:product-brand.useCases.retire',
+        },
+      ],
+    });
+    // The verb is someone else's change landing: it moves the revision, and
+    // the page reloads the record once it settles.
+    runVerb.mockImplementation(async () => {
+      await someoneElseSaves();
+      return settled(undefined);
+    });
+    renderPage(<verbNoteCrud.SingleViewPage slug="n-1" />);
+    await waitFor(() =>
+      expect(screen.getByLabelText(/nombre/i)).toHaveValue('first'),
+    );
+    const reloadNewer = async () => {
+      await user.click(await screen.findByRole('button', { name: /retirar/i }));
+      await waitFor(() =>
+        expect(runVerb).toHaveBeenCalledWith('publish', 'n-1'),
+      );
+    };
+    return { user, reloadNewer };
+  };
+
+  it('keeps unsaved input when a reload brings a newer revision, and the save meets the conflict', async () => {
+    const { user, reloadNewer } = await openWithVerb();
+    await user.clear(screen.getByLabelText(/nombre/i));
+    await user.type(screen.getByLabelText(/nombre/i), 'mine');
+
+    await reloadNewer();
+    // Give the reload its chance to land before asserting it did not reseed.
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+
+    expect(screen.getByLabelText(/nombre/i)).toHaveValue('mine');
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+    await screen.findByTestId('entity-form-conflict');
+    expect(push).not.toHaveBeenCalled();
+    const stored = await Effect.runPromise(repositories.note.get('n-1'));
+    expect((stored as Note).text).toBe('theirs');
+  });
+
+  it('takes the reload into a clean form, and saves on top of it', async () => {
+    const { user, reloadNewer } = await openWithVerb();
+
+    await reloadNewer();
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/nombre/i)).toHaveValue('theirs'),
+    );
+    await user.clear(screen.getByLabelText(/nombre/i));
+    await user.type(screen.getByLabelText(/nombre/i), 'mine');
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+    await waitFor(() => expect(push).toHaveBeenCalledTimes(1));
     expect(screen.queryByTestId('entity-form-conflict')).toBeNull();
   });
 
