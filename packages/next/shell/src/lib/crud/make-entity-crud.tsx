@@ -54,7 +54,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { Cause, Context, Effect, Exit } from 'effect';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useId, useMemo, useRef } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 
 import { useBreadcrumbLabel } from '../back-office/breadcrumb-labels.js';
 import { useLocaleHref } from '../i18n/index.js';
@@ -674,6 +674,25 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
       id,
     });
 
+    /**
+     * The record the form was seeded from, which is not always the one the
+     * query holds now (ADR 0032 §8).
+     *
+     * A query refetches on its own — on focus, on reconnect, after a verb — and
+     * a newer revision used to remount the form and reseed it, so input typed
+     * in another tab's shadow was replaced without a word and the save that
+     * should have answered `staleRevision` named the newer revision and went
+     * through. While the draft differs from its seed, the newer record is held
+     * beside the form instead: the save still names the revision the person
+     * read, the service refuses it, and the conflict alert offers the choice.
+     * A clean form takes the refetch, and so does a different record.
+     */
+    const [isDirty, setDirty] = useState(false);
+    const [seeded, setSeeded] = useState(entity);
+    const holds = isDirty && seeded !== undefined && seeded.id === entity?.id;
+    if (seeded !== entity && !holds) setSeeded(entity);
+    const shown = holds ? seeded : entity;
+
     // Against the record as loaded, not the draft: the rule is about which
     // record this is, not what the operator has typed into it.
     const linkFilters = useLinkFilters(linkPlans, entity);
@@ -747,6 +766,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
       intent: () => ({ entity: entityName, write: 'save' }),
       confirm: () => {
         draft?.clear();
+        setDirty(false);
         void refreshList();
         if (mounted.current) afterSave();
       },
@@ -777,6 +797,8 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
       // completed.
       if (result?._tag !== 'settled') return;
       draft?.clear();
+      // The input is the record now: the next refetch reseeds the form.
+      setDirty(false);
       void refreshList();
       // Said in the toast region every route shares, so it survives the
       // navigation that follows (ADR 0028).
@@ -881,13 +903,15 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
       <EntityCrudForm<TEntity>
         // Remounts (and reseeds the fields) once the record arrives.
         // A newer revision remounts too, so "load the current record" reseeds.
-        key={`${String(entity?.id ?? CATALOG_NEW_SLUG)}:${readRevision(entity) ?? ''}`}
+        // Held back while the draft is dirty — see `seeded` above.
+        key={`${String(shown?.id ?? CATALOG_NEW_SLUG)}:${readRevision(shown) ?? ''}`}
         entityConstructor={entityConstructor}
         catalogKey={catalogKey}
         metadataSource={metadataSource}
         hiddenFields={hiddenFields}
         links={linkSources}
-        entity={entity}
+        entity={shown}
+        onDirtyChange={setDirty}
         isLoading={isLoading}
         isSaving={saveMutation.status === 'running'}
         isPending={[saveMutation, deleteMutation, recordVerb.verb].some(
@@ -908,8 +932,10 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
             ? undefined
             : () => {
                 // What was typed is given up on purpose: its draft goes, so
-                // the reseed shows the record as it now stands.
+                // the reseed shows the record as it now stands — and nothing
+                // holds the newer record back any more.
                 draft?.clear();
+                setDirty(false);
                 saveMutation.reset();
                 void reload();
               }
