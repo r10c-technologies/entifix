@@ -1,3 +1,13 @@
+## 0.23.3 (2026-11-18)
+
+### 🚀 Features
+
+- **service-shell:** a crossing guard may name the one caller whose token it accepts ([#298](https://github.com/r10c-technologies/entifix/pull/298))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.23.2 (2026-11-18)
 
 ### 🩹 Fixes
