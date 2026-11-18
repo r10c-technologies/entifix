@@ -1,3 +1,13 @@
+## 0.23.2 (2026-11-18)
+
+### 🩹 Fixes
+
+- **next-shell:** a reload keeps a form's unsaved edits ([#295](https://github.com/r10c-technologies/entifix/pull/295))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.23.1 (2026-11-17)
 
 ### 🚀 Features
