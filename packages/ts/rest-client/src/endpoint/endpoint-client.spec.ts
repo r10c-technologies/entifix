@@ -1,11 +1,15 @@
 import {
+  binaryBody,
+  binaryResponse,
   DEADLINE_HEADER,
   DeadlineTag,
   defineEndpoint,
   Failure,
+  formBody,
   IDEMPOTENCY_KEY_HEADER,
   PROBLEM_CONTENT_TYPE,
   problemOf,
+  textBody,
   Unauthenticated,
 } from '@entifix/core';
 import { Effect, Schema } from 'effect';
@@ -337,5 +341,114 @@ describe('makeEndpointClient', () => {
     expect(
       await run(api.ping({} as never), fakeClient(brokenProblem)),
     ).toMatchObject({ failure: { _tag: 'ProtocolFailure' } });
+  });
+});
+
+describe('a body that is not JSON', () => {
+  const upload = defineEndpoint({
+    name: 'upload',
+    method: 'POST',
+    path: '/api/upload',
+    payload: binaryBody({ contentTypes: ['image/png'], maxBytes: 8 }),
+    success: Schema.String,
+    errors: [],
+    guard: { kind: 'public' },
+  });
+  const note = defineEndpoint({
+    name: 'note',
+    method: 'POST',
+    path: '/api/note',
+    payload: textBody('text/csv'),
+    success: Schema.String,
+    errors: [],
+    guard: { kind: 'public' },
+  });
+  const logout = defineEndpoint({
+    name: 'logout',
+    method: 'POST',
+    path: '/api/logout',
+    payload: formBody({ token: Schema.String }),
+    success: Schema.String,
+    errors: [],
+    guard: { kind: 'public' },
+  });
+  const file = defineEndpoint({
+    name: 'file',
+    method: 'GET',
+    path: '/api/file',
+    success: binaryResponse(),
+    errors: [],
+    guard: { kind: 'public' },
+  });
+  const bodies = makeEndpointClient([upload, note, logout, file], {
+    baseUrl: 'http://svc',
+  });
+
+  it('sends bytes, text and a form under their own media types', async () => {
+    const sent: Sent[] = [];
+    const client = fakeClient(() => Response.json('ok'), sent);
+
+    await run(
+      bodies.upload({
+        payload: {
+          bytes: new TextEncoder().encode('png'),
+          contentType: 'image/png',
+        },
+      }),
+      client,
+    );
+    await run(bodies.note({ payload: 'a,b' }), client);
+    await run(bodies.logout({ payload: { token: 't-1' } }), client);
+
+    expect(sent[0]).toMatchObject({
+      headers: { 'content-type': 'image/png' },
+      body: 'png',
+    });
+    expect(sent[1]).toMatchObject({
+      headers: { 'content-type': 'text/csv' },
+      body: 'a,b',
+    });
+    expect(sent[2]?.headers['content-type']).toBe(
+      'application/x-www-form-urlencoded',
+    );
+  });
+
+  it('answers the bytes of a binary endpoint, typed octet-stream when untyped', async () => {
+    const sent: Sent[] = [];
+    const client = fakeClient(
+      () => new Response(new Uint8Array([1, 2]), { headers: { 'x-a': 'b' } }),
+      sent,
+    );
+
+    const result = await run(bodies.file({}), client);
+
+    expect(sent[0]?.headers['accept']).toBe('*/*');
+    expect(result).toMatchObject({
+      _tag: 'Success',
+      success: {
+        bytes: new Uint8Array([1, 2]),
+        contentType: 'application/octet-stream',
+        headers: { 'x-a': 'b' },
+      },
+    });
+  });
+
+  it('is unavailable when a binary answer breaks off mid-read', async () => {
+    const client = fakeClient(
+      () =>
+        new Response(
+          new ReadableStream({
+            start: controller => controller.error(new Error('reset')),
+          }),
+          { headers: { 'content-type': 'image/png' } },
+        ),
+    );
+
+    const result = await run(bodies.file({}), client);
+
+    expect(result).toMatchObject({
+      _tag: 'Failure',
+      failure: { _tag: 'Unavailable' },
+    });
   });
 });

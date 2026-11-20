@@ -173,6 +173,27 @@ export class Internal extends defineFailure('internal')<Internal>()(
   'internal',
 ) {}
 
+/**
+ * A request body larger than its endpoint accepts. Read up to the limit and no
+ * further: the bytes past it are never buffered. A host answers `413`.
+ */
+export class PayloadTooLarge extends defineFailure(
+  'invalid',
+)<PayloadTooLarge>()('PayloadTooLarge', 'payloadTooLarge', {
+  maxBytes: Schema.Number,
+}) {}
+
+/**
+ * A request body declared as a media type its endpoint does not take. A host
+ * answers `415`. The declared type is the caller's claim, not the bytes' — an
+ * endpoint that cares what the bytes are still sniffs them.
+ */
+export class UnsupportedMediaType extends defineFailure(
+  'invalid',
+)<UnsupportedMediaType>()('UnsupportedMediaType', 'unsupportedMediaType', {
+  accepted: Schema.Array(Schema.String),
+}) {}
+
 /** An idempotent route was called without its `Idempotency-Key`. */
 export class IdempotencyKeyMissing extends defineFailure(
   'invalid',
