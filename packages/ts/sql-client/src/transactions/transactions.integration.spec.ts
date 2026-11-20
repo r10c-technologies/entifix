@@ -154,3 +154,39 @@ describe('two relays over one outbox', () => {
     }
   });
 });
+
+/*
+ * Two processes booting against an empty database — a service's HTTP replica
+ * and its runner after a lab reset — both create the tables. `CREATE TABLE IF
+ * NOT EXISTS` is not safe under concurrency in Postgres: both sessions can see
+ * the table missing, and the loser fails on `pg_type`'s unique index.
+ */
+describe('ensureSqlTransactionTables run by several processes at once', () => {
+  it('creates the tables once, and every caller succeeds', async () => {
+    for (let round = 0; round < 5; round += 1) {
+      await run(
+        Effect.gen(function* () {
+          const sql = yield* SqlClient.SqlClient;
+          yield* sql`
+            DROP TABLE IF EXISTS entifix_outbox, entifix_inbox,
+              entifix_command_inbox, entifix_idempotency`;
+        }),
+      );
+
+      const outcomes = await Promise.allSettled(
+        Array.from({ length: 4 }, () =>
+          run(
+            Effect.gen(function* () {
+              const sql = yield* SqlClient.SqlClient;
+              yield* ensureSqlTransactionTables(sql);
+            }),
+          ),
+        ),
+      );
+
+      expect(outcomes.filter(outcome => outcome.status === 'rejected')).toEqual(
+        [],
+      );
+    }
+  });
+});
