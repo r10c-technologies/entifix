@@ -1,3 +1,13 @@
+## 0.23.4 (2026-11-20)
+
+### 🩹 Fixes
+
+- **sql:** two processes booting together create the transaction tables once ([#300](https://github.com/r10c-technologies/entifix/pull/300))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.23.3 (2026-11-18)
 
 ### 🚀 Features
