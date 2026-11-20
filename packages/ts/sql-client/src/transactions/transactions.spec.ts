@@ -20,7 +20,10 @@ import {
   SqlOutboxDrainLayer,
   startSqlOutboxRelay,
 } from './relay.js';
-import { ensureSqlTransactionTables } from './schema.js';
+import {
+  ensureSqlTransactionTables,
+  SQL_TRANSACTION_TABLES_LOCK,
+} from './schema.js';
 import { makeSqlUnitOfWork } from './unit-of-work.js';
 
 const run = <A, E>(effect: Effect.Effect<A, E>) => Effect.runPromise(effect);
@@ -64,12 +67,16 @@ describe('ensureSqlTransactionTables', () => {
     await run(ensureSqlTransactionTables(sql));
 
     expect(statements(fake).map(text => text.split(' (')[0])).toEqual([
+      'BEGIN',
+      'SELECT pg_advisory_xact_lock(hashtext($1))',
       'CREATE TABLE IF NOT EXISTS entifix_outbox',
       'CREATE INDEX IF NOT EXISTS entifix_outbox_pending ON entifix_outbox',
       'CREATE TABLE IF NOT EXISTS entifix_inbox',
       'CREATE TABLE IF NOT EXISTS entifix_command_inbox',
       'CREATE TABLE IF NOT EXISTS entifix_idempotency',
+      'COMMIT',
     ]);
+    expect(fake.executions[1]?.params).toEqual([SQL_TRANSACTION_TABLES_LOCK]);
   });
 
   it('answers a store that is down as unavailable', async () => {
@@ -481,7 +488,7 @@ describe('the SQL relay', () => {
       ),
     );
 
-    expect(statements(fake)[0]).toContain(
+    expect(statements(fake)[2]).toContain(
       'CREATE TABLE IF NOT EXISTS entifix_outbox',
     );
     expect(hooks).toEqual([
