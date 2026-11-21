@@ -1,0 +1,52 @@
+{
+  "name": "@entifix/example-docs",
+  "version": "0.0.0",
+  "private": true,
+  "description": "A documentation site on @entifix/docs-engine: entifix's own decision records and two guides that cite them, exported as static files under a base path and searched with Pagefind.",
+  "dependencies": {
+    "@entifix/core": "workspace:*",
+    "@entifix/docs": "workspace:*",
+    "@entifix/docs-engine": "workspace:*",
+    "@entifix/i18n": "workspace:*",
+    "@entifix/react-controls": "workspace:*",
+    "@entifix/style": "workspace:*",
+    "fumadocs-ui": "16.17.10",
+    "i18next": "27.1.1",
+    "next": "16.4.6",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "react-i18next": "18.0.1"
+  },
+  "devDependencies": {
+    "pagefind": "1.6.0"
+  },
+  "nx": {
+    "targets": {
+      "build": {
+        "executor": "nx:run-commands",
+        "dependsOn": [
+          "^build"
+        ],
+        "inputs": [
+          "production",
+          "^production"
+        ],
+        "outputs": [
+          "{projectRoot}/out"
+        ],
+        "options": {
+          "command": "next build && pagefind --site out --output-subdir pagefind",
+          "cwd": "examples/docs"
+        }
+      },
+      "serve-static": {
+        "executor": "nx:run-commands",
+        "continuous": true,
+        "options": {
+          "command": "node serve.mjs",
+          "cwd": "examples/docs"
+        }
+      }
+    }
+  }
+}

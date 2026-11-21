@@ -116,6 +116,12 @@
     },
     {
       "path": "./packages/docs"
+    },
+    {
+      "path": "./packages/next/docs-engine"
+    },
+    {
+      "path": "./examples/docs-e2e"
     }
   ],
   "compilerOptions": {

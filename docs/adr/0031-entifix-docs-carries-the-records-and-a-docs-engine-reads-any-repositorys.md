@@ -2,6 +2,7 @@
 
 - Status: Proposed
 - Date: 2026-11-16
+- Revised: 2026-11-21 by [#275](https://github.com/r10c-technologies/entifix/issues/275) — the engine landed: guides are Markdown through unified rather than `fumadocs-mdx`, a dark palette is named by `data-scheme`, and the seven conditions are met on `example-docs`
 - Area: platform
 - Read when: a site shows entifix's decision records from a clone or a copy rather than from what is installed, a record parser is about to be written a second time, a docs page is about to be built by hand that a record, a use case or a package already describes, choosing between `fumadocs-ui` and a shell on `@entifix/react-controls`, or a fumadocs upgrade arrives
 
@@ -150,9 +151,12 @@ vulnerability" notice in the spike's build and intermittently failed it with
 `SecurityFatalError`. entifix's catalog moves past it, after checking the
 official advisory, before the engine adds a Next app.
 
-**Pinned exactly:** `fumadocs-core` and `fumadocs-ui` `16.17.10`,
-`fumadocs-mdx` `15.4.10`. `fumadocs-ui` pins `fumadocs-core` exactly and peers
-`next 16.x.x`, so all three move together and only together.
+**Pinned exactly:** `fumadocs-core` and `fumadocs-ui` `16.17.10`.
+`fumadocs-ui` pins `fumadocs-core` exactly and peers `next 16.x.x`, so the two
+move together and only together. `fumadocs-mdx` is not used: a page is
+Markdown, never MDX, and runs through `unified` with fumadocs-core's own
+remark and rehype plugins. A source is a function over files the host already
+has, and an MDX compiler would put a second content pipeline beside it.
 
 **What the engine applies:**
 
@@ -161,9 +165,12 @@ official advisory, before the engine adds a Next app.
   `style.css`.
 - The primary-on-tint fix, the high-contrast shiki themes and the global
   `:focus-visible` ring from the spike.
-- `RootProvider` runs with the theme switched off. `dark:` follows the
-  palettes a host declares dark (`darkPalettes`). entifix's theme script sets
-  the first paint, because an export has no server cookie to read.
+- `RootProvider` runs with the theme switched off. A palette the host declares
+  dark (`darkPalettes`) sets `data-scheme="dark"` on `<html>`, and fumadocs'
+  `dark:` and the code blocks' dark theme follow that attribute — a stylesheet
+  cannot be parameterised by a list, an attribute can. entifix's theme script
+  sets the first paint, because an export has no server cookie to read, and
+  the engine's scheme script runs right after it.
 
 **What the adoption must close before this record is Accepted.** Each is a
 gate, not a wish:
@@ -184,6 +191,31 @@ gate, not a wish:
    Change Validation against the exported entifix instance
    ([ADR 0024](0024-wcag-2-2-aa-and-the-gates-that-ratchet-to-it.md)), and
    again on every fumadocs bump.
+
+**As built (2026-11-21).** All seven are met on `examples/docs`, the exported
+example site, and `example-docs-e2e` is the gate: axe at WCAG 2.2 AA with
+`target-size` and entifix's keyboard walk — a skip link first, an indicator on
+every stop, none hidden under the header — on three pages × two palettes × two
+widths, the mobile sidebar and the open search dialog, a measured 3:1 boundary
+on the search trigger, one indicator per focused control, and the walk again
+under `forced-colors: active`. Building it found four things the spike had
+not:
+
+- fumadocs puts a copy-link button inside every heading, and Pagefind indexed
+  its label as part of the heading — every result read "…Copy the link to
+  this section". The engine renders plain headings; the table of contents
+  already links them.
+- remark-directive parses an id with colons — `order:product-order:cancel`, a
+  use case's shape — as nested directives. The citation reads them back whole.
+- Pagefind 1.6 tolerates typos, so a made-up word still finds a near one.
+  "No results" is a real state, but a nonsense query is not how to reach it.
+- `@entifix/react-controls`' `ThemeProvider` reflected its default palette on
+  its first commit, before it had read the stored one — the one frame the
+  theme script exists to prevent. It now reflects nothing until it has read
+  the cookie.
+
+The record stays Proposed until the rest of the trigger holds: entifix's own
+instance (#277) and myself-app reading the records from `node_modules`.
 
 ### 5. What graduates from myself-app's incubator
 

@@ -299,4 +299,48 @@ export const controls: EsControls = {
       dismiss: 'Got it',
     },
   },
+  /**
+   * The documentation site of `@entifix/docs-engine`. `{query}` and `{url}`
+   * take single braces: fumadocs interpolates them, not i18next.
+   */
+  docs: {
+    search: {
+      open: 'Search',
+      placeholder: 'Search',
+      close: 'Esc, close search',
+      closeKey: 'Esc',
+      empty: 'No results',
+      failed: 'Search failed',
+      failedFor: 'Search failed, showing results for {query}',
+    },
+    sidebar: {
+      open: 'Open the sidebar',
+      close: 'Close the sidebar',
+      collapse: 'Collapse the sidebar',
+      show: 'Show the sidebar',
+      hide: 'Hide the sidebar',
+    },
+    menu: 'Toggle the menu',
+    toc: {
+      title: 'On this page',
+      empty: 'No headings',
+    },
+    page: {
+      previous: 'Previous page',
+      next: 'Next page',
+      notFound: 'Page not found',
+      notFoundBody: 'The page you are looking for does not exist or has moved.',
+      home: 'Back home',
+    },
+    code: {
+      copy: 'Copy the text',
+      copied: 'Text copied',
+    },
+    anchor: {
+      copy: 'Copy the link to this section',
+      copied: 'Link copied',
+    },
+    theme: 'Change the theme',
+    skip: 'Skip to content',
+  },
 };

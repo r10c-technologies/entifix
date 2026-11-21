@@ -1,0 +1,12 @@
+export type { DocsHeadProps } from './head.js';
+export { DocsHead } from './head.js';
+export type { DocsLayoutProps } from './layout.js';
+export { DocsLayout } from './layout.js';
+export type { DocsPageProps } from './page.js';
+export { docsMetadata, DocsPage } from './page.js';
+export type { Pagefind } from './pagefind.js';
+export { loadPagefind, toSortedResults } from './pagefind.js';
+export type { DocsRootProps } from './root.js';
+export { DocsRoot } from './root.js';
+export { SCHEME_ATTRIBUTE, schemeOf, schemeScript } from './scheme.js';
+export { useDocsTranslations } from './translations.js';

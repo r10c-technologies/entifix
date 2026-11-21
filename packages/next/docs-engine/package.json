@@ -1,0 +1,100 @@
+{
+  "name": "@entifix/docs-engine",
+  "version": "0.23.5",
+  "description": "A documentation site from sources: decision records, Markdown guides that cite ids, and a reference a host derives from its own metadata, turned into one page tree and exported as static files.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/r10c-technologies/entifix.git",
+    "directory": "packages/next/docs-engine"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@entifix/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./ui": {
+      "@entifix/source": "./src/ui/index.ts",
+      "types": "./dist/ui/index.d.ts",
+      "import": "./dist/ui/index.js",
+      "default": "./dist/ui/index.js"
+    },
+    "./ui/docs.css": "./src/ui/docs.css"
+  },
+  "files": [
+    "dist",
+    "src/ui/docs.css",
+    "!**/*.tsbuildinfo",
+    "LICENSE"
+  ],
+  "nx": {
+    "tags": [
+      "tier:4"
+    ],
+    "sourceRoot": "packages/next/docs-engine/src",
+    "targets": {
+      "build": {
+        "executor": "@nx/js:swc",
+        "outputs": [
+          "{options.outputPath}"
+        ],
+        "options": {
+          "outputPath": "packages/next/docs-engine/dist",
+          "main": "packages/next/docs-engine/src/index.ts",
+          "tsConfig": "packages/next/docs-engine/tsconfig.lib.json",
+          "skipTypeCheck": true,
+          "stripLeadingPaths": true
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "@entifix/docs": "workspace:*",
+    "@entifix/react-controls": "workspace:*",
+    "@entifix/style": "workspace:*",
+    "fumadocs-core": "16.17.10",
+    "hast-util-to-jsx-runtime": "^2.3.6",
+    "remark-directive": "^4.0.0",
+    "remark-parse": "^11.0.0",
+    "remark-rehype": "^11.1.2",
+    "unified": "^11.0.5",
+    "unist-util-visit": "^5.0.0",
+    "vfile": "^6.0.3"
+  },
+  "devDependencies": {
+    "@entifix/i18n": "workspace:*",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "16.3.3",
+    "@testing-library/user-event": "^14.6.9",
+    "@types/hast": "^3.0.4",
+    "@types/mdast": "^4.0.4",
+    "fumadocs-ui": "16.17.10",
+    "i18next": "27.1.1",
+    "mdast-util-directive": "^3.1.0",
+    "next": "16.4.6",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "react-i18next": "18.0.1"
+  },
+  "peerDependencies": {
+    "fumadocs-ui": "16.17.10",
+    "next": ">=16 <17",
+    "react": ">=19 <20",
+    "react-dom": ">=19 <20"
+  },
+  "peerDependenciesMeta": {
+    "fumadocs-ui": {
+      "optional": true
+    }
+  }
+}
