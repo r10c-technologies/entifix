@@ -1,6 +1,6 @@
 {
   "name": "@entifix/transactions",
-  "version": "0.23.4",
+  "version": "0.23.5",
   "description": "Units of work, inbox and outbox ports, an event bus, and the flow engine and resilience ports a durable flow runs on.",
   "license": "MIT",
   "repository": {

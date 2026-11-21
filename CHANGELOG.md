@@ -1,3 +1,13 @@
+## 0.23.5 (2026-11-21)
+
+### 🚀 Features
+
+- **service-shell:** an endpoint takes raw bytes under a size limit, and answers them ([#302](https://github.com/r10c-technologies/entifix/pull/302))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.23.4 (2026-11-20)
 
 ### 🩹 Fixes
