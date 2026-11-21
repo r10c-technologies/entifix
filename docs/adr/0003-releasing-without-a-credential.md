@@ -7,6 +7,7 @@
 - Revised: 2026-10-24 — a commit's scope no longer narrows its bump: `useCommitScope` is off, because in a fixed group it silently demoted a breaking change to a patch
 - Revised: 2026-10-29 — `@entifix/workflow` is a 25th package, bootstrapped by hand like the others before its first release
 - Revised: 2026-11-21 by [#275](https://github.com/r10c-technologies/entifix/issues/275) — `@entifix/docs` and `@entifix/docs-engine` make 27 packages, and a new one is bootstrapped by `tools/release/bootstrap-package.mjs` rather than by hand
+- Revised: 2026-11-21 — the tag step accepts its own tag on the same commit, so a release whose publish failed is re-run rather than untagged first
 - Area: platform
 - Read when: cutting a release, wondering why the release workflow cannot be renamed, or why a merge did not publish anything — the version is derived from commit messages and nothing in this repository can publish to npm
 
@@ -88,6 +89,12 @@ in that order. The order follows the asymmetry: npm is the only irreversible
 step. A tag with no package behind it is a `git push --delete` away from gone,
 while a GitHub Release announcing a version npm never received is a lie that
 consumers read.
+
+The tag step is the one a re-run meets first. 0.23.6's publish failed for one
+package after the tag was pushed, and the re-run would have stopped at its own
+tag. So a tag already naming this commit is the step done, and a tag naming any
+other commit stops the job before npm: the version belongs to a different
+release.
 
 **A commit may not cut a major version.** ADR 0001 fixes the channels while the
 framework is pre-1.0: a breaking change rides the minor, `0.1.x` is the patch
