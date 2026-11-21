@@ -36,7 +36,8 @@
         ],
         "options": {
           "command": "next build && pagefind --site out --output-subdir pagefind",
-          "cwd": "examples/docs"
+          "cwd": "examples/docs",
+          "forwardAllArgs": false
         }
       },
       "serve-static": {
