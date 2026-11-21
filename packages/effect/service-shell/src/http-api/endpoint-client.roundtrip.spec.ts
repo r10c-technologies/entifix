@@ -1,6 +1,15 @@
 import { makeStaticPolicyDecision, PolicyDecisionTag } from '@entifix/authz';
 import { InvalidToken, TokenServiceTag } from '@entifix/business';
-import { defineEndpoint, Failure, implement, Unavailable } from '@entifix/core';
+import {
+  binaryBody,
+  binaryResponse,
+  defineEndpoint,
+  Failure,
+  formBody,
+  implement,
+  textBody,
+  Unavailable,
+} from '@entifix/core';
 import { makeEndpointClient } from '@entifix/rest/endpoint';
 import { Effect, Layer, Schema } from 'effect';
 import { FetchHttpClient } from 'effect/http';
@@ -55,7 +64,61 @@ const mine = defineEndpoint({
   guard: { kind: 'session' },
 });
 
+const upload = defineEndpoint({
+  name: 'upload',
+  method: 'POST',
+  path: '/api/upload',
+  payload: binaryBody({ contentTypes: ['image/png'], maxBytes: 4 }),
+  success: Schema.Struct({ size: Schema.Number }),
+  errors: [],
+  guard: { kind: 'public' },
+});
+
+const fetchFile = defineEndpoint({
+  name: 'fetchFile',
+  method: 'GET',
+  path: '/api/file',
+  success: binaryResponse(),
+  errors: [],
+  guard: { kind: 'public' },
+});
+
+const echoText = defineEndpoint({
+  name: 'echoText',
+  method: 'POST',
+  path: '/api/echo-text',
+  payload: textBody(),
+  success: Schema.String,
+  errors: [],
+  guard: { kind: 'public' },
+});
+
+const echoForm = defineEndpoint({
+  name: 'echoForm',
+  method: 'POST',
+  path: '/api/echo-form',
+  payload: formBody({ token: Schema.String }),
+  success: Schema.String,
+  errors: [],
+  guard: { kind: 'public' },
+});
+
 const groups = [
+  endpointGroup(
+    'bodies',
+    implement(upload, ({ payload }) =>
+      Effect.succeed({ size: payload.bytes.length }),
+    ),
+    implement(fetchFile, () =>
+      Effect.succeed({
+        bytes: new Uint8Array([7, 8]),
+        contentType: 'image/png',
+        headers: { 'content-disposition': 'inline' },
+      }),
+    ),
+    implement(echoText, ({ payload }) => Effect.succeed(payload)),
+    implement(echoForm, ({ payload }) => Effect.succeed(payload.token)),
+  ),
   endpointGroup(
     'slots',
     implement(book, ({ params }) => {
@@ -151,5 +214,61 @@ describe('the endpoint client against the shell', () => {
           .pipe(Effect.provide(FetchHttpClient.layer)),
       ),
     ).toMatchObject({ failure: { _tag: 'Unauthenticated' } });
+  });
+});
+
+describe('the endpoint client with bodies that are not JSON', () => {
+  const bodies = () =>
+    makeEndpointClient([upload, fetchFile, echoText, echoForm], {
+      baseUrl: service.baseUrl,
+    });
+  const run = <A, E>(effect: Effect.Effect<A, E, never>) =>
+    call(effect.pipe(Effect.provide(FetchHttpClient.layer)) as never);
+
+  it('sends raw bytes under the media type it was given', async () => {
+    const result = await run(
+      bodies().upload({
+        payload: { bytes: new Uint8Array([1, 2, 3]), contentType: 'image/png' },
+      }) as never,
+    );
+
+    expect(result).toMatchObject({ _tag: 'Success', success: { size: 3 } });
+  });
+
+  it('decodes the refusal of a body past the limit', async () => {
+    const result = await run(
+      bodies().upload({
+        payload: { bytes: new Uint8Array(5), contentType: 'image/png' },
+      }) as never,
+    );
+
+    expect(result).toMatchObject({
+      _tag: 'Failure',
+      failure: { _tag: 'PayloadTooLarge', maxBytes: 4 },
+    });
+  });
+
+  it('answers the bytes, their type and the headers beside them', async () => {
+    const result = (await run(bodies().fetchFile({}) as never)) as {
+      readonly success: {
+        readonly bytes: Uint8Array;
+        readonly contentType: string;
+        readonly headers: Record<string, string>;
+      };
+    };
+
+    expect(result.success.bytes).toEqual(new Uint8Array([7, 8]));
+    expect(result.success.contentType).toBe('image/png');
+    expect(result.success.headers['content-disposition']).toBe('inline');
+  });
+
+  it('sends a text body as text and a form body as a form', async () => {
+    const text = await run(bodies().echoText({ payload: 'as is' }) as never);
+    const form = await run(
+      bodies().echoForm({ payload: { token: 't-1' } }) as never,
+    );
+
+    expect(text).toMatchObject({ _tag: 'Success', success: 'as is' });
+    expect(form).toMatchObject({ _tag: 'Success', success: 't-1' });
   });
 });

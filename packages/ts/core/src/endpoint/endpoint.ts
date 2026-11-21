@@ -318,10 +318,15 @@ export const JsonBody: Schema.Codec<unknown, unknown> = Schema.Unknown.pipe(
 export const BODY_ENCODING = 'entifix/bodyEncoding';
 
 /** How a payload travels when it is not decoded as JSON, and under which media type. */
-export interface BodyEncoding {
-  readonly kind: 'text' | 'form';
-  readonly contentType: string;
-}
+export type BodyEncoding =
+  | { readonly kind: 'text' | 'form'; readonly contentType: string }
+  | {
+      readonly kind: 'binary';
+      /** The first of `contentTypes`: what a caller sends when it states none. */
+      readonly contentType: string;
+      readonly contentTypes: readonly [string, ...string[]];
+      readonly maxBytes: number;
+    };
 
 /**
  * A payload taken as the exact text that arrived, for an endpoint whose
@@ -348,6 +353,76 @@ export const formBody = <const Fields extends Schema.Struct.Fields>(
       contentType: 'application/x-www-form-urlencoded',
     } satisfies BodyEncoding,
   });
+
+/**
+ * A binary payload: the raw bytes that arrived, and the media type they were
+ * declared as. The type is one of the endpoint's `contentTypes` — anything
+ * else is refused `unsupportedMediaType` before a byte is read — but it is the
+ * caller's claim, so an endpoint that stores or serves the bytes sniffs them.
+ */
+export interface BinaryBody<ContentType extends string = string> {
+  readonly bytes: Uint8Array;
+  readonly contentType: ContentType;
+}
+
+/**
+ * A payload of raw bytes (not base64 in JSON, which costs a third more), under
+ * one of `contentTypes` and at most `maxBytes`. The host reads up to the limit
+ * and no further, and refuses a larger body `payloadTooLarge`.
+ */
+export const binaryBody = <
+  const ContentTypes extends readonly [string, ...string[]],
+>(options: {
+  readonly contentTypes: ContentTypes;
+  readonly maxBytes: number;
+}): Schema.Codec<BinaryBody<ContentTypes[number]>> => {
+  if (!Number.isInteger(options.maxBytes) || options.maxBytes <= 0)
+    throw new Error(
+      `binaryBody: maxBytes must be a positive integer, got ${String(options.maxBytes)}`,
+    );
+  return Schema.Struct({
+    bytes: Schema.Uint8Array,
+    contentType: Schema.Literals(options.contentTypes),
+  }).annotate({
+    [BODY_ENCODING]: {
+      kind: 'binary',
+      contentType: options.contentTypes[0],
+      contentTypes: options.contentTypes,
+      maxBytes: options.maxBytes,
+    } satisfies BodyEncoding,
+  }) as unknown as Schema.Codec<BinaryBody<ContentTypes[number]>>;
+};
+
+/** The annotation a success schema carries when the answer is not JSON. */
+export const RESPONSE_ENCODING = 'entifix/responseEncoding';
+
+/**
+ * A binary answer: the bytes, the media type they are served as, and any
+ * headers the endpoint sets beside it — a `Content-Disposition`, a
+ * `Content-Security-Policy`. Unless one of them says otherwise the host still
+ * answers `Cache-Control: no-store`.
+ */
+export interface BinaryReply {
+  readonly bytes: Uint8Array;
+  readonly contentType: string;
+  readonly headers?: Readonly<Record<string, string>>;
+}
+
+/** The success schema of an endpoint that answers raw bytes. */
+export const binaryResponse = (): Schema.Codec<BinaryReply> =>
+  Schema.Struct({
+    bytes: Schema.Uint8Array,
+    contentType: Schema.String,
+    headers: Schema.optional(Schema.Record(Schema.String, Schema.String)),
+  }).annotate({
+    [RESPONSE_ENCODING]: 'binary',
+  }) as unknown as Schema.Codec<BinaryReply>;
+
+/** Whether a success schema answers raw bytes rather than JSON. */
+export const isBinaryResponse = (schema: Schema.Top): boolean =>
+  (schema.ast.annotations as Record<string, unknown> | undefined)?.[
+    RESPONSE_ENCODING
+  ] === 'binary';
 
 /** The wire encoding a payload schema declared, or `undefined` for JSON. */
 export const bodyEncodingOf = (schema: Schema.Top): BodyEncoding | undefined =>

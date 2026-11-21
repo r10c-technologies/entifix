@@ -61,8 +61,11 @@ export interface ServiceProxyRouteOptions {
  * carrying them onto a response this function reconstructs is how a proxy
  * serves a truncated payload. Beside the cache validators: `retry-after`,
  * which says when an overloaded service wants to be asked again; `location`,
- * which a `202` points its tracker at; and `traceparent`, so the browser's
- * failure toast can name the trace a service logged its side under.
+ * which a `202` points its tracker at; `traceparent`, so the browser's
+ * failure toast can name the trace a service logged its side under; and the
+ * three a file served as bytes is kept harmless by — `content-disposition`,
+ * `content-security-policy` and `x-content-type-options`
+ * ([ADR 0020](../../../../../../docs/adr/0020-endpoints-are-descriptors-and-the-shell-builds-an-httpapi.md)).
  */
 const PASSED_RESPONSE_HEADERS = [
   'etag',
@@ -71,6 +74,9 @@ const PASSED_RESPONSE_HEADERS = [
   'retry-after',
   'location',
   'traceparent',
+  'content-disposition',
+  'content-security-policy',
+  'x-content-type-options',
 ] as const;
 
 /**
@@ -107,8 +113,10 @@ export const createServiceProxyRoute = ({
     const { path } = await params;
     const search = new URL(request.url).search;
 
+    // The caller's own media type: a binary body is declared by it, and a
+    // JSON one is the default when the caller named none.
     const headers: Record<string, string> = {
-      'content-type': 'application/json',
+      'content-type': request.headers.get('content-type') ?? 'application/json',
       ...bearerHeader(await sessionToken()),
     };
 
@@ -118,7 +126,8 @@ export const createServiceProxyRoute = ({
     }
 
     const hasBody = request.method !== 'GET' && request.method !== 'DELETE';
-    const body = hasBody ? await request.text() : undefined;
+    // Bytes, not text: a decoded-and-re-encoded file is a different file.
+    const body = hasBody ? await request.arrayBuffer() : undefined;
     // Only the connection is caught. A service that answers — with anything,
     // a `500` included — is passed through below exactly as it answered.
     const upstream = await fetch(
@@ -152,10 +161,10 @@ export const createServiceProxyRoute = ({
     // 204s and empty bodies must not be given a body. The upstream's content
     // type is kept, never re-typed: a problem body re-typed as plain JSON is
     // one the browser can no longer recognise as a failure it can decode.
-    const text = await upstream.text();
-    return text === ''
+    const bytes = await upstream.arrayBuffer();
+    return bytes.byteLength === 0
       ? new NextResponse(null, { status: upstream.status, headers: passed })
-      : new NextResponse(text, {
+      : new NextResponse(bytes, {
           status: upstream.status,
           headers: {
             ...passed,

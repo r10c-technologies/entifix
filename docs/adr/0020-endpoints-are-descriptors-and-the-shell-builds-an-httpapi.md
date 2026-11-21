@@ -4,6 +4,7 @@
 - Date: 2026-10-29
 - Revised: 2026-11-02 by [#126](https://github.com/r10c-technologies/entifix/issues/126) — the `HttpRouter` route makers, `routeFailure`, the guard HOFs and `x-command-id` are deleted; `HttpRouter.route` survives only in the final net and the raw SSE routes.
 - Revised: 2026-11-18 by [r10c#588](https://github.com/r10c-technologies/r10c/issues/588) — a `crossing` guard may name a `caller`; it then accepts that caller's token from `ServiceCrossingCallersTag` and never the service's own, and a caller the composition did not provide refuses every request.
+- Revised: 2026-11-20 by [#279](https://github.com/r10c-technologies/entifix/issues/279) — `binaryBody` takes raw bytes under a declared set of media types and a size limit, refused `payloadTooLarge` (413) or `unsupportedMediaType` (415) as a problem; `binaryResponse` answers bytes with the headers the handler sets; the REST client sends every body encoding as declared. Multipart is not built.
 - Area: platform
 - Read when: adding a route to a service, guarding one, writing an error body or a status by hand, building a link to a verb, a client decoding an error by its status, or about to import `effect/http` or `effect/http-api` outside the service shell
 
@@ -63,6 +64,18 @@ A cell declares each endpoint with `defineEndpoint` from `@entifix/core`:
   caller a specification makes post a form. Each is a schema carrying a
   marker the shell reads; `headers` names the request headers a handler
   reads, and a header it does not name is not its input.
+- `binaryBody({ contentTypes, maxBytes })` is raw bytes — a receipt, a photo —
+  not base64 in JSON, which costs a third more. The handler receives
+  `{ bytes, contentType }`, the type being the one the request declared; it is
+  the caller's claim, so an endpoint that keeps or serves the bytes sniffs
+  them. The shell reads the body under `MaxBodySize`, so the bytes past the
+  limit are never buffered, and answers `payloadTooLarge` (413) or
+  `unsupportedMediaType` (415) as a problem rather than Effect's plain-text
+  ones. `binaryResponse()` is the success schema of an endpoint that answers
+  bytes: the handler returns `{ bytes, contentType, headers? }` and the shell
+  writes them, still `no-store` unless a header says otherwise. Multipart is
+  not built: one file per request is what the first caller needs, and a
+  multipart body brings temp files and a per-part type check with it.
 - Every answer is `cache-control: no-store` unless its endpoint set a cache
   policy of its own. An API answer carries a principal, a token or a tenant's
   records far more often than anything a cache could share, and a token

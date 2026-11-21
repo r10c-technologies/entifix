@@ -145,14 +145,56 @@ describe('createServiceProxyRoute', () => {
       params(['product-brand', 'b-1']),
     );
 
-    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
+    const sent = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    expect(sent).toMatchObject({
       method: 'PUT',
-      body: '{"name":"Acme"}',
+      headers: { 'content-type': 'text/plain;charset=UTF-8' },
     });
+    expect(new TextDecoder().decode(sent.body as ArrayBuffer)).toBe(
+      '{"name":"Acme"}',
+    );
     expect(fetchMock.mock.calls[1]?.[1]).toMatchObject({
       method: 'DELETE',
       body: undefined,
     });
+  });
+
+  it('carries a file both ways as bytes, under its type and its safety headers', async () => {
+    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0xff, 0x00]);
+    const fetchMock = vi.fn((_url: string, _init: RequestInit) =>
+      Promise.resolve(
+        new Response(png, {
+          status: 200,
+          headers: {
+            'content-type': 'image/png',
+            'content-disposition': 'attachment',
+            'content-security-policy': 'sandbox',
+            'x-content-type-options': 'nosniff',
+          },
+        }),
+      ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await forward(
+      new Request('http://app.test/api/order/product-order/o-1/upload', {
+        method: 'POST',
+        headers: { 'content-type': 'image/png' },
+        body: png,
+      }),
+      params(['product-order', 'o-1', 'upload']),
+    );
+
+    const sent = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    expect((sent.headers as Record<string, string>)['content-type']).toBe(
+      'image/png',
+    );
+    expect(new Uint8Array(sent.body as ArrayBuffer)).toEqual(png);
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(png);
+    expect(response.headers.get('content-type')).toBe('image/png');
+    expect(response.headers.get('content-disposition')).toBe('attachment');
+    expect(response.headers.get('content-security-policy')).toBe('sandbox');
+    expect(response.headers.get('x-content-type-options')).toBe('nosniff');
   });
 
   /**

@@ -1,5 +1,7 @@
 import {
   type AnyEndpoint,
+  type BinaryBody,
+  bodyEncodingOf,
   currentRemainingMs,
   DEADLINE_HEADER,
   type DeclaredFailure,
@@ -10,6 +12,7 @@ import {
   type EntifixFailure,
   formatIdempotencyKey,
   IDEMPOTENCY_KEY_HEADER,
+  isBinaryResponse,
   Overloaded,
   PROBLEM_CONTENT_TYPE,
   ProtocolFailure,
@@ -157,6 +160,41 @@ const failureOf = (
       : failure;
   });
 
+/**
+ * The request carrying `payload` the way its descriptor declared it: JSON
+ * unless it said text, a form or raw bytes.
+ */
+const withBody = (
+  outgoing: HttpClientRequest.HttpClientRequest,
+  descriptor: AnyEndpoint,
+  payload: unknown,
+): HttpClientRequest.HttpClientRequest => {
+  const encoding = bodyEncodingOf(toSchema(descriptor.payload!));
+  switch (encoding?.kind) {
+    case 'text':
+      return HttpClientRequest.bodyText(
+        outgoing,
+        payload as string,
+        encoding.contentType,
+      );
+    case 'form':
+      return HttpClientRequest.bodyUrlParams(
+        outgoing,
+        payload as Record<string, string>,
+      );
+    case 'binary': {
+      const { bytes, contentType } = payload as BinaryBody;
+      return HttpClientRequest.bodyUint8Array(outgoing, bytes, contentType);
+    }
+    default:
+      return HttpClientRequest.bodyText(
+        outgoing,
+        JSON.stringify(payload),
+        'application/json',
+      );
+  }
+};
+
 const parse = (text: string): unknown => {
   try {
     return JSON.parse(text) as unknown;
@@ -187,14 +225,13 @@ const call = (
       `${options.baseUrl}${pathOf(descriptor.path, params)}`,
     ).pipe(
       HttpClientRequest.setUrlParams(queryOf(query)),
-      HttpClientRequest.setHeader('accept', 'application/json'),
+      HttpClientRequest.setHeader(
+        'accept',
+        isBinaryResponse(descriptor.success) ? '*/*' : 'application/json',
+      ),
     );
     if (descriptor.payload !== undefined)
-      outgoing = HttpClientRequest.bodyText(
-        outgoing,
-        JSON.stringify(payload),
-        'application/json',
-      );
+      outgoing = withBody(outgoing, descriptor, payload);
     if (descriptor.idempotent !== undefined)
       outgoing = HttpClientRequest.setHeader(
         outgoing,
@@ -221,6 +258,23 @@ const call = (
 
     if (response.status >= 400)
       return yield* Effect.fail(yield* failureOf(descriptor, response));
+
+    if (isBinaryResponse(descriptor.success)) {
+      const buffer = yield* response.arrayBuffer.pipe(
+        Effect.mapError(
+          () =>
+            new Unavailable({
+              dependency: `${descriptor.method} ${descriptor.path}`,
+            }),
+        ),
+      );
+      const { 'content-type': contentType, ...headers } = response.headers;
+      return {
+        bytes: new Uint8Array(buffer),
+        contentType: contentType ?? 'application/octet-stream',
+        headers,
+      };
+    }
 
     const text = yield* response.text.pipe(
       Effect.mapError(

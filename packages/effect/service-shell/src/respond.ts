@@ -63,7 +63,9 @@ export const defaultFailurePolicy: FailurePolicy = {
     protocol: 502,
     internal: 500,
   },
-  tagStatus: {},
+  // Two `invalid` refusals HTTP has a more exact word for, and a client or a
+  // proxy acts on: stop sending, rather than fix a field.
+  tagStatus: { PayloadTooLarge: 413, UnsupportedMediaType: 415 },
   categoryLogLevel: {
     invalid: 'Debug',
     unauthenticated: 'Debug',

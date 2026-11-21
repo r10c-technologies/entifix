@@ -15,6 +15,8 @@ import {
 } from '@entifix/business';
 import {
   ACCESS_COOKIE,
+  binaryBody,
+  binaryResponse,
   defineEndpoint,
   Failure,
   formBody,
@@ -269,6 +271,29 @@ const logout = defineEndpoint({
 
 let charges = 0;
 
+const receipt = defineEndpoint({
+  name: 'receipt',
+  method: 'POST',
+  path: '/api/receipt',
+  payload: binaryBody({
+    contentTypes: ['image/png', 'application/pdf'],
+    maxBytes: 8,
+  }),
+  success: Schema.Struct({ size: Schema.Number, type: Schema.String }),
+  errors: [],
+  guard: { kind: 'public' },
+});
+
+const download = defineEndpoint({
+  name: 'download',
+  method: 'GET',
+  path: '/api/download/:name',
+  params: { name: Schema.String },
+  success: binaryResponse(),
+  errors: [SlugTaken],
+  guard: { kind: 'public' },
+});
+
 const groups = [
   endpointGroup(
     'open',
@@ -311,6 +336,31 @@ const groups = [
     ),
     implement(lookup, () => Effect.succeed('looked up')),
     implement(settle, () => Effect.succeed({ settled: true })),
+    implement(receipt, ({ payload }) =>
+      payload.bytes.length === 1
+        ? Effect.die(new Error('a bug behind a binary body'))
+        : Effect.succeed({
+            size: payload.bytes.length,
+            type: payload.contentType,
+          }),
+    ),
+    implement(download, ({ params }) =>
+      params.name === 'taken'
+        ? Effect.fail(new SlugTaken({ slug: 'taken' }))
+        : params.name === 'bare'
+          ? Effect.succeed({
+              bytes: new Uint8Array([9]),
+              contentType: 'image/png',
+            })
+          : Effect.succeed({
+              bytes: new Uint8Array([1, 2, 3]),
+              contentType: 'application/pdf',
+              headers: {
+                'content-disposition': `attachment; filename="${params.name}.pdf"`,
+                'cache-control': 'private, no-store',
+              },
+            }),
+    ),
   ),
 ] as const;
 
@@ -489,6 +539,97 @@ describe('a payload that is not JSON', () => {
 
     expect(res.headers.get('cache-control')).toBe('no-store');
     expect(refused.headers.get('cache-control')).toBe('no-store');
+  });
+});
+
+describe('a binary payload', () => {
+  const post = (body: Uint8Array, contentType: string) =>
+    call('/api/receipt', {
+      method: 'POST',
+      headers: { 'content-type': contentType },
+      body,
+    });
+
+  it('hands the bytes over with the media type they arrived as', async () => {
+    const res = await post(new Uint8Array(8), 'application/pdf');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ size: 8, type: 'application/pdf' });
+  });
+
+  it('refuses a body one byte past the limit 413, as a problem', async () => {
+    const res = await post(new Uint8Array(9), 'image/png');
+
+    expect(res.status).toBe(413);
+    expect(res.type).toBe(PROBLEM_CONTENT_TYPE);
+    expect(res.body).toMatchObject({ code: 'payloadTooLarge', maxBytes: 8 });
+  });
+
+  it('refuses a media type it does not take 415, as a problem', async () => {
+    const res = await post(new Uint8Array(2), 'image/svg+xml');
+
+    expect(res.status).toBe(415);
+    expect(res.type).toBe(PROBLEM_CONTENT_TYPE);
+    expect(res.body).toMatchObject({
+      code: 'unsupportedMediaType',
+      accepted: ['image/png', 'application/pdf'],
+    });
+  });
+
+  it('leaves any other defect a 500', async () => {
+    const res = await post(new Uint8Array(1), 'image/png');
+
+    expect(res.status).toBe(500);
+    expect(res.body).toMatchObject({ code: 'internal' });
+  });
+
+  it('documents one request body per media type', () => {
+    const spec = OpenApi.fromApi(api as never) as unknown as {
+      paths: Record<
+        string,
+        Record<string, { requestBody?: { content: Record<string, unknown> } }>
+      >;
+    };
+
+    expect(
+      Object.keys(spec.paths['/api/receipt']!['post']!.requestBody!.content),
+    ).toEqual(['image/png', 'application/pdf']);
+  });
+});
+
+describe('a binary answer', () => {
+  it('serves the bytes under their type and the headers the handler set', async () => {
+    const response = await handler(
+      new Request('http://spec/api/download/receipt'),
+      Context.empty() as never,
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toBe('application/pdf');
+    expect(response.headers.get('content-disposition')).toBe(
+      'attachment; filename="receipt.pdf"',
+    );
+    expect(response.headers.get('cache-control')).toBe('private, no-store');
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(
+      new Uint8Array([1, 2, 3]),
+    );
+  });
+
+  it('answers no-store when the handler set no headers of its own', async () => {
+    const response = await handler(
+      new Request('http://spec/api/download/bare'),
+      Context.empty() as never,
+    );
+
+    expect(response.headers.get('content-type')).toBe('image/png');
+    expect(response.headers.get('cache-control')).toBe('no-store');
+  });
+
+  it('still answers a failure as a problem', async () => {
+    const res = await call('/api/download/taken');
+
+    expect(res.status).toBe(409);
+    expect(res.type).toBe(PROBLEM_CONTENT_TYPE);
   });
 });
 
@@ -772,7 +913,7 @@ describe('idempotency', () => {
 describe('the built API', () => {
   it('lists its endpoints as METHOD /path', () => {
     expect(endpointsOf(groups)).toContain('POST /api/slug/:slug');
-    expect(endpointsOf(groups)).toHaveLength(18);
+    expect(endpointsOf(groups)).toHaveLength(20);
   });
 
   it('refuses two endpoints on one method and path', () => {

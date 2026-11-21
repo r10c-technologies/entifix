@@ -10,12 +10,15 @@ import {
   Unavailable,
 } from '../index.js';
 import {
+  binaryBody,
+  binaryResponse,
   bodyEncodingOf,
   defineEndpoint,
   defineEndpoints,
   entityKey,
   formBody,
   implement,
+  isBinaryResponse,
   JsonBody,
   textBody,
 } from './endpoint.js';
@@ -195,5 +198,40 @@ describe('the payload encodings', () => {
     expect(
       Schema.decodeSync(formBody({ token: Schema.String }))({ token: 't' }),
     ).toEqual({ token: 't' });
+  });
+});
+
+describe('the binary encodings', () => {
+  it('marks a binary body with its media types and its limit', () => {
+    const body = binaryBody({
+      contentTypes: ['image/png', 'application/pdf'],
+      maxBytes: 1024,
+    });
+
+    expect(bodyEncodingOf(body)).toEqual({
+      kind: 'binary',
+      contentType: 'image/png',
+      contentTypes: ['image/png', 'application/pdf'],
+      maxBytes: 1024,
+    });
+    const bytes = new Uint8Array([1]);
+    expect(
+      Schema.decodeUnknownSync(body)({ bytes, contentType: 'image/png' }),
+    ).toEqual({ bytes, contentType: 'image/png' });
+    expect(() =>
+      Schema.decodeUnknownSync(body)({ bytes, contentType: 'text/html' }),
+    ).toThrow();
+  });
+
+  it('refuses a limit that is not a positive whole number of bytes', () => {
+    for (const maxBytes of [0, -1, 1.5])
+      expect(() =>
+        binaryBody({ contentTypes: ['image/png'], maxBytes }),
+      ).toThrow(/maxBytes/);
+  });
+
+  it('marks a binary answer, and nothing else as one', () => {
+    expect(isBinaryResponse(binaryResponse())).toBe(true);
+    expect(isBinaryResponse(Schema.String)).toBe(false);
   });
 });

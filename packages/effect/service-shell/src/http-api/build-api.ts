@@ -6,6 +6,8 @@ import type {
 } from '@entifix/business';
 import {
   type AnyEndpoint,
+  type BinaryBody,
+  type BinaryReply,
   bodyEncodingOf,
   Contention,
   type DeadlineTag,
@@ -19,23 +21,34 @@ import {
   type Implemented,
   Internal,
   Invalid,
+  isBinaryResponse,
   Overloaded,
+  PayloadTooLarge,
   ProtocolFailure,
   Timeout,
   Unauthenticated,
   Unavailable,
+  UnsupportedMediaType,
   UpstreamUnavailable,
 } from '@entifix/core';
 import {
+  ByteSize,
+  Context,
   Effect,
   type FileSystem,
   Layer,
+  Option,
   type Path,
   Schema,
   SchemaIssue,
+  SchemaTransformation,
 } from 'effect';
 import type { Etag, HttpPlatform, HttpRouter } from 'effect/http';
-import { HttpServerResponse } from 'effect/http';
+import {
+  HttpIncomingMessage,
+  HttpServerError,
+  HttpServerResponse,
+} from 'effect/http';
 import {
   HttpApi,
   HttpApiBuilder,
@@ -181,10 +194,28 @@ export const statusForClass = (
     (failureClass.prototype as unknown as EntifixFailure).category
   ];
 
+/** The limits a binary payload declared, as an endpoint annotation. */
+export class BinaryBodyAnnotation extends Context.Service<
+  BinaryBodyAnnotation,
+  { readonly contentTypes: readonly string[]; readonly maxBytes: number }
+>()('@entifix/service-shell/BinaryBody') {}
+
+const BINARY_FAILURES: readonly FailureClass[] = [
+  PayloadTooLarge,
+  UnsupportedMediaType,
+];
+
+const binaryEncodingOf = (descriptor: AnyEndpoint) => {
+  const payload = toSchema(descriptor.payload);
+  const encoding = payload === undefined ? undefined : bodyEncodingOf(payload);
+  return encoding?.kind === 'binary' ? encoding : undefined;
+};
+
 const errorSchemas = (descriptor: AnyEndpoint, policy: FailurePolicy) =>
   [
     ...new Set([
       ...descriptor.errors,
+      ...(binaryEncodingOf(descriptor) === undefined ? [] : BINARY_FAILURES),
       ...GUARD_FAILURES[descriptor.guard.kind],
       ...(descriptor.idempotent === undefined ? [] : IDEMPOTENCY_FAILURES),
       ...TECHNICAL,
@@ -214,6 +245,25 @@ const toPayload = (schema: EndpointSchema | undefined) => {
     case 'form':
       return payload.pipe(
         HttpApiSchema.asFormUrlEncoded({ contentType: encoding.contentType }),
+      );
+    case 'binary':
+      // One schema per media type: the request's `Content-Type` picks it, so
+      // the decoded body knows which one it arrived as.
+      return encoding.contentTypes.map(contentType =>
+        Schema.Uint8Array.pipe(
+          Schema.decodeTo(
+            Schema.Struct({
+              bytes: Schema.Uint8Array,
+              contentType: Schema.String,
+            }),
+            SchemaTransformation.transform({
+              decode: (bytes): BinaryBody => ({ bytes, contentType }),
+              /* v8 ignore next -- a served payload is only ever decoded */
+              encode: ({ bytes }: BinaryBody) => bytes,
+            }),
+          ),
+          HttpApiSchema.asUint8Array({ contentType }),
+        ),
       );
     default:
       return payload;
@@ -252,10 +302,57 @@ export const invalidRequest = (
 const REQUEST_PARTS: ReadonlySet<HttpApiError.HttpApiSchemaError['kind']> =
   new Set(['Params', 'Query', 'Payload', 'Headers']);
 
+/** A body read that stopped at the limit: a defect in Effect's decoder. */
+const isBodyTooLarge = (defect: unknown): boolean =>
+  HttpServerError.isHttpServerError(defect) &&
+  defect.reason._tag === 'RequestParseError' &&
+  defect.reason.reason === 'BodyTooLarge';
+
+/**
+ * A binary payload's limits, applied around the whole endpoint: the body is
+ * read under `MaxBodySize`, so the bytes past the limit are never buffered; a
+ * read stopped there answers `payloadTooLarge`, and the plain-text `415` the
+ * decoder answers for an undeclared media type becomes `unsupportedMediaType`.
+ */
+const withBinaryLimits = (
+  httpEffect: Effect.Effect<HttpServerResponse.HttpServerResponse, unknown>,
+  limits: BinaryBodyAnnotation['Service'],
+) =>
+  httpEffect.pipe(
+    Effect.provideService(
+      HttpIncomingMessage.MaxBodySize,
+      ByteSize.bytes(limits.maxBytes),
+    ),
+    Effect.catchDefect(defect =>
+      isBodyTooLarge(defect)
+        ? Effect.fail(new PayloadTooLarge({ maxBytes: limits.maxBytes }))
+        : Effect.die(defect),
+    ),
+    Effect.flatMap(response =>
+      response.status === 415
+        ? Effect.fail(
+            new UnsupportedMediaType({ accepted: limits.contentTypes }),
+          )
+        : Effect.succeed(response),
+    ),
+  );
+
 const respondLayer = (policy: FailurePolicy) =>
-  Layer.succeed(Respond)(((httpEffect: Effect.Effect<never, unknown, never>) =>
-    respond(
-      httpEffect.pipe(
+  Layer.succeed(Respond)(((
+    httpEffect: Effect.Effect<HttpServerResponse.HttpServerResponse, unknown>,
+    options: {
+      readonly endpoint: { readonly annotations: Context.Context<never> };
+    },
+  ) => {
+    const limits = Context.getOption(
+      options.endpoint.annotations as Context.Context<BinaryBodyAnnotation>,
+      BinaryBodyAnnotation,
+    );
+    const bounded = Option.isSome(limits)
+      ? withBinaryLimits(httpEffect, limits.value)
+      : httpEffect;
+    return respond(
+      bounded.pipe(
         Effect.catchIf(
           (error: unknown): error is HttpApiError.HttpApiSchemaError =>
             HttpApiError.HttpApiSchemaError.is(error) &&
@@ -264,7 +361,22 @@ const respondLayer = (policy: FailurePolicy) =>
         ),
       ) as never,
       policy,
-    ).pipe(Effect.map(uncachedByDefault))) as never);
+    ).pipe(Effect.map(uncachedByDefault));
+  }) as never);
+
+/** The bytes and headers a binary endpoint answered, as the response. */
+export const binaryReplyResponse = (
+  reply: BinaryReply,
+): HttpServerResponse.HttpServerResponse =>
+  HttpServerResponse.uint8Array(reply.bytes, {
+    contentType: reply.contentType,
+    ...(reply.headers === undefined ? {} : { headers: reply.headers }),
+  });
+
+/** What a binary answer declares to an OpenAPI document. */
+const BINARY_SUCCESS = Schema.Uint8Array.pipe(
+  HttpApiSchema.asUint8Array({ contentType: 'application/octet-stream' }),
+);
 
 /**
  * Every answer `no-store` unless its endpoint chose a cache policy of its own.
@@ -294,13 +406,20 @@ const toEndpoint = (descriptor: AnyEndpoint, policy: FailurePolicy) => {
       ...(query === undefined ? {} : { query }),
       ...(payload === undefined ? {} : { payload }),
       ...(headers === undefined ? {} : { headers }),
-      success:
-        descriptor.accepted === true
+      success: isBinaryResponse(descriptor.success)
+        ? BINARY_SUCCESS
+        : descriptor.accepted === true
           ? HttpApiSchema.status(202)(descriptor.success)
           : descriptor.success,
       error: errorSchemas(descriptor, policy),
     } as never,
   ).annotate(EndpointGuardAnnotation, descriptor.guard);
+  const binary = binaryEncodingOf(descriptor);
+  if (binary !== undefined)
+    endpoint = endpoint.annotate(BinaryBodyAnnotation, {
+      contentTypes: binary.contentTypes,
+      maxBytes: binary.maxBytes,
+    });
   // Order is outermost last: idempotency runs inside the guard, so it sees
   // the principal the guard verified; `Respond` wraps everything.
   if (descriptor.idempotent !== undefined)
@@ -378,7 +497,17 @@ export const serveApi = <const Groups extends ReadonlyArray<AnyEndpointGroup>>(
         group.endpoints.reduce(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (built: any, { descriptor, handler }) =>
-            built.handle(descriptor.name, handler),
+            built.handle(
+              descriptor.name,
+              isBinaryResponse(descriptor.success)
+                ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  (request: any) =>
+                    Effect.map(
+                      handler(request) as Effect.Effect<BinaryReply>,
+                      binaryReplyResponse,
+                    )
+                : handler,
+            ),
           handle,
         ),
     ),
