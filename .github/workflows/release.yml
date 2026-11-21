@@ -112,15 +112,35 @@ jobs:
       # package is a `git push --delete` away from gone, and the GitHub Release
       # is written last because a Release announcing a version npm never
       # received is a lie that consumers read.
+      #
+      # A re-run after a failed publish finds its own tag already pushed. That
+      # tag on this very commit is the step already done; on any other commit
+      # it is a different release, and this one stops before npm.
       - name: Tag the release
         env:
           VERSION: ${{ needs.verify.outputs.version }}
         run: |
           set -euo pipefail
+          TAG="v${VERSION}"
+          HEAD_SHA="$(git rev-parse HEAD)"
+          # `^{}` peels an annotated tag to the commit it names; a lightweight
+          # tag has no peeled entry and names the commit itself.
+          TAGGED_SHA="$(git ls-remote origin "refs/tags/${TAG}^{}" | cut -f1)"
+          if [ -z "${TAGGED_SHA}" ]; then
+            TAGGED_SHA="$(git ls-remote origin "refs/tags/${TAG}" | cut -f1)"
+          fi
+          if [ -n "${TAGGED_SHA}" ]; then
+            if [ "${TAGGED_SHA}" = "${HEAD_SHA}" ]; then
+              echo "${TAG} already tags ${HEAD_SHA}; a re-run, nothing to push."
+              exit 0
+            fi
+            echo "::error::${TAG} already tags ${TAGGED_SHA}, not ${HEAD_SHA}. Refusing to publish a version another commit holds."
+            exit 1
+          fi
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -a "v${VERSION}" -m "v${VERSION}"
-          git push origin "v${VERSION}"
+          git tag -a "${TAG}" -m "${TAG}"
+          git push origin "${TAG}"
 
       # The workspace resolves `@entifix/source` to `src`, which the tarball does
       # not ship; a published manifest naming it sends a consumer that sets the
