@@ -132,10 +132,17 @@ export function ThemeProvider({
   // client corrects after mount. Reading in render would mismatch hydration.
   // Where the server read it, `initial` already is the stored choice and this
   // changes nothing. It only reads, so running twice changes nothing.
+  // ⚠️ Until the stored choice has been read, nothing is reflected onto the
+  // document. A static export's `ThemeScript` has already painted the stored
+  // palette before React loads; reflecting `initial` on the first commit would
+  // repaint the default over it for one frame, and the stored one again on the
+  // next — the flash the script exists to prevent.
+  const [adopted, setAdopted] = useState(false);
   useEffect(() => {
     const stored = readCookie(storageKey);
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot SSR-safe hydration, see comment above
     if (isKnown(stored)) setThemeState(stored);
+    setAdopted(true);
     // A stored density wins; otherwise the default, otherwise whatever the
     // document was served with, so the context never reports a density the
     // page is not in.
@@ -177,9 +184,10 @@ export function ThemeProvider({
   // theme is already right, and even a write of the same value is a change
   // something watching the document would see.
   useEffect(() => {
+    if (!adopted) return;
     const root = document.documentElement;
     if (root.dataset.theme !== theme) root.dataset.theme = theme;
-  }, [theme]);
+  }, [adopted, theme]);
   useEffect(() => {
     const root = document.documentElement;
     if (density !== undefined && root.dataset.density !== density)

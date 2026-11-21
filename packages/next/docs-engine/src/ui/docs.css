@@ -1,0 +1,154 @@
+/*
+ * @entifix/docs-engine — fumadocs-ui under entifix's tokens (ADR 0031 §4).
+ *
+ * Import it after tailwindcss and @entifix/style's tokens and presets, from the
+ * host's global stylesheet, and point a `@source` at fumadocs-ui's `dist` and
+ * at this package's, so Tailwind emits the utilities their components use.
+ *
+ * Only fumadocs' `preset.css` is imported: `neutral.css` and `style.css` declare
+ * fumadocs' own grey palette, which would be a second set of colours.
+ */
+@import 'fumadocs-ui/css/preset.css';
+
+/*
+ * One owner of dark mode: `data-theme`. A palette the host declares dark sets
+ * `data-scheme="dark"`, and fumadocs' `dark:` follows that attribute instead of
+ * next-themes' `.dark` class.
+ */
+@custom-variant dark (&:where([data-scheme='dark'], [data-scheme='dark'] *));
+
+@theme inline {
+  --color-fd-background: var(--color-surface);
+  --color-fd-foreground: var(--color-content);
+  --color-fd-muted: var(--color-surface-elevated);
+  --color-fd-muted-foreground: var(--color-content-muted);
+  --color-fd-popover: var(--color-surface-elevated);
+  --color-fd-popover-foreground: var(--color-content);
+  --color-fd-card: var(--color-surface-elevated);
+  --color-fd-card-foreground: var(--color-content);
+  --color-fd-secondary: var(--color-surface-elevated);
+  --color-fd-secondary-foreground: var(--color-content);
+  --color-fd-accent: color-mix(in srgb, var(--color-primary) 14%, transparent);
+  --color-fd-accent-foreground: var(--color-content);
+  /* Decorative only: dividers and card edges. Controls are drawn below. */
+  --color-fd-border: var(--color-border);
+  /*
+   * Primary text on a primary tint is not a pair in the token contract's table
+   * (entifix ADR 0025), and measured 4.09–4.36:1 in the spike. Mixed toward the
+   * content colour it clears 4.5:1 on both palettes.
+   */
+  --color-fd-primary: color-mix(
+    in srgb,
+    var(--color-primary) 75%,
+    var(--color-content)
+  );
+  --color-fd-primary-foreground: var(--color-primary-content);
+  --color-fd-ring: var(--color-focus-ring);
+  --color-fd-overlay: var(--color-scrim);
+  --color-fd-info: var(--color-info);
+  --color-fd-warning: var(--color-warning);
+  --color-fd-error: var(--color-danger);
+  --color-fd-success: var(--color-success);
+  --color-fd-idea: var(--color-warning);
+  --color-fd-diff-add: color-mix(
+    in srgb,
+    var(--color-success) 15%,
+    transparent
+  );
+  --color-fd-diff-add-symbol: var(--color-success);
+  --color-fd-diff-remove: color-mix(
+    in srgb,
+    var(--color-danger) 15%,
+    transparent
+  );
+  --color-fd-diff-remove-symbol: var(--color-danger);
+}
+
+/* The code blocks' dark theme follows the scheme, not `.dark`. */
+[data-scheme='dark'] .shiki:not(.not-fumadocs-codeblock *) code span,
+[data-scheme='dark'] code.shiki:not(.not-fumadocs-code *) span {
+  color: var(--shiki-dark);
+  font-style: var(--shiki-dark-font-style);
+}
+[data-scheme='dark'] .shiki:not(.not-fumadocs-codeblock *) {
+  background-color: var(--shiki-dark-bg, var(--color-fd-card));
+}
+
+/*
+ * Unlayered, so it wins over every fumadocs utility whatever its specificity.
+ *
+ * One focus indicator per control (ADR 0031 §4.5): the token's ring as an
+ * outline on everything, and fumadocs' own box-shadow ring switched off where
+ * it draws one — otherwise those controls showed both.
+ */
+:focus-visible {
+  outline: var(--border-width-strong, 2px) solid var(--color-focus-ring);
+  outline-offset: 2px;
+  --tw-ring-shadow: 0 0 #0000;
+}
+
+/*
+ * Control boundaries at 3:1 (WCAG 1.4.11, ADR 0031 §4.2). fumadocs draws its
+ * search triggers and inputs with the decorative border, which is not a
+ * control's.
+ */
+[data-search],
+[data-search-full],
+#nd-docs-layout input,
+#nd-docs-layout select,
+#nd-docs-layout textarea,
+[role='dialog'] input {
+  border-color: var(--color-border-control);
+}
+[data-search],
+[data-search-full] {
+  border-width: 1px;
+  border-style: solid;
+}
+
+/*
+ * The sticky header must never cover what has focus, nor the heading an anchor
+ * jumps to (WCAG 2.4.11, ADR 0031 §4.4).
+ */
+/*
+ * fumadocs scopes `--fd-header-height` to its layout element, where <html>'s
+ * scroll padding cannot read it, so the padding is its tallest value: the
+ * mobile header (3.5rem) and the table-of-contents bar under it (2.5rem), and
+ * a margin.
+ */
+html {
+  scroll-padding-top: 7rem;
+}
+
+/* Forced colours: every control keeps an edge, and focus stays visible. */
+@media (forced-colors: active) {
+  :focus-visible {
+    outline-color: Highlight;
+  }
+  [data-search],
+  [data-search-full],
+  #nd-docs-layout button {
+    border: 1px solid ButtonText;
+  }
+}
+
+/* A citation of an id: monospace, as the id is code. */
+.docs-citation {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.9em;
+}
+
+/* A callout from `:::note`, `:::tip` or `:::warning`. */
+.docs-callout {
+  margin-block: 1rem;
+  border-inline-start: 4px solid var(--color-info);
+  border-radius: 0.5rem;
+  background: var(--color-surface-elevated);
+  padding: 0.75rem 1rem;
+}
+.docs-callout-tip {
+  border-inline-start-color: var(--color-success);
+}
+.docs-callout-warning {
+  border-inline-start-color: var(--color-warning);
+}

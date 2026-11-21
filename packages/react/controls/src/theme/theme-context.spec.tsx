@@ -159,6 +159,27 @@ describe('ThemeProvider', () => {
     expect(result.current.theme).toBe('dark');
   });
 
+  // A static export's `ThemeScript` painted the stored palette before React
+  // loaded. Mounting must never repaint the default over it, not even for one
+  // commit.
+  it('never paints the default over a stored theme while mounting', () => {
+    setCookie('entifix-theme', 'dark');
+    document.documentElement.dataset['theme'] = 'dark';
+    const observer = new MutationObserver(() => undefined);
+    observer.observe(document.documentElement, {
+      attributeFilter: ['data-theme'],
+      attributeOldValue: true,
+    });
+
+    renderHook(() => useTheme(), { wrapper: wrapper() });
+    // Each record's old value is what was painted before that change.
+    const painted = observer.takeRecords().map(record => record.oldValue);
+    observer.disconnect();
+
+    expect(painted).not.toContain('light');
+    expect(document.documentElement.dataset['theme']).toBe('dark');
+  });
+
   it.each([
     ['an unknown theme id', 'solarized'],
     ['no stored value at all', null],

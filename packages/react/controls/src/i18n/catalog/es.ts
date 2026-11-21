@@ -372,4 +372,49 @@ export const controls = {
       dismiss: 'Entendido',
     },
   },
+  /**
+   * El sitio de documentación de `@entifix/docs-engine`. Los marcadores
+   * `{query}` y `{url}` van con llave simple: los interpola fumadocs, no
+   * i18next.
+   */
+  docs: {
+    search: {
+      open: 'Buscar',
+      placeholder: 'Buscar',
+      close: 'Esc, cerrar la búsqueda',
+      closeKey: 'Esc',
+      empty: 'Sin resultados',
+      failed: 'La búsqueda falló',
+      failedFor: 'La búsqueda falló; resultados para {query}',
+    },
+    sidebar: {
+      open: 'Abrir la barra lateral',
+      close: 'Cerrar la barra lateral',
+      collapse: 'Contraer la barra lateral',
+      show: 'Mostrar la barra lateral',
+      hide: 'Ocultar la barra lateral',
+    },
+    menu: 'Abrir o cerrar el menú',
+    toc: {
+      title: 'En esta página',
+      empty: 'Sin encabezados',
+    },
+    page: {
+      previous: 'Página anterior',
+      next: 'Página siguiente',
+      notFound: 'Página no encontrada',
+      notFoundBody: 'La página que buscas no existe o cambió de dirección.',
+      home: 'Volver al inicio',
+    },
+    code: {
+      copy: 'Copiar el texto',
+      copied: 'Texto copiado',
+    },
+    anchor: {
+      copy: 'Copiar el enlace a esta sección',
+      copied: 'Enlace copiado',
+    },
+    theme: 'Cambiar el tema',
+    skip: 'Saltar al contenido',
+  },
 };

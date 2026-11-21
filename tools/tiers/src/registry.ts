@@ -153,6 +153,13 @@ export const PACKAGES: readonly PackageDeclaration[] = [
     dir: 'packages/next/shell',
     tier: 4,
   },
+  // A documentation site from sources (ADR 0031 §3). Not in `@entifix/docs`:
+  // content every adopter reads must not arrive with Next and fumadocs.
+  {
+    name: '@entifix/docs-engine',
+    dir: 'packages/next/docs-engine',
+    tier: 4,
+  },
   {
     name: '@entifix/next-i18n',
     dir: 'packages/next/i18n',

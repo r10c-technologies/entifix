@@ -1,0 +1,19 @@
+@import 'tailwindcss';
+@import '@entifix/style/tokens.css';
+@import '@entifix/style/presets/fixed-scale.css';
+@import '@entifix/style/presets/aurora.css';
+@import '@entifix/style/presets/midnight.css';
+@import '@entifix/docs-engine/ui/docs.css';
+
+/* Tailwind emits only the utilities it can see: the framework's components and
+   fumadocs' carry their classes, so their sources are scanned too. An
+   application installing from npm points these at each package's `dist`. */
+@source '../../../../packages/react/controls/src';
+@source '../../../../packages/next/docs-engine/src';
+@source '../../node_modules/fumadocs-ui/dist';
+
+body {
+  margin: 0;
+  background-color: var(--color-surface);
+  color: var(--color-content);
+}
