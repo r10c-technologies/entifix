@@ -1,3 +1,13 @@
+## 0.23.6 (2026-11-21)
+
+### 🚀 Features
+
+- **docs-engine:** a documentation site from sources, searched with Pagefind ([#304](https://github.com/r10c-technologies/entifix/pull/304))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.23.5 (2026-11-21)
 
 ### 🚀 Features
