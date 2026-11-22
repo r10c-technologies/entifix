@@ -1,3 +1,13 @@
+## 0.23.8 (2026-11-22)
+
+### 🩹 Fixes
+
+- **core:** 64.999 is refused as money, and a host names its formatting locale ([#313](https://github.com/r10c-technologies/entifix/pull/313))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.23.7 (2026-11-22)
 
 ### 🚀 Features
