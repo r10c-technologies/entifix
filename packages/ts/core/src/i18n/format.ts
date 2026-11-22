@@ -1,4 +1,4 @@
-import type { Locale } from './locales.js';
+import { formattingLocale, type Locale } from './locales.js';
 
 export interface Formatters {
   /** Calendar date only. */
@@ -16,11 +16,12 @@ function toDate(value: Date | string | number): Date | undefined {
   return Number.isNaN(date.getTime()) ? undefined : date;
 }
 
-const cache = new Map<Locale, Formatters>();
+const cache = new Map<string, Formatters>();
 
 /**
- * Locale-aware formatting, memoized per locale because constructing an `Intl.*`
- * formatter is expensive and these run once per table cell.
+ * Locale-aware formatting in the locale's `formattingLocale`, memoized per
+ * that tag because constructing an `Intl.*` formatter is expensive and these
+ * run once per table cell.
  *
  * This exists to kill an argument-less `toLocaleString()`, which resolves against
  * the *runtime's* default locale — Node's on the server, the visitor's in the
@@ -29,16 +30,17 @@ const cache = new Map<Locale, Formatters>();
  * explicitly makes both halves agree by construction.
  */
 export function makeFormatters(locale: Locale): Formatters {
-  const cached = cache.get(locale);
+  const tag = formattingLocale(locale);
+  const cached = cache.get(tag);
   if (cached !== undefined) return cached;
 
-  const dateFormat = new Intl.DateTimeFormat(locale, { dateStyle: 'medium' });
-  const dateTimeFormat = new Intl.DateTimeFormat(locale, {
+  const dateFormat = new Intl.DateTimeFormat(tag, { dateStyle: 'medium' });
+  const dateTimeFormat = new Intl.DateTimeFormat(tag, {
     dateStyle: 'medium',
     timeStyle: 'short',
   });
-  const numberFormat = new Intl.NumberFormat(locale);
-  const relativeFormat = new Intl.RelativeTimeFormat(locale, {
+  const numberFormat = new Intl.NumberFormat(tag);
+  const relativeFormat = new Intl.RelativeTimeFormat(tag, {
     numeric: 'auto',
   });
 
@@ -54,14 +56,12 @@ export function makeFormatters(locale: Locale): Formatters {
     number: (value, options) =>
       options === undefined
         ? numberFormat.format(value)
-        : new Intl.NumberFormat(locale, options).format(value),
+        : new Intl.NumberFormat(tag, options).format(value),
     currency: (value, currency) =>
-      new Intl.NumberFormat(locale, { style: 'currency', currency }).format(
-        value,
-      ),
+      new Intl.NumberFormat(tag, { style: 'currency', currency }).format(value),
     relative: (value, unit) => relativeFormat.format(value, unit),
   };
 
-  cache.set(locale, formatters);
+  cache.set(tag, formatters);
   return formatters;
 }

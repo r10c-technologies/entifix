@@ -1,5 +1,5 @@
-import { defineLocales } from '@entifix/core';
-import { render, screen } from '@testing-library/react';
+import { defineLocales, resetLocales } from '@entifix/core';
+import { render, renderHook, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { I18nProvider } from '../i18next/index.js';
@@ -159,7 +159,21 @@ describe('the no-provider fallback', () => {
   });
 
   describe("follows the host's declared default", () => {
-    afterEach(() => installSpecCatalogs());
+    afterEach(() => {
+      resetLocales();
+      installSpecCatalogs();
+    });
+
+    it('formats in a formatting locale declared after it first rendered', () => {
+      const declaration = { locales: ['es', 'en'], defaultLocale: 'es' };
+      defineLocales(declaration);
+      const read = () =>
+        renderHook(() => useFormatters()).result.current.number(1234567.5);
+      expect(read()).toBe('1.234.567,5');
+
+      defineLocales({ ...declaration, formattingLocales: { es: 'es-GT' } });
+      expect(read()).toBe('1,234,567.5');
+    });
 
     it('speaks English when the host defaults to it', () => {
       defineLocales({ locales: ['en', 'es'], defaultLocale: 'en' });

@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   defaultLocale,
   defineLocales,
+  formattingLocale,
   isLocale,
   locales,
   resetLocales,
@@ -46,6 +47,55 @@ describe('locales', () => {
     expect(isLocale('es-MX')).toBe(false);
     expect(isLocale(undefined)).toBe(false);
     expect(isLocale(42)).toBe(false);
+  });
+
+  it('formats as the locale itself unless the host names another', () => {
+    expect(formattingLocale('en')).toBe('en');
+    defineLocales({
+      locales: ['es', 'en'],
+      defaultLocale: 'es',
+      formattingLocales: { es: 'es-GT' },
+    });
+
+    expect(formattingLocale('es')).toBe('es-GT');
+    expect(formattingLocale('en')).toBe('en');
+    expect(locales()).toEqual(['es', 'en']);
+    expect(isLocale('es-GT')).toBe(false);
+  });
+
+  it('keeps formatting locales through a declaration that names none', () => {
+    const formattingLocales = { es: 'es-GT', en: 'en-GB' };
+    defineLocales({
+      locales: ['es', 'en'],
+      defaultLocale: 'es',
+      formattingLocales,
+    });
+    formattingLocales.es = 'es-MX';
+    defineLocales({ locales: ['es'], defaultLocale: 'es' });
+
+    expect(formattingLocale('es')).toBe('es-GT');
+    expect(formattingLocale('en')).toBe('en');
+
+    defineLocales({
+      locales: ['es'],
+      defaultLocale: 'es',
+      formattingLocales: {},
+    });
+    expect(formattingLocale('es')).toBe('es');
+  });
+
+  it('refuses a formatting locale that cannot be honoured', () => {
+    const declare = (formattingLocales: Record<string, string>) => () =>
+      defineLocales({
+        locales: ['es', 'en'],
+        defaultLocale: 'es',
+        formattingLocales,
+      });
+
+    expect(declare({ pt: 'pt-BR' })).toThrow(/"pt" is not one of/);
+    expect(declare({ es: 'zz-ZZ' })).toThrow(/"zz-ZZ"/);
+    expect(declare({ es: 'es_GT' })).toThrow(RangeError);
+    expect(formattingLocale('es')).toBe('es');
   });
 
   it('refuses a declaration that cannot be honoured', () => {

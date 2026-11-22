@@ -1,14 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
+import { defineLocales, resetLocales } from './locales.js';
 import { formatScaled, parseScaled, scaledToDecimal } from './scaled-number.js';
 
 const LOCALES = ['en', 'es', 'es-GT'] as const;
 
 describe('parseScaled', () => {
   it.each([
-    ['1,000', 100000],
-    ['1.000', 100000],
-    ['12,500', 1250000],
     ['12.500.000', 1250000000],
     ['1,000.50', 100050],
     ['1.000,50', 100050],
@@ -26,6 +24,41 @@ describe('parseScaled', () => {
     for (const locale of LOCALES)
       expect(parseScaled(text, 2, locale)).toBe(expected);
   });
+
+  it.each([
+    ['en', '.', ','],
+    ['es', ',', '.'],
+    ['es-GT', '.', ','],
+  ] as const)(
+    'in %s, three digits after %j are a fraction, and after %j a thousand',
+    (locale, decimal, group) => {
+      for (const whole of ['1', '9', '12', '64', '100', '999'])
+        for (const three of ['000', '001', '500', '990', '999'])
+          for (const sign of ['', '-', '+']) {
+            const fraction = `${sign}${whole}${decimal}${three}`;
+            const thousands = `${sign}${whole}${group}${three}`;
+            const negative = sign === '-' ? -1 : 1;
+            for (const scale of [0, 1, 2]) {
+              expect(parseScaled(fraction, scale, locale)).toBeUndefined();
+              expect(parseScaled(thousands, scale, locale)).toBe(
+                negative * Number(whole + three) * 10 ** scale,
+              );
+            }
+            expect(parseScaled(fraction, 3, locale)).toBe(
+              negative * Number(whole + three),
+            );
+            expect(parseScaled(thousands, 3, locale)).toBeUndefined();
+            // A stray trailing separator must not turn the fraction into grouping.
+            for (const scale of [0, 1, 2, 3])
+              expect(
+                parseScaled(`${fraction}${group}`, scale, locale),
+              ).toBeUndefined();
+            expect(parseScaled(`${thousands}${decimal}`, 2, locale)).toBe(
+              negative * Number(whole + three) * 100,
+            );
+          }
+    },
+  );
 
   it.each([
     ['', 2],
@@ -62,6 +95,26 @@ describe('parseScaled', () => {
     expect(parseScaled('1.500', 3, 'en')).toBe(1500);
     expect(parseScaled('1,500', 3, 'en')).toBeUndefined();
     expect(parseScaled('1.500', 3, 'es-GT')).toBe(1500);
+  });
+
+  describe('with a formatting locale declared', () => {
+    afterEach(() => resetLocales());
+
+    it('reads and writes as the formatting locale does', () => {
+      expect(parseScaled('64.999', 2, 'es')).toBe(6499900);
+      defineLocales({
+        locales: ['es', 'en'],
+        defaultLocale: 'es',
+        formattingLocales: { es: 'es-GT' },
+      });
+
+      expect(parseScaled('64.999', 2, 'es')).toBeUndefined();
+      expect(parseScaled('64,999', 2, 'es')).toBe(6499900);
+      expect(parseScaled('1.500', 3, 'es')).toBe(1500);
+      expect(parseScaled('1,500', 3, 'es')).toBeUndefined();
+      expect(formatScaled(1234500, 3, 'es')).toBe('1,234.5');
+      expect(formatScaled(3500, 3, 'es', { grouping: false })).toBe('3.5');
+    });
   });
 
   it('counts whole things at scale 0', () => {

@@ -1,4 +1,10 @@
-import { defaultLocale, locales, resetLocales } from '@entifix/core';
+import {
+  defaultLocale,
+  defineLocales,
+  formattingLocale,
+  locales,
+  resetLocales,
+} from '@entifix/core';
 import type { ThirdPartyModule } from 'i18next';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -178,7 +184,24 @@ describe('defineCatalogs', () => {
     expect(locales()).toEqual(['en']);
   });
 
+  it('declares formatting locales, and keeps ones declared before it', () => {
+    const declaration = { locales: ['es', 'en'], defaultLocale: 'es' };
+    defineCatalogs({
+      ...CATALOGS,
+      ...declaration,
+      formattingLocales: { es: 'es-GT' },
+    });
+    expect(formattingLocale('es')).toBe('es-GT');
+
+    defineLocales({ ...declaration, formattingLocales: { es: 'es-MX' } });
+    defineCatalogs({ ...CATALOGS, ...declaration });
+    expect(formattingLocale('es')).toBe('es-MX');
+  });
+
   it('refuses half a locale declaration', () => {
+    expect(() =>
+      defineCatalogs({ ...CATALOGS, formattingLocales: { es: 'es-GT' } }),
+    ).toThrow(/`locales` and `defaultLocale` together/);
     expect(() => defineCatalogs({ ...CATALOGS, locales: ['es'] })).toThrow(
       /`locales` and `defaultLocale` together/,
     );
