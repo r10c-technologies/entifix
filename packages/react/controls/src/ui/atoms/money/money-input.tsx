@@ -1,17 +1,14 @@
 'use client';
 
+import { parseScaled, scaledToDecimal } from '@entifix/core';
 import { useEffect, useState } from 'react';
 
 import {
   NumberInput,
   type NumberInputProps,
 } from '../number-input/number-input.js';
-import {
-  fractionDigits,
-  fromMajorUnits,
-  type MoneyUnit,
-  toMajorUnits,
-} from './money-math.js';
+import { typedText, unparsedDraft } from '../number-input/unparsed.js';
+import { fractionDigits, type MoneyUnit, toMajorUnits } from './money-math.js';
 
 export interface MoneyInputProps extends Omit<
   NumberInputProps,
@@ -26,27 +23,15 @@ export interface MoneyInputProps extends Omit<
   locale: string;
 }
 
-const parseMajor = (text: string): number | undefined => {
-  // Accept either decimal separator: the last `,` or `.` is the decimal one.
-  const normalised = text.trim().replace(/[\s']/g, '');
-  if (normalised === '') return undefined;
-  const last = Math.max(
-    normalised.lastIndexOf(','),
-    normalised.lastIndexOf('.'),
-  );
-  const plain =
-    last === -1
-      ? normalised
-      : `${normalised.slice(0, last).replace(/[.,]/g, '')}.${normalised.slice(last + 1)}`;
-  const major = Number(plain);
-  return Number.isFinite(major) ? major : undefined;
-};
-
 /**
  * Edits an amount in major units — what a person means by a price — and writes
  * back the stored unit. What was typed is kept as typed (a trailing `64,` is
  * not reformatted under the cursor), and the field follows the stored value
  * only when it changes from outside.
+ *
+ * `1,000` is a thousand in any locale, since no two-decimal currency has
+ * three; text with more decimals than the currency holds is refused by
+ * validation rather than rounded (`parseScaled`).
  */
 export function MoneyInput({
   value,
@@ -59,7 +44,7 @@ export function MoneyInput({
   const digits = fractionDigits(currency);
   const display = (stored: string) =>
     stored === '' || !Number.isFinite(Number(stored))
-      ? stored
+      ? typedText(stored)
       : new Intl.NumberFormat(locale, {
           minimumFractionDigits: digits,
           maximumFractionDigits: digits,
@@ -86,13 +71,13 @@ export function MoneyInput({
         onChange={event => {
           const next = event.currentTarget.value;
           setText(next);
-          const major = parseMajor(next);
+          const minor = parseScaled(next, digits, locale);
           const stored =
-            major === undefined
-              ? next.trim() === ''
-                ? ''
-                : next
-              : String(fromMajorUnits(major, currency, unit));
+            minor === undefined
+              ? unparsedDraft(next)
+              : unit === 'minor'
+                ? String(minor)
+                : scaledToDecimal(minor, digits);
           setEmitted(stored);
           onChange(stored);
         }}

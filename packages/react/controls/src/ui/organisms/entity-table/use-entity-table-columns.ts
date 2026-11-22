@@ -57,6 +57,7 @@ function mergeSlots<TEntity extends Entity>(
       resetOnClone: false,
       ...(slot.minWidth === undefined ? {} : { minWidth: slot.minWidth }),
       ...(slot.money === undefined ? {} : { money: slot.money }),
+      ...(slot.scaled === undefined ? {} : { scaled: slot.scaled }),
       header: slot.header,
       render: slot.render,
       virtual: true,

@@ -147,6 +147,7 @@ export const controls: EsControls = {
   quantity: {
     decrease: 'Decrease {{label}}',
     increase: 'Increase {{label}}',
+    needsUnit: 'Choose a unit first',
   },
   tabs: {
     close: 'Close {{label}}',

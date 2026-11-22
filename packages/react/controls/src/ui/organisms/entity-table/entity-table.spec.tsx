@@ -865,6 +865,28 @@ describe('EntityTable keying and personalization scope', () => {
     expect(screen.getAllByText(/64,99/)).toHaveLength(2);
     expect(screen.queryByText('6499')).not.toBeInTheDocument();
   });
+
+  it('prints a computed scaled column as its decimal in the grid and the cards', () => {
+    const widget = makeWidget();
+    Object.defineProperty(widget, 'length', { value: 3500 });
+    render(
+      <EntityTable<Widget>
+        entityConstructor={Widget}
+        items={[widget]}
+        {...pager}
+      >
+        <EntityColumn
+          field="length"
+          label="Length"
+          type="number"
+          scaled={{ scale: 3 }}
+        />
+      </EntityTable>,
+    );
+
+    expect(screen.getAllByText('3,5')).toHaveLength(2);
+    expect(screen.queryByText('3500')).not.toBeInTheDocument();
+  });
 });
 
 describe('EntityTable defaults', () => {

@@ -4,6 +4,8 @@ import { type KeyboardEvent, useEffect, useState } from 'react';
 
 import { useT } from '../../../i18n/index.js';
 import { cn } from '../../utils/cn.js';
+import { ScaledQuantityInput } from './scaled-quantity-input.js';
+import { STEP_BUTTON } from './step-button.js';
 
 interface QuantityInputBase {
   /** What is being counted; names the spinbutton and both of its buttons. */
@@ -11,6 +13,20 @@ interface QuantityInputBase {
   min?: number;
   max?: number;
   step?: number;
+  /**
+   * How many decimals a stored unit is: `3` reads `3500` as 3.5. Given, every
+   * number in these props is that stored integer and a typed entry is never
+   * clamped or rounded — one outside `min`, `max` or `step` is marked invalid
+   * and still reported, and text that is no number is reported as `NaN`.
+   * `0` is whole units under those same rules.
+   */
+  scale?: number;
+  /** With `scale`: the unit, as the reader names it. */
+  unit?: string;
+  /** With `scale`: the caller's own refusal, beside the field's. */
+  invalid?: boolean;
+  /** With `scale`: what describes the field, usually the refusal's message. */
+  'aria-describedby'?: string;
   disabled?: boolean;
   id?: string;
   /**
@@ -45,13 +61,11 @@ export interface UncontrolledQuantityInputProps extends QuantityInputBase {
 export type QuantityInputProps =
   ControlledQuantityInputProps | UncontrolledQuantityInputProps;
 
-const STEP_BUTTON =
-  'flex min-h-(--target-min) min-w-(--target-min) shrink-0 items-center justify-center rounded-md border border-border-control bg-surface-elevated text-content hover:bg-surface disabled:cursor-not-allowed disabled:opacity-50';
-
 /**
- * A count, on the WAI-ARIA spinbutton pattern: Up and Down step it, Home and
- * End jump to its bounds, and what is typed is committed on Enter or on
- * leaving the field, clamped to the bounds. The − and + beside it are named
+ * A count — or, given a `scale`, a measure: see that prop — on the WAI-ARIA
+ * spinbutton pattern: Up and Down step it, Home and End jump to its bounds,
+ * and a count typed is committed on Enter or on leaving the field, clamped
+ * to the bounds. The − and + beside it are named
  * "Decrease {label}" and "Increase {label}" and sit at `--target-min`; they are
  * out of the Tab order, as the pattern has them, because the arrow keys
  * already do what they do.
@@ -60,7 +74,16 @@ const STEP_BUTTON =
  * — the second is how a Server Action form uses it, since a server component
  * can pass neither a state nor a handler.
  */
-export function QuantityInput({
+export function QuantityInput(props: QuantityInputProps) {
+  return props.scale === undefined ? (
+    <CountInput {...props} />
+  ) : (
+    <ScaledQuantityInput {...props} scale={props.scale} />
+  );
+}
+
+/** The count: what is typed is committed clamped to the bounds. */
+function CountInput({
   label,
   value: controlled,
   defaultValue,

@@ -237,7 +237,8 @@ export function EntityDetailGrid({
                             onChange={next => setRow(index, column.name, next)}
                             record={row}
                           />
-                        ) : column.money === undefined ? (
+                        ) : column.money === undefined &&
+                          column.scaled === undefined ? (
                           <span>{row[column.name] ?? ''}</span>
                         ) : (
                           <CellValue

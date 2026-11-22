@@ -31,6 +31,7 @@ export * from './i18n/format.js';
 export * from './i18n/locales.js';
 export * from './i18n/localized-text.js';
 export * from './i18n/negotiate.js';
+export * from './i18n/scaled-number.js';
 export * from './idempotency/index.js';
 export * from './query/fold.js';
 export * from './query/in-memory-query.js';

@@ -36,6 +36,22 @@ Install these only if you use what needs them.
 
 A table does not arrive with i18next attached: without the `i18next` subpath the controls translate through the `Translator` you provide.
 
+## Scaled integers
+
+A `number` member that declares `scaled` holds `3500` and reads `3,5 M` in every table, form and detail grid, and is edited as the decimal:
+
+```ts
+@accessor({
+  type: 'number',
+  scaled: { unitMember: 'unit', units: { UN: 0, M: 3 }, unitLabelKey: 'app:units' },
+})
+get quantity(): number { … }
+```
+
+`scaled: { scale: 3 }` fixes the scale instead. A computed column takes the same value through `<EntityColumn scaled>`. Outside entity metadata, `ScaledValue`, `ScaledInput` and `QuantityInput`'s `scale` prop do the same; a server reading the posted text uses `parseScaled` from `@entifix/core` with the same scale and locale.
+
+None of them, nor `MoneyInput`, rounds or guesses. More decimals than the scale holds is invalid. `1,000` is a thousand wherever three decimals do not fit; where they do (`1.500` at scale 3) it is a fraction only in the locale's own decimal separator, and refused otherwise. `QuantityInput` with a `scale` also never clamps what was typed.
+
 ---
 
 Tier 3 (ui) of entifix — a package depends only on its own tier or below. See [the tiers](https://github.com/r10c-technologies/entifix#the-tiers-and-what-you-are-allowed-to-install). MIT licensed.

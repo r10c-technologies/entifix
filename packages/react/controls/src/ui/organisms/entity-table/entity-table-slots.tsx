@@ -1,4 +1,9 @@
-import type { Entity, MetaAccessorType, MoneyFormat } from '@entifix/core';
+import type {
+  Entity,
+  MetaAccessorType,
+  MoneyFormat,
+  ScaledFormat,
+} from '@entifix/core';
 import { Children, isValidElement, type ReactNode } from 'react';
 
 import type { EntityTableColumn } from './entity-table.types.js';
@@ -24,6 +29,11 @@ export interface EntityColumnProps<TEntity extends Entity = Entity> {
    * the stored number. A computed column has no accessor to declare it on.
    */
   money?: MoneyFormat;
+  /**
+   * The column holds a scaled integer: printed as the decimal it stands for,
+   * beside its unit. A computed column has no accessor to declare it on.
+   */
+  scaled?: ScaledFormat;
   order?: number;
   sortable?: boolean;
   filterable?: boolean;
