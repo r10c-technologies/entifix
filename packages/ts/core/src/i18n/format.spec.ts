@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { makeFormatters } from './format.js';
+import { defineLocales, resetLocales } from './locales.js';
 
 describe('makeFormatters', () => {
   it('memoizes per locale so a table cell does not rebuild Intl each render', () => {
@@ -55,6 +56,27 @@ describe('makeFormatters', () => {
     expect(formatters.number(0.42, { style: 'percent' })).toBe(
       new Intl.NumberFormat('es', { style: 'percent' }).format(0.42),
     );
+  });
+
+  it('follows a formatting locale, even one declared after first use', () => {
+    const before = makeFormatters('es');
+    defineLocales({
+      locales: ['es'],
+      defaultLocale: 'es',
+      formattingLocales: { es: 'es-GT' },
+    });
+    const after = makeFormatters('es');
+
+    expect(after).not.toBe(before);
+    expect(after.number(1234567.5)).toBe('1,234,567.5');
+    expect(after.currency(64.99, 'GTQ')).toBe(
+      new Intl.NumberFormat('es-GT', {
+        style: 'currency',
+        currency: 'GTQ',
+      }).format(64.99),
+    );
+    resetLocales();
+    expect(makeFormatters('es')).toBe(before);
   });
 
   it('formats currency and relative time', () => {

@@ -1,6 +1,6 @@
 'use client';
 
-import { parseScaled, scaledToDecimal } from '@entifix/core';
+import { formattingLocale, parseScaled, scaledToDecimal } from '@entifix/core';
 import { useEffect, useState } from 'react';
 
 import {
@@ -29,9 +29,10 @@ export interface MoneyInputProps extends Omit<
  * not reformatted under the cursor), and the field follows the stored value
  * only when it changes from outside.
  *
- * `1,000` is a thousand in any locale, since no two-decimal currency has
- * three; text with more decimals than the currency holds is refused by
- * validation rather than rounded (`parseScaled`).
+ * Text with more decimals than the currency holds is refused by validation
+ * rather than rounded, and three digits after the decimal separator of the
+ * formatting locale are decimals: where that is `.`, `1,000` is a thousand and
+ * `64.999` is refused (`parseScaled`).
  */
 export function MoneyInput({
   value,
@@ -45,7 +46,7 @@ export function MoneyInput({
   const display = (stored: string) =>
     stored === '' || !Number.isFinite(Number(stored))
       ? typedText(stored)
-      : new Intl.NumberFormat(locale, {
+      : new Intl.NumberFormat(formattingLocale(locale), {
           minimumFractionDigits: digits,
           maximumFractionDigits: digits,
           useGrouping: false,

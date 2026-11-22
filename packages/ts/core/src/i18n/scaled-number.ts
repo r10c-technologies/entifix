@@ -1,4 +1,4 @@
-import type { Locale } from './locales.js';
+import { formattingLocale, type Locale } from './locales.js';
 
 /**
  * The most decimals a scale can carry and still leave a safe integer room to
@@ -6,19 +6,20 @@ import type { Locale } from './locales.js';
  */
 export const MAX_SCALE = 15;
 
-const decimalSeparators = new Map<Locale, string>();
+const decimalSeparators = new Map<string, string>();
 
 /** The character `locale` writes before a fraction. */
 function decimalSeparatorOf(locale: Locale): string {
-  const known = decimalSeparators.get(locale);
+  const tag = formattingLocale(locale);
+  const known = decimalSeparators.get(tag);
   if (known !== undefined) return known;
   const separator =
-    new Intl.NumberFormat(locale)
+    new Intl.NumberFormat(tag)
       .formatToParts(1.5)
       .find(part => part.type === 'decimal')?.value === ','
       ? ','
       : '.';
-  decimalSeparators.set(locale, separator);
+  decimalSeparators.set(tag, separator);
   return separator;
 }
 
@@ -47,6 +48,11 @@ function digitsOf(
 
   // Both separators: the last opens the fraction, the other groups.
   if (head.includes(other)) {
+    // With nothing after it, only the locale's decimal separator opens one:
+    // `64.999,` in `en` is a slip, not sixty-four thousand.
+    if (tail === '' && separator !== decimalSeparatorOf(locale)) {
+      return undefined;
+    }
     return GROUPED[other].test(head)
       ? [head.replaceAll(other, ''), tail]
       : undefined;
@@ -58,11 +64,12 @@ function digitsOf(
       : undefined;
   }
   if (GROUPED[separator].test(text)) {
-    // `1,000`: three decimals do not fit, so it can only be a thousand.
-    if (scale < 3) return [head + tail, ''];
-    // They fit, so it could be either. The reader's own decimal separator is
-    // the one this member is shown with; the other one is refused.
-    return separator === decimalSeparatorOf(locale) ? [head, tail] : undefined;
+    // `64.999` where `.` opens fractions is never sixty-four thousand, however
+    // few decimals fit: it is a fraction, and refused where that is too long.
+    if (separator === decimalSeparatorOf(locale)) return [head, tail];
+    // The other separator groups, unless three decimals fit: then it could be
+    // either, and is refused.
+    return scale < 3 ? [head + tail, ''] : undefined;
   }
   return [head, tail];
 }
@@ -78,10 +85,11 @@ function digitsOf(
  * - either separator opens a fraction (`64,99`, `64.99`), because people type
  *   both whatever their locale;
  * - grouping is accepted where it can only be grouping (`1.234,56`,
- *   `12.500.000`, and `1,000` below scale 3);
- * - at scale 3 and over, `1.500` could be fifteen hundred or one and a half:
- *   it is a fraction when `.` is the locale's decimal separator and refused
- *   when it is not.
+ *   `12.500.000`);
+ * - one separator and three digits could be either. In the decimal separator
+ *   of the locale's `formattingLocale` it is always a fraction, so `64.999` at
+ *   scale 2 is refused in `en` and never 64,999. In the other one it is a
+ *   thousand below scale 3 (`1,000`) and refused from there on.
  */
 export function parseScaled(
   text: string,
@@ -124,12 +132,13 @@ export function formatScaled(
   { grouping = true }: { readonly grouping?: boolean } = {},
 ): string {
   const decimal = scaledToDecimal(value, scale);
+  const tag = formattingLocale(locale);
   if (!grouping) return decimal.replace('.', decimalSeparatorOf(locale));
   const fraction = decimal.split('.')[1]?.length ?? 0;
   // `format` takes a decimal string exactly (ES2023), so a long count is never
   // rounded through a float on its way to the screen. The cast is for this
   // package's `lib`, whose typings predate that overload.
-  return new Intl.NumberFormat(locale, {
+  return new Intl.NumberFormat(tag, {
     minimumFractionDigits: fraction,
     maximumFractionDigits: fraction,
   }).format(decimal as unknown as number);

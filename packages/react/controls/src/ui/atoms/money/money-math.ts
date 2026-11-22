@@ -1,4 +1,4 @@
-import type { MoneyFormat } from '@entifix/core';
+import { formattingLocale, type MoneyFormat } from '@entifix/core';
 
 export type MoneyUnit = MoneyFormat['unit'];
 
@@ -40,8 +40,8 @@ export function fromMajorUnits(
 }
 
 /**
- * The amount as the reader's locale writes money: `Q64.99` in `en`, `64,99 GTQ`
- * or similar in `es`. Never the bare stored number — a till once printed
+ * The amount as the reader's formatting locale writes money: `Q64.99` in
+ * `es-GT`, `64,99 GTQ` or similar in `es`. Never the bare stored number — a till once printed
  * 6499 GTQ for 64,99.
  */
 export function formatMoney(
@@ -50,9 +50,10 @@ export function formatMoney(
   unit: MoneyUnit,
   locale: string,
 ): string {
-  return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(
-    toMajorUnits(amount, currency, unit),
-  );
+  return new Intl.NumberFormat(formattingLocale(locale), {
+    style: 'currency',
+    currency,
+  }).format(toMajorUnits(amount, currency, unit));
 }
 
 /** The currency a money member reads in: fixed, or the record's own member. */

@@ -106,10 +106,13 @@ function fallbackTranslator(): Translator {
   // Read on every call rather than once at load: a host declares its locales
   // from its own entry module, which may well evaluate after this one (#35).
   const locale = defaultLocale();
-  if (fallback?.locale === locale) return fallback;
+  const formatters = makeFormatters(locale);
+  if (fallback?.locale === locale && fallback.formatters === formatters) {
+    return fallback;
+  }
   fallback = {
     locale,
-    formatters: makeFormatters(locale),
+    formatters,
     t: (ns, key, params) => {
       // `useTranslateKey` hands over a fully qualified `entity:gadget.label`,
       // because a runtime key carries its own namespace. i18next strips the

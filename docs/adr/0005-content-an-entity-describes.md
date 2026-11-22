@@ -5,6 +5,7 @@
 - Revised: 2026-11-02 by [#126](https://github.com/r10c-technologies/entifix/issues/126) — the `EntifixError` tree is deleted; a declaration that cannot be honoured throws a plain `Error`.
 - Revised: 2026-11-15 by [#237](https://github.com/r10c-technologies/entifix/issues/237) — the link picker and the record search query a localized member in the reader's locale rather than refusing it.
 - Revised: 2026-11-17 by [#273](https://github.com/r10c-technologies/entifix/issues/273) — a `scalarCollection` may be `filterable`; sortable on any collection still throws.
+- Revised: 2026-11-22 by [#312](https://github.com/r10c-technologies/entifix/issues/312) — a host may name the locale each of its locales formats in, and the scaled parser follows it.
 - Area: entities
 - Read when: declaring locales, holding text in several languages, writing a validation rule a consumer keeps repeating, publishing an entity narrower than it is stored, serving records that arrive as JSON, or about to write a second in-memory filter — the host declares its locales, a localized member is queried one locale at a time, and untyped records go through `validateRecords` before anything serves them
 
@@ -40,6 +41,13 @@ declaration at call time, never at module load. A host that declares nothing
 speaks English alone. This is the seam rule of
 [ADR 0001](0001-the-tier-contract-and-the-host-seam.md) applied to a value it
 had missed.
+
+The host may also name `formattingLocales`, the tag `Intl` gets per locale.
+The language of a screen and the conventions its numbers follow are two facts:
+Guatemalan Spanish writes `64.99`, and reading it as `es` made a typed
+`64.999` nearly sixty-five thousand quetzales (#312). Every formatter and parser in
+the framework resolves it through `formattingLocale(locale)`; catalogs, routing
+and the cookie never see it.
 
 **A localized member is one value with a text per locale, queried one locale at
 a time.** `type: 'localized'` holds a `LocalizedText`; `localize(text, locale)`

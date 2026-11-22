@@ -50,7 +50,7 @@ get quantity(): number { … }
 
 `scaled: { scale: 3 }` fixes the scale instead. A computed column takes the same value through `<EntityColumn scaled>`. Outside entity metadata, `ScaledValue`, `ScaledInput` and `QuantityInput`'s `scale` prop do the same; a server reading the posted text uses `parseScaled` from `@entifix/core` with the same scale and locale.
 
-None of them, nor `MoneyInput`, rounds or guesses. More decimals than the scale holds is invalid. `1,000` is a thousand wherever three decimals do not fit; where they do (`1.500` at scale 3) it is a fraction only in the locale's own decimal separator, and refused otherwise. `QuantityInput` with a `scale` also never clamps what was typed.
+None of them, nor `MoneyInput`, rounds or guesses. More decimals than the scale holds is invalid. One separator and three digits is a fraction in the decimal separator of the locale's formatting locale, at every scale: where that is `.`, `64.999` is invalid money and never 64,999. In the other separator it is a thousand where three decimals do not fit (`1,000`) and invalid where they do. A host whose language is formatted as a region's declares it: `defineLocales({ …, formattingLocales: { es: 'es-GT' } })`. `QuantityInput` with a `scale` also never clamps what was typed.
 
 ---
 

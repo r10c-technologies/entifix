@@ -58,6 +58,12 @@ defineCatalogs({
 });
 ```
 
+**Format as a region does, without a locale per region.** `formattingLocales`,
+on `defineLocales` or beside the two fields above, names the tag `Intl` gets:
+`{ es: 'es-GT' }` shows `64.99` where `es` shows `64,99`, and `MoneyInput` and
+every scaled input read what was typed the same way. Catalogs and URLs keep
+`es`. Formatting of your own asks `formattingLocale(locale)`.
+
 **Declare your locales, and narrow the type.** The two fields above are
 `defineLocales` from `@entifix/core`, called for you. A Next middleware is
 bundled apart and never loads this module, so call `defineLocales` from a module

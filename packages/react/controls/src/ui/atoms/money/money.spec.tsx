@@ -1,7 +1,8 @@
+import { defineLocales, resetLocales } from '@entifix/core';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   currencyOf,
@@ -146,9 +147,6 @@ describe('MoneyInput', () => {
 
 describe('MoneyInput separators', () => {
   it.each([
-    ['1,000', '100000'],
-    ['1.000', '100000'],
-    ['12,500', '1250000'],
     ['1,000.50', '100050'],
     ['64,99', '6499'],
     ['64.99', '6499'],
@@ -162,6 +160,47 @@ describe('MoneyInput separators', () => {
       expect(onChange).toHaveBeenLastCalledWith(stored);
       unmount();
     }
+  });
+
+  it.each([
+    ['en', '1,000', '100000'],
+    ['en', '12,500', '1250000'],
+    ['es-GT', '64,999', '6499900'],
+    ['es', '1.000', '100000'],
+    ['en', '64.999', undefined],
+    ['es-GT', '64.999', undefined],
+    ['es', '64,999', undefined],
+  ])('in %s reads %j as %s', async (locale, typed, stored) => {
+    const onChange = vi.fn();
+    render(<Uncommitted locale={locale} onChange={onChange} />);
+    await userEvent.type(screen.getByRole('textbox'), typed);
+    const last: string = onChange.mock.lastCall?.[0];
+    if (stored === undefined) expect(Number(last)).toBeNaN();
+    else expect(last).toBe(stored);
+  });
+
+  describe('with Spanish formatted as Guatemala’s', () => {
+    beforeEach(() =>
+      defineLocales({
+        locales: ['es', 'en'],
+        defaultLocale: 'es',
+        formattingLocales: { es: 'es-GT' },
+      }),
+    );
+    afterEach(() => resetLocales());
+
+    it('refuses 64.999 rather than saving 64,999.00', async () => {
+      const onChange = vi.fn();
+      render(<Uncommitted locale="es" onChange={onChange} />);
+      await userEvent.type(screen.getByRole('textbox'), '64.999');
+      expect(Number(onChange.mock.lastCall?.[0])).toBeNaN();
+    });
+
+    it('shows and edits money in that format', () => {
+      render(<Controlled />);
+      expect(screen.getByRole('textbox')).toHaveValue('64.99');
+      expect(formatMoney(649900, 'GTQ', 'minor', 'es')).toMatch(/6,499\.00/);
+    });
   });
 
   it('refuses more decimals than the currency has, rather than rounding', async () => {

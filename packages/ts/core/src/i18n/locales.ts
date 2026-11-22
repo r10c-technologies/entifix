@@ -31,6 +31,15 @@ export interface LocaleDefinition {
    * catalog key falls back to.
    */
   readonly defaultLocale: Locale;
+  /**
+   * The conventions each locale formats numbers, money and dates in, where
+   * they are not the language's own: `{ es: 'es-GT' }` writes `64.99` where
+   * `es` writes `64,99`. Catalogs, routing and the cookie keep the locale.
+   *
+   * Left out, what was declared before stands for the locales still listed,
+   * so a second declaration of the same locales cannot undo it; `{}` clears it.
+   */
+  readonly formattingLocales?: Readonly<Partial<Record<Locale, string>>>;
 }
 
 /**
@@ -44,6 +53,7 @@ const UNDECLARED: LocaleDefinition = {
 };
 
 let declared: LocaleDefinition = UNDECLARED;
+let formatting: ReadonlyMap<string, string> = new Map();
 
 /**
  * Declares the host's locales. Call it once, from a module every entry point
@@ -56,7 +66,11 @@ let declared: LocaleDefinition = UNDECLARED;
  * third locale needs no change to entifix.
  */
 export function defineLocales(definition: LocaleDefinition): void {
-  const { locales: list, defaultLocale: fallback } = definition;
+  const {
+    locales: list,
+    defaultLocale: fallback,
+    formattingLocales,
+  } = definition;
   if (list.length === 0) {
     throw new Error('defineLocales needs at least one locale.');
   }
@@ -71,7 +85,34 @@ export function defineLocales(definition: LocaleDefinition): void {
       `The default locale "${fallback}" is not one of ${JSON.stringify(list)}.`,
     );
   }
+  const next = new Map(
+    formattingLocales === undefined
+      ? [...formatting].filter(([locale]) => list.includes(locale as Locale))
+      : (Object.entries(formattingLocales) as [string, string][]),
+  );
+  for (const [locale, tag] of next) {
+    if (!list.includes(locale as Locale)) {
+      throw new Error(
+        `The formatting locale's key "${locale}" is not one of ${JSON.stringify(list)}.`,
+      );
+    }
+    // A tag without data formats as the runtime's own locale, which is a
+    // different one on the server and in the browser.
+    if (Intl.NumberFormat.supportedLocalesOf(tag).length === 0) {
+      throw new Error(`Intl has no formats for the locale "${tag}".`);
+    }
+  }
+  formatting = next;
   declared = { locales: [...list], defaultLocale: fallback };
+}
+
+/**
+ * The tag to hand `Intl` for `locale`: the one the host declared in
+ * `formattingLocales`, or the locale itself. Every formatter and parser here
+ * asks it, so a caller passes the locale it renders in and nothing else.
+ */
+export function formattingLocale(locale: string): string {
+  return formatting.get(locale) ?? locale;
 }
 
 /** The locales the host declared. */
@@ -87,6 +128,7 @@ export function defaultLocale(): Locale {
 /** Forgets the host's declaration. For specs. */
 export function resetLocales(): void {
   declared = UNDECLARED;
+  formatting = new Map();
 }
 
 /**

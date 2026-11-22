@@ -34,6 +34,7 @@ export interface I18nCatalogs {
    */
   readonly locales?: LocaleDefinition['locales'];
   readonly defaultLocale?: LocaleDefinition['defaultLocale'];
+  readonly formattingLocales?: LocaleDefinition['formattingLocales'];
 }
 
 let installed: I18nCatalogs | undefined;
@@ -55,7 +56,11 @@ let shared: i18n | undefined;
  * loading i18next or a single translation.
  */
 export function defineCatalogs(catalogs: I18nCatalogs): void {
-  if (catalogs.locales !== undefined || catalogs.defaultLocale !== undefined) {
+  if (
+    catalogs.locales !== undefined ||
+    catalogs.defaultLocale !== undefined ||
+    catalogs.formattingLocales !== undefined
+  ) {
     if (
       catalogs.locales === undefined ||
       catalogs.defaultLocale === undefined
@@ -67,6 +72,7 @@ export function defineCatalogs(catalogs: I18nCatalogs): void {
     defineLocales({
       locales: catalogs.locales,
       defaultLocale: catalogs.defaultLocale,
+      formattingLocales: catalogs.formattingLocales,
     });
   }
   installed = catalogs;
