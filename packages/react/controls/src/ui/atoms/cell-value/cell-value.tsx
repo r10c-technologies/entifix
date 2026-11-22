@@ -7,6 +7,7 @@ import {
   EntityCollectionLink,
   type EntityFieldDescriptor,
   EntityLink,
+  formatScaled,
   isLocalizedText,
   localize,
   type MetaAccessorType,
@@ -25,6 +26,9 @@ import {
 } from '../../utils/reference-labels.js';
 import { Money } from '../money/money.js';
 import { currencyOf } from '../money/money-math.js';
+import { scaleOf } from '../scaled/scaled-math.js';
+import { ScaledValue } from '../scaled/scaled-value.js';
+import { useUnitLabel } from '../scaled/use-unit-label.js';
 import { Skeleton } from '../skeleton/index.js';
 import { StatusTag } from '../status-tag/index.js';
 
@@ -81,6 +85,7 @@ interface CellFormatting {
   readonly enumLabel: (value: string) => string;
   readonly rowCount: (count: number) => string;
   readonly locale: Locale;
+  readonly fixedScale: number | undefined;
 }
 
 function formatByType(
@@ -95,9 +100,12 @@ function formatByType(
         value instanceof Date ? value : String(value),
       );
     case 'number':
-      return typeof value === 'number'
-        ? formatting.formatters.number(value)
-        : String(value);
+      if (typeof value !== 'number') return String(value);
+      // Words have no record to read a unit from, so only a fixed scale can
+      // be honoured here.
+      return formatting.fixedScale !== undefined && Number.isSafeInteger(value)
+        ? formatScaled(value, formatting.fixedScale, formatting.locale)
+        : formatting.formatters.number(value);
     case 'boolean':
       return value ? formatting.yes : formatting.no;
     case 'enum':
@@ -149,6 +157,7 @@ function useCellFormatting(): (
       enumLabel: raw => enumLabel(descriptor, raw),
       rowCount: count => t('value.rowCount', { count }),
       locale,
+      fixedScale: descriptor.scaled?.scale,
     }),
     [enumLabel, formatters, locale, t],
   );
@@ -233,7 +242,8 @@ export interface CellValueProps {
   descriptor: EntityFieldDescriptor;
   /**
    * The record the value belongs to. A money member whose currency is another
-   * member of the record (`money.currencyMember`) reads it from here.
+   * member of the record (`money.currencyMember`), and a scaled member whose
+   * unit is (`scaled.unitMember`), read it from here.
    */
   record?: Readonly<Record<string, unknown>>;
 }
@@ -246,6 +256,7 @@ export interface CellValueProps {
 export function CellValue({ value, descriptor, record }: CellValueProps) {
   const formatting = useCellFormatting();
   const locale = useLocale();
+  const unitLabel = useUnitLabel();
 
   if (value === undefined || value === null || value === '') {
     return <span className="text-content-muted">{EMPTY}</span>;
@@ -274,6 +285,24 @@ export function CellValue({ value, descriptor, record }: CellValueProps) {
           amount={amount}
           currency={currency}
           unit={descriptor.money.unit}
+          locale={locale}
+        />
+      );
+    }
+  }
+
+  // A scaled integer reads as the decimal it stands for, beside its unit. One
+  // whose record names no declared unit stays the number it is, as money
+  // without a currency does.
+  if (descriptor.scaled !== undefined) {
+    const stored = Number(value);
+    const resolved = scaleOf(descriptor.scaled, record);
+    if (resolved !== undefined && Number.isSafeInteger(stored)) {
+      return (
+        <ScaledValue
+          value={stored}
+          scale={resolved.scale}
+          unit={unitLabel(descriptor.scaled, resolved.unit)}
           locale={locale}
         />
       );

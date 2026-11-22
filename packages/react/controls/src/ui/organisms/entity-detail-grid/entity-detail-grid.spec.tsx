@@ -580,3 +580,90 @@ describe('EntityDetailGrid money', () => {
     expect(screen.getByDisplayValue('64,99')).toBeInTheDocument();
   });
 });
+
+class MeasuredLine {
+  #quantity = 0;
+  #unit = '';
+
+  @accessor({
+    type: 'number',
+    label: 'Cantidad',
+    scaled: { unitMember: 'unit', units: { UN: 0, M: 3 } },
+  })
+  get quantity(): number {
+    return this.#quantity;
+  }
+  set quantity(value: number) {
+    this.#quantity = value;
+  }
+
+  @accessor({ type: 'string', label: 'Unidad' })
+  get unit(): string {
+    return this.#unit;
+  }
+  set unit(value: string) {
+    this.#unit = value;
+  }
+}
+
+@entity({ key: 'measured-order' })
+class MeasuredOrder implements Entity {
+  #id: EntityId;
+  #lines: readonly MeasuredLine[] = [];
+
+  @accessor({ type: 'id', label: 'ID' })
+  get id(): EntityId {
+    return this.#id;
+  }
+  set id(value: EntityId) {
+    this.#id = value;
+  }
+
+  @accessor({
+    type: 'composition',
+    childType: () => MeasuredLine,
+    label: 'Líneas',
+  })
+  get lines(): readonly MeasuredLine[] {
+    return this.#lines;
+  }
+  set lines(value: readonly MeasuredLine[]) {
+    this.#lines = value;
+  }
+}
+
+describe('EntityDetailGrid scaled', () => {
+  const MEASURED = describeEntityColumns(MeasuredOrder).find(
+    column => column.name === 'lines',
+  ) as EntityFieldDescriptor;
+  const rows = [
+    { [ROW_KEY]: 'm1', quantity: '3500', unit: 'M' },
+    { [ROW_KEY]: 'u1', quantity: '2', unit: 'UN' },
+  ];
+
+  it('reads each row in its own unit, never as the stored number', () => {
+    render(
+      <EntityDetailGrid
+        descriptor={MEASURED}
+        rows={rows}
+        onRowsChange={vi.fn()}
+        editing={false}
+      />,
+    );
+    expect(screen.getByText('3,5 M')).toBeInTheDocument();
+    expect(screen.getByText('2 UN')).toBeInTheDocument();
+    expect(screen.queryByText('3500')).not.toBeInTheDocument();
+  });
+
+  it('edits each row as its decimal', () => {
+    render(
+      <EntityDetailGrid
+        descriptor={MEASURED}
+        rows={rows}
+        onRowsChange={vi.fn()}
+        editing
+      />,
+    );
+    expect(screen.getByDisplayValue('3,5')).toBeInTheDocument();
+  });
+});

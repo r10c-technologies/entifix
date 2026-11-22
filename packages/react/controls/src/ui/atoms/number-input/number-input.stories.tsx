@@ -96,3 +96,37 @@ export const InAServerForm: Story = {
     await expect(new FormData(form).get('quantity')).toBe('3');
   },
 };
+
+function Measure() {
+  const [value, setValue] = useState(3500);
+  return (
+    <QuantityInput
+      label="Cable"
+      scale={3}
+      unit="M"
+      min={1000}
+      max={9000}
+      step={500}
+      value={value}
+      onChange={setValue}
+    />
+  );
+}
+
+/**
+ * With a `scale`: the stored 3500 is 3.5, and an entry off the step stays as
+ * typed, marked invalid rather than sold as something else.
+ */
+export const Measured: Story = {
+  render: () => <Measure />,
+  play: async ({ canvasElement }) => {
+    const spin = within(canvasElement).getByRole('spinbutton', {
+      name: 'Cable',
+    });
+    await expect(spin).toHaveAttribute('aria-valuenow', '3.5');
+    await userEvent.clear(spin);
+    await userEvent.type(spin, '3,7');
+    await expect(spin).toHaveValue('3,7');
+    await expect(spin).toHaveAttribute('aria-invalid', 'true');
+  },
+};

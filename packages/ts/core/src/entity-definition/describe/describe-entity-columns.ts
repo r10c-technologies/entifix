@@ -1,3 +1,4 @@
+import { MAX_SCALE } from '../../i18n/scaled-number.js';
 import { extractMetaAccessors, findMetaEntity } from '../helpers/index.js';
 import { EntityCollectionLink } from '../links/entity-collection-link/index.js';
 import { EntityLink } from '../links/entity-link/index.js';
@@ -12,6 +13,7 @@ import {
   MetaAccessor,
   MetaAccessorType,
   type MoneyFormat,
+  type ScaledFormat,
 } from '../meta-entities/meta-accessor/index.js';
 
 /**
@@ -70,6 +72,8 @@ export interface EntityFieldDescriptor {
   notBefore?: string;
   /** The member is an amount of money, read as this declares. `number` members only. */
   money?: MoneyFormat;
+  /** The member is a scaled integer, read as this declares. `number` members only. */
+  scaled?: ScaledFormat;
   /** The narrowest the member's column reads at, in `rem`, when declared. */
   minWidth?: number;
   /** The part the member plays on a record's card, when declared. */
@@ -352,6 +356,35 @@ function assertMoneyType(metaAccessor: MetaAccessor, type: MetaAccessorType) {
 }
 
 /**
+ * A scale is a count of decimals on a number that is not money — money has
+ * its currency's.
+ */
+function assertScaled(metaAccessor: MetaAccessor, type: MetaAccessorType) {
+  const { scaled } = metaAccessor;
+  if (scaled === undefined) return;
+  const name = String(metaAccessor.name);
+  if (type !== 'number') {
+    throw new Error(
+      `"${name}" is a ${type} and declares scaled — only a number member can be a scaled integer.`,
+    );
+  }
+  if (metaAccessor.money !== undefined) {
+    throw new Error(
+      `"${name}" declares money and scaled — an amount's decimals are its currency's.`,
+    );
+  }
+  const scales =
+    scaled.units === undefined ? [scaled.scale] : Object.values(scaled.units);
+  const valid = (scale: number) =>
+    Number.isInteger(scale) && scale >= 0 && scale <= MAX_SCALE;
+  if (scales.length === 0 || !scales.every(valid)) {
+    throw new Error(
+      `"${name}" declares scales [${scales.join(', ')}] — at least one, each a whole number of decimals from 0 to ${String(MAX_SCALE)}.`,
+    );
+  }
+}
+
+/**
  * Tones belong to an enum's values: on any other member, or keyed by a value
  * the enum does not have, they would colour nothing — or the wrong thing.
  */
@@ -402,6 +435,23 @@ function assertCurrencyMembers(descriptors: readonly EntityFieldDescriptor[]) {
     if (currency?.type !== 'string') {
       throw new Error(
         `"${descriptor.name}" reads its currency from "${member}", which must be a visible string member of the entity.`,
+      );
+    }
+  }
+}
+
+/**
+ * A `unitMember` must be a visible `string` or `enum` member of the same
+ * entity: without it the integer would print a thousand times what it means.
+ */
+function assertUnitMembers(descriptors: readonly EntityFieldDescriptor[]) {
+  for (const descriptor of descriptors) {
+    const member = descriptor.scaled?.unitMember;
+    if (member === undefined) continue;
+    const unit = descriptors.find(other => other.name === member);
+    if (unit?.type !== 'string' && unit?.type !== 'enum') {
+      throw new Error(
+        `"${descriptor.name}" reads its unit from "${member}", which must be a visible string or enum member of the entity.`,
       );
     }
   }
@@ -467,6 +517,7 @@ function toDescriptor(
   assertParentType(metaAccessor, type);
   assertReference(target, metaAccessor, type);
   assertMoneyType(metaAccessor, type);
+  assertScaled(metaAccessor, type);
   assertEnumTones(metaAccessor, type);
   assertMinWidth(metaAccessor);
   const child = type === 'composition' ? metaAccessor.childType?.() : undefined;
@@ -501,6 +552,9 @@ function toDescriptor(
     maxItems: metaAccessor.maxItems,
     notBefore: metaAccessor.notBefore,
     ...(metaAccessor.money === undefined ? {} : { money: metaAccessor.money }),
+    ...(metaAccessor.scaled === undefined
+      ? {}
+      : { scaled: metaAccessor.scaled }),
     ...(metaAccessor.minWidth === undefined
       ? {}
       : { minWidth: metaAccessor.minWidth }),
@@ -555,6 +609,7 @@ export function describeEntityColumns<TTarget extends object>(
     .sort((left, right) => left.order - right.order);
   assertNotBefore(descriptors);
   assertCurrencyMembers(descriptors);
+  assertUnitMembers(descriptors);
   assertOneParent(descriptors);
   assertLabelMember(entityConstructor, descriptors);
   return descriptors;

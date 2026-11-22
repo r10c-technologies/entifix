@@ -34,6 +34,7 @@ export * from './ui/atoms/field/index.js';
 export * from './ui/atoms/media-image/index.js';
 export * from './ui/atoms/money/index.js';
 export * from './ui/atoms/number-input/index.js';
+export * from './ui/atoms/scaled/index.js';
 export * from './ui/atoms/skeleton/index.js';
 export * from './ui/atoms/status-tag/index.js';
 export * from './ui/atoms/switch/index.js';

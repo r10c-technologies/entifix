@@ -143,3 +143,64 @@ describe('MoneyInput', () => {
     expect(input).toHaveValue('500');
   });
 });
+
+describe('MoneyInput separators', () => {
+  it.each([
+    ['1,000', '100000'],
+    ['1.000', '100000'],
+    ['12,500', '1250000'],
+    ['1,000.50', '100050'],
+    ['64,99', '6499'],
+    ['64.99', '6499'],
+  ])('reads %j as %s cents in every locale', async (typed, stored) => {
+    for (const locale of ['en', 'es', 'es-GT']) {
+      const onChange = vi.fn();
+      const { unmount } = render(
+        <Uncommitted locale={locale} onChange={onChange} />,
+      );
+      await userEvent.type(screen.getByRole('textbox'), typed);
+      expect(onChange).toHaveBeenLastCalledWith(stored);
+      unmount();
+    }
+  });
+
+  it('refuses more decimals than the currency has, rather than rounding', async () => {
+    const onChange = vi.fn();
+    render(<Uncommitted locale="en" onChange={onChange} />);
+    await userEvent.type(screen.getByRole('textbox'), '0.125');
+    expect(Number(onChange.mock.lastCall?.[0])).toBeNaN();
+    expect(screen.getByRole('textbox')).toHaveValue('0.125');
+  });
+
+  it('writes a major amount back in major units', async () => {
+    const onChange = vi.fn();
+    render(<Uncommitted locale="en" unit="major" onChange={onChange} />);
+    await userEvent.type(screen.getByRole('textbox'), '1,000.50');
+    expect(onChange).toHaveBeenLastCalledWith('1000.5');
+  });
+});
+
+function Uncommitted({
+  locale,
+  unit = 'minor',
+  onChange,
+}: {
+  locale: string;
+  unit?: 'minor' | 'major';
+  onChange: (value: string) => void;
+}) {
+  const [value, setValue] = useState('');
+  return (
+    <MoneyInput
+      aria-label="Price"
+      value={value}
+      currency="GTQ"
+      unit={unit}
+      locale={locale}
+      onChange={next => {
+        setValue(next);
+        onChange(next);
+      }}
+    />
+  );
+}

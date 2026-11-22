@@ -201,6 +201,15 @@ export interface MetaAccessorOptions {
    */
   money?: MoneyFormat;
   /**
+   * This `number` member is an integer counting a fraction of a whole —
+   * `3500` for 3.5 at scale 3 — and how many decimals that is: fixed, or
+   * decided by the unit another member of the same record holds. Presentation
+   * only — the member is still that integer to validation, queries and every
+   * adapter — so a table prints `3,5 m` rather than `3500`, and a form edits
+   * the decimal and writes back the integer.
+   */
+  scaled?: ScaledFormat;
+  /**
    * The narrowest this member's column reads at, in `rem`. A table whose
    * visible columns no longer fit side by side becomes a list of cards, so the
    * sum of these is where it switches. Undeclared, the member's type decides.
@@ -255,6 +264,26 @@ export type MoneyFormat = { readonly unit: 'minor' | 'major' } & (
   | { readonly currencyMember: string; readonly currency?: never }
 );
 
+/**
+ * How a `number` member reads as a scaled integer: `scale` fixed, or
+ * `unitMember` naming the record's own unit member, with the scale of each
+ * unit in `units`. A unit is printed as its code, or as
+ * `<unitLabelKey>.<code>` from the host's catalog when that is declared.
+ */
+export type ScaledFormat =
+  | {
+      readonly scale: number;
+      readonly unitMember?: never;
+      readonly units?: never;
+      readonly unitLabelKey?: never;
+    }
+  | {
+      readonly unitMember: string;
+      readonly units: Readonly<Record<string, number>>;
+      readonly unitLabelKey?: string;
+      readonly scale?: never;
+    };
+
 export class MetaAccessor {
   //#region Properties
 
@@ -284,6 +313,7 @@ export class MetaAccessor {
   readonly parent?: boolean;
   readonly references?: MemberReference;
   readonly money?: MoneyFormat;
+  readonly scaled?: ScaledFormat;
   readonly minWidth?: number;
   readonly card?: CardRole;
   readonly autocomplete?: string;
@@ -322,6 +352,7 @@ export class MetaAccessor {
     this.parent = options?.parent;
     this.references = options?.references;
     this.money = options?.money;
+    this.scaled = options?.scaled;
     this.minWidth = options?.minWidth;
     this.card = options?.card;
     this.autocomplete = options?.autocomplete;

@@ -6,6 +6,9 @@ import { useEnumLabel, useLocale } from '../../../i18n/index.js';
 import { Checkbox, Select, TextInput } from '../field/index.js';
 import { MoneyInput } from '../money/money-input.js';
 import { currencyOf } from '../money/money-math.js';
+import { ScaledInput } from '../scaled/scaled-input.js';
+import { scaleOf } from '../scaled/scaled-math.js';
+import { useUnitLabel } from '../scaled/use-unit-label.js';
 
 export interface FieldControlProps {
   descriptor: EntityFieldDescriptor;
@@ -34,7 +37,8 @@ export interface FieldControlProps {
   id?: string;
   /**
    * The record being edited, as its draft. A money member whose currency is
-   * another member (`money.currencyMember`) reads it from here.
+   * another member (`money.currencyMember`), and a scaled one whose unit is
+   * (`scaled.unitMember`), read it from here.
    */
   record?: Readonly<Record<string, unknown>>;
 }
@@ -77,6 +81,7 @@ export function FieldControl({
 }: FieldControlProps) {
   const enumLabel = useEnumLabel();
   const locale = useLocale();
+  const unitLabel = useUnitLabel();
   const disabled =
     descriptor.readonly ||
     descriptor.type === 'link' ||
@@ -130,6 +135,24 @@ export function FieldControl({
         value={value}
         currency={currency}
         unit={descriptor.money.unit}
+        locale={locale}
+        disabled={disabled}
+        onChange={onChange}
+      />
+    );
+  }
+
+  // A scaled integer is edited as the decimal it stands for. Unlike money it
+  // has no plain fallback: without a scale, `3` typed would be stored as 0.003.
+  if (descriptor.scaled !== undefined) {
+    const resolved = scaleOf(descriptor.scaled, record);
+    return (
+      <ScaledInput
+        id={id}
+        {...aria}
+        value={value}
+        scale={resolved?.scale}
+        unit={unitLabel(descriptor.scaled, resolved?.unit)}
         locale={locale}
         disabled={disabled}
         onChange={onChange}

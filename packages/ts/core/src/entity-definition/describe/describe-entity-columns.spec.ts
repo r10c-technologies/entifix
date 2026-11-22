@@ -811,3 +811,100 @@ describe('describeEntityColumns card presentation', () => {
     }
   });
 });
+
+describe('describeEntityColumns scaled', () => {
+  const measured = (
+    key: string,
+    quantity: Parameters<typeof accessor>[0],
+    unit: Parameters<typeof accessor>[0] = { type: 'string' },
+  ) => {
+    @entity({ key })
+    class Measured implements Entity {
+      #id?: EntityId;
+      #quantity = 3500;
+      #unit = 'M';
+
+      @accessor({ type: 'id' })
+      get id(): EntityId {
+        return this.#id;
+      }
+      set id(value: EntityId) {
+        this.#id = value;
+      }
+
+      @accessor(quantity)
+      get quantity(): number {
+        return this.#quantity;
+      }
+      set quantity(value: number) {
+        this.#quantity = value;
+      }
+
+      @accessor(unit)
+      get unit(): string {
+        return this.#unit;
+      }
+      set unit(value: string) {
+        this.#unit = value;
+      }
+    }
+    return () => describeEntityColumns(Measured);
+  };
+  const byUnit = { unitMember: 'unit', units: { UN: 0, M: 3 } };
+
+  it.each([
+    ['fixed', { scale: 3 }, { type: 'string' }],
+    ['by-unit', byUnit, { type: 'string' }],
+    ['by-enum', byUnit, { type: 'enum', enumValues: ['UN', 'M'] }],
+  ] as const)(
+    'carries a %s scale on the descriptor alone',
+    (key, scaled, unit) => {
+      const columns = measured(
+        `scaled-${key}`,
+        { type: 'number', scaled },
+        unit,
+      )();
+      const by = (name: string) => columns.find(column => column.name === name);
+
+      expect(by('quantity')?.scaled).toEqual(scaled);
+      expect(by('unit')).not.toHaveProperty('scaled');
+    },
+  );
+
+  it('refuses it on a member that is not a number', () => {
+    expect(
+      measured('scaled-text', { type: 'string', scaled: { scale: 3 } }),
+    ).toThrow(/"quantity" is a string and declares scaled/);
+  });
+
+  it('refuses it beside money', () => {
+    expect(
+      measured('scaled-money', {
+        type: 'number',
+        scaled: { scale: 3 },
+        money: { unit: 'minor', currency: 'GTQ' },
+      }),
+    ).toThrow(/declares money and scaled/);
+  });
+
+  it.each([
+    ['negative', { scale: -1 }],
+    ['fractional', { scale: 1.5 }],
+    ['too-deep', { scale: 16 }],
+    ['no-units', { unitMember: 'unit', units: {} }],
+    ['bad-unit', { unitMember: 'unit', units: { M: -3 } }],
+  ] as const)('refuses a %s scale', (key, scaled) => {
+    expect(measured(`scaled-${key}`, { type: 'number', scaled })).toThrow(
+      /a whole number of decimals from 0 to 15/,
+    );
+  });
+
+  it.each([
+    ['hidden', { type: 'string', hidden: true }],
+    ['number', { type: 'number' }],
+  ] as const)('refuses a %s unit member', (key, unit) => {
+    expect(
+      measured(`unit-${key}`, { type: 'number', scaled: byUnit }, unit),
+    ).toThrow(/reads its unit from "unit"/);
+  });
+});

@@ -170,6 +170,7 @@ export const controls = {
   quantity: {
     decrease: 'Disminuir {{label}}',
     increase: 'Aumentar {{label}}',
+    needsUnit: 'Elige primero una unidad',
   },
   tabs: {
     close: 'Cerrar {{label}}',
