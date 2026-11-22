@@ -1,3 +1,13 @@
+## 0.23.7 (2026-11-22)
+
+### 🚀 Features
+
+- **react-controls:** scaled integers, and MoneyInput reads 1,000 as a thousand ([#310](https://github.com/r10c-technologies/entifix/pull/310))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.23.6 (2026-11-21)
 
 ### 🚀 Features
