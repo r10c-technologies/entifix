@@ -1016,6 +1016,38 @@ describe('EntityForm actions from served metadata', () => {
     expect(screen.getByRole('heading', { level: 2 })).toHaveFocus();
   });
 
+  it('offers a verb that takes input only through a form the caller can open', () => {
+    const setTier = {
+      key: 'set-tier',
+      binding: 'entity' as const,
+      placement: 'context-independent' as const,
+      labelKey: 'entity:gadget.useCases.setTier',
+      takesInput: true as const,
+      form: 'tier',
+    };
+    const metadata = { actions: ['read' as const], useCases: [setTier] };
+    const { rerender } = render(
+      <Harness mode="edit" metadata={metadata} onUseCase={vi.fn()} />,
+    );
+
+    expect(
+      screen.queryByRole('button', { name: 'gadget.useCases.setTier' }),
+    ).not.toBeInTheDocument();
+
+    rerender(
+      <Harness
+        mode="edit"
+        metadata={metadata}
+        onUseCase={vi.fn()}
+        verbForms={['tier']}
+      />,
+    );
+
+    expect(
+      screen.getByRole('button', { name: 'gadget.useCases.setTier' }),
+    ).toBeInTheDocument();
+  });
+
   it('fires a verb with no confirm straight away', async () => {
     const onUseCase = vi.fn();
     render(

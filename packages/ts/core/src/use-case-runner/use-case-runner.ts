@@ -36,10 +36,14 @@ export interface EntityUseCaseRunner {
    * Runs a verb on one record, or on nothing for an unbound verb. A verb that
    * starts a flow answers {@link Pending}; one that finished answers
    * {@link Settled} with what the service sent back.
+   *
+   * `payload` is the body a verb that {@link UseCaseDescriptor.takesInput}
+   * needs, as its form gathered it; a verb that takes none is run without.
    */
   run(
     useCase: UseCaseDescriptor,
     id?: EntityId,
+    payload?: unknown,
   ): Effect.Effect<WriteResult<unknown>, EntifixFailure>;
   /** Runs a collection verb on a selection, one outcome per record. */
   bulk(

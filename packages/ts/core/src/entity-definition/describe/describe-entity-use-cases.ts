@@ -34,7 +34,19 @@ export interface UseCaseDescriptor extends UseCaseHierarchy {
   inverse?: string;
   /** The states a record must be in for the verb to be offered on it. */
   availableWhen?: UseCaseAvailability;
+  /**
+   * The form a surface opens to ask for this verb's {@link takesInput}, by
+   * name; the host supplies it. Without one, a verb that takes input is
+   * offered by no generic surface.
+   */
   form?: string;
+  /**
+   * `true` when the verb needs a body: its use case declares a `payload`. A
+   * generic surface cannot ask for one, so it offers the verb only through
+   * the {@link form} the verb names — never as a button that posts nothing.
+   * Absent on a verb that needs none.
+   */
+  takesInput?: true;
   /** The named variant set this verb resolves between. */
   variants?: string;
   /** The named recipe this verb starts a flow from. */
@@ -86,6 +98,7 @@ export function describeEntityUseCases<TEntity extends Entity>(
     rowInline: metaUseCase.rowInline,
     shortcut: metaUseCase.shortcut,
     form: metaUseCase.form,
+    ...(metaUseCase.payload === undefined ? {} : { takesInput: true as const }),
     variants: metaUseCase.variants,
     recipe: metaUseCase.recipe,
   }));

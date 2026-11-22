@@ -130,6 +130,39 @@ describe('useCasesForSurface', () => {
     expect(useCasesForSurface('bulk-bar', undefined)).toEqual([]);
   });
 
+  describe('a verb that takes input', () => {
+    const asking = (form?: string): UseCaseDescriptor => ({
+      ...descriptor('entity', 'context-independent', 'set-unit'),
+      alsoAt: [{ binding: 'entity', placement: 'context-dependent' }],
+      takesInput: true,
+      ...(form === undefined ? {} : { form }),
+    });
+
+    it('is offered nowhere when it names no form', () => {
+      expect(useCasesForSurface('form-header', [asking()], ['unit'])).toEqual(
+        [],
+      );
+    });
+
+    it('is offered on the record’s surface when the caller can open its form', () => {
+      expect(
+        useCasesForSurface('form-header', [asking('unit')], ['unit']).map(
+          one => one.key,
+        ),
+      ).toEqual(['set-unit']);
+    });
+
+    it('is not offered when the caller cannot open its form', () => {
+      expect(useCasesForSurface('form-header', [asking('unit')])).toEqual([]);
+    });
+
+    it('is not offered on a surface about many records, form or not', () => {
+      expect(
+        useCasesForSurface('row-menu', [asking('unit')], ['unit']),
+      ).toEqual([]);
+    });
+  });
+
   /**
    * The whole list is validated whichever surface asks, so an unrenderable
    * verb fails on the first screen that renders *any* action — not only on the

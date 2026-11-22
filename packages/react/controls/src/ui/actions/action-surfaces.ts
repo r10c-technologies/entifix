@@ -140,9 +140,35 @@ export function surfaceFor(descriptor: UseCaseDescriptor): ActionSurface {
 export function useCasesForSurface(
   surface: ActionSurface,
   useCases: readonly UseCaseDescriptor[] | undefined,
+  forms: readonly string[] = [],
 ): UseCaseDescriptor[] {
-  return (useCases ?? []).filter(descriptor =>
-    surfacesFor(descriptor).includes(surface),
+  return (useCases ?? []).filter(
+    descriptor =>
+      surfacesFor(descriptor).includes(surface) &&
+      canAskFor(surface, descriptor, forms),
+  );
+}
+
+/** The two surfaces about one record, where a verb's form can be opened. */
+const FORM_SURFACES: readonly ActionSurface[] = ['form-header', 'form-footer'];
+
+/**
+ * Whether `surface` can gather what `descriptor` needs. A verb that takes no
+ * input always can. One that does is offered only through the form it names,
+ * on a surface about one record, and only when the caller says it can open
+ * that form (`forms`): a button that posts a verb without its body can only
+ * be refused, so it is not drawn at all.
+ */
+function canAskFor(
+  surface: ActionSurface,
+  descriptor: UseCaseDescriptor,
+  forms: readonly string[],
+): boolean {
+  if (descriptor.takesInput !== true) return true;
+  return (
+    descriptor.form !== undefined &&
+    FORM_SURFACES.includes(surface) &&
+    forms.includes(descriptor.form)
   );
 }
 

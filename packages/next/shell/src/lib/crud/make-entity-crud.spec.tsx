@@ -273,9 +273,12 @@ let repositories: {
 // The runner adapter forwards to two mocks, so the specs assert the key and
 // the target each verb was run with.
 const brandVerbs: EntityUseCaseRunner = {
-  run: (useCase, id) =>
+  run: (useCase, id, payload) =>
     Effect.tryPromise({
-      try: () => runVerb(useCase.key, id) as Promise<WriteResult<unknown>>,
+      try: () =>
+        (payload === undefined
+          ? runVerb(useCase.key, id)
+          : runVerb(useCase.key, id, payload)) as Promise<WriteResult<unknown>>,
       catch: failure => failure as EntifixFailure,
     }),
   bulk: (useCase, selection) =>
@@ -441,6 +444,44 @@ const verbBrandCrud = makeEntityCrud<Brand, TestAdapters>(Brand, {
   hiddenFields: ['id', 'code'],
   metadataSource: { fetchMetadata: () => fetchMetadata() },
   useCases: 'brandVerbs',
+});
+
+/** The same page, able to open one verb form: a brand's new name. */
+const formBrandCrud = makeEntityCrud<Brand, TestAdapters>(Brand, {
+  useAdapters,
+  basePath: '/catalog/brand',
+  catalogKey: 'product-brand',
+  repository: 'brandRest',
+  hiddenFields: ['id', 'code'],
+  metadataSource: { fetchMetadata: () => fetchMetadata() },
+  useCases: 'brandVerbs',
+  verbForms: {
+    'brand-name': ({ record, formId, submit }) => (
+      <form
+        id={formId}
+        onSubmit={event => {
+          event.preventDefault();
+          submit({
+            name: String(new FormData(event.currentTarget).get('newName')),
+          });
+        }}
+      >
+        <label>
+          Nombre nuevo
+          <input name="newName" defaultValue={`${record.name} 2`} />
+        </label>
+      </form>
+    ),
+  },
+});
+
+const renameVerb = (form?: string) => ({
+  key: 'rename',
+  binding: 'entity' as const,
+  placement: 'context-independent' as const,
+  labelKey: 'entity:product-brand.useCases.retire',
+  takesInput: true as const,
+  ...(form === undefined ? {} : { form }),
 });
 
 /**
@@ -1164,6 +1205,94 @@ describe('the generated form', () => {
     await waitFor(() =>
       expect(screen.getByLabelText(/nombre/i)).toHaveValue('Acme Publicada'),
     );
+  });
+
+  it('asks for a verb’s input in the form it names, and runs it with that body', async () => {
+    slug = 'b-1';
+    runVerb.mockClear();
+    runVerb.mockResolvedValue(settled(undefined));
+    fetchMetadata.mockResolvedValue({
+      actions: ['read', 'write'],
+      useCases: [renameVerb('brand-name')],
+    });
+
+    renderPage(<formBrandCrud.SingleViewPage />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /retirar/i }));
+    const dialog = await screen.findByRole('dialog', { name: /retirar/i });
+    expect(runVerb).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole('button', { name: /retirar/i }));
+
+    await waitFor(() =>
+      expect(runVerb).toHaveBeenCalledWith('rename', 'b-1', {
+        name: 'Acme 2',
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+    );
+  });
+
+  it('runs nothing when the verb’s form is cancelled', async () => {
+    slug = 'b-1';
+    runVerb.mockClear();
+    fetchMetadata.mockResolvedValue({
+      actions: ['read', 'write'],
+      useCases: [renameVerb('brand-name')],
+    });
+
+    renderPage(<formBrandCrud.SingleViewPage />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /retirar/i }));
+    const dialog = await screen.findByRole('dialog', { name: /retirar/i });
+    fireEvent.click(within(dialog).getByRole('button', { name: /cancelar/i }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+    );
+    expect(runVerb).not.toHaveBeenCalled();
+  });
+
+  it('offers no verb that takes input when the page cannot open its form', async () => {
+    slug = 'b-1';
+    fetchMetadata.mockResolvedValue({
+      actions: ['read', 'write'],
+      useCases: [renameVerb('brand-name')],
+    });
+
+    renderPage(<verbBrandCrud.SingleViewPage />);
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/nombre/i)).toHaveValue('Acme'),
+    );
+    expect(
+      screen.queryByRole('button', { name: /retirar/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('runs a verb at once when its form is not one the page holds', async () => {
+    slug = 'b-1';
+    runVerb.mockClear();
+    runVerb.mockResolvedValue(settled(undefined));
+    fetchMetadata.mockResolvedValue({
+      actions: ['read', 'write'],
+      useCases: [
+        {
+          key: 'publish',
+          binding: 'entity',
+          placement: 'context-independent',
+          labelKey: 'entity:product-brand.useCases.retire',
+          form: 'not-held',
+        },
+      ],
+    });
+
+    renderPage(<formBrandCrud.SingleViewPage />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /retirar/i }));
+
+    await waitFor(() => expect(runVerb).toHaveBeenCalledWith('publish', 'b-1'));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   /**

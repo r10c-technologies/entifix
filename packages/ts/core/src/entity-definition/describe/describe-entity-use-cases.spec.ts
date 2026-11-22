@@ -1,3 +1,5 @@
+import { Schema } from 'effect';
+
 import {
   accessor,
   describeEntityUseCases,
@@ -67,6 +69,30 @@ class ArchiveArticlesUC {}
 
 class NeverDecoratedUC {}
 
+@entity({ domain: 'catalog', key: 'topic' })
+class Topic implements Entity {
+  #id?: EntityId;
+
+  @accessor({ type: 'id' })
+  get id(): EntityId {
+    return this.#id;
+  }
+  set id(value: EntityId) {
+    this.#id = value;
+  }
+}
+
+@useCase({
+  entity: Topic,
+  key: 'rename',
+  binding: 'entity',
+  placement: 'context-independent',
+  labelKey: 'entity:topic.useCases.rename',
+  payload: Schema.Struct({ name: Schema.String }),
+  form: 'topic-name',
+})
+class RenameTopicUC {}
+
 @entity({ domain: 'catalog', key: 'ledger', creatable: false })
 class Ledger implements Entity {
   #id?: EntityId;
@@ -130,6 +156,18 @@ describe('useCase', () => {
         form: 'archive-reason',
       },
     ]);
+  });
+
+  it('says a verb takes input when its use case declares a payload', () => {
+    expect(describeEntityUseCases(Topic)).toEqual([
+      expect.objectContaining({
+        key: 'rename',
+        form: 'topic-name',
+        takesInput: true,
+      }),
+    ]);
+    expect(describeEntityUseCases(Article)[0]).not.toHaveProperty('takesInput');
+    expect(extractMetaUseCaseBinding(RenameTopicUC).binding).toBe('entity');
   });
 
   it('carries the hierarchy a surface renders the verb in', () => {

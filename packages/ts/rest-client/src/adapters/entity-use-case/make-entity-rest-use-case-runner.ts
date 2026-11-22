@@ -35,7 +35,7 @@ export const makeEntityRestUseCaseRunner = <TEntity extends Entity>(
     adapterMixins.buildEntityBaseUrl(configuration, { uriConfig }, name, id);
 
   return {
-    run: (useCase, id) =>
+    run: (useCase, id, payload) =>
       Effect.gen(function* () {
         const url = yield* baseUrl(
           useCase.binding === 'entity' && id != null ? String(id) : undefined,
@@ -45,6 +45,14 @@ export const makeEntityRestUseCaseRunner = <TEntity extends Entity>(
         }>({
           method: 'POST',
           url: `${url}/${useCase.key}`,
+          // A verb's input travels as its JSON body; a verb that takes none
+          // is posted empty, as it always was.
+          ...(payload === undefined
+            ? {}
+            : {
+                headers: { 'Content-Type': 'application/json' },
+                body: payload,
+              }),
         });
         return yield* readWriteResponse(response, () =>
           Effect.succeed(response.body?.data),

@@ -134,6 +134,12 @@ export interface EntityFormProps<TEntity extends Entity> {
    * is the caller's — the browser must never import a use-case class.
    */
   onUseCase?: (key: string) => void;
+  /**
+   * The verb forms the caller can open, by name. A verb that takes input is
+   * offered only when it names one of these; `onUseCase` then receives its key
+   * and the caller opens that form. Absent, such verbs are not offered.
+   */
+  verbForms?: readonly string[];
 
   /**
    * Copies the record into a new draft, dropping the members declared

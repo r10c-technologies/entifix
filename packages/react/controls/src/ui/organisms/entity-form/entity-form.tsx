@@ -141,6 +141,7 @@ export function EntityForm<TEntity extends Entity>({
   metadata,
   isMetadataLoading = false,
   onUseCase,
+  verbForms,
   onClone,
   children,
 }: EntityFormProps<TEntity>) {
@@ -245,10 +246,12 @@ export function EntityForm<TEntity extends Entity>({
   const declaredHeaderUseCases = useCasesForSurface(
     'form-header',
     metadata?.useCases,
+    verbForms,
   );
   const declaredFooterUseCases = useCasesForSurface(
     'form-footer',
     metadata?.useCases,
+    verbForms,
   );
   // And only the verbs the record's state allows: a shipment awaiting dispatch
   // offers Dispatch, not every move a shipment can ever make.
