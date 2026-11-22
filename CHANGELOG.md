@@ -1,3 +1,13 @@
+## 0.23.9 (2026-11-22)
+
+### 🚀 Features
+
+- **next-shell:** a verb that needs input opens its form, never an empty post ([#315](https://github.com/r10c-technologies/entifix/pull/315), [#316](https://github.com/r10c-technologies/entifix/pull/316))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.23.8 (2026-11-22)
 
 ### 🩹 Fixes
