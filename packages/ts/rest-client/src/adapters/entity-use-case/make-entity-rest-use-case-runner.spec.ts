@@ -137,6 +137,29 @@ describe('makeEntityRestUseCaseRunner', () => {
     expect(seen).toEqual(['/api/admin/offering/reindex']);
   });
 
+  it('posts the input a verb takes as its JSON body', async () => {
+    let body: unknown;
+    let type: string | null = null;
+    server.use(
+      http.post(`${BASE_URL}/:id/set-unit`, async ({ request }) => {
+        body = await request.json();
+        type = request.headers.get('content-type');
+        return HttpResponse.json({
+          meta: { type: 'entity' },
+          data: { id: 'o-1', unit: 'M' },
+        });
+      }),
+    );
+
+    expect(
+      await Effect.runPromise(
+        runner.run(verb('set-unit', 'entity'), 'o-1', { unit: 'M' }),
+      ),
+    ).toEqual({ _tag: 'settled', value: { id: 'o-1', unit: 'M' } });
+    expect(body).toEqual({ unit: 'M' });
+    expect(type).toContain('application/json');
+  });
+
   it('sends a selection in its wire form and answers one outcome per record', async () => {
     let body: unknown;
     server.use(

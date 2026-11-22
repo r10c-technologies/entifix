@@ -319,6 +319,16 @@ export interface EntityCrudOptions<TAdapters, TEntity extends Entity> {
    */
   readonly regions?: (record: TEntity) => readonly ReactNode[];
   /**
+   * The forms a verb that takes input opens, by the name its descriptor's
+   * `form` gives. Each renders its fields inside the `<form id={formId}>` the
+   * dialog's submit button targets, and calls `submit` with the verb's body.
+   * A verb that takes input and names no form here is not offered: a button
+   * that posted it empty could only be refused.
+   */
+  readonly verbForms?: Readonly<
+    Record<string, (props: EntityVerbFormProps<TEntity>) => ReactNode>
+  >;
+  /**
    * Where the entity's served affordances come from — `GET /api/<entity>/$metadata`.
    *
    * Supplying it is what turns on every served affordance:
@@ -469,4 +479,13 @@ export interface EntityCrudLinkSource {
   readonly field: string;
   readonly descriptor: EntityFieldDescriptor;
   readonly config: AnyEntityLinkSourceConfig;
+}
+
+/** What a verb's form is handed: the record, its form id, and the submit. */
+export interface EntityVerbFormProps<TEntity extends Entity> {
+  readonly record: TEntity;
+  /** The id the `<form>` takes, so the dialog's submit button targets it. */
+  readonly formId: string;
+  /** Runs the verb on the record with this body, and closes the dialog. */
+  readonly submit: (payload: unknown) => void;
 }

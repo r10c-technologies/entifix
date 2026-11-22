@@ -42,6 +42,7 @@ import {
   useT,
   useToasts,
   useTranslateKey,
+  VerbFormDialog,
 } from '@entifix/react-controls';
 import {
   entityQueryScope,
@@ -174,7 +175,9 @@ function verbsOf(
   const descriptor = (key: string) =>
     served?.find(candidate => candidate.key === key) as UseCaseDescriptor;
   return {
-    run: (key: string, id: EntityId) => runner.run(descriptor(key), id),
+    descriptor,
+    run: (key: string, id: EntityId, payload?: unknown) =>
+      runner.run(descriptor(key), id, payload),
     bulk: (key: string, selection: EntitySelection<Entity>) =>
       Effect.runPromiseExit(runner.bulk(descriptor(key), selection)).then(
         exit =>
@@ -194,15 +197,19 @@ type Verbs = NonNullable<ReturnType<typeof verbsOf>>;
  */
 function useVerb(verbs: Verbs | undefined, done: () => void) {
   const verb = useOptimisticMutation<
-    { readonly key: string; readonly id: EntityId },
+    {
+      readonly key: string;
+      readonly id: EntityId;
+      readonly payload?: unknown;
+    },
     unknown
   >({
     // Only ever sent from a handler that exists because `verbs` does.
-    write: ({ key, id }) => (verbs as Verbs).run(key, id),
+    write: ({ key, id, payload }) => (verbs as Verbs).run(key, id, payload),
     confirm: done,
   });
-  const run = (key: string, id: EntityId) => {
-    void verb.mutate({ key, id }).then(
+  const run = (key: string, id: EntityId, payload?: unknown) => {
+    void verb.mutate({ key, id, payload }).then(
       result => {
         if (result._tag === 'settled') done();
       },
@@ -264,6 +271,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     links = [],
     related = [],
     regions,
+    verbForms,
     metadataSource: givenMetadataSource,
     metadata,
     useCases,
@@ -894,10 +902,25 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
       affordances.metadata?.useCases,
     );
     const recordVerb = useVerb(verbs, () => void reload());
+    // A verb that takes input opens the form it names first; the verb runs
+    // with what that form submits.
+    const [asking, setAsking] = useState<string | undefined>();
+    const askedVerb =
+      asking === undefined ? undefined : verbs?.descriptor(asking);
+    const AskedForm =
+      askedVerb?.form === undefined ? undefined : verbForms?.[askedVerb.form];
+    const translateVerb = useTranslateKey();
     const handleUseCase =
       verbs === undefined || id == null
         ? undefined
-        : (key: string) => recordVerb.run(key, id);
+        : (key: string) => {
+            const form = verbs.descriptor(key).form;
+            if (form !== undefined && verbForms?.[form] !== undefined) {
+              setAsking(key);
+              return;
+            }
+            recordVerb.run(key, id);
+          };
 
     const form = (
       <EntityCrudForm<TEntity>
@@ -943,6 +966,7 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
         onDelete={id == null ? undefined : handleDelete}
         deletePolicy={deletePolicy}
         onUseCase={handleUseCase}
+        verbForms={verbForms === undefined ? undefined : Object.keys(verbForms)}
         backHref={withLocale(basePath)}
         renderLink={renderLink}
         draft={formDraft}
@@ -950,12 +974,42 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
     );
     // The records that refer to this one, under its form: an existing record
     // only, since a record being created has nothing referring to it yet.
+    const asked =
+      askedVerb === undefined ||
+      AskedForm === undefined ||
+      id == null ||
+      entity === undefined ? null : (
+        <VerbFormDialog
+          open
+          title={translateVerb(askedVerb.labelKey)}
+          onCancel={() => setAsking(undefined)}
+        >
+          {formId => (
+            <AskedForm
+              record={entity}
+              formId={formId}
+              submit={payload => {
+                setAsking(undefined);
+                recordVerb.run(askedVerb.key, id, payload);
+              }}
+            />
+          )}
+        </VerbFormDialog>
+      );
     if (regions === undefined || id == null || entity === undefined)
-      return form;
+      return asked === null ? (
+        form
+      ) : (
+        <>
+          {form}
+          {asked}
+        </>
+      );
     return (
       <div className="flex flex-col gap-l">
         {form}
         <RecordRegions>{regions(entity)}</RecordRegions>
+        {asked}
       </div>
     );
   }

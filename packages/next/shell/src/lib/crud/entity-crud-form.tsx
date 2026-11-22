@@ -80,6 +80,8 @@ export interface EntityCrudFormProps<TEntity extends Entity> {
   readonly metadataSource?: EntityMetadataSource;
   /** Runs a declared `entity`-bound verb on this record, by its key. */
   readonly onUseCase?: (key: string) => void;
+  /** The verb forms the page can open, by name — see `verbForms`. */
+  readonly verbForms?: readonly string[];
 }
 
 /**
@@ -120,6 +122,7 @@ export function EntityCrudForm<TEntity extends Entity>({
   draft,
   metadataSource,
   onUseCase,
+  verbForms,
 }: EntityCrudFormProps<TEntity>) {
   const et = useT('entity');
 
@@ -230,6 +233,7 @@ export function EntityCrudForm<TEntity extends Entity>({
       deletePolicy={deletePolicy}
       {...affordances}
       onUseCase={onUseCase}
+      verbForms={verbForms}
       isLoading={isLoading}
       isSaving={isSaving}
       isPending={isPending}
