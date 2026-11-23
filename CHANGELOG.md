@@ -1,3 +1,13 @@
+## 0.23.10 (2026-11-23)
+
+### 🚀 Features
+
+- **service-shell:** a service's OpenAPI document builds without a server ([#318](https://github.com/r10c-technologies/entifix/pull/318))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.23.9 (2026-11-22)
 
 ### 🚀 Features
