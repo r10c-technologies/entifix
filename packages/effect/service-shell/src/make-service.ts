@@ -16,13 +16,11 @@ import { HttpRouter } from 'effect/http';
 import type { SharedToken } from './auth/shared-token.js';
 import {
   type AnyEndpointGroup,
-  buildApi,
-  endpointsOf,
   serveApi,
   type ServedRequirements,
 } from './http-api/build-api.js';
 import { FleetTokenTag } from './http-api/guards.js';
-import { serviceGroup } from './http-api/service-group.js';
+import { serviceApi } from './http-api/service-api.js';
 import {
   type FailurePolicy,
   logMechanismOutcome,
@@ -178,31 +176,13 @@ export const makeServerLayer = <
   port: number = def.port,
   shutdown: ShutdownRegistry = makeShutdownRegistry().registry,
 ) => {
-  const hosted = def.endpoints ?? [];
-  const fleetGuarded = hosted.flatMap(group =>
-    group.endpoints.filter(
-      ({ descriptor }) => descriptor.guard.kind === 'fleet',
-    ),
-  );
-  if (fleetGuarded.length > 0 && def.description === undefined)
-    throw new Error(
-      `'${def.name}' serves ${fleetGuarded
-        .map(({ descriptor }) => `${descriptor.method} ${descriptor.path}`)
-        .join(
-          ', ',
-        )} behind the fleet token and names no \`description\` to check it against`,
-    );
-  const base = serviceGroup({
-    service: def.name,
+  const { api, groups, options } = serviceApi({
+    name: def.name,
     slices: def.slices,
     described: def.description !== undefined,
-    endpoints: () => endpointsOf(groups),
-    api: () => api,
+    endpoints: def.endpoints,
+    policy: def.policy,
   });
-  const groups: ReadonlyArray<AnyEndpointGroup> = [base, ...hosted];
-  const options = def.policy === undefined ? {} : { policy: def.policy };
-  // One API per service: one encoder, one guard implementation, one OpenAPI.
-  const api = buildApi(def.name, groups, options);
   const served = serveApi(api, groups, options).pipe(
     Layer.provide(
       def.description === undefined

@@ -5,6 +5,7 @@
 - Revised: 2026-11-02 by [#126](https://github.com/r10c-technologies/entifix/issues/126) — the `HttpRouter` route makers, `routeFailure`, the guard HOFs and `x-command-id` are deleted; `HttpRouter.route` survives only in the final net and the raw SSE routes.
 - Revised: 2026-11-18 by [r10c#588](https://github.com/r10c-technologies/r10c/issues/588) — a `crossing` guard may name a `caller`; it then accepts that caller's token from `ServiceCrossingCallersTag` and never the service's own, and a caller the composition did not provide refuses every request.
 - Revised: 2026-11-20 by [#279](https://github.com/r10c-technologies/entifix/issues/279) — `binaryBody` takes raw bytes under a declared set of media types and a size limit, refused `payloadTooLarge` (413) or `unsupportedMediaType` (415) as a problem; `binaryResponse` answers bytes with the headers the handler sets; the REST client sends every body encoding as declared. Multipart is not built.
+- Revised: 2026-11-23 by [r10c#654](https://github.com/r10c-technologies/r10c/issues/654) — the served API is assembled by `serviceApi`, which `makeServerLayer` calls, and `serviceOpenApi` builds the `$openapi` document from it without a server, so a host can publish its fleet's documents at build time.
 - Area: platform
 - Read when: adding a route to a service, guarding one, writing an error body or a status by hand, building a link to a verb, a client decoding an error by its status, or about to import `effect/http` or `effect/http-api` outside the service shell
 
@@ -207,6 +208,11 @@ encoder, one guard implementation, one OpenAPI document. A service that is not
 ready answers a `notReady` problem with the failing probes rather than a body of
 its own. `$service` and `$openapi` are behind the fleet token, and neither is
 mounted for a service that names none.
+
+The assembly is `serviceApi` in the main entry, and `makeServerLayer` serves
+what it returns. `serviceOpenApi` is `OpenApi.fromApi` over the same value, so a
+host that documents its services at build time writes the document each one
+answers at `$openapi`, with no server and no second assembly to drift from it.
 
 ### A client decodes by code, never by status
 
