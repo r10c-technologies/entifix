@@ -94,26 +94,84 @@ function resolveExpression(
   property: string | number | symbol,
   allowed: Map<string, EntityFieldDescriptor>,
   requirement: 'filterable' | 'sortable',
-): { key: string; expression: Statement.Fragment } {
+): {
+  key: string;
+  expression: Statement.Fragment;
+  descriptor: EntityFieldDescriptor;
+} {
   const { descriptor, key, locale } = resolveAllowedProperty(
     allowed,
     String(property),
     requirement,
   );
-  if (requirement === 'filterable' && descriptor.type === 'scalarCollection') {
-    // A scalar collection has no column mapping in this adapter yet: comparing
-    // it as a scalar would match nothing, silently. Refuse loudly instead.
-    throw new Error(
-      `"${descriptor.name}" is a scalarCollection and the SQL adapter cannot filter it yet — its array storage is not decided.`,
-    );
-  }
   return {
     key,
+    descriptor,
     expression:
       locale === undefined
         ? sql`${sql(descriptor.key)}`
         : sql`${sql(descriptor.key)}->>${locale}`,
   };
+}
+
+/**
+ * `col @> '[value]'`: the `jsonb` array holds `value` as one of its elements.
+ * The value travels as a bound JSON text, never spliced in, and is wrapped in
+ * an array so a string and a number keep their own types.
+ */
+const holds = (
+  sql: SqlClient.SqlClient,
+  column: Statement.Fragment,
+  value: unknown,
+): Statement.Fragment => sql`${column} @> ${JSON.stringify([value])}::jsonb`;
+
+/**
+ * A `scalarCollection`, stored as one `jsonb` array, compared the way the
+ * in-memory matcher and Mongo compare an array: the positive test asks
+ * whether **any element** matches, and a negated operator negates that answer
+ * — `!=` is "no element equals", never "some element differs", which almost
+ * always holds. A missing list matches no positive test, so its negation keeps
+ * it (`COALESCE … false`).
+ *
+ * Membership and text only. An order comparison over a list (`>`, `=bt=`) has
+ * no meaning a person would ask for, so it is refused rather than guessed.
+ */
+function translateCollectionNode<TEntity extends Entity>(
+  sql: SqlClient.SqlClient,
+  node: EntityFilter<TEntity>,
+  column: Statement.Fragment,
+  name: string,
+): Statement.Fragment {
+  const not = (positive: Statement.Fragment) =>
+    sql`NOT COALESCE(${positive}, false)`;
+  const anyOf = (values: readonly unknown[]) =>
+    values.length === 0
+      ? sql.literal('false')
+      : sql.or(values.map(value => holds(sql, column, value)));
+  const anyLike = (value: string) =>
+    sql`EXISTS (SELECT 1 FROM jsonb_array_elements_text(${column}) AS element(value) WHERE translate(element.value, ${FOLD_TRANSLATION.from}, ${FOLD_TRANSLATION.to}) ILIKE ${`%${escapeLikePattern(foldText(value))}%`})`;
+  switch (node.operator) {
+    case 'eq':
+      return holds(sql, column, node.value);
+    case 'ne':
+      return not(holds(sql, column, node.value));
+    case 'in':
+      return anyOf(node.values);
+    case 'nin':
+      return not(anyOf(node.values));
+    case 'like':
+      return anyLike(node.value);
+    case 'nlike':
+      return not(anyLike(node.value));
+    case 'isNull':
+      return sql`${column} IS NULL`;
+    case 'isNotNull':
+      return sql`${column} IS NOT NULL`;
+    default:
+      throw new Error(
+        `"${name}" is a scalarCollection, compared by its elements: "${node.operator}" orders values, and a list has no order to compare.`,
+      );
+  }
 }
 
 /**
@@ -139,12 +197,15 @@ function translateNode<TEntity extends Entity>(
     return node.operator === 'or' ? sql.or(children) : sql.and(children);
   }
 
-  const column = resolveExpression(
+  const { expression: column, descriptor } = resolveExpression(
     sql,
     node.property,
     allowed,
     'filterable',
-  ).expression;
+  );
+  if (descriptor.type === 'scalarCollection') {
+    return translateCollectionNode(sql, node, column, descriptor.name);
+  }
 
   switch (node.operator) {
     case 'eq':

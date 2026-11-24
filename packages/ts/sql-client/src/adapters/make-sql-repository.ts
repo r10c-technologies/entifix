@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import type { EntityRepository } from '@entifix/business';
 import {
   declaresRevision,
+  describeEntityColumns,
   deserializeEntityCollection,
   deserializeSingleEntity,
   type Entity,
@@ -36,6 +37,46 @@ function tableName<TEntity extends Entity>(
   return metaEntity.key ?? metaEntity.name;
 }
 
+/**
+ * The columns stored as `jsonb`: a `scalarCollection`, one array each, and a
+ * `localized` member, one text per locale.
+ *
+ * `jsonb` rather than `text[]` so a list keeps its elements' own types — a
+ * number stays a number — and so one column type serves every element type.
+ * The driver can infer a type for neither an array bound for `jsonb` nor a
+ * plain object, so the row carries both as JSON text; they come back already
+ * parsed.
+ */
+export function jsonColumns<TEntity extends Entity>(
+  entityConstructor: EntityConstructor<TEntity>,
+): ReadonlySet<string> {
+  return new Set(
+    describeEntityColumns(entityConstructor)
+      .filter(
+        descriptor =>
+          descriptor.type === 'scalarCollection' ||
+          descriptor.type === 'localized',
+      )
+      .map(descriptor => descriptor.key),
+  );
+}
+
+/**
+ * A serialized entity as the row the driver writes: every `jsonb` member as
+ * JSON text. A `null` stays `null`, so the column holds SQL `NULL` and not the
+ * JSON value `null`.
+ */
+export const toSqlRow = (
+  serialized: Record<string, unknown>,
+  json: ReadonlySet<string>,
+): Record<string, unknown> =>
+  Object.fromEntries(
+    Object.entries(serialized).map(([column, value]) => [
+      column,
+      json.has(column) && value !== null ? JSON.stringify(value) : value,
+    ]),
+  );
+
 function toEntityId(entityOrId: EntityId | Entity): EntityId {
   return entityOrId != null && typeof entityOrId === 'object'
     ? (entityOrId as Entity).id
@@ -58,7 +99,8 @@ function toEntityId(entityOrId: EntityId | Entity): EntityId {
  * Table name = the entity's `key` (falling back to its class name), the same rule
  * the Mongo adapter uses for a collection.
  *
- * **v1 handles flat scalar entities.** Embedded links and `linkCollection`
+ * **v1 handles flat scalar entities**, plus a `scalarCollection` and a
+ * `localized` member as one `jsonb` column each ({@link jsonColumns}). Embedded links and `linkCollection`
  * members have no single-column representation, so an entity carrying them needs
  * either a join-aware adapter or `alias`ed scalar foreign keys.
  *
@@ -73,6 +115,7 @@ export function makeSqlRepository<TEntity extends Entity>(
   entityConstructor: EntityConstructor<TEntity>,
 ): EntityRepository {
   const table = sql(tableName(entityConstructor));
+  const json = jsonColumns(entityConstructor);
 
   const load = <T extends Entity>(request: EntityLoadRequest<T>) =>
     Effect.gen(function* () {
@@ -160,9 +203,9 @@ export function makeSqlRepository<TEntity extends Entity>(
   const saveRevised = <T extends Entity>(entity: T) =>
     Effect.gen(function* () {
       const key = extractMetaEntity(entityConstructor).key;
-      const serialized = serializeEntity(
-        entityConstructor,
-        entity as unknown as TEntity,
+      const serialized = toSqlRow(
+        serializeEntity(entityConstructor, entity as unknown as TEntity),
+        json,
       );
       const read = readRevision(entity);
       const id = entity.id ?? randomUUID();
@@ -213,9 +256,9 @@ export function makeSqlRepository<TEntity extends Entity>(
 
   const saveUnchecked = <T extends Entity>(entity: T) =>
     Effect.gen(function* () {
-      const serialized = serializeEntity(
-        entityConstructor,
-        entity as unknown as TEntity,
+      const serialized = toSqlRow(
+        serializeEntity(entityConstructor, entity as unknown as TEntity),
+        json,
       );
       // A create arrives without an id, so the store mints one — the same
       // contract as the Mongo adapter, and what lets `save` double as the upsert

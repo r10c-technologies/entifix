@@ -1,4 +1,3 @@
-import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { ENTIFIX_AREAS } from '@entifix/docs/reader';
@@ -7,7 +6,10 @@ import {
   guidesSource,
   recordsSource,
   referenceKind,
+  referenceSource,
 } from '@entifix/docs-engine';
+
+import { packagePages, publishedPackages } from './packages';
 
 const REPOSITORY = 'https://github.com/r10c-technologies/entifix/blob/main';
 
@@ -18,10 +20,8 @@ const REPOSITORY = 'https://github.com/r10c-technologies/entifix/blob/main';
  */
 const RECORDS = join(process.cwd(), 'node_modules/@entifix/docs/records');
 
-/** Every package a guide may cite: the ones installed beside this app. */
-const PACKAGES = readdirSync(join(process.cwd(), 'node_modules/@entifix')).map(
-  name => `@entifix/${name}`,
-);
+/** Every package a page may cite: each one entifix publishes. */
+const PACKAGES = publishedPackages();
 
 const records = recordsSource({
   directory: RECORDS,
@@ -42,6 +42,7 @@ export const site = createDocsSite({
       title: 'Guides',
     }),
     records,
+    referenceSource('packages', 'Packages', packagePages),
   ],
   references: {
     record: referenceKind(
@@ -50,8 +51,8 @@ export const site = createDocsSite({
       id => `ADR ${id}`,
     ),
     package: referenceKind(
-      PACKAGES,
-      () => `${REPOSITORY}/packages`,
+      PACKAGES.map(({ manifest }) => manifest.name),
+      name => `/packages/${name.replace(/^@entifix\//, '')}/`,
       name => name,
     ),
   },

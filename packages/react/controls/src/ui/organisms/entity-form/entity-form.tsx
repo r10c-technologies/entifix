@@ -7,6 +7,7 @@ import {
   type EntityAction,
   type EntityDraft,
   type EntityDraftValue,
+  type EntityFieldDescriptor,
   type EntityLinkSource,
   extractMetaEntity,
   type MetaAccessorType,
@@ -43,6 +44,7 @@ import {
 } from '../../molecules/action-bar/index.js';
 import { Card } from '../../molecules/card/index.js';
 import { EntityLinkInput } from '../../molecules/entity-link-input/index.js';
+import { EntityLinkMultiInput } from '../../molecules/entity-link-multi-input/index.js';
 import { LoadingBoundary } from '../../molecules/loading-boundary/index.js';
 import { RegionState } from '../../molecules/region-state/index.js';
 import { Stack } from '../../molecules/stack/index.js';
@@ -74,6 +76,12 @@ import { resolveEntityFormFields } from './use-entity-form-fields.js';
  * the *only* place `link`-ness still matters is `applyEntityLinks` at submit,
  * which skips a non-`link` descriptor and so leaves the id as the truth.
  *
+ * A `scalarCollection` that declares `references` is the to-many form of the
+ * same thing: each element is one target's id, and the editor is
+ * `EntityLinkMultiInput`, which adds and removes ids by name. Without
+ * `references` a list of values names no record, so a source on it is the
+ * same wiring mistake as one on a `number`.
+ *
  * Everything else is excluded on purpose rather than by omission: a `boolean`,
  * `enum`, `number` or `date` member cannot name another record, so a source
  * pointed at one is a wiring mistake — see {@link assertLinkSourcesAreEditable}.
@@ -81,6 +89,10 @@ import { resolveEntityFormFields } from './use-entity-form-fields.js';
 const PICKABLE_TYPES: ReadonlySet<MetaAccessorType> = new Set<MetaAccessorType>(
   ['link', 'string'],
 );
+
+/** A list of ids into another entity: a `scalarCollection` that declares `references`. */
+const isReferenceList = (field: EntityFieldDescriptor): boolean =>
+  field.type === 'scalarCollection' && field.references !== undefined;
 
 /**
  * A form that builds itself from an entity's metadata: fields, labels and value
@@ -724,7 +736,9 @@ function assertLinkSourcesAreEditable<TEntity extends Entity>(
 
   const sourced = fields.filter(
     field =>
-      linkSources[field.name] !== undefined && !PICKABLE_TYPES.has(field.type),
+      linkSources[field.name] !== undefined &&
+      !PICKABLE_TYPES.has(field.type) &&
+      !isReferenceList(field),
   );
   if (sourced.length === 0) return;
 
@@ -756,8 +770,9 @@ function assertLinkSourcesAreEditable<TEntity extends Entity>(
   throw new Error(
     `EntityForm was given a link source for a member that cannot hold one: ${unpickable.join(', ')}. ` +
       'A picker writes the target’s id into the draft, so the member has to be a ' +
-      '`link` or the `string` that carries a foreign key. Remove the entry, or ' +
-      'point it at the member that actually holds the reference.',
+      '`link`, the `string` that carries a foreign key, or a `scalarCollection` ' +
+      'that declares `references`. Remove the entry, or point it at the member ' +
+      'that actually holds the reference.',
   );
 }
 
@@ -827,6 +842,17 @@ function FieldRow<TEntity extends Entity>({
     control = readNode;
   } else if (field.render) {
     control = field.render({ draft, value, setField, id });
+  } else if (linkSource && isReferenceList(field)) {
+    control = (
+      <EntityLinkMultiInput
+        descriptor={field}
+        value={value}
+        source={linkSource}
+        id={id}
+        disabled={field.readonly}
+        onChange={next => setField(field.name, next)}
+      />
+    );
   } else if (linkSource && PICKABLE_TYPES.has(field.type)) {
     control = (
       <EntityLinkInput

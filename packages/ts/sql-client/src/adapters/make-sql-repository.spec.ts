@@ -12,7 +12,11 @@ import { Cause, Exit, Option } from 'effect';
 import type { SqlClient } from 'effect/sql';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { makeSqlRepository } from './make-sql-repository.js';
+import {
+  jsonColumns,
+  makeSqlRepository,
+  toSqlRow,
+} from './make-sql-repository.js';
 
 /** `name` is aliased, so the row keys the adapter reads and writes are columns. */
 @entity({ key: 'widget' })
@@ -422,5 +426,69 @@ describe('makeSqlRepository for an entity that declares a revision', () => {
     );
 
     expect(failureOf(exit)).toMatchObject({ _tag: 'Unavailable' });
+  });
+});
+
+describe('the jsonb columns', () => {
+  @entity({ key: 'listing' })
+  class Listing implements Entity {
+    #id?: EntityId;
+    #tags: readonly string[] = [];
+    #title?: Record<string, string>;
+    @accessor({ type: 'id' })
+    get id(): EntityId {
+      return this.#id;
+    }
+    set id(value: EntityId) {
+      this.#id = value;
+    }
+    @accessor({ type: 'scalarCollection', alias: 'tag_list' })
+    get tags(): readonly string[] {
+      return this.#tags;
+    }
+    set tags(value: readonly string[]) {
+      this.#tags = value;
+    }
+    @accessor({ type: 'localized' })
+    get title(): Record<string, string> | undefined {
+      return this.#title;
+    }
+    set title(value: Record<string, string> | undefined) {
+      this.#title = value;
+    }
+  }
+
+  it('are a list and a text per locale, by column', () => {
+    expect([...jsonColumns(Listing)]).toEqual(['tag_list', 'title']);
+  });
+
+  it('travel as JSON text, while a null stays SQL NULL', () => {
+    expect(
+      toSqlRow(
+        { id: 'l-1', tag_list: ['a', 2], title: { en: 'x' }, other: [1] },
+        jsonColumns(Listing),
+      ),
+    ).toEqual({
+      id: 'l-1',
+      tag_list: '["a",2]',
+      title: '{"en":"x"}',
+      other: [1],
+    });
+    expect(toSqlRow({ title: null }, jsonColumns(Listing))).toEqual({
+      title: null,
+    });
+  });
+
+  it('are written as JSON text by a save', async () => {
+    const fake = makeFakeSqlClient();
+    const repository = makeSqlRepository(
+      fake.client as unknown as SqlClient.SqlClient,
+      Listing,
+    );
+    const listing = new Listing();
+    listing.id = 'l-1';
+    listing.tags = ['a', 'b'];
+    await run(repository.save(listing));
+    expect(fake.lastExecution?.params).toContain('["a","b"]');
   });
 });

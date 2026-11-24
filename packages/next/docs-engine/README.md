@@ -62,7 +62,7 @@ The layout renders `DocsHead` in `<head>`, then `DocsRoot` inside the host's
 translator (`I18nProvider` from `@entifix/react-controls/i18next`), then
 `DocsLayout`. `next.config` sets `output: 'export'` and `trailingSlash: true`,
 and the build ends with `pagefind --site out --output-subdir pagefind`.
-`examples/docs` is the whole of it, served under a `basePath`.
+`examples/docs` is the whole of it, served under a `basePath` (`/docs`, with the controls' Storybook beside it at `/ui`).
 
 ## Guides and their directives
 

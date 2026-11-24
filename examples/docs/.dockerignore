@@ -1,0 +1,6 @@
+# Only what the image copies: the script, the export and the Storybook copy.
+*
+!serve.mjs
+!out
+!ui
+!Dockerfile

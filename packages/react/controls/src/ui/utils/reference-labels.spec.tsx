@@ -18,6 +18,7 @@ import {
   ReferenceLabelsProvider,
   type ReferenceLabelState,
   useReferenceLabel,
+  useReferenceText,
   useUnresolvedReference,
 } from './reference-labels.js';
 
@@ -131,6 +132,73 @@ describe('a reference cell', () => {
   it('is empty when it holds no id', () => {
     renderReference(lookupWith({ status: 'resolving' }), '');
     expect(screen.getByText('—')).toBeInTheDocument();
+  });
+});
+
+describe('a list of references', () => {
+  const list: EntityFieldDescriptor = {
+    ...reference(),
+    name: 'offeringIds',
+    key: 'offeringIds',
+    type: 'scalarCollection',
+  };
+  const names: ReferenceLabelLookup = {
+    label: (_entity, id) =>
+      id === 'o-1'
+        ? { status: 'named', label: 'Flange' }
+        : id === 'o-2'
+          ? { status: 'named', label: 'Valve' }
+          : { status: 'notFound' },
+    noun: () => ({ name: 'Offering', key: 'offering' }),
+  };
+
+  it('reads as each record named, in the order held', () => {
+    render(<CellValue value={['o-2', 'o-1']} descriptor={list} />, {
+      wrapper: wrap(names),
+    });
+    expect(
+      screen.getByText('Valve').parentElement?.parentElement,
+    ).toHaveTextContent('Valve, Flange');
+  });
+
+  it('is empty when it holds no id', () => {
+    render(<CellValue value={[]} descriptor={list} />, {
+      wrapper: wrap(names),
+    });
+    expect(screen.getByText('—')).toBeInTheDocument();
+  });
+});
+
+describe('useReferenceText', () => {
+  const text = (lookup: ReferenceLabelLookup | undefined, locale = 'es') =>
+    renderHook(() => useReferenceText('catalog:offering', ID), {
+      wrapper: wrap(lookup, locale),
+    }).result.current;
+
+  it('is the name when one was read', () => {
+    expect(text(lookupWith({ status: 'named', label: 'Flange' }))).toBe(
+      'Flange',
+    );
+  });
+
+  it('reads a localized name in the reader locale', () => {
+    expect(
+      text(
+        lookupWith({ status: 'named', label: { es: 'Brida', en: 'Flange' } }),
+      ),
+    ).toBe('Brida');
+  });
+
+  it('falls back to the id when a localized name has no text at all', () => {
+    expect(text(lookupWith({ status: 'named', label: {} }))).toBe(ID);
+  });
+
+  it('is the raw id when nothing is registered', () => {
+    expect(text(undefined)).toBe(ID);
+  });
+
+  it('is the noun and short id when no record answered', () => {
+    expect(text(lookupWith({ status: 'notFound' }))).toBe('offering 79ce50c8');
   });
 });
 

@@ -178,7 +178,8 @@ export interface MetaAccessorOptions {
    */
   parent?: boolean;
   /**
-   * This `id` or `string` member holds the id of a record of another entity,
+   * This `id` or `string` member holds the id of a record of another entity —
+   * or this `scalarCollection` holds a list of them, one id per element —
    * named by the `domain:key` pair that entity's `@entity({ domain, key })`
    * declares — so the declaring package imports nothing of the target's. A
    * screen reads the target's name in its place through the host's
