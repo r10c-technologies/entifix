@@ -26,7 +26,7 @@ for (const theme of THEMES) {
     await expect(close).toHaveText('Esc');
 
     await first.click();
-    await expect(page).toHaveURL(/\/entifix\/records\/\d{4}\//);
+    await expect(page).toHaveURL(/\/docs\/records\/\d{4}\//);
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   });
 }

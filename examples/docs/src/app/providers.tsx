@@ -25,7 +25,7 @@ function Root({ children }: PropsWithChildren) {
       themes={themes}
       defaultTheme="aurora"
       darkPalettes={['midnight']}
-      searchIndexUrl="/entifix/pagefind/"
+      searchIndexUrl="/docs/pagefind/"
     >
       {children}
     </DocsRoot>

@@ -3,6 +3,7 @@
 - Status: Proposed
 - Date: 2026-11-16
 - Revised: 2026-11-21 by [#275](https://github.com/r10c-technologies/entifix/issues/275) — the engine landed: guides are Markdown through unified rather than `fumadocs-mdx`, a dark palette is named by `data-scheme`, and the seven conditions are met on `example-docs`
+- Revised: 2026-11-24 by [#277](https://github.com/r10c-technologies/entifix/issues/277) — entifix's instance is built: `example-docs` serves the records, a page per published package and the controls' Storybook under one origin (`/docs`, `/ui`), as a container Cloud Run runs
 - Area: platform
 - Read when: a site shows entifix's decision records from a clone or a copy rather than from what is installed, a record parser is about to be written a second time, a docs page is about to be built by hand that a record, a use case or a package already describes, choosing between `fumadocs-ui` and a shell on `@entifix/react-controls`, or a fumadocs upgrade arrives
 
@@ -214,8 +215,19 @@ not:
   theme script exists to prevent. It now reflects nothing until it has read
   the cookie.
 
-The record stays Proposed until the rest of the trigger holds: entifix's own
-instance (#277) and myself-app reading the records from `node_modules`.
+entifix's own instance is `example-docs` (#277). It serves three things from
+one origin: the records from the installed `@entifix/docs` under `/docs`, a
+package reference page per published package under `/docs/packages/`, and
+`@entifix/react-controls`' Storybook under `/ui`. The package pages are
+derived from each package's own `package.json`: its tier tag, entry points,
+the entifix packages it depends on and its optional peers. A published package
+therefore has a page without anyone listing it. The same dependency-free
+`serve.mjs` the e2e drives runs in the container, and `docs_deploy.yml` builds
+that container on every change to `main`. It deploys only once the hosting
+is applied and the workflow's three repository variables exist.
+
+The record stays Proposed until the last of the trigger holds: myself-app
+reading the records from `node_modules`.
 
 ### 5. What graduates from myself-app's incubator
 

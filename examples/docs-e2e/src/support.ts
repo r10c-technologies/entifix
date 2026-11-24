@@ -7,7 +7,7 @@ export const test = baseTest;
 export { expect };
 
 /** The site's base path, as `examples/docs/next.config.js` sets it. */
-export const BASE = '/entifix';
+export const BASE = '/docs';
 
 export const BASELINE = join(__dirname, 'a11y-baseline.json');
 
@@ -18,8 +18,17 @@ export const WIDTHS = [
   { name: 'mobile', width: 390, height: 844 },
 ] as const;
 
-/** A guide, a record with code and tables, and the guide with a code block. */
-export const PAGES = ['/guides/', '/records/0031/', '/guides/adopting/'];
+/**
+ * A guide, a record with code and tables, the guide with a code block, and the
+ * package reference's index and one package.
+ */
+export const PAGES = [
+  '/guides/',
+  '/records/0031/',
+  '/guides/adopting/',
+  '/packages/',
+  '/packages/sql/',
+];
 
 /**
  * Opens a page in a palette, the way a returning reader arrives: the choice in

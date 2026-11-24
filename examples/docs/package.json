@@ -2,7 +2,7 @@
   "name": "@entifix/example-docs",
   "version": "0.0.0",
   "private": true,
-  "description": "A documentation site on @entifix/docs-engine: entifix's own decision records and two guides that cite them, exported as static files under a base path and searched with Pagefind.",
+  "description": "entifix's documentation instance on @entifix/docs-engine: its decision records, a page per published package and the controls' Storybook under one origin (/docs and /ui), exported as static files, searched with Pagefind and served by one dependency-free script.",
   "dependencies": {
     "@entifix/core": "workspace:*",
     "@entifix/docs": "workspace:*",
@@ -25,17 +25,20 @@
       "build": {
         "executor": "nx:run-commands",
         "dependsOn": [
-          "^build"
+          "^build",
+          "@entifix/react-controls:build-storybook"
         ],
         "inputs": [
           "production",
-          "^production"
+          "^production",
+          "{workspaceRoot}/packages/**/package.json"
         ],
         "outputs": [
-          "{projectRoot}/out"
+          "{projectRoot}/out",
+          "{projectRoot}/ui"
         ],
         "options": {
-          "command": "next build && pagefind --site out --output-subdir pagefind",
+          "command": "next build && pagefind --site out --output-subdir pagefind && rm -rf ui && cp -R ../../packages/react/controls/storybook-static ui",
           "cwd": "examples/docs",
           "forwardAllArgs": false
         }
@@ -46,6 +49,16 @@
         "options": {
           "command": "node serve.mjs",
           "cwd": "examples/docs"
+        }
+      },
+      "container": {
+        "executor": "nx:run-commands",
+        "dependsOn": [
+          "build"
+        ],
+        "options": {
+          "command": "docker build -t entifix/docs:local examples/docs",
+          "forwardAllArgs": false
         }
       }
     }

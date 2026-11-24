@@ -4,6 +4,7 @@ import {
 } from '@entifix/testing-e2e/a11y';
 
 import {
+  BASE,
   BASELINE,
   contrastOf,
   expect,
@@ -104,7 +105,7 @@ test('a citation links the record it names, and a record links its siblings', as
 }) => {
   await openIn(page, '/guides/', 'aurora');
   await page.getByRole('link', { name: 'ADR 0031' }).first().click();
-  await expect(page).toHaveURL(/\/entifix\/records\/0031\/$/);
+  await expect(page).toHaveURL(/\/docs\/records\/0031\/$/);
   await expect(page.getByRole('heading', { level: 1 })).toContainText(
     'carries the records',
   );
@@ -135,8 +136,36 @@ test('a stored palette is painted before the page hydrates', async ({
       }
     }).observe(document, { attributes: true, subtree: true });
   });
-  await page.goto('/entifix/guides/');
+  await page.goto('/docs/guides/');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'midnight');
   await expect(page.locator('html')).toHaveAttribute('data-scheme', 'dark');
   expect(painted).not.toContain('aurora');
+});
+
+/**
+ * One origin, two halves (ADR 0031 §3): the docs under `/docs`, the controls'
+ * Storybook under `/ui`, and the bare origin sent to the docs.
+ */
+test('the origin serves the docs, the package reference and the Storybook', async ({
+  page,
+  request,
+}) => {
+  const root = await request.get('/', { maxRedirects: 0 });
+  expect(root.status()).toBe(308);
+  expect(root.headers()['location']).toBe('/docs/');
+
+  const storybook = await request.get('/ui/');
+  expect(storybook.status()).toBe(200);
+  expect(await storybook.text()).toContain('storybook');
+
+  await page.goto(`${BASE}/packages/`);
+  await page
+    .getByRole('main')
+    .getByRole('link', { name: '@entifix/sql', exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/docs\/packages\/sql\/$/);
+  await expect(
+    page.getByRole('heading', { name: 'Entry points' }),
+  ).toBeVisible();
+  await expect(page.getByText('@entifix/sql/transactions')).toBeVisible();
 });

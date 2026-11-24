@@ -1,9 +1,10 @@
 # 32. A save names the revision it read
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-16
 - Revised: 2026-11-17 — the form's conflict state is built (§8): `EntityForm` renders it on `staleRevision`, `makeEntityCrud` wires it, and the autosaved draft holds the revision it read.
 - Revised: 2026-11-17 — a reload no longer reseeds a form holding unsaved input (§8, #294).
+- Revised: 2026-11-24 by [#269](https://github.com/r10c-technologies/entifix/issues/269) — Accepted: the trigger holds. The revision contract runs against a real Postgres in Change Validation. r10c showed a second save at one `revision` answering `409 staleRevision` on its live fleet (r10c #695). Every save r10c authors names its revision, so none of them is an unconditional `replaceOne`. The unconditional path remains only for an entity that declares no `revision`, by design (§4).
 - Area: adapters
 - Read when: two people edit one record and the second save silently erases the first, a save answers `409 staleRevision`, an update arrives without a `revision`, a form or an autosaved draft has to keep what a record looked like when it was read, writing a verb or a host cell that changes a record a form may also be editing, or about to make a member `hidden` or `readonly` so that it stays off a form
 

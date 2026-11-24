@@ -13,7 +13,8 @@ export default [
     settings: { react: { version: '19.0.0' } },
   },
   {
-    ignores: ['.next/**/*', '**/out-tsc', 'next-env.d.ts'],
+    // `out` is the export and `ui` the Storybook copy the build makes.
+    ignores: ['.next/**/*', '**/out-tsc', 'next-env.d.ts', 'out/**', 'ui/**'],
   },
   // After the React and Next presets, whose warn-level subsets would win.
   accessibleJsx,

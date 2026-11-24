@@ -11,7 +11,7 @@
 const nextConfig = {
   output: 'export',
   trailingSlash: true,
-  basePath: '/entifix',
+  basePath: '/docs',
   images: { unoptimized: true },
 };
 
