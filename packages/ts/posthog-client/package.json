@@ -60,6 +60,6 @@
     "@entifix/tooling": "workspace:*",
     "@swc/helpers": "0.5.23",
     "posthog-js": "1.449.0",
-    "posthog-node": "5.73.0"
+    "posthog-node": "6.0.5"
   }
 }
