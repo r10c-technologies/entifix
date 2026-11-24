@@ -273,8 +273,9 @@ function assertChildHasNoRevision(child: ChildConstructor) {
 const REFERENCE_KEY = /^[a-z0-9]+(?:-[a-z0-9]+)*:[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 /**
- * A reference holds one record's id, so it is an `id` or a `string` member, and
- * names its target as `domain:key`. On the `parent` member it may only name the
+ * A reference holds one record's id, so it is an `id` or a `string` member — or
+ * a `scalarCollection` whose every element is one target's id — and names its
+ * target as `domain:key`. On the `parent` member it may only name the
  * entity itself — a parent is a record of the same entity, built into a tree —
  * which is what lets a list show a branch's parent by name.
  */
@@ -286,9 +287,9 @@ function assertReference(
   const { references } = metaAccessor;
   if (references === undefined) return;
   const name = String(metaAccessor.name);
-  if (type !== 'id' && type !== 'string') {
+  if (type !== 'id' && type !== 'string' && type !== 'scalarCollection') {
     throw new Error(
-      `"${name}" is a ${type} and declares references — a reference holds one record's id, so it is an id or a string.`,
+      `"${name}" is a ${type} and declares references — a reference holds one record's id, so it is an id or a string, or a scalarCollection of ids.`,
     );
   }
   if (!REFERENCE_KEY.test(references.entity)) {

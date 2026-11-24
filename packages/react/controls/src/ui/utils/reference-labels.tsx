@@ -1,11 +1,12 @@
 'use client';
 
-import { type LocalizedText, shortId } from '@entifix/core';
+import { localize, type LocalizedText, shortId } from '@entifix/core';
 import { createContext, type ReactNode, useCallback, useContext } from 'react';
 
 import {
   type EntityNounSource,
   useEntityNoun,
+  useLocale,
   useT,
 } from '../../i18n/index.js';
 
@@ -104,4 +105,26 @@ export function useUnresolvedReference(): (
     },
     [lookup, noun, t],
   );
+}
+
+/**
+ * One referenced record as plain words — its name when read, otherwise the
+ * noun and short id, or the raw id when nothing is registered to read it. For
+ * the places that need text rather than an element: an accessible name, a
+ * button's label.
+ */
+export function useReferenceText(entityKey: string, id: string): string {
+  const state = useReferenceLabel(entityKey, id);
+  const unresolved = useUnresolvedReference();
+  const locale = useLocale();
+  switch (state.status) {
+    case 'named':
+      return typeof state.label === 'string'
+        ? state.label
+        : (localize(state.label, locale) ?? id);
+    case 'unregistered':
+      return id;
+    default:
+      return unresolved(entityKey, id);
+  }
 }

@@ -1,11 +1,17 @@
-import { EntityRepositoryFactoryTag } from '@entifix/business';
+import {
+  EntityFacetCounterFactoryTag,
+  EntityRepositoryFactoryTag,
+} from '@entifix/business';
 import { accessor, type Entity, entity, type EntityId } from '@entifix/core';
 import { makeFakeSqlClient } from '@entifix/testing-unit/drivers';
 import { Effect, Layer } from 'effect';
 import { SqlClient } from 'effect/sql';
 import { describe, expect, it } from 'vitest';
 
-import { SqlRepositoryFactoryLayer } from './sql-repository-factory.js';
+import {
+  SqlFacetCounterFactoryLayer,
+  SqlRepositoryFactoryLayer,
+} from './sql-repository-factory.js';
 
 @entity({ key: 'gizmo' })
 class Gizmo implements Entity {
@@ -46,5 +52,34 @@ describe('SqlRepositoryFactoryLayer', () => {
 
     expect(found.id).toBe('g1');
     expect(fake.lastExecution?.sql).toContain('gizmo');
+  });
+});
+
+describe('SqlFacetCounterFactoryLayer', () => {
+  it('opens a counter for an entity over the provided client', async () => {
+    const fake = makeFakeSqlClient();
+    fake.respondTo('gizmo', [{ value: 'g1', count: 1 }]);
+
+    const counts = await Effect.runPromise(
+      Effect.gen(function* () {
+        const factory = yield* EntityFacetCounterFactoryTag;
+        const counter = yield* factory.for(Gizmo, {});
+        return yield* counter.count<Gizmo>([{ member: 'id' }]);
+      }).pipe(
+        Effect.provide(
+          SqlFacetCounterFactoryLayer.pipe(
+            Layer.provide(
+              Layer.succeed(
+                SqlClient.SqlClient,
+                fake.client as unknown as SqlClient.SqlClient,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(counts).toEqual({ id: [{ value: 'g1', count: 1 }] });
+    expect(fake.lastExecution?.sql).toContain('GROUP BY');
   });
 });

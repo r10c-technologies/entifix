@@ -1,7 +1,11 @@
-import { EntityRepositoryFactoryTag } from '@entifix/business';
+import {
+  EntityFacetCounterFactoryTag,
+  EntityRepositoryFactoryTag,
+} from '@entifix/business';
 import { Effect, Layer } from 'effect';
 import { SqlClient } from 'effect/sql';
 
+import { makeSqlFacetCounter } from './make-sql-facet-counter.js';
 import { makeSqlRepository } from './make-sql-repository.js';
 
 /**
@@ -17,6 +21,22 @@ export const SqlRepositoryFactoryLayer = Layer.effect(
     return {
       for: entityConstructor =>
         Effect.succeed(makeSqlRepository(sql, entityConstructor)),
+    };
+  }),
+);
+
+/**
+ * Facet counters over the same database — `SqlRepositoryFactoryLayer`'s
+ * counterpart, bound beside it so a service's `$facets` and its pages read one
+ * store.
+ */
+export const SqlFacetCounterFactoryLayer = Layer.effect(
+  EntityFacetCounterFactoryTag,
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    return {
+      for: entityConstructor =>
+        Effect.succeed(makeSqlFacetCounter(sql, entityConstructor)),
     };
   }),
 );

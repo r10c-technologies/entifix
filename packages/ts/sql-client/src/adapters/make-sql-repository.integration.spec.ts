@@ -1,19 +1,28 @@
 import { PgClient } from '@effect/sql-pg';
-import { serializeEntity } from '@entifix/core';
+import { defineLocales, serializeEntity } from '@entifix/core';
 import {
+  ContractWidget,
+  describeEntityFacetCounterContract,
+  describeEntityRepositoryContract,
   describeEntityRepositoryRevisionContract,
   RevisedWidget,
 } from '@entifix/testing-unit/contracts';
 import { Effect, Layer, ManagedRuntime, Redacted } from 'effect';
 import { SqlClient } from 'effect/sql';
-import { afterAll } from 'vitest';
+import { afterAll, beforeAll } from 'vitest';
 
-import { makeSqlRepository } from './make-sql-repository.js';
+import { makeSqlFacetCounter } from './make-sql-facet-counter.js';
+import {
+  jsonColumns,
+  makeSqlRepository,
+  toSqlRow,
+} from './make-sql-repository.js';
 
 /*
- * The revision contract against a real Postgres: the race it asserts — two
- * saves at one revision leave exactly one winner — is one conditional
- * statement's property, and a fake that executes no SQL cannot show it.
+ * The contracts against a real Postgres. The revision race — two saves at one
+ * revision leave exactly one winner — is one conditional statement's property,
+ * and a list filtered or counted per element is `jsonb` semantics: a fake that
+ * executes no SQL can show neither.
  */
 const url = process.env['ENTIFIX_PG_URL'];
 if (url === undefined || url === '')
@@ -27,6 +36,9 @@ const runtime = ManagedRuntime.make(
   }) as Layer.Layer<SqlClient.SqlClient>,
 );
 afterAll(() => runtime.dispose());
+// The host's locales: a `localized` member is filtered and sorted one declared
+// locale at a time, and the SQL translator refuses any other.
+beforeAll(() => defineLocales({ locales: ['en', 'es'], defaultLocale: 'en' }));
 
 const makeRepository = async (seed: RevisedWidget[]) => {
   const sql = await runtime.runPromise(
@@ -54,3 +66,41 @@ const makeRepository = async (seed: RevisedWidget[]) => {
 };
 
 describeEntityRepositoryRevisionContract('Postgres', { makeRepository });
+
+/**
+ * The contract widget's table, as a host's migration writes it: a list as one
+ * `jsonb` array and a text per locale as another, seeded through the same row
+ * shape the repository writes.
+ */
+const seedWidgets = (seed: ContractWidget[]) =>
+  runtime.runPromise(
+    Effect.gen(function* () {
+      const client = yield* SqlClient.SqlClient;
+      yield* client`
+        CREATE TABLE IF NOT EXISTS "contract-widget" (
+          id text PRIMARY KEY,
+          name text,
+          size integer,
+          tags jsonb,
+          title jsonb
+        )`;
+      yield* client`TRUNCATE "contract-widget"`;
+      const json = jsonColumns(ContractWidget);
+      for (const widget of seed) {
+        yield* client`INSERT INTO "contract-widget" ${client.insert(
+          toSqlRow(serializeEntity(ContractWidget, widget), json),
+        )}`;
+      }
+      return client;
+    }),
+  );
+
+describeEntityRepositoryContract('Postgres', {
+  makeRepository: async seed =>
+    makeSqlRepository(await seedWidgets(seed), ContractWidget),
+});
+
+describeEntityFacetCounterContract('Postgres', {
+  makeCounter: async seed =>
+    makeSqlFacetCounter(await seedWidgets(seed), ContractWidget),
+});

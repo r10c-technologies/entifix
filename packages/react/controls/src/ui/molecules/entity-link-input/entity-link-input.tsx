@@ -26,11 +26,17 @@ export interface EntityLinkInputProps<TTarget extends Entity> {
   source: EntityLinkSource<TTarget>;
   /** A target was chosen — in either mode. */
   onSelect: (entity: TTarget) => void;
-  /** The relation was emptied. */
-  onClear: () => void;
+  /** The relation was emptied. Never called while `adding`. */
+  onClear?: () => void;
   /** The id the field's label points at. */
   id?: string;
   disabled?: boolean;
+  /**
+   * The input adds a target to a list rather than holding one: no value is
+   * shown and nothing is cleared, since the list beside it shows what is held
+   * and removes each item itself. What `EntityLinkMultiInput` mounts.
+   */
+  adding?: boolean;
 }
 
 /** Chevron — the quick search. Inline so the package ships no icon dependency. */
@@ -80,17 +86,20 @@ export function EntityLinkInput<TTarget extends Entity>({
   onClear,
   id,
   disabled = false,
+  adding = false,
 }: EntityLinkInputProps<TTarget>) {
   const t = useT();
   const errorMessage = useErrorMessage();
 
-  const assigned = value !== '';
+  const assigned = !adding && value !== '';
   const label = source.selected.label ?? (assigned ? value : '');
-  const display = source.selected.isLoading
-    ? t('link.loading')
-    : label === ''
-      ? t('link.empty')
-      : label;
+  const display = adding
+    ? t('link.add', { field: descriptor.label })
+    : source.selected.isLoading
+      ? t('link.loading')
+      : label === ''
+        ? t('link.empty')
+        : label;
 
   /**
    * Headless UI reports `null` when the search is abandoned (escape, blur). That
@@ -120,7 +129,11 @@ export function EntityLinkInput<TTarget extends Entity>({
           */}
             <ComboboxInput
               id={id}
-              aria-label={t('link.search', { field: descriptor.label })}
+              aria-label={
+                adding
+                  ? t('link.add', { field: descriptor.label })
+                  : t('link.search', { field: descriptor.label })
+              }
               placeholder={display}
               value={source.quick.term}
               disabled={disabled}
@@ -204,13 +217,16 @@ export function EntityLinkInput<TTarget extends Entity>({
         )}
       </div>
 
-      {/* The held value, always readable — the combobox input shows the term. */}
-      <span
-        data-testid={`entity-link-value-${descriptor.name}`}
-        className="text-step-sm text-content"
-      >
-        {display}
-      </span>
+      {/* The held value, always readable — the combobox input shows the term.
+          Adding to a list holds nothing here: the list shows what is held. */}
+      {!adding && (
+        <span
+          data-testid={`entity-link-value-${descriptor.name}`}
+          className="text-step-sm text-content"
+        >
+          {display}
+        </span>
+      )}
 
       {source.quick.error && (
         <span role="alert" className="text-step-sm text-danger">

@@ -126,6 +126,22 @@ describe('references and labelMember, described', () => {
     expect(() => describeEntityColumns(Bad)).toThrow(/is a number/);
   });
 
+  it('describes a scalarCollection whose every element references a record', () => {
+    @entity({ key: 'fits' })
+    class Fits extends Values implements Entity {
+      @accessor({
+        type: 'scalarCollection',
+        references: { entity: 'catalog:device-model' },
+      })
+      get modelIds(): string[] {
+        return this.read('modelIds');
+      }
+    }
+    const [column] = describeEntityColumns(Fits);
+    expect(column?.type).toBe('scalarCollection');
+    expect(column?.references).toEqual({ entity: 'catalog:device-model' });
+  });
+
   it('refuses a malformed key', () => {
     for (const key of ['offering', 'Catalog:Offering', 'a:b:c', ':b', 'a:']) {
       @entity({ key: 'bad' })

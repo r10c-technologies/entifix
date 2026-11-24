@@ -193,7 +193,7 @@ export function useValueText(): (
  * list that loaded has not failed because one name could not be read; and the
  * raw id, muted, when the host registered nothing to read it with.
  */
-function ReferenceValue({ entity, id }: { entity: string; id: string }) {
+export function ReferenceValue({ entity, id }: { entity: string; id: string }) {
   const state = useReferenceLabel(entity, id);
   const unresolved = useUnresolvedReference();
   const locale = useLocale();
@@ -258,8 +258,33 @@ export function CellValue({ value, descriptor, record }: CellValueProps) {
   const locale = useLocale();
   const unitLabel = useUnitLabel();
 
-  if (value === undefined || value === null || value === '') {
+  if (
+    value === undefined ||
+    value === null ||
+    value === '' ||
+    // An empty list of values reads as empty, not as a blank cell. Rows
+    // still read as their count: "0 rows" is information.
+    (descriptor.type === 'scalarCollection' &&
+      Array.isArray(value) &&
+      value.length === 0)
+  ) {
     return <span className="text-content-muted">{EMPTY}</span>;
+  }
+
+  // A list of keys into another entity reads as those records' names, one
+  // per element, in the order held.
+  if (descriptor.references !== undefined && Array.isArray(value)) {
+    const { entity } = descriptor.references;
+    return (
+      <span>
+        {value.map((id, index) => (
+          <span key={`${index}-${String(id)}`}>
+            {index > 0 && ', '}
+            <ReferenceValue entity={entity} id={String(id)} />
+          </span>
+        ))}
+      </span>
+    );
   }
 
   // A key into another entity reads as that record's name, never as itself.

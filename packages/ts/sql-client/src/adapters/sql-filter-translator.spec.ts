@@ -295,10 +295,64 @@ describe('translateFiltering', () => {
     ]);
   });
 
-  it('refuses a filterable scalarCollection, which has no column mapping yet', () => {
-    expect(() =>
-      where([{ property: 'tags', operator: 'eq', value: 'blue' }]),
-    ).toThrow(/scalarCollection.*cannot filter/);
+  describe('a scalarCollection, stored as a jsonb array', () => {
+    const like = `%blu%`;
+    it.each([
+      [
+        'eq',
+        { operator: 'eq', value: 'blue' },
+        ['"tags" @> $1::jsonb', ['["blue"]']],
+      ],
+      [
+        'ne',
+        { operator: 'ne', value: 'blue' },
+        ['NOT COALESCE("tags" @> $1::jsonb, false)', ['["blue"]']],
+      ],
+      [
+        'in',
+        { operator: 'in', values: ['blue', 7] },
+        ['("tags" @> $1::jsonb OR "tags" @> $2::jsonb)', ['["blue"]', '[7]']],
+      ],
+      [
+        'nin',
+        { operator: 'nin', values: ['blue'] },
+        ['NOT COALESCE("tags" @> $1::jsonb, false)', ['["blue"]']],
+      ],
+      ['an empty in', { operator: 'in', values: [] }, ['false', []]],
+      [
+        'an empty nin',
+        { operator: 'nin', values: [] },
+        ['NOT COALESCE(false, false)', []],
+      ],
+      [
+        'like',
+        { operator: 'like', value: 'blu' },
+        [
+          'EXISTS (SELECT 1 FROM jsonb_array_elements_text("tags") AS element(value) WHERE translate(element.value, $1, $2) ILIKE $3)',
+          [FOLD_TRANSLATION.from, FOLD_TRANSLATION.to, like],
+        ],
+      ],
+      [
+        'nlike',
+        { operator: 'nlike', value: 'blu' },
+        [
+          'NOT COALESCE(EXISTS (SELECT 1 FROM jsonb_array_elements_text("tags") AS element(value) WHERE translate(element.value, $1, $2) ILIKE $3), false)',
+          [FOLD_TRANSLATION.from, FOLD_TRANSLATION.to, like],
+        ],
+      ],
+      ['isNull', { operator: 'isNull' }, ['"tags" IS NULL', []]],
+      ['isNotNull', { operator: 'isNotNull' }, ['"tags" IS NOT NULL', []]],
+    ] as const)('matches %s against any element', (_name, filter, expected) => {
+      expect(
+        where([{ property: 'tags', ...filter } as EntityFiltering<Widget>]),
+      ).toEqual(expected);
+    });
+
+    it('refuses an order comparison, which a list cannot answer', () => {
+      expect(() =>
+        where([{ property: 'tags', operator: 'gt', value: 'a' }]),
+      ).toThrow(/scalarCollection.*"gt"/);
+    });
   });
 
   it('rejects a member the entity did not declare filterable', () => {

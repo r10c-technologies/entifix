@@ -46,12 +46,15 @@ export function useEntityLinkSources(
     // member that came back from storage in any other shape must read as unset
     // rather than be handed to the picker as an id.
     const held = readDraftString(values, link.field);
+    // A list of references holds many ids and names each one itself through
+    // the reference registry, so there is no one selected record to read.
+    const list = link.descriptor.type === 'scalarCollection';
     // eslint-disable-next-line react-hooks/rules-of-hooks -- fixed-length loop over a factory-time array; see the note above.
     sources[link.field] = useEntityLinkSource(link.config, {
       descriptor: link.descriptor,
       // An empty draft entry is "unset", not an id. Nothing enforces the
       // reference across a store boundary, so `''` would be a dangling id.
-      selectedId: held === '' ? undefined : held,
+      selectedId: list || held === '' ? undefined : held,
       selectedEntity: selection[link.field],
       locale,
     });

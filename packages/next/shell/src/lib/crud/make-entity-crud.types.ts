@@ -100,7 +100,11 @@ type EntityCatalogOf<TResources> = TResources extends { entity: infer E }
  * as an empty suggestion list.
  */
 export interface EntityCrudLink<TAdapters, TEntity extends Entity = Entity> {
-  /** The owning entity's accessor name, e.g. `'brandId'`. */
+  /**
+   * The owning entity's accessor name, e.g. `'brandId'`: a `link`, a `string`
+   * foreign key, or a `scalarCollection` that declares `references` — a list
+   * of ids, edited one name at a time.
+   */
   readonly field: string;
   readonly entityConstructor: EntityConstructor<Entity>;
   /**
