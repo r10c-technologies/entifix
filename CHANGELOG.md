@@ -1,3 +1,13 @@
+## 0.23.11 (2026-11-24)
+
+### 🚀 Features
+
+- name a list of references, SQL lists and facets, entifix's docs instance (MVP-2/3) ([#324](https://github.com/r10c-technologies/entifix/pull/324))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.23.10 (2026-11-23)
 
 ### 🚀 Features
