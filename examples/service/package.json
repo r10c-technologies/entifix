@@ -35,8 +35,8 @@
     "@entifix/testing-auth": "workspace:*",
     "@entifix/transactions": "workspace:*",
     "@entifix/workflow": "workspace:*",
-    "amqplib": "2.3.1",
+    "amqplib": "2.4.0",
     "effect": "4.0.7",
-    "mongodb": "7.9.0"
+    "mongodb": "7.9.1"
   }
 }

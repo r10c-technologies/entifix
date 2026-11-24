@@ -15,13 +15,13 @@
     "@entifix/rest": "workspace:*",
     "@entifix/style": "workspace:*",
     "@entifix/testing-auth": "workspace:*",
-    "@tanstack/react-query": "5.107.1",
+    "@tanstack/react-query": "5.108.2",
     "effect": "4.0.7",
-    "i18next": "27.1.1",
+    "i18next": "27.2.3",
     "next": "16.4.6",
     "react": "19.3.1",
     "react-dom": "19.3.1",
-    "react-i18next": "18.0.1",
+    "react-i18next": "18.0.3",
     "zustand": "^5.1.0"
   },
   "nx": {
