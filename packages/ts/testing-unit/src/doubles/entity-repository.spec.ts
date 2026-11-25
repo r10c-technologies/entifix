@@ -1,3 +1,4 @@
+import { accessor, type Entity, entity, type EntityId } from '@entifix/core';
 import { Unavailable } from '@entifix/core';
 import { EntityCollectionLink, EntityLink } from '@entifix/core';
 import { Exit } from 'effect';
@@ -7,9 +8,10 @@ import {
   ContractWidget,
   describeEntityRepositoryContract,
   describeEntityRepositoryRevisionContract,
+  describeEntityRepositoryStateContract,
   makeContractWidget,
 } from '../contracts/entity-repository.contract.js';
-import { run, runExit } from '../effect/run.js';
+import { run, runExit, runFailure } from '../effect/run.js';
 import { makeInMemoryEntityRepository } from './entity-repository.js';
 
 describeEntityRepositoryContract('in-memory fake', {
@@ -433,4 +435,45 @@ describe('makeInMemoryEntityRepository value comparison', () => {
 
 describeEntityRepositoryRevisionContract('in-memory fake', {
   makeRepository: seed => makeInMemoryEntityRepository(seed),
+});
+
+describeEntityRepositoryStateContract('in-memory fake', {
+  makeRepository: seed => makeInMemoryEntityRepository(seed),
+});
+
+describe('makeInMemoryEntityRepository refusing a write for its state', () => {
+  @entity()
+  class Phased implements Entity {
+    #id?: EntityId;
+    #phase?: string;
+
+    @accessor({ type: 'id' })
+    get id(): EntityId {
+      return this.#id;
+    }
+    set id(value: EntityId) {
+      this.#id = value;
+    }
+
+    @accessor({ type: 'enum', enumValues: ['open', 'shut'] })
+    get phase(): string | undefined {
+      return this.#phase;
+    }
+    set phase(value: string | undefined) {
+      this.#phase = value;
+    }
+  }
+
+  it('names an entity with no key by its class, and a record with no state by nothing', async () => {
+    const blank = new Phased();
+    blank.id = 'p-1';
+    const repository = makeInMemoryEntityRepository([blank]);
+
+    const failure = (await runFailure(
+      repository.delete('p-1', { expect: { member: 'phase', in: ['open'] } }),
+    )) as { entity?: string; state?: string };
+
+    expect(failure.entity).toBe('Phased');
+    expect(failure).not.toHaveProperty('state');
+  });
 });

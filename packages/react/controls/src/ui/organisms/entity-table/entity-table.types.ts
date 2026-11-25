@@ -99,6 +99,12 @@ export interface EntityTableProps<TEntity extends Entity> {
    * wrong affordance. Either one renders the actions column.
    */
   onSelect?: (item: TEntity) => void;
+  /**
+   * Whether a row may be picked by {@link onSelect}. A row it refuses shows a
+   * disabled "Already chosen" in place of Select — a list picker's way of
+   * saying the record is held, without dropping it from the page.
+   */
+  isSelectable?: (item: TEntity) => boolean;
 
   /** Scope for persisted personalization. Defaults to the entity's key. */
   preferencesKey?: string;

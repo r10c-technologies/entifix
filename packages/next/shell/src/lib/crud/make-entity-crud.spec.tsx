@@ -1147,6 +1147,36 @@ describe('the generated form', () => {
   });
 
   /**
+   * The record's state narrows the grant the same way (ADR 0029): a caller who
+   * may write a brand still reads one outside the states it is saved in, with
+   * the reason the descriptor names. The served member is read off the record
+   * as the form holds it, so any member serves the spec.
+   */
+  it('renders a record read-only outside the states it may be saved in', async () => {
+    slug = 'b-1';
+    fetchMetadata.mockResolvedValue({
+      actions: ['read', 'write', 'delete'],
+      useCases: [],
+      writableWhen: { member: 'name', in: ['Draft brand'] },
+      deletableWhen: { member: 'name', in: ['Draft brand'] },
+      readOnlyReasonKey: 'entity:brand.readOnly',
+    });
+
+    renderPage(<verbBrandCrud.SingleViewPage />);
+
+    await waitFor(() =>
+      expect(screen.getByTestId('entity-form-read-only')).toBeInTheDocument(),
+    );
+    expect(screen.queryByLabelText(/nombre/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /guardar/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /eliminar/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  /**
    * A create has no record to read, so the rule above must not reach it — a
    * `read` mode on a new entity is an empty form with no way to fill it.
    */

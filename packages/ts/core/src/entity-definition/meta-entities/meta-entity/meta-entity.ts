@@ -2,6 +2,7 @@ import type { Entity } from '../../../types/Entity.js';
 import type { EntityFiltering } from '../../../types/EntityFiltering.js';
 import type { EntitySorting } from '../../../types/EntitySorting.js';
 import { assertBounds } from '../bounds.js';
+import type { UseCaseAvailability } from '../meta-use-case/meta-use-case.js';
 
 /**
  * An entity a view's filtering names members of. `@entity()` is applied before
@@ -72,6 +73,29 @@ export interface MetaEntityOptions {
    * ([ADR 0030](../../../../../../../docs/adr/0030-a-reference-names-its-target-through-the-owners-read-port.md)).
    */
   labelMember?: string;
+  /**
+   * The states a record must hold for a person to save it: its `member` — an
+   * `enumValues` accessor, by its own name — holds one of `in`. Outside them
+   * the form renders the record read-only with no Save, a table offers no edit
+   * on its row, and the service refuses the update with `unavailableInState`
+   * in the same conditional write that saves it
+   * ([ADR 0029](../../../../../../../docs/adr/0029-a-verb-declares-the-states-it-is-legal-from.md)).
+   * Absent, every record may be saved. Requires {@link readOnlyReasonKey}.
+   */
+  writableWhen?: UseCaseAvailability;
+  /**
+   * The states a record must hold to be deleted, by the same rule as
+   * {@link writableWhen}: hidden outside them, refused by the store's own
+   * conditional delete.
+   */
+  deletableWhen?: UseCaseAvailability;
+  /**
+   * Catalog key for the one line a read-only form shows at its top, saying why
+   * — "This version is released; create a new version to change it." Required
+   * with {@link writableWhen}: a form that quietly stops accepting input reads
+   * as broken.
+   */
+  readOnlyReasonKey?: string;
 }
 
 export class MetaEntity {
@@ -85,6 +109,9 @@ export class MetaEntity {
   readonly views?: Readonly<Record<string, EntityViewOptions>>;
   readonly creatable: boolean;
   readonly labelMember?: string;
+  readonly writableWhen?: UseCaseAvailability;
+  readonly deletableWhen?: UseCaseAvailability;
+  readonly readOnlyReasonKey?: string;
   //#endregion
 
   //#region Constructors
@@ -99,6 +126,17 @@ export class MetaEntity {
     this.views = options?.views;
     this.creatable = options?.creatable ?? true;
     this.labelMember = options?.labelMember;
+    if (
+      options?.writableWhen !== undefined &&
+      options.readOnlyReasonKey === undefined
+    ) {
+      throw new Error(
+        `${name} declares \`writableWhen\` and no \`readOnlyReasonKey\`: a form outside its write states must say why it takes no input.`,
+      );
+    }
+    this.writableWhen = options?.writableWhen;
+    this.deletableWhen = options?.deletableWhen;
+    this.readOnlyReasonKey = options?.readOnlyReasonKey;
   }
   //#endregion
 

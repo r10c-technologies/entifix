@@ -13,6 +13,7 @@ export const controls: EsControls = {
   },
   table: {
     select: 'Select',
+    chosen: 'Already chosen',
     actions: 'Actions',
     new: 'New',
     filters: 'Filters',

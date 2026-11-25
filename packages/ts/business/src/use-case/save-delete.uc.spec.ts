@@ -23,14 +23,17 @@ function makeRepositoryDouble(saveResult?: Widget) {
   const calls = {
     saved: [] as Entity[],
     deleted: [] as (EntityId | Entity)[],
+    options: [] as unknown[],
   };
   const repository = {
-    save: (entity: Entity) => {
+    save: (entity: Entity, options?: unknown) => {
       calls.saved.push(entity);
+      calls.options.push(options);
       return Effect.succeed(saveResult ?? entity);
     },
-    delete: (entityOrId: EntityId | Entity) => {
+    delete: (entityOrId: EntityId | Entity, options?: unknown) => {
       calls.deleted.push(entityOrId);
+      calls.options.push(options);
       return Effect.void;
     },
   } as unknown as EntityRepository;
@@ -88,5 +91,31 @@ describe('deleteUCFactory', () => {
     );
 
     expect(calls.deleted).toEqual(['widget-1']);
+  });
+});
+
+describe('the write options', () => {
+  it('reach the repository on a save and a delete', () => {
+    const { repository, calls } = makeRepositoryDouble();
+    const options = { expect: { member: 'state', in: ['draft'] } };
+
+    Effect.runSync(
+      saveUCFactory<Widget>(options).pipe(
+        Effect.provide(
+          testContext(repository).pipe(
+            Context.add(EntityTag, { id: 'w-1', name: 'A' } as Widget),
+          ),
+        ),
+      ),
+    );
+    Effect.runSync(
+      deleteUCFactory<Widget>(options).pipe(
+        Effect.provide(
+          testContext(repository).pipe(Context.add(EntityIdTag, 'w-1')),
+        ),
+      ),
+    );
+
+    expect(calls.options).toEqual([options, options]);
   });
 });

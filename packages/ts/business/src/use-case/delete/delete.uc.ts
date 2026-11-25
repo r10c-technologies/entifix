@@ -1,7 +1,10 @@
 import { Entity } from '@entifix/core';
 import { Effect } from 'effect';
 
-import { EntityRepositoryTag } from '../../repository/entity.repository.js';
+import {
+  EntityRepositoryTag,
+  type EntityWriteOptions,
+} from '../../repository/entity.repository.js';
 import { EntityIdTag } from '../../repository/entity-mixins.repository.js';
 
 /**
@@ -11,11 +14,13 @@ import { EntityIdTag } from '../../repository/entity-mixins.repository.js';
  * the only shape a caller ever has at the point of deletion (a table row, a
  * route param), so that is what this exposes.
  */
-export function deleteUCFactory<TEntity extends Entity>() {
+export function deleteUCFactory<TEntity extends Entity>(
+  options?: EntityWriteOptions,
+) {
   return Effect.gen(function* () {
     const entityRepository = yield* EntityRepositoryTag;
     const entityId = yield* EntityIdTag;
 
-    yield* entityRepository.delete<TEntity>(entityId);
+    yield* entityRepository.delete<TEntity>(entityId, options);
   });
 }

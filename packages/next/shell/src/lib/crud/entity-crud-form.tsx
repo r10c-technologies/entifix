@@ -5,6 +5,7 @@ import {
   type Entity,
   type EntityConstructor,
   type EntityMetadataSource,
+  isRecordWritable,
   reconstructEntity,
   REVISION_KEY,
 } from '@entifix/core';
@@ -207,11 +208,15 @@ export function EntityCrudForm<TEntity extends Entity>({
    *
    * A create is exempt: there is no record yet, so there is nothing to read and
    * a `read` mode would render an empty form with no way to fill it.
+   *
+   * The record's state narrows it the same way (ADR 0029): a released version
+   * the caller could write in design is read, with the reason the form states.
    */
   const mayWrite =
     entity === undefined ||
     affordances.metadata === undefined ||
-    affordances.metadata.actions.includes('write');
+    (affordances.metadata.actions.includes('write') &&
+      isRecordWritable(affordances.metadata, entity));
 
   return (
     <EntityForm<TEntity>

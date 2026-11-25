@@ -1,4 +1,8 @@
-import type { EntityRepository, RepositoryFailure } from '@entifix/business';
+import type {
+  EntityRepository,
+  EntityWriteOptions,
+  RepositoryFailure,
+} from '@entifix/business';
 import {
   applyFiltering,
   applySorting,
@@ -12,10 +16,13 @@ import {
   type EntityPage,
   extractMetaAccessors,
   extractMetaEntity,
+  isUseCaseAvailable,
   NotFound,
   readRevision,
   serializeEntity,
   StaleRevision,
+  UnavailableInState,
+  type UseCaseAvailability,
 } from '@entifix/core';
 import { Effect } from 'effect';
 
@@ -160,12 +167,46 @@ export const makeInMemoryEntityRepository = (
     );
   };
 
-  const save = <TEntity extends Entity>(entity: TEntity) =>
-    guard(() =>
-      declaresRevision(entity.constructor as EntityConstructor<TEntity>)
+  /**
+   * The state rule of a conditioned write: the stored record must hold one of
+   * `expect`'s states. Checked in the same synchronous step as the write, so
+   * nothing can move the record between the two.
+   */
+  const refusal = (
+    stored: Entity,
+    expect: UseCaseAvailability,
+  ): UnavailableInState | undefined => {
+    if (isUseCaseAvailable({ availableWhen: expect }, stored)) return undefined;
+    const state = (stored as unknown as Record<string, unknown>)[expect.member];
+    return new UnavailableInState({
+      entity:
+        extractMetaEntity(stored.constructor as EntityConstructor<Entity>)
+          .key ?? stored.constructor.name,
+      member: expect.member,
+      ...(typeof state === 'string' ? { state } : {}),
+      allowed: [...expect.in],
+    });
+  };
+
+  const save = <TEntity extends Entity>(
+    entity: TEntity,
+    options?: EntityWriteOptions,
+  ) =>
+    guard(() => {
+      const expect = options?.expect;
+      if (expect !== undefined) {
+        // A save with `expect` is an update: it never creates.
+        const stored = items.find(
+          item => entity.id !== undefined && item.id === entity.id,
+        );
+        if (stored === undefined) return Effect.fail(new NotFound({}));
+        const refused = refusal(stored, expect);
+        if (refused !== undefined) return Effect.fail(refused);
+      }
+      return declaresRevision(entity.constructor as EntityConstructor<TEntity>)
         ? saveRevised(entity)
-        : storeCopy(entity),
-    );
+        : storeCopy(entity);
+    });
 
   const storeCopy = <TEntity extends Entity>(entity: TEntity) =>
     Effect.suspend(() => {
@@ -192,12 +233,21 @@ export const makeInMemoryEntityRepository = (
       );
     });
 
-  const remove = <TEntity extends Entity>(entityOrId: EntityId | TEntity) =>
+  const remove = <TEntity extends Entity>(
+    entityOrId: EntityId | TEntity,
+    options?: EntityWriteOptions,
+  ) =>
     guard(() => {
       const id =
         entityOrId != null && typeof entityOrId === 'object'
           ? entityOrId.id
           : entityOrId;
+      const stored = items.find(item => item.id === id);
+      const refused =
+        stored === undefined || options?.expect === undefined
+          ? undefined
+          : refusal(stored, options.expect);
+      if (refused !== undefined) return Effect.fail(refused);
       items = items.filter(item => item.id !== id);
       return Effect.succeed(undefined);
     });

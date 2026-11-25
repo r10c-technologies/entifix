@@ -2,7 +2,9 @@ import { accessor, type Entity, entity, type EntityId } from '@entifix/core';
 import { run, runExit } from '@entifix/testing-unit';
 import {
   makeRevisedWidget,
+  makeStatedWidget,
   RevisedWidget,
+  StatedWidget,
 } from '@entifix/testing-unit/contracts';
 import {
   type FakeSqlClient,
@@ -378,12 +380,12 @@ describe('makeSqlRepository for an entity that declares a revision', () => {
     expect(update?.sql).toContain('AND "revision" = $');
     expect(update?.params).toEqual(['Beta', 'r-1', 2]);
     expect(updated.revision).toBe(3);
-    expect(executed('SELECT "revision"')).toBeUndefined();
+    expect(executed('SELECT * FROM "revised-widget"')).toBeUndefined();
   });
 
   it('names a stale update by the revision that is stored', async () => {
     fake.respondTo('RETURNING "revision"', []);
-    fake.respondTo('SELECT "revision"', [{ revision: 5 }]);
+    fake.respondTo('SELECT * FROM "revised-widget"', [{ revision: 5 }]);
 
     const exit = await runExit(
       revised().save<RevisedWidget>(makeRevisedWidget('r-1', 'Beta', 2)),
@@ -397,7 +399,7 @@ describe('makeSqlRepository for an entity that declares a revision', () => {
 
   it('answers NotFound to an update of a record that is gone', async () => {
     fake.respondTo('RETURNING "revision"', []);
-    fake.respondTo('SELECT "revision"', []);
+    fake.respondTo('SELECT * FROM "revised-widget"', []);
 
     const exit = await runExit(
       revised().save<RevisedWidget>(makeRevisedWidget('r-1', 'Beta', 2)),
@@ -419,10 +421,146 @@ describe('makeSqlRepository for an entity that declares a revision', () => {
 
   it('maps a failing read of the stored revision to Unavailable', async () => {
     fake.respondTo('RETURNING "revision"', []);
-    fake.failOn('SELECT "revision"', 'connection refused');
+    fake.failOn('SELECT * FROM "revised-widget"', 'connection refused');
 
     const exit = await runExit(
       revised().save<RevisedWidget>(makeRevisedWidget('r-1', 'Beta', 2)),
+    );
+
+    expect(failureOf(exit)).toMatchObject({ _tag: 'Unavailable' });
+  });
+});
+
+describe('makeSqlRepository with a state condition', () => {
+  const IN_DRAFT = { expect: { member: 'phase', in: ['draft'] } };
+  const stated = () =>
+    makeSqlRepository(fake.client as SqlClient.SqlClient, StatedWidget);
+
+  it('updates in one statement conditioned on the stored key, never inserting', async () => {
+    fake.respondTo('RETURNING "id"', [{ id: 's-1' }]);
+
+    await run(
+      stated().save(makeStatedWidget('s-1', 'A', 'released'), IN_DRAFT),
+    );
+
+    const update = executed('UPDATE "stated-widget"');
+    expect(update?.sql).toContain('WHERE "id" = $');
+    expect(update?.sql).toContain('AND "stage" IN ($');
+    expect(update?.params.at(-1)).toBe('draft');
+    expect(executed('INSERT INTO')).toBeUndefined();
+  });
+
+  it('refuses a record in another state, naming it', async () => {
+    fake.respondTo('RETURNING "id"', []);
+    fake.respondTo('SELECT * FROM "stated-widget"', [
+      { id: 's-1', stage: 'released' },
+    ]);
+
+    const exit = await runExit(
+      stated().save(makeStatedWidget('s-1', 'A', 'draft'), IN_DRAFT),
+    );
+
+    expect(failureOf(exit)).toMatchObject({
+      _tag: 'UnavailableInState',
+      entity: 'stated-widget',
+      member: 'phase',
+      state: 'released',
+      allowed: ['draft'],
+    });
+  });
+
+  it('answers NotFound when the record is gone, or has no id', async () => {
+    fake.respondTo('RETURNING "id"', []);
+    fake.respondTo('SELECT * FROM "stated-widget"', []);
+
+    const gone = await runExit(
+      stated().save(makeStatedWidget('s-1', 'A', 'draft'), IN_DRAFT),
+    );
+    const unnamed = await runExit(
+      stated().save(makeStatedWidget(undefined, 'A', 'draft'), IN_DRAFT),
+    );
+
+    expect(failureOf(gone)).toMatchObject({ _tag: 'NotFound' });
+    expect(failureOf(unnamed)).toMatchObject({ _tag: 'NotFound' });
+  });
+
+  it('still checks the state of an entity with nothing but an id', async () => {
+    fake.respondTo('RETURNING "id"', [{ id: 'u-1' }]);
+    const unkeyed = new UnkeyedWidget();
+    unkeyed.id = 'u-1';
+
+    await run(
+      makeSqlRepository(fake.client as SqlClient.SqlClient, UnkeyedWidget).save(
+        unkeyed,
+        {},
+      ),
+    );
+    await run(
+      makeSqlRepository(fake.client as SqlClient.SqlClient, StatedWidget).save(
+        Object.assign(new StatedWidget(), { id: 'u-2' }),
+        IN_DRAFT,
+      ),
+    );
+
+    expect(executed('UPDATE "stated-widget"')?.sql).toContain('SET');
+  });
+
+  it('deletes on the condition, and accepts a record that is not there', async () => {
+    fake.respondTo('RETURNING "id"', []);
+    fake.respondTo('SELECT * FROM "stated-widget"', []);
+
+    await run(stated().delete('s-9', IN_DRAFT));
+
+    expect(executed('DELETE FROM')?.sql).toContain('AND "stage" IN ($');
+  });
+
+  it('deletes a record in an allowed state without reading it back', async () => {
+    fake.respondTo('RETURNING "id"', [{ id: 's-1' }]);
+
+    await run(stated().delete('s-1', IN_DRAFT));
+
+    expect(executed('SELECT * FROM "stated-widget"')).toBeUndefined();
+  });
+
+  it('refuses a delete of a record in another state', async () => {
+    fake.respondTo('RETURNING "id"', []);
+    fake.respondTo('SELECT * FROM "stated-widget"', [
+      { id: 's-2', stage: 'released' },
+    ]);
+
+    const exit = await runExit(stated().delete('s-2', IN_DRAFT));
+
+    expect(failureOf(exit)).toMatchObject({ _tag: 'UnavailableInState' });
+  });
+
+  it('refuses a revisioned update for its state before its revision', async () => {
+    fake.respondTo('RETURNING "revision"', []);
+    fake.respondTo('SELECT * FROM "revised-widget"', [
+      { id: 'r-1', revision: 2, name: 'x' },
+    ]);
+
+    const exit = await runExit(
+      makeSqlRepository(fake.client as SqlClient.SqlClient, RevisedWidget).save(
+        makeRevisedWidget('r-1', 'Beta', 2),
+        {
+          expect: { member: 'name', in: ['y'] },
+        },
+      ),
+    );
+
+    expect(failureOf(exit)).toMatchObject({ _tag: 'UnavailableInState' });
+  });
+
+  it.each([
+    ['UPDATE "stated-widget"', 'save'],
+    ['DELETE FROM', 'delete'],
+  ] as const)('maps a failing %s to Unavailable', async (match, verb) => {
+    fake.failOn(match, 'connection refused');
+
+    const exit = await runExit(
+      verb === 'save'
+        ? stated().save(makeStatedWidget('s-1', 'A', 'draft'), IN_DRAFT)
+        : stated().delete('s-1', IN_DRAFT),
     );
 
     expect(failureOf(exit)).toMatchObject({ _tag: 'Unavailable' });

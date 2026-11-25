@@ -1,5 +1,6 @@
 import type { EntityAction } from '../../types/EntityAction.js';
 import type { UseCaseDescriptor } from '../describe/describe-entity-use-cases.js';
+import type { EntityStateRules } from '../describe/entity-state-rules.js';
 
 /**
  * What a caller may do with one entity, as answered by
@@ -15,7 +16,12 @@ import type { UseCaseDescriptor } from '../describe/describe-entity-use-cases.js
  * form would keep rendering its buttons unconditionally and the document would
  * describe only the rare half of the surface.
  */
-export interface EntityMetadataDocument {
+/**
+ * It also carries the entity's {@link EntityStateRules} — the states a record
+ * must hold for Save and Delete to be offered on it — which are the model's,
+ * not the caller's, and are absent on an entity that declares none.
+ */
+export interface EntityMetadataDocument extends EntityStateRules {
   /** The CRUD subset this caller holds, in {@link ENTITY_ACTIONS} order. */
   actions: EntityAction[];
   /** The declared use cases this caller may invoke, in declaration order. */

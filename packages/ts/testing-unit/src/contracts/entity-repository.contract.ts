@@ -1,6 +1,6 @@
-import type { EntityRepository } from '@entifix/business';
+import type { EntityRepository, RepositoryFailure } from '@entifix/business';
 import { accessor, type Entity, entity, type EntityId } from '@entifix/core';
-import { Exit } from 'effect';
+import { Effect, Exit } from 'effect';
 import { describe, expect, it } from 'vitest';
 
 import { run, runExit, runFailure } from '../effect/run.js';
@@ -700,6 +700,201 @@ export const describeEntityRepositoryRevisionContract = (
       expect(exits.filter(exit => Exit.isSuccess(exit))).toHaveLength(1);
       const page = await run(repository.load<RevisedWidget>({}));
       expect(page.items.filter(item => item.id === 'r-7')).toHaveLength(1);
+    });
+  });
+};
+
+const STATED_PHASES = ['draft', 'released'] as const;
+const IN_DRAFT = { member: 'phase', in: ['draft'] } as const;
+
+/**
+ * The entity the state contract runs against: a record saved and deleted only
+ * in `draft` ([ADR 0029](../../../../../docs/adr/0029-a-verb-declares-the-states-it-is-legal-from.md)).
+ * Its state is stored under an alias, so an adapter that conditions on the
+ * member's name rather than its stored key fails the suite.
+ */
+@entity({
+  key: 'stated-widget',
+  writableWhen: IN_DRAFT,
+  deletableWhen: IN_DRAFT,
+  readOnlyReasonKey: 'entity:stated-widget.readOnly',
+})
+export class StatedWidget implements Entity {
+  #id?: EntityId;
+  #name?: string;
+  #phase?: string;
+
+  @accessor({ type: 'id' })
+  get id(): EntityId {
+    return this.#id;
+  }
+  set id(value: EntityId) {
+    this.#id = value;
+  }
+
+  @accessor({ type: 'string' })
+  get name(): string | undefined {
+    return this.#name;
+  }
+  set name(value: string | undefined) {
+    this.#name = value;
+  }
+
+  @accessor({ type: 'enum', enumValues: STATED_PHASES, alias: 'stage' })
+  get phase(): string | undefined {
+    return this.#phase;
+  }
+  set phase(value: string | undefined) {
+    this.#phase = value;
+  }
+}
+
+export const makeStatedWidget = (
+  id: EntityId,
+  name: string,
+  phase: (typeof STATED_PHASES)[number],
+): StatedWidget => {
+  const widget = new StatedWidget();
+  widget.id = id;
+  widget.name = name;
+  widget.phase = phase;
+  return widget;
+};
+
+export interface EntityRepositoryStateContractOptions {
+  /** Builds a repository over `seed`. Called fresh for each test. */
+  makeRepository(
+    seed: StatedWidget[],
+  ): EntityRepository | Promise<EntityRepository>;
+}
+
+/**
+ * What a write conditioned on a record's state means on every adapter that
+ * writes: the condition is part of the write, a record in another state is
+ * refused `UnavailableInState` and left as it was, and a save racing a move out
+ * of the allowed states leaves exactly one winner.
+ */
+export const describeEntityRepositoryStateContract = (
+  name: string,
+  { makeRepository }: EntityRepositoryStateContractOptions,
+): void => {
+  describe(`EntityRepository state contract: ${name}`, () => {
+    const seeded = () => [
+      makeStatedWidget('s-1', 'Alpha', 'draft'),
+      makeStatedWidget('s-2', 'Beta', 'released'),
+    ];
+    const expect_ = { expect: IN_DRAFT };
+
+    const failureOf = (effect: Effect.Effect<unknown, RepositoryFailure>) =>
+      runFailure(effect) as Promise<{
+        _tag: string;
+        member?: string;
+        state?: string;
+        allowed?: readonly string[];
+      }>;
+
+    it('saves a record that holds an allowed state', async () => {
+      const repository = await makeRepository(seeded());
+
+      await run(
+        repository.save(makeStatedWidget('s-1', 'Renamed', 'draft'), expect_),
+      );
+
+      const stored = await run(repository.get<StatedWidget>('s-1'));
+      expect(stored.name).toBe('Renamed');
+    });
+
+    it('moves a record out of the allowed states in the write that checks them', async () => {
+      const repository = await makeRepository(seeded());
+
+      await run(
+        repository.save(makeStatedWidget('s-1', 'Alpha', 'released'), expect_),
+      );
+
+      const stored = await run(repository.get<StatedWidget>('s-1'));
+      expect(stored.phase).toBe('released');
+    });
+
+    it('refuses a save of a record in another state, naming both, and writes nothing', async () => {
+      const repository = await makeRepository(seeded());
+
+      const failure = await failureOf(
+        repository.save(makeStatedWidget('s-2', 'Changed', 'draft'), expect_),
+      );
+
+      expect(failure).toMatchObject({
+        _tag: 'UnavailableInState',
+        member: 'phase',
+        state: 'released',
+        allowed: ['draft'],
+      });
+      const stored = await run(repository.get<StatedWidget>('s-2'));
+      expect(stored.name).toBe('Beta');
+      expect(stored.phase).toBe('released');
+    });
+
+    it('answers NotFound to a conditioned save of a record that is not there, and creates nothing', async () => {
+      const repository = await makeRepository(seeded());
+
+      const failure = await failureOf(
+        repository.save(makeStatedWidget('s-9', 'Ghost', 'draft'), expect_),
+      );
+
+      expect(failure._tag).toBe('NotFound');
+      const page = await run(repository.load<StatedWidget>({}));
+      expect(page.total).toBe(2);
+    });
+
+    it('deletes a record that holds an allowed state', async () => {
+      const repository = await makeRepository(seeded());
+
+      await run(repository.delete<StatedWidget>('s-1', expect_));
+
+      const page = await run(repository.load<StatedWidget>({}));
+      expect(page.items.map(item => item.id)).toEqual(['s-2']);
+    });
+
+    it('refuses a delete of a record in another state and keeps it', async () => {
+      const repository = await makeRepository(seeded());
+
+      const failure = await failureOf(
+        repository.delete<StatedWidget>('s-2', expect_),
+      );
+
+      expect(failure).toMatchObject({
+        _tag: 'UnavailableInState',
+        state: 'released',
+      });
+      const page = await run(repository.load<StatedWidget>({}));
+      expect(page.total).toBe(2);
+    });
+
+    it('treats a conditioned delete of an unknown id as a no-op', async () => {
+      const repository = await makeRepository(seeded());
+
+      await run(repository.delete<StatedWidget>('s-9', expect_));
+
+      const page = await run(repository.load<StatedWidget>({}));
+      expect(page.total).toBe(2);
+    });
+
+    it('leaves exactly one winner when a release races a conditioned delete', async () => {
+      const repository = await makeRepository(seeded());
+
+      const exits: Exit.Exit<unknown, RepositoryFailure>[] = await Promise.all([
+        runExit<unknown, RepositoryFailure>(
+          repository.save(
+            makeStatedWidget('s-1', 'Alpha', 'released'),
+            expect_,
+          ),
+        ),
+        runExit<unknown, RepositoryFailure>(
+          repository.delete<StatedWidget>('s-1', expect_),
+        ),
+      ]);
+
+      expect(exits.filter(exit => Exit.isSuccess(exit))).toHaveLength(1);
+      expect(exits.filter(exit => Exit.isFailure(exit))).toHaveLength(1);
     });
   });
 };

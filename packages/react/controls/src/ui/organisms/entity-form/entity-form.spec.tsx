@@ -979,6 +979,122 @@ describe('EntityForm actions from served metadata', () => {
     expect(screen.queryByRole('button', name)).not.toBeInTheDocument();
   });
 
+  describe('a record outside the states it may be saved and deleted in', () => {
+    const revise = {
+      key: 'revise',
+      binding: 'entity' as const,
+      placement: 'determining' as const,
+      labelKey: 'entity:gadget.useCases.revise',
+      availableWhen: { member: 'tier', in: ['gold'] },
+    };
+    const metadata = {
+      actions: ['read' as const, 'write' as const, 'delete' as const],
+      useCases: [revise],
+      writableWhen: { member: 'tier', in: ['bronze'] },
+      deletableWhen: { member: 'tier', in: ['bronze'] },
+      readOnlyReasonKey: 'entity:gadget.readOnly',
+    };
+    const frozenProps = {
+      mode: 'edit' as const,
+      metadata,
+      onSubmit: vi.fn(),
+      onDelete: vi.fn(),
+      onClone: vi.fn(),
+      onUseCase: vi.fn(),
+    };
+
+    it('renders read-only with no Save or Delete, says why, and keeps its verbs and Duplicate', () => {
+      render(<Harness {...frozenProps} entity={makeGadget()} />);
+
+      expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: 'Guardar' }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: 'Eliminar' }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: 'Editar' }),
+      ).not.toBeInTheDocument();
+      expect(screen.getByTestId('entity-form-read-only')).toHaveAttribute(
+        'role',
+        'status',
+      );
+      expect(screen.getByTestId('entity-form-read-only')).toHaveTextContent(
+        'gadget.readOnly',
+      );
+      expect(
+        screen.getByRole('button', { name: 'gadget.useCases.revise' }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: 'Duplicar' }),
+      ).toBeInTheDocument();
+    });
+
+    it('stays editable in a state it may be saved in', () => {
+      const bronze = makeGadget();
+      bronze.tier = 'bronze';
+      render(<Harness {...frozenProps} entity={bronze} />);
+
+      expect(
+        screen.getByRole('button', { name: 'Guardar' }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: 'Eliminar' }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByTestId('entity-form-read-only'),
+      ).not.toBeInTheDocument();
+    });
+
+    it('hides Delete alone when only the delete states exclude the record', () => {
+      const silver = makeGadget();
+      silver.tier = 'silver';
+      render(
+        <Harness
+          {...frozenProps}
+          entity={silver}
+          metadata={{
+            ...metadata,
+            writableWhen: { member: 'tier', in: ['silver'] },
+          }}
+        />,
+      );
+
+      expect(
+        screen.getByRole('button', { name: 'Guardar' }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: 'Eliminar' }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('leaves a create editable, since a new record holds no state', () => {
+      render(<Harness {...frozenProps} />);
+
+      expect(
+        screen.getByRole('button', { name: 'Guardar' }),
+      ).toBeInTheDocument();
+    });
+
+    it('renders read-only without a reason line when none is served', () => {
+      render(
+        <Harness
+          {...frozenProps}
+          entity={makeGadget()}
+          metadata={{ ...metadata, readOnlyReasonKey: undefined }}
+        />,
+      );
+
+      expect(
+        screen.queryByRole('button', { name: 'Guardar' }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByTestId('entity-form-read-only'),
+      ).not.toBeInTheDocument();
+    });
+  });
+
   it('moves focus to the heading when the verb pressed is no longer offered', async () => {
     const promote = {
       key: 'promote',

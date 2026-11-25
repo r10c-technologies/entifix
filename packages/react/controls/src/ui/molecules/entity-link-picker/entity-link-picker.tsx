@@ -16,6 +16,8 @@ export interface EntityLinkPickerProps<TTarget extends Entity> {
   descriptor: EntityFieldDescriptor;
   source: EntityLinkSource<TTarget>;
   onSelect: (entity: TTarget) => void;
+  /** Ids already chosen: their rows say so instead of offering Select. */
+  exclude?: readonly string[];
 }
 
 /**
@@ -32,6 +34,7 @@ export function EntityLinkPicker<TTarget extends Entity>({
   descriptor,
   source,
   onSelect,
+  exclude,
 }: EntityLinkPickerProps<TTarget>) {
   const t = useT();
   const { browse } = source;
@@ -79,6 +82,13 @@ export function EntityLinkPicker<TTarget extends Entity>({
           onFilteringChange={browse.onFilteringChange}
           onSortingChange={browse.onSortingChange}
           onSelect={onSelect}
+          // A row already chosen stays in the page — hiding it would make the
+          // page count lie — and says it is chosen rather than offering Select.
+          isSelectable={
+            exclude === undefined || exclude.length === 0
+              ? undefined
+              : item => !exclude.includes(String(item.id))
+          }
           // Scoped so a picker's column personalization does not overwrite the
           // one the user set on the full listing of the same entity.
           preferencesKey={`link-picker:${descriptor.name}`}

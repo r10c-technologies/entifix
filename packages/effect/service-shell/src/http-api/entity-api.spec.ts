@@ -31,6 +31,7 @@ import {
   readWireSelection,
   StaleRevision,
   toWireSelection,
+  UnavailableInState,
   useCase,
 } from '@entifix/core';
 import {
@@ -393,6 +394,186 @@ const memos = entityApi(
   }),
 );
 
+const DRAFT_STATES = ['in-design', 'released'] as const;
+const IN_DESIGN = { member: 'status', in: ['in-design'] } as const;
+
+/**
+ * A record saved, deleted and published only in design: one declaration the
+ * form reads and the shell enforces (ADR 0029).
+ */
+@entity({
+  domain: 'catalog',
+  key: 'draft',
+  writableWhen: IN_DESIGN,
+  deletableWhen: IN_DESIGN,
+  readOnlyReasonKey: 'entity:draft.readOnly',
+})
+class Draft implements Entity {
+  #id?: EntityId;
+  #status?: string;
+  #title?: string;
+  #owner?: string;
+
+  @accessor({ type: 'id' })
+  get id(): EntityId {
+    return this.#id;
+  }
+  set id(value: EntityId) {
+    this.#id = value;
+  }
+
+  @accessor({ type: 'enum', enumValues: DRAFT_STATES })
+  get status(): string | undefined {
+    return this.#status;
+  }
+  set status(value: string | undefined) {
+    this.#status = value;
+  }
+
+  @accessor({ type: 'string' })
+  get title(): string | undefined {
+    return this.#title;
+  }
+  set title(value: string | undefined) {
+    this.#title = value;
+  }
+
+  @accessor({ type: 'string', filterable: true })
+  get owner(): string | undefined {
+    return this.#owner;
+  }
+  set owner(value: string | undefined) {
+    this.#owner = value;
+  }
+}
+
+@useCase({
+  entity: Draft,
+  key: 'publish',
+  binding: 'entity',
+  placement: 'determining',
+  labelKey: 'publish',
+  availableWhen: IN_DESIGN,
+})
+class PublishDraft {}
+
+/** A flow's step on the same states: a crossing is never pre-checked. */
+@useCase({
+  entity: Draft,
+  key: 'stamp',
+  binding: 'entity',
+  placement: 'context-independent',
+  labelKey: 'stamp',
+  availableWhen: IN_DESIGN,
+})
+class StampDraft {}
+
+const draftStore = makeInMemoryEntityRepository();
+const aDraft = (
+  id: string,
+  status: (typeof DRAFT_STATES)[number],
+  owner = 'ada',
+) => Object.assign(new Draft(), { id, status, title: id, owner });
+let handled: string[] = [];
+
+const draftVerbs = [
+  verbEndpoint(PublishDraft, {
+    handler: ({ params }) =>
+      Effect.sync(() => {
+        handled.push(`publish ${String(params?.id)}`);
+        return { published: params?.id };
+      }),
+  }),
+  verbEndpoint(StampDraft, {
+    guard: { kind: 'crossing', organization: false },
+    handler: ({ params }) =>
+      Effect.sync(() => {
+        handled.push(`stamp ${String(params?.id)}`);
+        return { stamped: params?.id };
+      }),
+  }),
+];
+
+const drafts = entityApi(
+  defineEntityApi(Draft, 'draft', {
+    verbs: ['get', 'update', 'delete'],
+    guard: { kind: 'permission' },
+    useCases: draftVerbs,
+  }),
+);
+
+/** The same entity with update and delete written by the host. */
+const keptDrafts = entityApi(
+  defineEntityApi(Draft, 'kept-draft' as 'draft', {
+    verbs: ['update', 'delete'],
+    guard: { kind: 'permission' },
+    useCases: draftVerbs,
+    override: {
+      update: {
+        handler: ({ params }) =>
+          Effect.sync(() => {
+            handled.push(`update ${String(params?.id)}`);
+            return { data: { id: params?.id } };
+          }),
+      },
+      delete: {
+        handler: ({ params }) =>
+          Effect.sync(() => {
+            handled.push(`delete ${String(params?.id)}`);
+            return { data: { id: params?.id } };
+          }),
+      },
+    },
+  }),
+);
+
+/** Each party reads, writes and deletes only its own drafts. */
+const myDrafts = entityApi(
+  defineEntityApi(Draft, 'my-draft' as 'draft', {
+    verbs: ['get', 'update', 'delete'],
+    guard: { kind: 'organization' },
+    useCases: draftVerbs,
+    narrowing: [
+      When(context => context.partyId === 'nobody').use({
+        name: 'nothing',
+        impl: () => 'nothing' as const,
+      }),
+      Otherwise.use({
+        name: 'owner',
+        impl: context => ({
+          operator: 'and' as const,
+          values: [
+            {
+              property: 'owner' as const,
+              operator: 'eq' as const,
+              value: context.partyId ?? '',
+            },
+          ],
+        }),
+      }),
+    ],
+  }),
+);
+
+/** A flow's compensation over the same entity: a crossing answers itself. */
+const flowDrafts = entityApi(
+  defineEntityApi(Draft, 'flow-draft' as 'draft', {
+    verbs: ['delete'],
+    guard: { kind: 'permission' },
+    useCases: draftVerbs,
+    override: {
+      delete: {
+        guard: { kind: 'crossing', organization: false },
+        handler: ({ params }) =>
+          Effect.sync(() => {
+            handled.push(`compensate ${String(params?.id)}`);
+            return { data: { id: params?.id } };
+          }),
+      },
+    },
+  }),
+);
+
 const fakeTokens = TokenServiceTag.of({
   sign: claims => Effect.succeed(JSON.stringify(claims)),
   verify: token =>
@@ -414,6 +595,10 @@ const GRANTS = {
     'catalog:order:archive',
     'catalog:memo:read',
     'catalog:memo:write',
+    'catalog:draft:read',
+    'catalog:draft:write',
+    'catalog:draft:delete',
+    'catalog:draft:publish',
   ],
   reader: ['catalog:gadget:read'],
   user: [],
@@ -444,11 +629,25 @@ beforeAll(async () => {
     name: 'spec-entity-api',
     port: 0,
     slices: ['test'],
-    endpoints: [gadgets, owned, orders, notes, memos],
+    endpoints: [
+      gadgets,
+      owned,
+      orders,
+      notes,
+      memos,
+      drafts,
+      keptDrafts,
+      myDrafts,
+      flowDrafts,
+    ],
     appLayer: Layer.mergeAll(
       Layer.succeed(EntityRepositoryFactoryTag, {
-        for: (_entity, scope) =>
-          Effect.succeed(storeFor(scope.organizationId) as EntityRepository),
+        for: (entityConstructor, scope) =>
+          Effect.succeed(
+            ((entityConstructor as unknown) === Draft
+              ? draftStore
+              : storeFor(scope.organizationId)) as EntityRepository,
+          ),
       }),
       Layer.succeed(EntityFacetCounterFactoryTag, {
         for: () =>
@@ -466,6 +665,8 @@ beforeAll(async () => {
         makeStaticServiceCrossingPolicy([
           'catalog:order:write',
           'catalog:gadget:inspect',
+          'catalog:draft:stamp',
+          'catalog:draft:delete',
         ]),
       ),
     ),
@@ -1162,5 +1363,262 @@ describe('an entity that declares a revision', () => {
     const answer = await write('POST', '/api/memo', { text: 'rewrite' });
 
     expect(answer.status).toBe(500);
+  });
+});
+
+describe('an entity that declares the states it is saved and deleted in', () => {
+  const admin = bearer(['admin']);
+  const envelope = (data: Record<string, unknown>) => ({
+    meta: { type: 'entity', entity: 'draft' },
+    data,
+  });
+  const reset = async () => {
+    handled = [];
+    draftStore.seed([
+      aDraft('d-design', 'in-design'),
+      aDraft('d-released', 'released'),
+    ]);
+  };
+
+  it('serves its rules on $metadata beside the actions', async () => {
+    const answer = await call('/api/draft/$metadata', { headers: admin });
+
+    expect(answer.body?.data).toMatchObject({
+      actions: ['read', 'write', 'delete'],
+      writableWhen: IN_DESIGN,
+      deletableWhen: IN_DESIGN,
+      readOnlyReasonKey: 'entity:draft.readOnly',
+    });
+  });
+
+  it('declares the 409 on update, delete and a person’s verb — not on a crossing', () => {
+    const errorsOf = (name: string) =>
+      drafts.endpoints.find(({ descriptor }) => descriptor.name === name)
+        ?.descriptor.errors ?? [];
+
+    expect(errorsOf('update')).toContain(UnavailableInState);
+    expect(errorsOf('delete')).toContain(UnavailableInState);
+    expect(errorsOf('publish')).toContain(UnavailableInState);
+    expect(errorsOf('stamp')).not.toContain(UnavailableInState);
+    expect(errorsOf('get')).not.toContain(UnavailableInState);
+  });
+
+  it('saves a record in design', async () => {
+    await reset();
+
+    const answer = await call(
+      '/api/draft/d-design',
+      json('PUT', envelope({ status: 'released', title: 'done' }), admin),
+    );
+
+    expect(answer.status).toBe(200);
+    expect(answer.body?.data).toMatchObject({ status: 'released' });
+  });
+
+  it('refuses a save of a released record 409, naming its state, and keeps it', async () => {
+    await reset();
+
+    const answer = await call(
+      '/api/draft/d-released',
+      json('PUT', envelope({ status: 'in-design', title: 'sneak' }), admin),
+    );
+
+    expect(answer.status).toBe(409);
+    expect(answer.body).toMatchObject({
+      code: 'unavailableInState',
+      entity: 'draft',
+      member: 'status',
+      state: 'released',
+      allowed: ['in-design'],
+    });
+    const stored = await call('/api/draft/d-released', { headers: admin });
+    expect(stored.body?.data).toMatchObject({ title: 'd-released' });
+  });
+
+  it('answers 404 to a save of a record that is not there, and creates nothing', async () => {
+    await reset();
+
+    const answer = await call(
+      '/api/draft/d-ghost',
+      json('PUT', envelope({ status: 'in-design' }), admin),
+    );
+
+    expect(answer.status).toBe(404);
+    expect(draftStore.items).toHaveLength(2);
+  });
+
+  it('deletes in design and refuses a released record', async () => {
+    await reset();
+
+    const deleted = await call('/api/draft/d-design', {
+      method: 'DELETE',
+      headers: admin,
+    });
+    const refused = await call('/api/draft/d-released', {
+      method: 'DELETE',
+      headers: admin,
+    });
+
+    expect(deleted.status).toBe(200);
+    expect(refused.status).toBe(409);
+    expect(refused.body).toMatchObject({ code: 'unavailableInState' });
+    expect(draftStore.items.map(item => item.id)).toEqual(['d-released']);
+  });
+
+  it('checks a state before an overridden update or delete, and lets the override answer a missing record', async () => {
+    await reset();
+
+    const refusedUpdate = await call(
+      '/api/kept-draft/d-released',
+      json('PUT', envelope({ title: 'x' }), admin),
+    );
+    const refusedDelete = await call('/api/kept-draft/d-released', {
+      method: 'DELETE',
+      headers: admin,
+    });
+    const allowed = await call(
+      '/api/kept-draft/d-design',
+      json('PUT', envelope({ title: 'x' }), admin),
+    );
+    const missing = await call('/api/kept-draft/d-ghost', {
+      method: 'DELETE',
+      headers: admin,
+    });
+
+    expect(refusedUpdate.status).toBe(409);
+    expect(refusedDelete.status).toBe(409);
+    expect(allowed.status).toBe(200);
+    expect(missing.status).toBe(200);
+    expect(handled).toEqual(['update d-design', 'delete d-ghost']);
+  });
+
+  it('refuses a person’s verb outside its states before its handler runs', async () => {
+    await reset();
+
+    const refused = await call('/api/draft/d-released/publish', {
+      method: 'POST',
+      headers: admin,
+    });
+    const run = await call('/api/draft/d-design/publish', {
+      method: 'POST',
+      headers: admin,
+    });
+
+    expect(refused.status).toBe(409);
+    expect(refused.body).toMatchObject({
+      code: 'unavailableInState',
+      state: 'released',
+    });
+    expect(run.status).toBe(200);
+    expect(handled).toEqual(['publish d-design']);
+  });
+
+  it('refuses a record that holds no state at all, naming none', async () => {
+    await reset();
+    draftStore.seed([Object.assign(new Draft(), { id: 'd-blank' })]);
+
+    const refused = await call('/api/draft/d-blank/publish', {
+      method: 'POST',
+      headers: admin,
+    });
+
+    expect(refused.status).toBe(409);
+    expect(refused.body).not.toHaveProperty('state');
+  });
+
+  it('leaves a crossing verb to its own handler, whatever the state', async () => {
+    await reset();
+
+    const answer = await call('/api/draft/d-released/stamp', {
+      method: 'POST',
+      headers: { [CROSSING_TOKEN_HEADER]: CROSSING },
+    });
+
+    expect(answer.status).toBe(200);
+    expect(handled).toEqual(['stamp d-released']);
+  });
+});
+
+describe('a narrowed entity that declares its write states', () => {
+  const as = (partyId: string) =>
+    bearer(['admin'], { activeOrganizationId: 'org-1', partyId });
+  const envelope = (data: Record<string, unknown>) => ({
+    meta: { type: 'entity', entity: 'draft' },
+    data,
+  });
+  const reset = () => {
+    handled = [];
+    draftStore.seed([
+      aDraft('d-mine', 'released', 'ada'),
+      aDraft('d-open', 'in-design', 'ada'),
+      aDraft('d-theirs', 'released', 'bob'),
+    ]);
+  };
+
+  it('refuses a caller’s own record for its state, and saves one in design', async () => {
+    reset();
+
+    const refused = await call(
+      '/api/my-draft/d-mine',
+      json('PUT', envelope({ title: 'x' }), as('ada')),
+    );
+    const saved = await call(
+      '/api/my-draft/d-open',
+      json('PUT', envelope({ title: 'x', status: 'in-design' }), as('ada')),
+    );
+
+    expect(refused.status).toBe(409);
+    expect(saved.status).toBe(200);
+  });
+
+  it('answers another party’s record 404 on update and delete — never 409, never written', async () => {
+    reset();
+
+    const update = await call(
+      '/api/my-draft/d-theirs',
+      json('PUT', envelope({ title: 'x', status: 'in-design' }), as('ada')),
+    );
+    const removed = await call('/api/my-draft/d-theirs', {
+      method: 'DELETE',
+      headers: as('ada'),
+    });
+    const nobody = await call('/api/my-draft/d-mine', {
+      method: 'DELETE',
+      headers: as('nobody'),
+    });
+
+    expect([update.status, removed.status, nobody.status]).toEqual([
+      404, 404, 404,
+    ]);
+    expect(draftStore.items).toHaveLength(3);
+  });
+
+  it('leaves a verb on a record the caller cannot see to its handler', async () => {
+    reset();
+
+    const answer = await call('/api/my-draft/d-theirs/publish', {
+      method: 'POST',
+      headers: as('ada'),
+    });
+
+    expect(answer.status).not.toBe(409);
+    expect(handled).toEqual(['publish d-theirs']);
+  });
+
+  it('leaves a crossing compensation to its own handler, whatever the state', async () => {
+    reset();
+
+    const answer = await call('/api/flow-draft/d-mine', {
+      method: 'DELETE',
+      headers: { [CROSSING_TOKEN_HEADER]: CROSSING },
+    });
+
+    expect(answer.status).toBe(200);
+    expect(handled).toEqual(['compensate d-mine']);
+    expect(
+      flowDrafts.endpoints.find(
+        ({ descriptor }) => descriptor.name === 'delete',
+      )?.descriptor.errors,
+    ).not.toContain(UnavailableInState);
   });
 });

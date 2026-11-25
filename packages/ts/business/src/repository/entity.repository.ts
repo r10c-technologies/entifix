@@ -4,6 +4,7 @@ import type {
   EntityId,
   EntityLoadRequest,
   EntityPage,
+  UseCaseAvailability,
 } from '@entifix/core';
 import { Context } from 'effect';
 import { Effect } from 'effect/Effect';
@@ -26,6 +27,23 @@ export type RepositoryFailure = EntifixFailure;
  * every use case, and every caller of a static or in-memory adapter would have
  * to provide a value it never reads.
  */
+/**
+ * How a write is conditioned beyond its revision.
+ *
+ * `expect` names the states the stored record must hold for the write to
+ * happen — an entity's `writableWhen` on an update, its `deletableWhen` on a
+ * delete ([ADR 0029](../../../../../docs/adr/0029-a-verb-declares-the-states-it-is-legal-from.md)).
+ * An adapter conjoins it onto the write itself, never a read followed by a
+ * write, and answers `UnavailableInState` when the record is in another one.
+ *
+ * ⚠️ A save with `expect` is an **update**: it never creates. A record that is
+ * not there answers `NotFound`; a delete of one that is not there still
+ * succeeds, as an unconditioned delete does.
+ */
+export interface EntityWriteOptions {
+  readonly expect?: UseCaseAvailability;
+}
+
 export interface EntityRepository {
   get<TEntity extends Entity>(id: EntityId): Effect<TEntity, RepositoryFailure>;
   load<TEntity extends Entity>(
@@ -33,9 +51,11 @@ export interface EntityRepository {
   ): Effect<EntityPage<TEntity>, RepositoryFailure>;
   save<TEntity extends Entity>(
     entity: TEntity,
+    options?: EntityWriteOptions,
   ): Effect<TEntity, RepositoryFailure>;
   delete<TEntity extends Entity>(
     entityOrId: EntityId | TEntity,
+    options?: EntityWriteOptions,
   ): Effect<void, RepositoryFailure>;
 }
 

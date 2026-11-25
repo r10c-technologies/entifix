@@ -1,7 +1,10 @@
 import { Entity } from '@entifix/core';
 import { Effect } from 'effect';
 
-import { EntityRepositoryTag } from '../../repository/entity.repository.js';
+import {
+  EntityRepositoryTag,
+  type EntityWriteOptions,
+} from '../../repository/entity.repository.js';
 import { EntityTag } from '../../repository/entity-mixins.repository.js';
 
 /**
@@ -14,14 +17,19 @@ import { EntityTag } from '../../repository/entity-mixins.repository.js';
  * taking them as arguments, so the same use-case saves over REST on the web and
  * over Mongo on a backend.
  */
-export function saveUCFactory<TEntity extends Entity>() {
+export function saveUCFactory<TEntity extends Entity>(
+  options?: EntityWriteOptions,
+) {
   return Effect.gen(function* () {
     const entityRepository = yield* EntityRepositoryTag;
     const entity = yield* EntityTag;
 
     // EntityTag is not generic, so it carries the base `Entity`; the caller
     // states the concrete type through the factory's parameter.
-    const result = yield* entityRepository.save<TEntity>(entity as TEntity);
+    const result = yield* entityRepository.save<TEntity>(
+      entity as TEntity,
+      options,
+    );
 
     return result;
   });
