@@ -1,3 +1,13 @@
+## 0.23.12 (2026-11-25)
+
+### 🚀 Features
+
+- a record's state decides what may be written, and the picker offers what is left (#327 #326) ([#328](https://github.com/r10c-technologies/entifix/pull/328), [#327](https://github.com/r10c-technologies/entifix/issues/327), [#326](https://github.com/r10c-technologies/entifix/issues/326))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.23.11 (2026-11-24)
 
 ### 🚀 Features
