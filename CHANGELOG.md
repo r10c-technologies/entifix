@@ -1,3 +1,13 @@
+## 0.23.13 (2026-11-25)
+
+### 🩹 Fixes
+
+- a broker outage no longer quarantines publishable outbox entries ([#330](https://github.com/r10c-technologies/entifix/pull/330), [#331](https://github.com/r10c-technologies/entifix/pull/331))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.23.12 (2026-11-25)
 
 ### 🚀 Features
