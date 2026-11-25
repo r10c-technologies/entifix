@@ -61,6 +61,11 @@ export const makeInMemoryOutbox = (): InMemoryOutbox => {
         stored.lastError = error;
         stored.quarantined = quarantine;
       }),
+    hold: (entry, reason) =>
+      Effect.sync(() => {
+        const stored = find(entry.eventId);
+        if (stored !== undefined) stored.lastError = reason;
+      }),
     stats: () =>
       Effect.sync(() => {
         const pending = pendingOnes();

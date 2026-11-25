@@ -140,6 +140,7 @@ export const drainOutbox = (
 
       if (Result.isFailure(outcome)) {
         if (isTransientPublishFailure(outcome.failure)) {
+          yield* outbox.hold(entry, failureText(outcome.failure));
           held.add(key);
           waiting = {
             count: (waiting?.count ?? 0) + 1,

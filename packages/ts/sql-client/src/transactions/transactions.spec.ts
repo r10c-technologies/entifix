@@ -136,6 +136,20 @@ describe('makeSqlOutbox', () => {
     expect(fake.executions[1]?.params).toEqual(['down', true, 'e-1']);
   });
 
+  it('holds an entry without spending an attempt, and gives its aggregate back', async () => {
+    const { fake, sql } = fresh();
+    const outbox = makeSqlOutbox(sql);
+
+    await run(outbox.hold(entryOf(aRow('e-1')), 'unavailable'));
+
+    expect(statements(fake)).toEqual([
+      expect.stringContaining('SET last_error ='),
+      expect.stringContaining('SET lease_until = NULL WHERE aggregate_type'),
+    ]);
+    expect(statements(fake)[0]).not.toContain('attempts');
+    expect(fake.executions[0]?.params).toEqual(['unavailable', 'e-1']);
+  });
+
   it('counts what is waiting and how old the oldest is', async () => {
     const { fake, sql } = fresh();
     const outbox = makeSqlOutbox(sql);
@@ -165,6 +179,7 @@ describe('makeSqlOutbox', () => {
       outbox.pending(1),
       outbox.markSent(entry),
       outbox.recordFailure(entry, 'x', false),
+      outbox.hold(entry, 'x'),
       outbox.stats(),
     ] as Effect.Effect<unknown, unknown>[])
       expect(await run(Effect.flip(operation))).toBeInstanceOf(Unavailable);

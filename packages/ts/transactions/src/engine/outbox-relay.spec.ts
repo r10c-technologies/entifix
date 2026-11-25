@@ -55,6 +55,8 @@ const recordingOutbox = (entries: readonly OutboxEntry[]) => {
     quarantine: boolean;
   }> = [];
 
+  const holds: Array<{ eventId: string; reason: string }> = [];
+
   const outbox: Outbox = {
     enqueue: () => Effect.succeed('enqueued' as const),
     pending: () => Effect.succeed(entries),
@@ -66,6 +68,10 @@ const recordingOutbox = (entries: readonly OutboxEntry[]) => {
       Effect.sync(() => {
         failures.push({ eventId: entry.eventId, error, quarantine });
       }),
+    hold: (entry, reason) =>
+      Effect.sync(() => {
+        holds.push({ eventId: entry.eventId, reason });
+      }),
     stats: () =>
       Effect.succeed({
         pending: entries.filter(entry => !entry.quarantined).length,
@@ -74,7 +80,7 @@ const recordingOutbox = (entries: readonly OutboxEntry[]) => {
       }),
   };
 
-  return { outbox, sent, failures };
+  return { outbox, sent, failures, holds };
 };
 
 /** A bus that refuses the named events and accepts everything else. */
@@ -177,7 +183,7 @@ describe('drainOutbox', () => {
   ])(
     'holds an entry while the bus is %s, and spends no attempt on it',
     async (_, failure) => {
-      const { outbox, sent, failures } = recordingOutbox([
+      const { outbox, sent, failures, holds } = recordingOutbox([
         // One attempt short of the ceiling: a counted failure would quarantine.
         anEntry('tx-1:accepted', 2),
         anEntry('tx-1:completed'),
@@ -191,6 +197,12 @@ describe('drainOutbox', () => {
       const { outcomes } = await runDrain(outbox, bus);
 
       expect(failures).toEqual([]);
+      // Each held head is given back with why — never counted.
+      const reason = failure.message === '' ? failure.code : failure.message;
+      expect(holds).toEqual([
+        { eventId: 'tx-1:accepted', reason },
+        { eventId: 'tx-2:accepted', reason },
+      ]);
       expect(published).toEqual([]);
       expect(sent).toEqual([]);
       // One line per pass for the whole outage, not one per entry.
@@ -318,6 +330,7 @@ describe('sweepOutbox', () => {
       pending: () => Effect.fail(new Unavailable({})),
       markSent: () => Effect.void,
       recordFailure: () => Effect.void,
+      hold: () => Effect.void,
       stats: () => Effect.succeed({ pending: 0, quarantined: 0 }),
     };
     const { bus } = busRefusing([]);

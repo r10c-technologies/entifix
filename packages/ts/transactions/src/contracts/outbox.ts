@@ -151,6 +151,15 @@ export interface Outbox {
     quarantine: boolean,
   ): Effect.Effect<void, StoreFailure>;
   /**
+   * Record why a publish did not go **without spending an attempt**, and give
+   * the entry's aggregate back so the next pass tries it again — the relay's
+   * answer to a bus that is down rather than an entry that is wrong
+   * (entifix #330). An adapter that leases what {@link pending} returns
+   * releases the lease here, or the next pass would see nothing until it ran
+   * out.
+   */
+  hold(entry: OutboxEntry, reason: string): Effect.Effect<void, StoreFailure>;
+  /**
    * Depth and age, for the relay to sample once per sweep.
    *
    * An aggregate rather than a read, deliberately: `pending(limit)` truncates at
