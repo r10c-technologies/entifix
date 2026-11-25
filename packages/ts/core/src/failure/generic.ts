@@ -240,7 +240,6 @@ export class IdempotencyKeyInFlight extends defineFailure(
 export type StoreFailure =
   | DuplicateKey
   | StaleRevision
-  | UnavailableInState
   | Contention
   | Unavailable
   | Timeout
@@ -251,10 +250,7 @@ export type StoreFailure =
  * opposed to answering no. A unit of work rolls back and surfaces these; a
  * business failure — a `DuplicateKey` included — is its abort.
  */
-export type StoreFault = Exclude<
-  StoreFailure,
-  DuplicateKey | StaleRevision | UnavailableInState
->;
+export type StoreFault = Exclude<StoreFailure, DuplicateKey | StaleRevision>;
 
 const STORE_FAULT_TAGS: ReadonlySet<string> = new Set([
   'Contention',
