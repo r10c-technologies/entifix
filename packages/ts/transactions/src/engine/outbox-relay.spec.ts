@@ -1,5 +1,11 @@
 import { makeShutdownRegistry, ShutdownRegistryTag } from '@entifix/business';
-import { ProtocolFailure, type StoreFailure, Unavailable } from '@entifix/core';
+import {
+  Contention,
+  ProtocolFailure,
+  type StoreFailure,
+  Timeout,
+  Unavailable,
+} from '@entifix/core';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 
@@ -149,12 +155,57 @@ describe('drainOutbox', () => {
 
   it('records the code when the failure carries no message', async () => {
     const { outbox, failures } = recordingOutbox([anEntry('tx-1:accepted')]);
-    const { bus } = busRefusing(['tx-1:accepted'], new Unavailable({}));
+    const { bus } = busRefusing(
+      ['tx-1:accepted'],
+      new ProtocolFailure({ reason: '' }),
+    );
 
     await runDrain(outbox, bus);
 
-    expect(failures[0]?.error).toBe('unavailable');
+    expect(failures[0]?.error).toBe('protocol');
   });
+
+  /**
+   * The outage the ceiling must not count (measured on a cluster: a broker
+   * down 75 seconds quarantined every event committed meanwhile). The entry
+   * is as publishable as it was; only the broker is not.
+   */
+  it.each([
+    ['unreachable', new Unavailable({ dependency: 'amqp' })],
+    ['slow', new Timeout({ dependency: 'amqp' })],
+    ['pushing back', new Contention({})],
+  ])(
+    'holds an entry while the bus is %s, and spends no attempt on it',
+    async (_, failure) => {
+      const { outbox, sent, failures } = recordingOutbox([
+        // One attempt short of the ceiling: a counted failure would quarantine.
+        anEntry('tx-1:accepted', 2),
+        anEntry('tx-1:completed'),
+        anEntry('tx-2:accepted', 2),
+      ]);
+      const { bus, published } = busRefusing(
+        ['tx-1:accepted', 'tx-2:accepted'],
+        failure,
+      );
+
+      const { outcomes } = await runDrain(outbox, bus);
+
+      expect(failures).toEqual([]);
+      expect(published).toEqual([]);
+      expect(sent).toEqual([]);
+      // One line per pass for the whole outage, not one per entry.
+      expect(outcomes).toEqual([
+        {
+          _tag: 'held',
+          database: 'tenant_acme',
+          held: 2,
+          code: failure.code,
+          reason: failure.message === '' ? failure.code : failure.message,
+        },
+        { _tag: 'drained', database: 'tenant_acme', sent: 0 },
+      ]);
+    },
+  );
 
   /**
    * The defect quarantine exists for: before it, an entry that could never publish
