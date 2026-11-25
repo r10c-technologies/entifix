@@ -108,6 +108,25 @@ export class StaleRevision extends defineFailure('conflict')<StaleRevision>()(
   },
 ) {}
 
+/**
+ * A write or a verb the record's state does not allow: the record holds a
+ * state outside the ones its declaration names — `writableWhen`,
+ * `deletableWhen` or a verb's `availableWhen` (ADR 0029). A `conflict`, not an
+ * `invalid`: the same request succeeds on a record in another state, and a
+ * retry against this one loses again.
+ *
+ * `state` is what the record holds now and `allowed` what it would have to
+ * hold, so a client can say why without a second request.
+ */
+export class UnavailableInState extends defineFailure(
+  'conflict',
+)<UnavailableInState>()('UnavailableInState', 'unavailableInState', {
+  entity: Schema.optionalKey(Schema.String),
+  member: Schema.optionalKey(Schema.String),
+  state: Schema.optionalKey(Schema.String),
+  allowed: Schema.optionalKey(Schema.Array(Schema.String)),
+}) {}
+
 /** A third party, or a rule over other records, said no. */
 export class Declined extends defineFailure('declined')<Declined>()(
   'Declined',

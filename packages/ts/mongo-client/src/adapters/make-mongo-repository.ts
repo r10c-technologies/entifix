@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import type { EntityRepository } from '@entifix/business';
+import type { EntityRepository, EntityWriteOptions } from '@entifix/business';
 import {
   declaresRevision,
   deserializeEntityCollection,
@@ -11,10 +11,14 @@ import {
   EntityLoadRequest,
   EntityPage,
   extractMetaEntity,
+  holdsStoredState,
   NotFound,
   readRevision,
   serializeEntity,
   StaleRevision,
+  type StoredStateCondition,
+  storedStateCondition,
+  unavailableInState,
 } from '@entifix/core';
 import { Effect } from 'effect';
 import type { ClientSession, Db } from 'mongodb';
@@ -137,12 +141,47 @@ export function makeMongoRepository<TEntity extends Entity>(
 
   const revised = declaresRevision(entityConstructor);
 
+  /** The `expect` of a write, resolved to the field the store holds it under. */
+  const conditionOf = (
+    options: EntityWriteOptions | undefined,
+  ): StoredStateCondition | undefined =>
+    options?.expect === undefined
+      ? undefined
+      : storedStateCondition(entityConstructor, options.expect);
+
+  /** The filter clause a condition adds to a write. */
+  const stateFilter = (condition: StoredStateCondition | undefined) =>
+    condition === undefined
+      ? {}
+      : { [condition.key]: { $in: [...condition.in] } };
+
+  /** What a write that matched nothing reads back, only to name the refusal. */
+  const readBack = (id: EntityId, condition?: StoredStateCondition) =>
+    Effect.tryPromise({
+      try: () =>
+        collection.findOne(
+          { id },
+          {
+            projection: {
+              _id: 0,
+              revision: 1,
+              ...(condition === undefined ? {} : { [condition.key]: 1 }),
+            },
+            ...inSession,
+          },
+        ),
+      catch: error => translateMongoError(error),
+    });
+
   /**
    * A save of an entity that declares a revision (ADR 0032): a create that
    * never overwrites, or one conditional write on the revision the caller read.
    * Never a read followed by a write — two saves would both read `n`.
    */
-  const saveRevised = <T extends Entity>(entity: T) =>
+  const saveRevised = <T extends Entity>(
+    entity: T,
+    condition: StoredStateCondition | undefined,
+  ) =>
     Effect.gen(function* () {
       const key = extractMetaEntity(entityConstructor).key;
       const doc = serializeEntity(
@@ -171,38 +210,81 @@ export function makeMongoRepository<TEntity extends Entity>(
       const result = yield* Effect.tryPromise({
         try: () =>
           collection.replaceOne(
-            { id, revision: read },
+            { id, revision: read, ...stateFilter(condition) },
             { ...doc, id, revision: read + 1 },
             inSession,
           ),
         catch: error => translateMongoError(error),
       });
       if (result.matchedCount === 0) {
-        // The write already decided; this read only names the refusal.
-        const stored = yield* Effect.tryPromise({
-          try: () =>
-            collection.findOne(
-              { id },
-              { projection: { _id: 0, revision: 1 }, ...inSession },
-            ),
-          catch: error => translateMongoError(error),
-        });
-        return yield* stored === null
-          ? Effect.fail(new NotFound({ entity: key }))
-          : Effect.fail(
-              new StaleRevision({
-                entity: key,
-                current: readRevision(stored),
-              }),
-            );
+        // The write already decided; this read only names the refusal. A
+        // record in another state is refused for its state before its
+        // revision: a fresher read would not make the save legal.
+        const stored = yield* readBack(id, condition);
+        if (stored === null) return yield* new NotFound({ entity: key });
+        if (condition !== undefined && !holdsStoredState(condition, stored)) {
+          return yield* unavailableInState(
+            entityConstructor,
+            condition,
+            stored,
+          );
+        }
+        return yield* Effect.fail(
+          new StaleRevision({
+            entity: key,
+            current: readRevision(stored),
+          }),
+        );
       }
       entity.id = id;
       (entity as { revision?: number }).revision = read + 1;
       return entity;
     });
 
-  const save = <T extends Entity>(entity: T) =>
-    revised ? saveRevised(entity) : saveUnchecked(entity);
+  const save = <T extends Entity>(entity: T, options?: EntityWriteOptions) => {
+    const condition = conditionOf(options);
+    if (revised) return saveRevised(entity, condition);
+    return condition === undefined
+      ? saveUnchecked(entity)
+      : saveConditioned(entity, condition);
+  };
+
+  /**
+   * An update of a record that declares no revision, on the states it must
+   * hold: one `replaceOne` on the id and the state, never an upsert — a save
+   * with `expect` is an update of a stored record.
+   */
+  const saveConditioned = <T extends Entity>(
+    entity: T,
+    condition: StoredStateCondition,
+  ) =>
+    Effect.gen(function* () {
+      const key = extractMetaEntity(entityConstructor).key;
+      const doc = serializeEntity(
+        entityConstructor,
+        entity as unknown as TEntity,
+      );
+      const id = entity.id;
+      if (id === undefined) return yield* new NotFound({ entity: key });
+      const result = yield* Effect.tryPromise({
+        try: () =>
+          collection.replaceOne(
+            { id, ...stateFilter(condition) },
+            { ...doc, id },
+            inSession,
+          ),
+        catch: error => translateMongoError(error),
+      });
+      if (result.matchedCount === 0) {
+        const stored = yield* readBack(id, condition);
+        return yield* stored === null
+          ? Effect.fail(new NotFound({ entity: key }))
+          : Effect.fail(
+              unavailableInState(entityConstructor, condition, stored),
+            );
+      }
+      return entity;
+    });
 
   const saveUnchecked = <T extends Entity>(entity: T) =>
     Effect.gen(function* () {
@@ -230,13 +312,25 @@ export function makeMongoRepository<TEntity extends Entity>(
       return entity;
     });
 
-  const del = <T extends Entity>(entityOrId: EntityId | T) =>
+  const del = <T extends Entity>(
+    entityOrId: EntityId | T,
+    options?: EntityWriteOptions,
+  ) =>
     Effect.gen(function* () {
       const id = toEntityId(entityOrId);
-      yield* Effect.tryPromise({
-        try: () => collection.deleteOne({ id }, inSession),
+      const condition = conditionOf(options);
+      const result = yield* Effect.tryPromise({
+        try: () =>
+          collection.deleteOne({ id, ...stateFilter(condition) }, inSession),
         catch: error => translateMongoError(error),
       });
+      if (condition === undefined || result.deletedCount > 0) return;
+      // Nothing deleted: either nothing was there, which a delete accepts,
+      // or the record is in a state it may not be deleted from.
+      const stored = yield* readBack(id, condition);
+      if (stored !== null) {
+        return yield* unavailableInState(entityConstructor, condition, stored);
+      }
     });
 
   // Cast through the interface to keep its generic signatures: each method here

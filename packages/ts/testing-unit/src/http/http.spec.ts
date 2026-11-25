@@ -7,7 +7,9 @@ import { describe, expect, it } from 'vitest';
 
 import {
   makeRevisedWidget,
+  makeStatedWidget,
   RevisedWidget,
+  StatedWidget,
 } from '../contracts/entity-repository.contract.js';
 import {
   entityRestHandlers,
@@ -399,5 +401,91 @@ describe('entityRestHandlers for an entity that declares a revision', () => {
 
     expect(status).toBe(400);
     expect((body as { code: string }).code).toBe('invalid');
+  });
+});
+
+describe('entityRestHandlers for an entity that declares its write states', () => {
+  const STATED_URL = 'http://service/api/stated-widget';
+  const put = (id: string, data: Record<string, unknown>) =>
+    getJson(`${STATED_URL}/${id}`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ meta: { type: 'entity' }, data }),
+    });
+  const useStated = () => {
+    const blank = new StatedWidget();
+    blank.id = 's-0';
+    server.use(
+      ...entityRestHandlers(StatedWidget, {
+        baseUrl: STATED_URL,
+        data: [
+          blank,
+          makeStatedWidget('s-1', 'Alpha', 'draft'),
+          makeStatedWidget('s-2', 'Beta', 'released'),
+        ],
+      }),
+    );
+  };
+
+  it('saves a record in an allowed state, reading the wire key of an aliased member', async () => {
+    useStated();
+    const { status, body } = await put('s-1', {
+      id: 's-1',
+      name: 'Renamed',
+      stage: 'released',
+    });
+    expect(status).toBe(200);
+    expect(body.data).toMatchObject({ name: 'Renamed', stage: 'released' });
+  });
+
+  it('refuses a record in another state, naming it', async () => {
+    useStated();
+    const { status, body } = await put('s-2', { id: 's-2', stage: 'draft' });
+    expect(status).toBe(409);
+    expect(body).toMatchObject({
+      code: 'unavailableInState',
+      member: 'phase',
+      state: 'released',
+      allowed: ['draft'],
+    });
+  });
+
+  it('refuses a record holding no state without naming one, and a missing one 404', async () => {
+    useStated();
+    const blank = await put('s-0', { id: 's-0' });
+    const missing = await put('s-9', { id: 's-9' });
+    expect(blank.status).toBe(409);
+    expect(blank.body).not.toHaveProperty('state');
+    expect(missing.status).toBe(404);
+  });
+
+  it('refuses a delete of a record in another state', async () => {
+    useStated();
+    const { status } = await getJson(`${STATED_URL}/s-2`, {
+      method: 'DELETE',
+    });
+    expect(status).toBe(409);
+  });
+});
+
+describe('entityRestHandlers for a class that declares no members', () => {
+  /** A bare fixture: copied member by member, as the in-memory double does. */
+  @entity({ key: 'bare' })
+  class Bare implements Entity {
+    id: EntityId = undefined;
+    note?: string;
+  }
+
+  it('creates from the body as it came', async () => {
+    const url = 'http://service/api/bare';
+    server.use(...entityRestHandlers(Bare, { baseUrl: url, data: [] }));
+
+    const { status } = await getJson(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ meta: { type: 'entity' }, data: { note: 'x' } }),
+    });
+
+    expect(status).toBe(201);
   });
 });

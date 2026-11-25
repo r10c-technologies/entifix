@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import type { EntityRepository } from '@entifix/business';
+import type { EntityRepository, EntityWriteOptions } from '@entifix/business';
 import {
   declaresRevision,
   describeEntityColumns,
@@ -12,11 +12,15 @@ import {
   type EntityLoadRequest,
   type EntityPage,
   extractMetaEntity,
+  holdsStoredState,
   InvalidQuery,
   NotFound,
   readRevision,
   serializeEntity,
   StaleRevision,
+  type StoredStateCondition,
+  storedStateCondition,
+  unavailableInState,
 } from '@entifix/core';
 import { Effect } from 'effect';
 import type { SqlClient } from 'effect/sql';
@@ -194,13 +198,36 @@ export function makeSqlRepository<TEntity extends Entity>(
 
   const revised = declaresRevision(entityConstructor);
 
+  /** The `expect` of a write, resolved to the column the store holds it in. */
+  const conditionOf = (
+    options: EntityWriteOptions | undefined,
+  ): StoredStateCondition | undefined =>
+    options?.expect === undefined
+      ? undefined
+      : storedStateCondition(entityConstructor, options.expect);
+
+  /** The `AND state IN (…)` a condition adds to a write's `WHERE`. */
+  const stateClause = (condition: StoredStateCondition | undefined) =>
+    condition === undefined
+      ? sql``
+      : sql`AND ${sql(condition.key)} IN ${sql.in([...condition.in])}`;
+
+  /** What a write that matched nothing reads back, only to name the refusal. */
+  const readBack = (id: EntityId) =>
+    sql<SqlRow>`
+      SELECT * FROM ${table} WHERE ${sql('id')} = ${id} LIMIT 1
+    `.pipe(Effect.mapError(error => translateSqlError(error)));
+
   /**
    * A save of an entity that declares a revision (ADR 0032): an insert that
    * never overwrites, or one `UPDATE … WHERE id = $1 AND revision = $2`. The
    * table needs a `revision integer NOT NULL` column — the host's migration,
    * since the adapter owns no DDL.
    */
-  const saveRevised = <T extends Entity>(entity: T) =>
+  const saveRevised = <T extends Entity>(
+    entity: T,
+    condition: StoredStateCondition | undefined,
+  ) =>
     Effect.gen(function* () {
       const key = extractMetaEntity(entityConstructor).key;
       const serialized = toSqlRow(
@@ -230,29 +257,86 @@ export function makeSqlRepository<TEntity extends Entity>(
         UPDATE ${table}
         SET ${sql.csv([...assignments, sql`${sql('revision')} = ${sql('revision')} + 1`])}
         WHERE ${sql('id')} = ${id} AND ${sql('revision')} = ${read}
+        ${stateClause(condition)}
         RETURNING ${sql('revision')}
       `.pipe(Effect.mapError(error => translateSqlError(error)));
       if (updated.length === 0) {
-        // The write already decided; this read only names the refusal.
-        const stored = yield* sql<SqlRow>`
-          SELECT ${sql('revision')} FROM ${table} WHERE ${sql('id')} = ${id} LIMIT 1
-        `.pipe(Effect.mapError(error => translateSqlError(error)));
-        return yield* stored.length === 0
-          ? Effect.fail(new NotFound({ entity: key }))
-          : Effect.fail(
-              new StaleRevision({
-                entity: key,
-                current: readRevision(stored[0]),
-              }),
-            );
+        // The write already decided; this read only names the refusal. A
+        // record in another state is refused for its state before its
+        // revision: a fresher read would not make the save legal.
+        const stored = yield* readBack(id);
+        if (stored[0] === undefined)
+          return yield* new NotFound({ entity: key });
+        if (
+          condition !== undefined &&
+          !holdsStoredState(condition, stored[0])
+        ) {
+          return yield* unavailableInState(
+            entityConstructor,
+            condition,
+            stored[0],
+          );
+        }
+        return yield* Effect.fail(
+          new StaleRevision({
+            entity: key,
+            current: readRevision(stored[0]),
+          }),
+        );
       }
       entity.id = id;
       (entity as { revision?: number }).revision = read + 1;
       return entity;
     });
 
-  const save = <T extends Entity>(entity: T) =>
-    revised ? saveRevised(entity) : saveUnchecked(entity);
+  const save = <T extends Entity>(entity: T, options?: EntityWriteOptions) => {
+    const condition = conditionOf(options);
+    if (revised) return saveRevised(entity, condition);
+    return condition === undefined
+      ? saveUnchecked(entity)
+      : saveConditioned(entity, condition);
+  };
+
+  /**
+   * An update of a record that declares no revision, on the states it must
+   * hold: one `UPDATE … WHERE id = $1 AND state IN (…)`, never an insert — a
+   * save with `expect` is an update of a stored record.
+   */
+  const saveConditioned = <T extends Entity>(
+    entity: T,
+    condition: StoredStateCondition,
+  ) =>
+    Effect.gen(function* () {
+      const key = extractMetaEntity(entityConstructor).key;
+      const id = entity.id;
+      if (id === undefined) return yield* new NotFound({ entity: key });
+      const serialized = toSqlRow(
+        serializeEntity(entityConstructor, entity as unknown as TEntity),
+        json,
+      );
+      const assignments = Object.entries(serialized)
+        .filter(([column]) => column !== 'id')
+        .map(([column, value]) => sql`${sql(column)} = ${value as never}`);
+      // An entity whose only member is its id still has its state checked.
+      const set =
+        assignments.length === 0
+          ? sql`${sql('id')} = ${sql('id')}`
+          : sql.csv(assignments);
+      const updated = yield* sql<SqlRow>`
+        UPDATE ${table} SET ${set}
+        WHERE ${sql('id')} = ${id} ${stateClause(condition)}
+        RETURNING ${sql('id')}
+      `.pipe(Effect.mapError(error => translateSqlError(error)));
+      if (updated.length === 0) {
+        const stored = yield* readBack(id);
+        return yield* stored[0] === undefined
+          ? Effect.fail(new NotFound({ entity: key }))
+          : Effect.fail(
+              unavailableInState(entityConstructor, condition, stored[0]),
+            );
+      }
+      return entity;
+    });
 
   const saveUnchecked = <T extends Entity>(entity: T) =>
     Effect.gen(function* () {
@@ -288,12 +372,28 @@ export function makeSqlRepository<TEntity extends Entity>(
       return entity;
     });
 
-  const del = <T extends Entity>(entityOrId: EntityId | T) =>
+  const del = <T extends Entity>(
+    entityOrId: EntityId | T,
+    options?: EntityWriteOptions,
+  ) =>
     Effect.gen(function* () {
       const id = toEntityId(entityOrId);
-      yield* sql`DELETE FROM ${table} WHERE ${sql('id')} = ${id}`.pipe(
-        Effect.mapError(error => translateSqlError(error)),
-      );
+      const condition = conditionOf(options);
+      const deleted = yield* sql<SqlRow>`
+        DELETE FROM ${table} WHERE ${sql('id')} = ${id} ${stateClause(condition)}
+        RETURNING ${sql('id')}
+      `.pipe(Effect.mapError(error => translateSqlError(error)));
+      if (condition === undefined || deleted.length > 0) return;
+      // Nothing deleted: either nothing was there, which a delete accepts,
+      // or the record is in a state it may not be deleted from.
+      const stored = yield* readBack(id);
+      if (stored[0] !== undefined) {
+        return yield* unavailableInState(
+          entityConstructor,
+          condition,
+          stored[0],
+        );
+      }
     });
 
   // Cast through the interface to keep its generic signatures: each method here

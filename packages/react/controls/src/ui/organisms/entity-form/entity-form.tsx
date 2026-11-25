@@ -10,6 +10,8 @@ import {
   type EntityFieldDescriptor,
   type EntityLinkSource,
   extractMetaEntity,
+  isRecordDeletable,
+  isRecordWritable,
   type MetaAccessorType,
   readDraftString,
   readLocalizedDraft,
@@ -197,7 +199,19 @@ export function EntityForm<TEntity extends Entity>({
   const [internalMode, setInternalMode] = useState<EntityFormMode>(
     defaultMode ?? (entity ? 'read' : 'edit'),
   );
-  const mode = modeProp ?? internalMode;
+  // A stored record outside the states it may be saved in is read, not
+  // edited: no field takes input and there is no Save (ADR 0029). The verbs
+  // its state allows stay, so the next legal move — a New version — is right
+  // there. A create has no state to hold, and absent metadata decides nothing.
+  const frozen =
+    entity !== undefined &&
+    metadata !== undefined &&
+    !isRecordWritable(metadata, entity);
+  const undeletable =
+    entity !== undefined &&
+    metadata !== undefined &&
+    !isRecordDeletable(metadata, entity);
+  const mode = frozen ? 'read' : (modeProp ?? internalMode);
   const editing = mode === 'edit';
 
   const draft: EntityDraft = values ?? {};
@@ -236,8 +250,14 @@ export function EntityForm<TEntity extends Entity>({
   // Absent metadata keeps the pre-ADR-0026 behaviour, so an un-migrated call
   // site renders exactly as before. Present metadata is authoritative: it is
   // what the service already decided this caller may do.
-  const may = (action: EntityAction) =>
+  const granted = (action: EntityAction) =>
     metadata === undefined || metadata.actions.includes(action);
+  // What this caller may do with **this** record: the grant, narrowed by the
+  // record's state. Clone asks for the grant alone — what it makes is a create.
+  const may = (action: EntityAction) =>
+    granted(action) &&
+    !(action === 'write' && frozen) &&
+    !(action === 'delete' && undeletable);
 
   // A single-record form shows the verbs that act on *this* record. Which cell
   // lands where is `action-surfaces`' business and nobody else's — a
@@ -277,7 +297,11 @@ export function EntityForm<TEntity extends Entity>({
   // button the reader just pressed; focus goes to the heading, not `<body>`.
   useFocusOnLoss(
     () => heading.current,
-    [...headerUseCases, ...footerUseCases].map(({ key }) => key).join(' '),
+    [
+      ...headerUseCases.map(({ key }) => key),
+      ...footerUseCases.map(({ key }) => key),
+      ...(frozen ? [] : ['save']),
+    ].join(' '),
   );
 
   // Every verb on the form, and its own Delete, goes through one invoker: a
@@ -399,7 +423,7 @@ export function EntityForm<TEntity extends Entity>({
     // Clone is the CRUD triple's, not a declared verb's: every entity can be
     // copied, so giving it a `@useCase()` would mean declaring the same verb on
     // all 28 of them. It needs `write`, because what it produces is a create.
-    ...(onClone && entity && may('write')
+    ...(onClone && entity && granted('write')
       ? [
           {
             key: 'clone',
@@ -465,7 +489,7 @@ export function EntityForm<TEntity extends Entity>({
           </Text>
           {/* The built-in toggle only appears when the form owns its mode and
               there is a record to view — a create form has nothing to read. */}
-          {modeProp === undefined && entity && (
+          {modeProp === undefined && entity && !frozen && (
             <Button
               type="button"
               variant="ghost"
@@ -484,6 +508,14 @@ export function EntityForm<TEntity extends Entity>({
             </>
           </LoadingBoundary>
         </Stack>
+      )}
+
+      {/* Why the form takes no input, said once at its top as a status rather
+            than an error: nothing went wrong, the record has moved on. */}
+      {frozen && metadata.readOnlyReasonKey !== undefined && (
+        <Alert tone="info" data-testid="entity-form-read-only">
+          {translateKey(metadata.readOnlyReasonKey)}
+        </Alert>
       )}
 
       {/* One announcement for the form; the shimmer below is aria-hidden. */}
@@ -631,7 +663,10 @@ export function EntityForm<TEntity extends Entity>({
         </span>
       )}
 
-      {editing && !embedded && (
+      {/* A record read because its state allows no save keeps its footer:
+            the verbs it does allow — a New version — live there, without Save
+            and Delete. A form the reader toggled to View has none. */}
+      {(editing || frozen) && !embedded && (
         <Stack direction="row" gap="xs" align="center">
           <ActionBar surface="form-footer" size="md" items={footerActions} />
           {slots.footerActions}

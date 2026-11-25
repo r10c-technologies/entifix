@@ -1,5 +1,5 @@
 import type { Entity, EntityConstructor } from '../../../types/Entity.js';
-import { setMetaEntity } from '../../helpers/index.js';
+import { assertEntityStates, setMetaEntity } from '../../helpers/index.js';
 import {
   MetaEntity,
   MetaEntityOptions,
@@ -11,5 +11,15 @@ export function entity<TEntity extends Entity>(options?: MetaEntityOptions) {
     context: ClassDecoratorContext,
   ) => {
     setMetaEntity(context.metadata, new MetaEntity(target.name, options));
+    // The states name members, and a class decorator runs before the class
+    // carries its metadata; an initializer runs once it does.
+    if (
+      options?.writableWhen !== undefined ||
+      options?.deletableWhen !== undefined
+    ) {
+      context.addInitializer(function (this: unknown) {
+        assertEntityStates(this as EntityConstructor<Entity>);
+      });
+    }
   };
 }

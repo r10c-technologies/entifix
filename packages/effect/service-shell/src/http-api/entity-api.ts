@@ -39,6 +39,7 @@ import {
   type AnyEndpoint,
   declaresRevision,
   defineEndpoint,
+  describeEntityStateRules,
   describeEntityUseCases,
   type EndpointGuard,
   type Entity,
@@ -54,6 +55,7 @@ import {
   Internal,
   Invalid,
   InvalidQuery,
+  isUseCaseAvailable,
   JsonBody,
   makeEntityEnvelope,
   makeEntityFacetsEnvelope,
@@ -65,6 +67,8 @@ import {
   readEntityEnvelope,
   readRevision,
   StaleRevision,
+  UnavailableInState,
+  type UseCaseAvailability,
   verbPath,
 } from '@entifix/core';
 import { Effect, Option, Schema } from 'effect';
@@ -459,6 +463,43 @@ export const entityApi = <
       }),
     );
 
+  const rules = describeEntityStateRules(entityConstructor);
+
+  /**
+   * The stored record's state against `condition`, before an update or a
+   * delete the host wrote itself. A record that is not there passes, so the
+   * handler answers for it as it always has.
+   *
+   * Only a refusal is decided here: the override's own conditional write is
+   * still what makes a race lose. A verb is not checked: its handler refuses
+   * an illegal move with the domain's own code, from the same transition table
+   * its `availableWhen` is derived from
+   * ([ADR 0029](../../../../../docs/adr/0029-a-verb-declares-the-states-it-is-legal-from.md)).
+   */
+  const refuseOutside = (
+    caller: EntityApiContext,
+    id: string,
+    condition: UseCaseAvailability | undefined,
+  ) =>
+    Effect.gen(function* () {
+      if (condition === undefined) return;
+      // Through the caller's own narrowing: a record they may not read is
+      // left to the handler, which answers it as missing, rather than
+      // refused here with its state — a 409 would say it exists.
+      const stored = yield* readVisible(caller, id);
+      if (stored === undefined) return;
+      if (isUseCaseAvailable({ availableWhen: condition }, stored)) return;
+      const state = (stored as unknown as Record<string, unknown>)[
+        condition.member
+      ];
+      return yield* new UnavailableInState({
+        entity: key,
+        member: condition.member,
+        ...(typeof state === 'string' ? { state } : {}),
+        allowed: [...condition.in],
+      });
+    });
+
   const narrowingOf = (caller: EntityApiContext): Narrowing<T> | undefined =>
     options.narrowing === undefined || caller.verified === undefined
       ? undefined
@@ -502,11 +543,15 @@ export const entityApi = <
     );
   });
 
-  const get = (id: string) =>
+  /**
+   * The record as this caller may see it, or `undefined` when it is absent or
+   * the caller's narrowing leaves it out — the two are one answer, so nothing
+   * built on this read can tell a hidden record from a missing one.
+   */
+  const readVisible = (caller: EntityApiContext, id: string) =>
     Effect.gen(function* () {
-      const caller = yield* context;
       const narrowing = narrowingOf(caller);
-      if (narrowing === 'nothing') return yield* Effect.fail(notFound);
+      if (narrowing === 'nothing') return undefined;
       // A filter narrowing reads by id as a narrowed load, so the read and the
       // list apply one rule.
       if (narrowing !== undefined && narrowing !== 'unscoped') {
@@ -520,18 +565,30 @@ export const entityApi = <
             ) as unknown as EntityLoadRequest,
           ),
         );
-        const [only] = page.items;
-        if (only === undefined) return yield* Effect.fail(notFound);
-        return makeEntityEnvelope(
-          entityConstructor,
-          only,
-          caller.links.record(id),
-        );
+        return page.items[0];
       }
-      const found = yield* getUCFactory<T>().pipe(
+      return yield* getUCFactory<T>().pipe(
         Effect.provideService(EntityRepositoryTag, yield* repository(caller)),
         Effect.provideService(EntityIdTag, id),
+        Effect.map((found): T | undefined => found),
+        Effect.catchIf(
+          failure => (failure as { _tag?: string })._tag === 'NotFound',
+          () => Effect.succeed(undefined),
+        ),
       );
+    });
+
+  /** Whether a narrowing decides what this caller may see at all. */
+  const narrows = (caller: EntityApiContext) => {
+    const narrowing = narrowingOf(caller);
+    return narrowing !== undefined && narrowing !== 'unscoped';
+  };
+
+  const get = (id: string) =>
+    Effect.gen(function* () {
+      const caller = yield* context;
+      const found = yield* readVisible(caller, id);
+      if (found === undefined) return yield* Effect.fail(notFound);
       return makeEntityEnvelope(
         entityConstructor,
         found,
@@ -544,6 +601,14 @@ export const entityApi = <
   const save = (verb: 'create' | 'update', body: unknown, id?: string) =>
     Effect.gen(function* () {
       const caller = yield* context;
+      // Under a narrowing, an update reaches only a record the caller can
+      // read: one outside it answers as missing, never written.
+      if (
+        verb === 'update' &&
+        narrows(caller) &&
+        (yield* readVisible(caller, id as string)) === undefined
+      )
+        return yield* Effect.fail(notFound);
       let entity = yield* readEntityEnvelope(entityConstructor, body);
       // On update the path is authoritative, so a record cannot be renamed
       // onto another one by editing its payload.
@@ -575,7 +640,11 @@ export const entityApi = <
           return yield* Effect.fail(new Internal());
         }
       }
-      const saved = yield* saveUCFactory<T>().pipe(
+      const saved = yield* saveUCFactory<T>(
+        verb === 'update' && rules.writableWhen !== undefined
+          ? { expect: rules.writableWhen }
+          : undefined,
+      ).pipe(
         Effect.provideService(EntityRepositoryTag, yield* repository(caller)),
         Effect.provideService(EntityTag, entity),
       );
@@ -589,7 +658,15 @@ export const entityApi = <
   const remove = (id: string) =>
     Effect.gen(function* () {
       const caller = yield* context;
-      yield* deleteUCFactory<T>().pipe(
+      // As an update: a record outside the caller's narrowing is not theirs
+      // to delete, and answers as missing.
+      if (narrows(caller) && (yield* readVisible(caller, id)) === undefined)
+        return yield* Effect.fail(notFound);
+      yield* deleteUCFactory<T>(
+        rules.deletableWhen === undefined
+          ? undefined
+          : { expect: rules.deletableWhen },
+      ).pipe(
         Effect.provideService(EntityRepositoryTag, yield* repository(caller)),
         Effect.provideService(EntityIdTag, id),
       );
@@ -623,6 +700,7 @@ export const entityApi = <
       actions: ENTITY_ACTIONS.filter(action =>
         allows(permissionForEntity(entityConstructor, action)),
       ),
+      ...rules,
       useCases: describeEntityUseCases(entityConstructor)
         .filter(descriptor =>
           allows(permissionForUseCase(entityConstructor, descriptor.key)),
@@ -692,6 +770,24 @@ export const entityApi = <
     return makeEntityFacetsEnvelope(entityConstructor, counts);
   });
 
+  /** The states a generic verb is conditioned on, if the entity declares any. */
+  const stateOf = (verb: EntityApiVerb): UseCaseAvailability | undefined =>
+    verb === 'update'
+      ? rules.writableWhen
+      : verb === 'delete'
+        ? rules.deletableWhen
+        : undefined;
+
+  /**
+   * The states checked before a host's own update or delete. A crossing one is
+   * a flow's step — a compensation replayed by redelivery — and answers for
+   * itself, as a crossing verb does.
+   */
+  const overrideStateOf = (
+    verb: EntityApiVerb,
+  ): UseCaseAvailability | undefined =>
+    guardFor(verb).kind === 'crossing' ? undefined : stateOf(verb);
+
   const crudEndpoint = (verb: EntityApiVerb): Implemented => {
     const override = options.override?.[verb];
     const withId = verb !== 'list' && verb !== 'create';
@@ -713,6 +809,10 @@ export const entityApi = <
         ...(verb === 'list' ? [InvalidQuery] : []),
         ...(takesBody ? (options.errors ?? []) : []),
         ...(revised && takesBody ? [StaleRevision] : []),
+        ...((override === undefined ? stateOf(verb) : overrideStateOf(verb)) ===
+        undefined
+          ? []
+          : [UnavailableInState]),
         ...(override?.errors ?? []),
       ],
       guard: endpointGuard(entityConstructor, guardFor(verb), ACTION[verb]),
@@ -726,7 +826,14 @@ export const entityApi = <
     return implement(descriptor, ((request: EntityApiRequest) => {
       if (override !== undefined)
         return Effect.flatMap(context, caller =>
-          override.handler(request, caller),
+          Effect.andThen(
+            refuseOutside(
+              caller,
+              request.params?.id as string,
+              overrideStateOf(verb),
+            ),
+            () => override.handler(request, caller),
+          ),
         );
       const id = request.params?.id as string;
       switch (verb) {

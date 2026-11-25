@@ -37,6 +37,12 @@ export interface EntityLinkInputProps<TTarget extends Entity> {
    * and removes each item itself. What `EntityLinkMultiInput` mounts.
    */
   adding?: boolean;
+  /**
+   * Ids not to offer: the quick search leaves them out and the browse dialog
+   * marks them chosen. What a list passes for the ids it already holds, so a
+   * target is never suggested twice.
+   */
+  exclude?: readonly string[];
 }
 
 /** Chevron — the quick search. Inline so the package ships no icon dependency. */
@@ -87,6 +93,7 @@ export function EntityLinkInput<TTarget extends Entity>({
   id,
   disabled = false,
   adding = false,
+  exclude,
 }: EntityLinkInputProps<TTarget>) {
   const t = useT();
   const errorMessage = useErrorMessage();
@@ -106,6 +113,13 @@ export function EntityLinkInput<TTarget extends Entity>({
    * is not a request to empty the relation — clearing is the explicit action
    * beside the input — so it leaves the held value alone.
    */
+  const options =
+    exclude === undefined || exclude.length === 0
+      ? source.quick.options
+      : source.quick.options.filter(
+          option => !exclude.includes(String(option.id)),
+        );
+
   const handleSelect = (entity: TTarget | null) => {
     if (entity === null) return;
     onSelect(entity);
@@ -173,12 +187,12 @@ export function EntityLinkInput<TTarget extends Entity>({
                   {null}
                 </LoadingBoundary>
               )}
-              {!source.quick.isLoading && source.quick.options.length === 0 && (
+              {!source.quick.isLoading && options.length === 0 && (
                 <div className="px-2xs py-3xs text-step-sm text-content-muted">
                   {t('link.noResults')}
                 </div>
               )}
-              {source.quick.options.map(option => (
+              {options.map(option => (
                 <ComboboxOption
                   key={String(option.id)}
                   value={option}
@@ -237,6 +251,7 @@ export function EntityLinkInput<TTarget extends Entity>({
       <EntityLinkPicker<TTarget>
         descriptor={descriptor}
         source={source}
+        exclude={exclude}
         onSelect={entity => {
           onSelect(entity);
           source.browse.close();

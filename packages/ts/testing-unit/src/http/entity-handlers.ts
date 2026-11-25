@@ -1,12 +1,16 @@
 import {
   countFacets,
   declaresRevision,
+  describeEntityStateRules,
+  deserializeSingleEntity,
   type EntifixFailure,
   type Entity,
   type EntityConstructor,
   type EntityId,
+  extractMetaAccessors,
   Invalid,
   InvalidQuery,
+  isUseCaseAvailable,
   makeEntityEnvelope,
   makeEntityFacetsEnvelope,
   makeEntityPageEnvelope,
@@ -16,7 +20,10 @@ import {
   problemOf,
   readRevision,
   StaleRevision,
+  UnavailableInState,
+  type UseCaseAvailability,
 } from '@entifix/core';
+import { Effect } from 'effect';
 import { http, HttpResponse, type RequestHandler } from 'msw';
 
 export interface EntityRestHandlerOptions<TEntity extends Entity> {
@@ -39,6 +46,33 @@ export const entityRestHandlers = <TEntity extends Entity>(
   entityConstructor: EntityConstructor<TEntity>,
   { baseUrl, data = [] }: EntityRestHandlerOptions<TEntity>,
 ): RequestHandler[] => {
+  const rules = describeEntityStateRules(entityConstructor);
+  /**
+   * A request body as the entity it names, through the entity's own mapping —
+   * an aliased member arrives under its wire key and must land on its own.
+   * An entity with no accessors is copied member by member.
+   */
+  const fromWire = (data: Record<string, unknown>): TEntity =>
+    extractMetaAccessors(entityConstructor).length === 0
+      ? (Object.assign(new entityConstructor(), data) as TEntity)
+      : (Effect.runSync(
+          deserializeSingleEntity(entityConstructor, data),
+        ) as TEntity);
+  const refusal = (
+    stored: TEntity | undefined,
+    condition: UseCaseAvailability,
+  ): UnavailableInState | undefined => {
+    if (isUseCaseAvailable({ availableWhen: condition }, stored))
+      return undefined;
+    const state = (stored as unknown as Record<string, unknown>)[
+      condition.member
+    ];
+    return new UnavailableInState({
+      member: condition.member,
+      ...(typeof state === 'string' ? { state } : {}),
+      allowed: [...condition.in],
+    });
+  };
   const rows = data;
   // A declared entity is served as the framework serves it (ADR 0032): a
   // create never overwrites, an update names the revision it read and moves it.
@@ -101,7 +135,7 @@ export const entityRestHandlers = <TEntity extends Entity>(
       }
       // The service is what mints an id on create; echoing the request back
       // unchanged would hide that the adapter must read the response.
-      const created = Object.assign(new entityConstructor(), body.data, {
+      const created = Object.assign(fromWire(body.data), {
         id: body.data['id'] ?? `generated-${rows.length + 1}`,
         ...(revised ? { revision: 1 } : {}),
       }) as TEntity;
@@ -115,10 +149,13 @@ export const entityRestHandlers = <TEntity extends Entity>(
       const body = (await request.json()) as { data: Record<string, unknown> };
       const id = String(params['id']);
       const index = rows.findIndex(row => String(row.id) === id);
-      const updated = Object.assign(
-        new entityConstructor(),
-        body.data,
-      ) as TEntity;
+      // The service decides by the entity's own declaration, as the shell does.
+      if (rules.writableWhen !== undefined) {
+        if (index === -1) return problem(new NotFound());
+        const refused = refusal(rows[index], rules.writableWhen);
+        if (refused !== undefined) return problem(refused);
+      }
+      const updated = fromWire(body.data);
       if (revised) {
         const read = readRevision(updated);
         if (read === undefined) {
@@ -154,6 +191,11 @@ export const entityRestHandlers = <TEntity extends Entity>(
     http.delete(`${baseUrl}/:id`, ({ params }) => {
       const id = String(params['id']);
       const index = rows.findIndex(row => String(row.id) === id);
+      const refused =
+        index === -1 || rules.deletableWhen === undefined
+          ? undefined
+          : refusal(rows[index], rules.deletableWhen);
+      if (refused !== undefined) return problem(refused);
       const [removed] = index === -1 ? [] : rows.splice(index, 1);
       return HttpResponse.json(
         makeEntityEnvelope(

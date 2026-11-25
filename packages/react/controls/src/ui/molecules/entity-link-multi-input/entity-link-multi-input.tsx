@@ -75,7 +75,7 @@ function HeldReference({
  *
  * It writes the comma list the draft carries for every `scalarCollection`, so
  * validation, reconstruction and every adapter see the ids exactly as before.
- * An id already held is not added twice. An id no record answers still shows
+ * An id already held is never offered again, and not added twice. An id no record answers still shows
  * — as the noun and a short id — and can still be removed.
  */
 export function EntityLinkMultiInput<TTarget extends Entity>({
@@ -92,9 +92,8 @@ export function EntityLinkMultiInput<TTarget extends Entity>({
 
   const add = (target: TTarget) => {
     if (target.id == null) return;
-    const next = String(target.id);
-    if (held.includes(next)) return;
-    onChange([...held, next].join(','));
+    // A held id is never offered, so whatever arrives here is new.
+    onChange([...held, String(target.id)].join(','));
   };
 
   const remove = (index: number) =>
@@ -133,6 +132,7 @@ export function EntityLinkMultiInput<TTarget extends Entity>({
           source={source}
           id={id}
           adding
+          exclude={held}
           onSelect={add}
         />
       )}

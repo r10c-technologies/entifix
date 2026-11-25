@@ -154,25 +154,64 @@ function assertAvailability(
       `${where} declares \`availableWhen\` and sits on no record: a selection carries no states, so nothing would read them.`,
     );
   }
+  assertStates(
+    where,
+    target,
+    availableWhen,
+    'a verb that is never offered is a verb to delete',
+  );
+}
+
+/**
+ * An entity's `writableWhen` and `deletableWhen`, checked by the same rule as
+ * a verb's `availableWhen` once the class is complete — `@entity()` runs it as
+ * a class initializer, after every `@accessor()` has written its member.
+ */
+export function assertEntityStates(target: EntityConstructor<Entity>) {
+  const { writableWhen, deletableWhen } = extractMetaEntity(target);
+  if (writableWhen !== undefined) {
+    assertStates(
+      `${target.name}'s \`writableWhen\``,
+      target,
+      writableWhen,
+      'a record no state lets anyone save wants `readonly` members, not a write rule',
+    );
+  }
+  if (deletableWhen !== undefined) {
+    assertStates(
+      `${target.name}'s \`deletableWhen\``,
+      target,
+      deletableWhen,
+      'a record that can never be deleted mounts no delete route',
+    );
+  }
+}
+
+function assertStates(
+  where: string,
+  target: EntityConstructor<Entity>,
+  availability: UseCaseAvailability,
+  whyNotEmpty: string,
+) {
   const member = extractMetaAccessors(target).find(
-    accessor => accessor.name === availableWhen.member,
+    accessor => accessor.name === availability.member,
   );
   if (member?.enumValues === undefined) {
     throw new Error(
-      `${where} is available when "${availableWhen.member}" holds a state, and ${target.name} has no enum member by that name.`,
+      `${where} is available when "${availability.member}" holds a state, and ${target.name} has no enum member by that name.`,
     );
   }
-  if (availableWhen.in.length === 0) {
+  if (availability.in.length === 0) {
     throw new Error(
-      `${where} is available in no state of "${availableWhen.member}": a verb that is never offered is a verb to delete.`,
+      `${where} is available in no state of "${availability.member}": ${whyNotEmpty}.`,
     );
   }
-  const unknown = availableWhen.in.filter(
+  const unknown = availability.in.filter(
     state => !member.enumValues?.includes(state),
   );
   if (unknown.length > 0) {
     throw new Error(
-      `${where} names ${unknown.map(state => `"${state}"`).join(', ')}, which "${availableWhen.member}" does not hold.`,
+      `${where} names ${unknown.map(state => `"${state}"`).join(', ')}, which "${availability.member}" does not hold.`,
     );
   }
 }

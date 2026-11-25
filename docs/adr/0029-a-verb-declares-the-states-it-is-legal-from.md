@@ -2,8 +2,9 @@
 
 - Status: Accepted
 - Date: 2026-11-13
+- Revised: 2026-11-24 by [#327](https://github.com/r10c-technologies/entifix/issues/327) — Save and Delete take the same declaration (§6), the service refuses them from it (§7), and §4 says where presentation ends.
 - Area: ui
-- Read when: a record's form offers every verb whatever its status, a button that applies to one status sits beside three that apply to others, a verb the record has moved past is still clickable, focus falls to `<body>` after a verb runs, or about to disable a button with a tooltip explaining why it does not apply
+- Read when: a record's form offers a Save its service always refuses, a released or closed record still renders editable inputs, a hand-written status check refuses an update or a delete, a record's form offers every verb whatever its status, a button that applies to one status sits beside three that apply to others, a verb the record has moved past is still clickable, focus falls to `<body>` after a verb runs, or about to disable a button with a tooltip explaining why it does not apply
 
 ## Context
 
@@ -51,10 +52,12 @@ picked a row. A verb the record has moved past is not one of those: nothing on
 this screen makes it apply, and a disabled control is still a stop in the tab
 order and a line a screen reader reads out.
 
-**4. It is presentation, never authorization.** The verb's handler refuses an
-illegal move exactly as before; a record can change between render and click.
-A selection carries no states, so the bulk bar and the toolbar offer every
-verb, and a row the handler refuses comes back as a failed `BulkOutcome`.
+**4. What a surface hides is presentation, never authorization.** A record
+can change between render and click, so hiding a verb protects nothing; what
+refuses is the service (§7) and the verb's handler, whose own conditional
+write is still what makes a race lose. A selection carries no states, so the
+bulk bar and the toolbar offer every verb, and a row the handler refuses comes
+back as a failed `BulkOutcome`.
 
 **5. Focus never falls to `<body>` because a verb left.** Running a verb
 usually moves the record out of the states that verb applies to, so the button
@@ -63,6 +66,44 @@ form's heading, and in a table to the first visible control in that record's
 row or card — only when the element that last held focus has left the
 document, so a live update elsewhere never pulls focus around — only after the reader acted, by the same rule as
 `useFocusOnArrival` ([ADR 0028](0028-states-an-organism-must-render.md)).
+
+**6. Save and Delete take the same declaration.** They are not `@useCase()`
+verbs — every entity has them, as routes the shell derives — so the states
+are declared on the entity: `@entity({ writableWhen, deletableWhen,
+readOnlyReasonKey })`, each `{ member, in }` and checked at load by the same
+rule as §2. A `writableWhen` without a `readOnlyReasonKey` throws: a form that
+quietly stops taking input reads as broken. `$metadata` serves all three beside
+`actions`. A stored record outside `writableWhen` renders read-only —
+`isRecordWritable` in core answers it — with no Save, no View/Edit toggle and
+one `role="status"` line saying why; its footer stays, so the verbs its state
+does allow (a New version) and Duplicate remain. Outside `deletableWhen`,
+Delete is hidden the same way. A create holds no state and is never frozen.
+And a verb that answers a **different** record — a New version is a new
+record — opens it, so the person lands on the one they can edit rather than
+the frozen one they pressed it on.
+
+**7. The service refuses Save and Delete from the declaration, in the write
+itself.** The repository port takes `{ expect: { member, in } }` on `save` and
+`delete`, and every adapter conjoins it onto the one conditional statement that
+writes — beside the revision of
+[ADR 0032](0032-a-save-names-the-revision-it-read.md) when there is one —
+answering `UnavailableInState` (`409 unavailableInState`, naming the member,
+the state and the allowed ones) when the record is in another. A save with
+`expect` never creates. The derived update and delete pass the entity's
+declaration; an update or delete a host overrides is checked against the stored
+record before its handler runs, and its own write stays conditional. A
+**crossing** override is not checked: it is a flow's step, replayed by
+redelivery, and a compensation that finds its work already done answers so.
+Every check reads through the caller's narrowing, so a `409` never says that a
+record the caller may not read exists — and a derived update or delete of such
+a record answers `404`, as a read of it does.
+
+A **verb** is not checked by the shell. Its handler already refuses an illegal
+move, in its own conditional write, with the domain's own code — "this channel
+is retired", not a generic refusal — and a host derives the verb's `in` from
+the same transition table that handler writes against (Consequences), so the
+two cannot drift. Checking it again before the handler would cost a read and
+trade a specific refusal for a generic one.
 
 ## Consequences
 
@@ -73,6 +114,9 @@ document, so a live update elsewhere never pulls focus around — only after the
   as before.
 - Rows and cards carry `data-record-id`, scoped by the table's own id, so focus
   can find a record's controls without reaching into a second table.
+- A host's hand-written "released, so refused" check is replaced by the
+  declaration, and its failure code by `unavailableInState`; a client that keyed
+  copy on the old code needs the new one in its `errors` catalog.
 - A verb whose availability depends on more than one member, or on something
   other than an enum, is not expressible. None has been needed; the handler's
   refusal remains the answer for those.

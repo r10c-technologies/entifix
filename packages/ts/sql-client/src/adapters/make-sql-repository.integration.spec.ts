@@ -5,7 +5,9 @@ import {
   describeEntityFacetCounterContract,
   describeEntityRepositoryContract,
   describeEntityRepositoryRevisionContract,
+  describeEntityRepositoryStateContract,
   RevisedWidget,
+  StatedWidget,
 } from '@entifix/testing-unit/contracts';
 import { Effect, Layer, ManagedRuntime, Redacted } from 'effect';
 import { SqlClient } from 'effect/sql';
@@ -66,6 +68,33 @@ const makeRepository = async (seed: RevisedWidget[]) => {
 };
 
 describeEntityRepositoryRevisionContract('Postgres', { makeRepository });
+
+// The state condition is one statement's `AND stage IN (…)`, and the race a
+// release runs against a conditioned delete is decided by Postgres, not here.
+describeEntityRepositoryStateContract('Postgres', {
+  makeRepository: async seed => {
+    const sql = await runtime.runPromise(
+      Effect.gen(function* () {
+        const client = yield* SqlClient.SqlClient;
+        yield* client`
+          CREATE TABLE IF NOT EXISTS "stated-widget" (
+            id text PRIMARY KEY,
+            name text,
+            stage text
+          )`;
+        yield* client`TRUNCATE "stated-widget"`;
+        for (const widget of seed) {
+          yield* client`
+            INSERT INTO "stated-widget" ${client.insert(
+              serializeEntity(StatedWidget, widget),
+            )}`;
+        }
+        return client;
+      }),
+    );
+    return makeSqlRepository(sql, StatedWidget);
+  },
+});
 
 /**
  * The contract widget's table, as a host's migration writes it: a list as one

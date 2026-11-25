@@ -149,6 +149,7 @@ export function EntityTable<TEntity extends Entity>({
   newHref,
   renderLink = renderAnchor,
   onSelect,
+  isSelectable,
   preferencesKey,
   hiddenColumns,
   showKey = false,
@@ -636,14 +637,16 @@ export function EntityTable<TEntity extends Entity>({
    * it is the title's link.
    */
   const recordAction = (item: TEntity) => {
+    const chosen = isSelectable !== undefined && !isSelectable(item);
     const pick = onSelect ? (
       <Button
         type="button"
         variant="secondary"
         size="sm"
+        disabled={chosen}
         onClick={() => onSelect(item)}
       >
-        {t('table.select')}
+        {chosen ? t('table.chosen') : t('table.select')}
       </Button>
     ) : undefined;
 

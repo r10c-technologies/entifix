@@ -320,3 +320,57 @@ function StateBoundDemo() {
  * goes to the heading rather than `<body>`.
  */
 export const VerbsByState: Story = { render: () => <StateBoundDemo /> };
+
+/** A record saved and deleted only while its code is `SPR-001`. */
+function FrozenDemo({ code }: { code: string }) {
+  const [values, setValues] = useState<Record<string, string>>({
+    id: 'g-1',
+    name: 'Sprocket',
+    code,
+    stock: '1200',
+  });
+
+  return (
+    <EntityForm<StoryGadget>
+      entityConstructor={StoryGadget}
+      entity={new StoryGadget('g-1', 'Sprocket', code, 1200)}
+      values={values}
+      mode="edit"
+      onFieldChange={(name, value) =>
+        setValues(current => ({ ...current, [name]: value }))
+      }
+      onSubmit={() => undefined}
+      onDelete={() => undefined}
+      onClone={() => undefined}
+      onUseCase={() => undefined}
+      metadata={{
+        actions: ['read', 'write', 'delete'],
+        useCases: [
+          {
+            ...verb('newVersion', 'determining'),
+            labelKey: 'entity:product-specification.useCases.newVersion',
+            availableWhen: { member: 'code', in: ['SPR-002'] },
+          },
+        ],
+        writableWhen: { member: 'code', in: ['SPR-001'] },
+        deletableWhen: { member: 'code', in: ['SPR-001'] },
+        readOnlyReasonKey: 'entity:product-specification.readOnly',
+      }}
+    />
+  );
+}
+
+/**
+ * A record outside the states it may be saved in renders read-only: no field
+ * takes input, Save and Delete are gone, one status line says why, and the
+ * verb its state does allow — New version — stays in the footer beside
+ * Duplicate (ADR 0029).
+ */
+export const FrozenRecord: Story = {
+  render: () => <FrozenDemo code="SPR-002" />,
+};
+
+/** The same record in a state it may be saved in: an ordinary edit form. */
+export const EditableInItsState: Story = {
+  render: () => <FrozenDemo code="SPR-001" />,
+};

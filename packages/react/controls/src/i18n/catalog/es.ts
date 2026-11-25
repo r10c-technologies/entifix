@@ -11,6 +11,7 @@ export const controls = {
   },
   table: {
     select: 'Seleccionar',
+    chosen: 'Ya elegido',
     actions: 'Acciones',
     new: 'Nuevo',
     filters: 'Filtros',

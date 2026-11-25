@@ -151,13 +151,47 @@ describe('EntityLinkMultiInput', () => {
     expect(onChange).toHaveBeenCalledWith('m-1,m-2');
   });
 
-  it('does not add an id it already holds', async () => {
-    const onChange = renderMulti('m-1');
+  it('never suggests an id it already holds', async () => {
+    renderMulti('m-1');
     await userEvent.click(
       screen.getByRole('button', { name: 'Ver sugerencias de Fits' }),
     );
-    await userEvent.click(screen.getByRole('option', { name: 'Galaxy A15' }));
-    expect(onChange).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole('option', { name: 'Galaxy A15' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('option', { name: 'Moto G24' }),
+    ).toBeInTheDocument();
+  });
+
+  it('says there is nothing left to suggest once every option is held', async () => {
+    renderMulti('m-1,m-2');
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Ver sugerencias de Fits' }),
+    );
+    expect(screen.queryByRole('option')).not.toBeInTheDocument();
+    expect(screen.getByText('Sin coincidencias')).toBeInTheDocument();
+  });
+
+  it('marks a held row chosen in the browse dialog instead of offering Select', () => {
+    const open = source();
+    open.browse.isOpen = true;
+    render(
+      <ReferenceLabelsProvider lookup={lookup}>
+        <EntityLinkMultiInput<DeviceModel>
+          descriptor={descriptor}
+          value="m-1"
+          source={open}
+          onChange={vi.fn()}
+        />
+      </ReferenceLabelsProvider>,
+    );
+    // The table renders each row as a row and as a card, one per layout.
+    const chosen = screen.getAllByRole('button', { name: 'Ya elegido' });
+    expect(chosen.length).toBeGreaterThan(0);
+    for (const button of chosen) expect(button).toBeDisabled();
+    for (const button of screen.getAllByRole('button', { name: 'Seleccionar' }))
+      expect(button).toBeEnabled();
   });
 
   it('does not add a target that has no id yet', async () => {

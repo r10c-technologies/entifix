@@ -10,9 +10,12 @@ import {
   ContractWidget,
   describeEntityRepositoryContract,
   describeEntityRepositoryRevisionContract,
+  describeEntityRepositoryStateContract,
   makeContractWidget,
   makeRevisedWidget,
+  makeStatedWidget,
   RevisedWidget,
+  StatedWidget,
 } from '@entifix/testing-unit/contracts';
 import { makeFakeMongoDb } from '@entifix/testing-unit/drivers';
 import { Exit } from 'effect';
@@ -314,5 +317,135 @@ describe('makeMongoRepository for an entity that declares a revision', () => {
       entity: 'revised-widget',
       current: 1,
     });
+  });
+});
+
+describeEntityRepositoryStateContract('mongo adapter over a fake driver', {
+  makeRepository: seed =>
+    makeMongoRepository(
+      makeFakeMongoDb({
+        'stated-widget': seed.map(widget =>
+          serializeEntity(StatedWidget, widget),
+        ),
+      }).db as Db,
+      StatedWidget,
+    ),
+});
+
+const DOC_STATES = ['draft', 'final'] as const;
+
+/** A revisioned record saved only in `draft`: both conditions in one write. */
+@entity({
+  key: 'stated-doc',
+  writableWhen: { member: 'phase', in: ['draft'] },
+  readOnlyReasonKey: 'entity:stated-doc.readOnly',
+})
+class StatedDoc implements Entity {
+  #id?: EntityId;
+  #phase?: string;
+  #revision?: number;
+
+  @accessor({ type: 'id' })
+  get id(): EntityId {
+    return this.#id;
+  }
+  set id(value: EntityId) {
+    this.#id = value;
+  }
+
+  @accessor({ type: 'enum', enumValues: DOC_STATES })
+  get phase(): string | undefined {
+    return this.#phase;
+  }
+  set phase(value: string | undefined) {
+    this.#phase = value;
+  }
+
+  @accessor({ type: 'revision' })
+  get revision(): number | undefined {
+    return this.#revision;
+  }
+  set revision(value: number | undefined) {
+    this.#revision = value;
+  }
+}
+
+const statedDoc = (phase: string, revision: number) => {
+  const doc = new StatedDoc();
+  doc.id = 'd-1';
+  doc.phase = phase;
+  doc.revision = revision;
+  return doc;
+};
+
+describe('makeMongoRepository for a revisioned entity with a state condition', () => {
+  const IN_DRAFT = { expect: { member: 'phase', in: ['draft'] } };
+  const withDoc = (phase: string) =>
+    makeMongoRepository(
+      makeFakeMongoDb({
+        'stated-doc': [serializeEntity(StatedDoc, statedDoc(phase, 3))],
+      }).db as Db,
+      StatedDoc,
+    );
+
+  it('saves at the read revision in an allowed state', async () => {
+    const saved = await run(
+      withDoc('draft').save(statedDoc('final', 3), IN_DRAFT),
+    );
+    expect(saved.revision).toBe(4);
+  });
+
+  it('refuses for the state before the revision', async () => {
+    const failure = (await runFailure(
+      withDoc('final').save(statedDoc('draft', 1), IN_DRAFT),
+    )) as { _tag: string; state?: string };
+    expect(failure).toMatchObject({
+      _tag: 'UnavailableInState',
+      state: 'final',
+    });
+  });
+
+  it('refuses a stale revision in an allowed state', async () => {
+    const failure = (await runFailure(
+      withDoc('draft').save(statedDoc('draft', 1), IN_DRAFT),
+    )) as { _tag: string; current?: number };
+    expect(failure).toMatchObject({ _tag: 'StaleRevision', current: 3 });
+  });
+
+  it('answers NotFound when the record is gone', async () => {
+    const repository = withDoc('draft');
+    await run(repository.delete('d-1'));
+    const failure = (await runFailure(
+      repository.save(statedDoc('draft', 3), IN_DRAFT),
+    )) as { _tag: string };
+    expect(failure._tag).toBe('NotFound');
+  });
+
+  it('fails when the conditioned replaceOne rejects', async () => {
+    const fake = makeFakeMongoDb({
+      'stated-widget': [
+        serializeEntity(StatedWidget, makeStatedWidget('s-1', 'A', 'draft')),
+      ],
+    });
+    fake.failOn('replaceOne', new Error('connection refused'));
+    const exit = await runExit(
+      makeMongoRepository(fake.db as Db, StatedWidget).save(
+        makeStatedWidget('s-1', 'B', 'draft'),
+        IN_DRAFT,
+      ),
+    );
+    expect(Exit.isFailure(exit)).toBe(true);
+  });
+
+  it('answers NotFound to a conditioned save with no id', async () => {
+    const doc = new StatedWidget();
+    doc.phase = 'draft';
+    const failure = (await runFailure(
+      makeMongoRepository(makeFakeMongoDb({}).db as Db, StatedWidget).save(
+        doc,
+        IN_DRAFT,
+      ),
+    )) as { _tag: string };
+    expect(failure._tag).toBe('NotFound');
   });
 });

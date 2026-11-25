@@ -1147,6 +1147,36 @@ describe('the generated form', () => {
   });
 
   /**
+   * The record's state narrows the grant the same way (ADR 0029): a caller who
+   * may write a brand still reads one outside the states it is saved in, with
+   * the reason the descriptor names. The served member is read off the record
+   * as the form holds it, so any member serves the spec.
+   */
+  it('renders a record read-only outside the states it may be saved in', async () => {
+    slug = 'b-1';
+    fetchMetadata.mockResolvedValue({
+      actions: ['read', 'write', 'delete'],
+      useCases: [],
+      writableWhen: { member: 'name', in: ['Draft brand'] },
+      deletableWhen: { member: 'name', in: ['Draft brand'] },
+      readOnlyReasonKey: 'entity:brand.readOnly',
+    });
+
+    renderPage(<verbBrandCrud.SingleViewPage />);
+
+    await waitFor(() =>
+      expect(screen.getByTestId('entity-form-read-only')).toBeInTheDocument(),
+    );
+    expect(screen.queryByLabelText(/nombre/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /guardar/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /eliminar/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  /**
    * A create has no record to read, so the rule above must not reach it — a
    * `read` mode on a new entity is an empty form with no way to fill it.
    */
@@ -1205,6 +1235,72 @@ describe('the generated form', () => {
     await waitFor(() =>
       expect(screen.getByLabelText(/nombre/i)).toHaveValue('Acme Publicada'),
     );
+  });
+
+  /**
+   * A New version answers the **new** record, and the person pressed it
+   * to edit that one. Staying on the version it froze would leave them on a
+   * form they cannot save.
+   */
+  describe('a verb that answers another record', () => {
+    const newVersion = {
+      key: 'revise',
+      binding: 'entity' as const,
+      placement: 'context-independent' as const,
+      labelKey: 'entity:product-brand.useCases.retire',
+    };
+    const press = async () =>
+      fireEvent.click(await screen.findByRole('button', { name: /retirar/i }));
+
+    it('opens it, by URL or through a tab host', async () => {
+      slug = 'b-1';
+      push.mockClear();
+      fetchMetadata.mockResolvedValue({
+        actions: ['read', 'write'],
+        useCases: [newVersion],
+      });
+      runVerb.mockResolvedValue(
+        settled({ meta: { type: 'entity' }, data: { id: 'b-2' } }),
+      );
+
+      const { unmount } = renderPage(<verbBrandCrud.SingleViewPage />);
+      await press();
+      await waitFor(() =>
+        expect(push).toHaveBeenCalledWith(expect.stringMatching(/\/b-2$/)),
+      );
+      unmount();
+
+      const nav = { toList: vi.fn(), toEntity: vi.fn() };
+      renderPage(
+        <EntityNavProvider value={nav}>
+          <verbBrandCrud.SingleViewPage />
+        </EntityNavProvider>,
+      );
+      await press();
+      await waitFor(() =>
+        expect(nav.toEntity).toHaveBeenCalledWith('product-brand', 'b-2'),
+      );
+    });
+
+    it('stays and reloads when it answers the same record, or none', async () => {
+      slug = 'b-1';
+      push.mockClear();
+      fetchMetadata.mockResolvedValue({
+        actions: ['read', 'write'],
+        useCases: [newVersion],
+      });
+      runVerb
+        .mockResolvedValueOnce(settled({ id: 'b-1' }))
+        .mockResolvedValueOnce(settled('done'));
+
+      renderPage(<verbBrandCrud.SingleViewPage />);
+      await press();
+      await waitFor(() => expect(runVerb).toHaveBeenCalledTimes(1));
+      await press();
+      await waitFor(() => expect(runVerb).toHaveBeenCalledTimes(2));
+
+      expect(push).not.toHaveBeenCalled();
+    });
   });
 
   it('asks for a verb’s input in the form it names, and runs it with that body', async () => {
