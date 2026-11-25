@@ -1237,6 +1237,72 @@ describe('the generated form', () => {
     );
   });
 
+  /**
+   * #767: a New version answers the **new** record, and the person pressed it
+   * to edit that one. Staying on the version it froze would leave them on a
+   * form they cannot save.
+   */
+  describe('a verb that answers another record', () => {
+    const newVersion = {
+      key: 'revise',
+      binding: 'entity' as const,
+      placement: 'context-independent' as const,
+      labelKey: 'entity:product-brand.useCases.retire',
+    };
+    const press = async () =>
+      fireEvent.click(await screen.findByRole('button', { name: /retirar/i }));
+
+    it('opens it, by URL or through a tab host', async () => {
+      slug = 'b-1';
+      push.mockClear();
+      fetchMetadata.mockResolvedValue({
+        actions: ['read', 'write'],
+        useCases: [newVersion],
+      });
+      runVerb.mockResolvedValue(
+        settled({ meta: { type: 'entity' }, data: { id: 'b-2' } }),
+      );
+
+      const { unmount } = renderPage(<verbBrandCrud.SingleViewPage />);
+      await press();
+      await waitFor(() =>
+        expect(push).toHaveBeenCalledWith(expect.stringMatching(/\/b-2$/)),
+      );
+      unmount();
+
+      const nav = { toList: vi.fn(), toEntity: vi.fn() };
+      renderPage(
+        <EntityNavProvider value={nav}>
+          <verbBrandCrud.SingleViewPage />
+        </EntityNavProvider>,
+      );
+      await press();
+      await waitFor(() =>
+        expect(nav.toEntity).toHaveBeenCalledWith('product-brand', 'b-2'),
+      );
+    });
+
+    it('stays and reloads when it answers the same record, or none', async () => {
+      slug = 'b-1';
+      push.mockClear();
+      fetchMetadata.mockResolvedValue({
+        actions: ['read', 'write'],
+        useCases: [newVersion],
+      });
+      runVerb
+        .mockResolvedValueOnce(settled({ id: 'b-1' }))
+        .mockResolvedValueOnce(settled('done'));
+
+      renderPage(<verbBrandCrud.SingleViewPage />);
+      await press();
+      await waitFor(() => expect(runVerb).toHaveBeenCalledTimes(1));
+      await press();
+      await waitFor(() => expect(runVerb).toHaveBeenCalledTimes(2));
+
+      expect(push).not.toHaveBeenCalled();
+    });
+  });
+
   it('asks for a verb’s input in the form it names, and runs it with that body', async () => {
     slug = 'b-1';
     runVerb.mockClear();

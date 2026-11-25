@@ -78,6 +78,9 @@ quietly stops taking input reads as broken. `$metadata` serves all three beside
 one `role="status"` line saying why; its footer stays, so the verbs its state
 does allow (a New version) and Duplicate remain. Outside `deletableWhen`,
 Delete is hidden the same way. A create holds no state and is never frozen.
+And a verb that answers a **different** record — a New version is a new
+record — opens it, so the person lands on the one they can edit rather than
+the frozen one they pressed it on.
 
 **7. The service refuses from the declaration, in the write itself.** The
 repository port takes `{ expect: { member, in } }` on `save` and `delete`, and

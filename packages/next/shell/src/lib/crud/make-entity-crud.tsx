@@ -192,10 +192,10 @@ type Verbs = NonNullable<ReturnType<typeof verbsOf>>;
 
 /**
  * One verb on one record, through the optimistic API: `done` runs once the
- * verb took effect — at once when it settled, or when the flow it was handed
- * to completed.
+ * verb took effect — at once when it settled, with what it answered, or when
+ * the flow it was handed to completed, with nothing.
  */
-function useVerb(verbs: Verbs | undefined, done: () => void) {
+function useVerb(verbs: Verbs | undefined, done: (answered?: unknown) => void) {
   const verb = useOptimisticMutation<
     {
       readonly key: string;
@@ -206,12 +206,12 @@ function useVerb(verbs: Verbs | undefined, done: () => void) {
   >({
     // Only ever sent from a handler that exists because `verbs` does.
     write: ({ key, id, payload }) => (verbs as Verbs).run(key, id, payload),
-    confirm: done,
+    confirm: () => done(),
   });
   const run = (key: string, id: EntityId, payload?: unknown) => {
     void verb.mutate({ key, id, payload }).then(
       result => {
-        if (result._tag === 'settled') done();
+        if (result._tag === 'settled') done(result.value);
       },
       // Shown through `syncFailure`, from the mutation's own state.
       () => undefined,
@@ -219,6 +219,24 @@ function useVerb(verbs: Verbs | undefined, done: () => void) {
   };
   return { verb, run };
 }
+
+/**
+ * The id of the record a verb answered with, if it answered one — an entity
+ * envelope's `data.id`, or a bare record's `id`.
+ */
+const answeredRecordId = (answered: unknown): string | undefined => {
+  const record =
+    typeof answered === 'object' && answered !== null && 'data' in answered
+      ? (answered as { readonly data: unknown }).data
+      : answered;
+  const id =
+    typeof record === 'object' && record !== null
+      ? (record as { readonly id?: unknown }).id
+      : undefined;
+  return typeof id === 'string' || typeof id === 'number'
+    ? String(id)
+    : undefined;
+};
 
 /** Whether the component is still mounted: a flow can settle after it left. */
 function useMounted() {
@@ -901,7 +919,18 @@ export function makeEntityCrud<TEntity extends Entity, TAdapters>(
         : (adapters[useCases] as EntityUseCaseRunner),
       affordances.metadata?.useCases,
     );
-    const recordVerb = useVerb(verbs, () => void reload());
+    // A verb that answers **another** record opens it: a New version is a new
+    // record, and the person pressed it to edit that one — leaving them on the
+    // version it froze would be the form they could not save.
+    const recordVerb = useVerb(verbs, answered => {
+      const other = answeredRecordId(answered);
+      if (other === undefined || id == null || other === String(id)) {
+        void reload();
+        return;
+      }
+      if (host === undefined) router.push(withLocale(`${basePath}/${other}`));
+      else host.toEntity(catalogKey, other);
+    });
     // A verb that takes input opens the form it names first; the verb runs
     // with what that form submits.
     const [asking, setAsking] = useState<string | undefined>();
