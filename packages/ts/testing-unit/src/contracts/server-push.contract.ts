@@ -127,7 +127,8 @@ export const describeServerPushContract = (
       ),
     );
 
-  const ids = (messages: readonly PushMessageUnderTest[]) => messages.map(keyOf);
+  const ids = (messages: readonly PushMessageUnderTest[]) =>
+    messages.map(keyOf);
 
   describe(`${name} — the server-push contract`, () => {
     it('delivers an event in a subscribed topic that its audience admits', async () => {
