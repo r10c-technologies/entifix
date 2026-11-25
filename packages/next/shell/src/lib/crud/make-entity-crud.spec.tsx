@@ -1238,7 +1238,7 @@ describe('the generated form', () => {
   });
 
   /**
-   * #767: a New version answers the **new** record, and the person pressed it
+   * A New version answers the **new** record, and the person pressed it
    * to edit that one. Staying on the version it froze would leave them on a
    * form they cannot save.
    */
