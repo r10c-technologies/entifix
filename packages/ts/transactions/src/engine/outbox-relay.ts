@@ -1,4 +1,5 @@
 import { ShutdownRegistryTag } from '@entifix/business';
+import type { StoreFailure } from '@entifix/core';
 import { Duration, Effect, Fiber, Result } from 'effect';
 
 import {
@@ -20,6 +21,20 @@ const failureText = (failure: {
   readonly code: string;
 }) => (failure.message === '' ? failure.code : failure.message);
 
+/**
+ * Whether a failed publish says something about the **bus** rather than the
+ * entry: the broker could not be reached, did not answer in time, or pushed
+ * back. Every one of those clears without anything about the entry changing,
+ * so spending an attempt on it would quarantine a perfectly publishable event
+ * for an outage — measured: at a 15-second sweep and five attempts, a broker
+ * down for 75 seconds wrote off every event committed meanwhile, and a
+ * quarantined entry is never sent.
+ */
+export const isTransientPublishFailure = (failure: StoreFailure): boolean =>
+  failure.category === 'unavailable' ||
+  failure.category === 'timeout' ||
+  failure.category === 'contention';
+
 export const SWEEP_INTERVAL = Duration.seconds(15);
 /** Entries drained per pass, per database. */
 export const BATCH = 100;
@@ -38,6 +53,19 @@ export type RelayOutcome =
       readonly _tag: 'drained';
       readonly database: string;
       readonly sent: number;
+    }
+  | {
+      /**
+       * The bus failed in a way that clears by itself, so this many aggregates
+       * wait for the next pass with no attempt spent. Reported once per pass,
+       * not per entry: an outage would otherwise log every waiting entry every
+       * sweep. What makes a long outage visible is the outbox's age.
+       */
+      readonly _tag: 'held';
+      readonly database: string;
+      readonly held: number;
+      readonly code: string;
+      readonly reason: string;
     }
   | {
       readonly _tag: 'quarantined';
@@ -82,6 +110,9 @@ export interface DrainOptions {
  * aggregate** ([ADR 0018](../../../../../docs/adr/0018-one-outbox-ordered-per-aggregate.md)),
  * and answer how many went.
  *
+ * - A **transient** failure — the bus unreachable, slow or pushing back
+ *   ({@link isTransientPublishFailure}) — holds its aggregate and spends no
+ *   attempt: the entry is as publishable as it was, and only the broker is not.
  * - A **still-deliverable** failure holds back the rest of its own aggregate
  *   for this pass, which is what stops a terminal event overtaking the
  *   `accepted` of the same transaction — and only its own: every other
@@ -99,6 +130,7 @@ export const drainOutbox = (
     const entries = yield* outbox.pending(BATCH);
     const held = new Set<string>();
     let sent = 0;
+    let waiting: { count: number; failure: StoreFailure } | undefined;
     const report = options.onOutcome ?? ignoreRelayOutcome;
     for (const entry of entries) {
       const key = aggregateKey(entry.aggregate);
@@ -107,6 +139,15 @@ export const drainOutbox = (
       const outcome = yield* Effect.result(bus.publish(entry.event));
 
       if (Result.isFailure(outcome)) {
+        if (isTransientPublishFailure(outcome.failure)) {
+          yield* outbox.hold(entry, failureText(outcome.failure));
+          held.add(key);
+          waiting = {
+            count: (waiting?.count ?? 0) + 1,
+            failure: outcome.failure,
+          };
+          continue;
+        }
         const attempts = entry.attempts + 1;
         const quarantine = attempts >= options.maxAttempts;
 
@@ -136,6 +177,14 @@ export const drainOutbox = (
       yield* outbox.markSent(entry);
       sent += 1;
     }
+    if (waiting !== undefined)
+      yield* report({
+        _tag: 'held',
+        database: options.database,
+        held: waiting.count,
+        code: waiting.failure.code,
+        reason: failureText(waiting.failure),
+      });
     yield* report({ _tag: 'drained', database: options.database, sent });
     return sent;
   });

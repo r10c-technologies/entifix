@@ -74,6 +74,7 @@ const recordingOutbox = (entries: readonly OutboxEntry[]) => {
       Effect.sync(() => {
         failures.push({ eventId: entry.eventId, error, quarantine });
       }),
+    hold: () => Effect.void,
     stats: () =>
       Effect.succeed({
         pending: entries.filter(entry => !entry.quarantined).length,

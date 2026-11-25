@@ -291,6 +291,23 @@ describe('logMechanismOutcome', () => {
     });
   });
 
+  it('logs an outbox held on an unreachable bus at warn, with how many wait', async () => {
+    const record = await capture({
+      _tag: 'held',
+      database: 'tenant_a',
+      held: 2,
+      code: 'unavailable',
+      reason: 'unavailable',
+    });
+
+    expect(record?.level).toBe('Warn');
+    expect(record?.annotations).toMatchObject({
+      database: 'tenant_a',
+      held: 2,
+      code: 'unavailable',
+    });
+  });
+
   it('names an untyped failure internal, never its text', async () => {
     const record = await capture({
       _tag: 'sweepFailed',

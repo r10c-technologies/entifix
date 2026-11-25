@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-10-28
 - Revised: 2026-11-04 — a writer that wants its event out before the next sweep drains through the optional `OutboxDrainTag`; the flow engine's announcements waited up to fifteen seconds for the relay without it (#492)
+- Revised: 2026-11-25 — a publish that fails because the bus is unreachable, slow or pushing back holds its aggregate and spends no attempt; only a failure about the entry counts toward quarantine. A broker down 75 seconds had quarantined every event committed meanwhile (r10c #704)
 - Area: adapters
 - Read when: emitting a domain event from a write, consuming an event that may arrive out of order, an event stuck at the head of the outbox delays unrelated ones, writing an outbox on a new engine, or about to reach for change data capture
 
@@ -38,6 +39,16 @@ The relay keeps order **within an aggregate** and nowhere else. A failing or
 quarantined head blocks only its own aggregate; every other aggregate keeps
 draining. Global order was never a guarantee a consumer could use — the bus does
 not keep it across queues — so nothing is lost by dropping it.
+
+An attempt is spent only on a failure **about the entry** — one its
+registration refuses to encode, say — because only that can be permanent. A
+failure about the **bus** (`unavailable`, `timeout`, `contention`) holds the
+aggregate for the next pass and counts nothing: the entry is exactly as
+publishable as it was. Counting it turned an outage into lost events — at a
+fifteen-second sweep and five attempts, a broker down 75 seconds wrote off
+every event committed meanwhile, and a quarantined entry is never sent. A long
+outage shows instead as the outbox's age, which is what its gauge alerts on,
+and the pass reports one `held` outcome rather than a line per entry.
 
 ### Consumers discard what is stale
 

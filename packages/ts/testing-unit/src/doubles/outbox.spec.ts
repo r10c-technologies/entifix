@@ -12,7 +12,7 @@ describeOutboxContract('the in-memory double', () =>
 );
 
 describe('makeInMemoryOutbox', () => {
-  it('ignores a markSent or recordFailure for an entry it never held', async () => {
+  it('ignores a markSent, recordFailure or hold for an entry it never held', async () => {
     const outbox = makeInMemoryOutbox();
     const stranger = {
       eventId: 'x',
@@ -33,6 +33,7 @@ describe('makeInMemoryOutbox', () => {
 
     await Effect.runPromise(outbox.markSent(stranger));
     await Effect.runPromise(outbox.recordFailure(stranger, 'e', true));
+    await Effect.runPromise(outbox.hold(stranger, 'e'));
 
     expect(outbox.entries).toEqual([]);
     expect(await Effect.runPromise(outbox.stats())).toEqual({

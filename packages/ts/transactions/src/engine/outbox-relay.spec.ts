@@ -1,5 +1,11 @@
 import { makeShutdownRegistry, ShutdownRegistryTag } from '@entifix/business';
-import { ProtocolFailure, type StoreFailure, Unavailable } from '@entifix/core';
+import {
+  Contention,
+  ProtocolFailure,
+  type StoreFailure,
+  Timeout,
+  Unavailable,
+} from '@entifix/core';
 import { Effect } from 'effect';
 import { describe, expect, it } from 'vitest';
 
@@ -49,6 +55,8 @@ const recordingOutbox = (entries: readonly OutboxEntry[]) => {
     quarantine: boolean;
   }> = [];
 
+  const holds: Array<{ eventId: string; reason: string }> = [];
+
   const outbox: Outbox = {
     enqueue: () => Effect.succeed('enqueued' as const),
     pending: () => Effect.succeed(entries),
@@ -60,6 +68,10 @@ const recordingOutbox = (entries: readonly OutboxEntry[]) => {
       Effect.sync(() => {
         failures.push({ eventId: entry.eventId, error, quarantine });
       }),
+    hold: (entry, reason) =>
+      Effect.sync(() => {
+        holds.push({ eventId: entry.eventId, reason });
+      }),
     stats: () =>
       Effect.succeed({
         pending: entries.filter(entry => !entry.quarantined).length,
@@ -68,7 +80,7 @@ const recordingOutbox = (entries: readonly OutboxEntry[]) => {
       }),
   };
 
-  return { outbox, sent, failures };
+  return { outbox, sent, failures, holds };
 };
 
 /** A bus that refuses the named events and accepts everything else. */
@@ -149,12 +161,63 @@ describe('drainOutbox', () => {
 
   it('records the code when the failure carries no message', async () => {
     const { outbox, failures } = recordingOutbox([anEntry('tx-1:accepted')]);
-    const { bus } = busRefusing(['tx-1:accepted'], new Unavailable({}));
+    const { bus } = busRefusing(
+      ['tx-1:accepted'],
+      new ProtocolFailure({ reason: '' }),
+    );
 
     await runDrain(outbox, bus);
 
-    expect(failures[0]?.error).toBe('unavailable');
+    expect(failures[0]?.error).toBe('protocol');
   });
+
+  /**
+   * The outage the ceiling must not count (measured on a cluster: a broker
+   * down 75 seconds quarantined every event committed meanwhile). The entry
+   * is as publishable as it was; only the broker is not.
+   */
+  it.each([
+    ['unreachable', new Unavailable({ dependency: 'amqp' })],
+    ['slow', new Timeout({ dependency: 'amqp' })],
+    ['pushing back', new Contention({})],
+  ])(
+    'holds an entry while the bus is %s, and spends no attempt on it',
+    async (_, failure) => {
+      const { outbox, sent, failures, holds } = recordingOutbox([
+        // One attempt short of the ceiling: a counted failure would quarantine.
+        anEntry('tx-1:accepted', 2),
+        anEntry('tx-1:completed'),
+        anEntry('tx-2:accepted', 2),
+      ]);
+      const { bus, published } = busRefusing(
+        ['tx-1:accepted', 'tx-2:accepted'],
+        failure,
+      );
+
+      const { outcomes } = await runDrain(outbox, bus);
+
+      expect(failures).toEqual([]);
+      // Each held head is given back with why — never counted.
+      const reason = failure.message === '' ? failure.code : failure.message;
+      expect(holds).toEqual([
+        { eventId: 'tx-1:accepted', reason },
+        { eventId: 'tx-2:accepted', reason },
+      ]);
+      expect(published).toEqual([]);
+      expect(sent).toEqual([]);
+      // One line per pass for the whole outage, not one per entry.
+      expect(outcomes).toEqual([
+        {
+          _tag: 'held',
+          database: 'tenant_acme',
+          held: 2,
+          code: failure.code,
+          reason: failure.message === '' ? failure.code : failure.message,
+        },
+        { _tag: 'drained', database: 'tenant_acme', sent: 0 },
+      ]);
+    },
+  );
 
   /**
    * The defect quarantine exists for: before it, an entry that could never publish
@@ -267,6 +330,7 @@ describe('sweepOutbox', () => {
       pending: () => Effect.fail(new Unavailable({})),
       markSent: () => Effect.void,
       recordFailure: () => Effect.void,
+      hold: () => Effect.void,
       stats: () => Effect.succeed({ pending: 0, quarantined: 0 }),
     };
     const { bus } = busRefusing([]);

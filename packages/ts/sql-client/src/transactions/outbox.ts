@@ -147,6 +147,20 @@ export const makeSqlOutbox = (
         Effect.mapError(fault),
       ),
 
+    hold: (entry, reason) =>
+      sql`
+        UPDATE entifix_outbox SET last_error = ${reason}
+        WHERE event_id = ${entry.eventId}`.pipe(
+        Effect.andThen(
+          sql`
+            UPDATE entifix_outbox SET lease_until = NULL
+            WHERE aggregate_type = ${entry.aggregate.type}
+              AND aggregate_id = ${entry.aggregate.id} AND NOT sent`,
+        ),
+        Effect.asVoid,
+        Effect.mapError(fault),
+      ),
+
     stats: () =>
       sql<{
         readonly pending: string | number;

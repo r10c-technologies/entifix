@@ -329,6 +329,59 @@ describe('makeMongoOutbox writes', () => {
     });
   });
 
+  it('holds an entry with its reason and spends no attempt', async () => {
+    const { outbox, calls } = spying();
+
+    await Effect.runPromise(
+      outbox.hold(
+        {
+          eventId: 'e-1',
+          aggregate: anEvent().aggregate,
+          version: anEvent().version,
+          event: anEvent(),
+          sent: false,
+          attempts: 2,
+          quarantined: false,
+          createdAt: '2026-01-01T00:00:00.000Z',
+        },
+        'unavailable',
+      ),
+    );
+
+    expect(calls['updateOne']?.[0]).toEqual({
+      filter: { eventId: 'e-1' },
+      update: { $set: { lastError: 'unavailable' } },
+    });
+  });
+
+  it('reports a hold that itself failed', async () => {
+    const { outbox } = spying({
+      updateOne: async () => {
+        throw new Error('connection reset');
+      },
+    });
+
+    const outcome = await Effect.runPromise(
+      Effect.result(
+        outbox.hold(
+          {
+            eventId: 'e-1',
+            aggregate: anEvent().aggregate,
+            version: anEvent().version,
+            event: anEvent(),
+            sent: false,
+            attempts: 0,
+            quarantined: false,
+            createdAt: '2026-01-01T00:00:00.000Z',
+          },
+          'unavailable',
+        ),
+      ),
+    );
+
+    expect(outcome._tag).toBe('Failure');
+  });
+
   it('reports a failure record that itself failed', async () => {
     const { outbox } = spying({
       updateOne: async () => {

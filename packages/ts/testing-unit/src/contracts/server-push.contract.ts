@@ -60,6 +60,11 @@ const org = (id: string) => [{ kind: 'organization' as const, id }];
 
 const topicsOf = (e: DomainEvent) => [(e.data as { topic: string }).topic];
 
+const keyOf = (message: PushMessageUnderTest) =>
+  message._tag === 'event'
+    ? message.event.id
+    : `resync:${message.topics.join(',')}`;
+
 /**
  * What every server-push adapter must guarantee
  * ([ADR 0021](../../../../../docs/adr/0021-server-push-and-the-multiplexed-channel.md)):
@@ -91,19 +96,39 @@ export const describeServerPushContract = (
       Effect.scoped(
         Effect.gen(function* () {
           const push = yield* make(options);
+          // Each message once, however many times its batch went out.
+          const seen = new Set<string>();
           const reading = yield* Effect.forkChild(
-            Stream.runCollect(Stream.take(push.open(connection), count)),
+            Stream.runCollect(
+              Stream.take(
+                // Kept only when it grows the set: the first sighting.
+                Stream.filter(push.open(connection), message => {
+                  const before = seen.size;
+                  seen.add(keyOf(message));
+                  return seen.size > before;
+                }),
+                count,
+              ),
+            ),
           );
-          // Let the connection subscribe before anything is published.
-          yield* Effect.sleep('10 millis');
-          yield* Effect.forEach(events, push.publish, { discard: true });
-          return Array.from(yield* Fiber.join(reading));
+          // The port says nothing about when an opened stream is subscribed,
+          // so the batch goes out again every 10 ms until the reader has what
+          // it waits for. A single publish after a fixed sleep raced a loaded
+          // CI runner: the events reached nobody and the case timed out. A
+          // batch publishes without yielding, so a subscription never lands
+          // halfway through one.
+          const publishing = Effect.forEach(events, push.publish, {
+            discard: true,
+          }).pipe(Effect.andThen(Effect.sleep('10 millis')), Effect.forever);
+          return Array.from(
+            yield* Effect.raceFirst(Fiber.join(reading), publishing),
+          );
         }),
       ),
     );
 
   const ids = (messages: readonly PushMessageUnderTest[]) =>
-    messages.map(m => (m._tag === 'event' ? m.event.id : `resync:${m.topics}`));
+    messages.map(keyOf);
 
   describe(`${name} — the server-push contract`, () => {
     it('delivers an event in a subscribed topic that its audience admits', async () => {

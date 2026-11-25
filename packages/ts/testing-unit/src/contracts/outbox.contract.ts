@@ -1,4 +1,9 @@
-import { type DomainEvent, Unavailable } from '@entifix/core';
+import {
+  type DomainEvent,
+  ProtocolFailure,
+  type StoreFailure,
+  Unavailable,
+} from '@entifix/core';
 import {
   discardIfStale,
   type EventBus,
@@ -32,13 +37,20 @@ const event = (aggregate: string, version: number): OutboxEvent => {
   };
 };
 
-/** A bus that records what it published and refuses the ids it is told to. */
-const recordingBus = (refuse: ReadonlySet<string> = new Set()) => {
+/**
+ * A bus that records what it published and refuses the ids it is told to —
+ * by default as an entry it can never publish, which is what the attempts and
+ * the quarantine are for.
+ */
+const recordingBus = (
+  refuse: ReadonlySet<string> = new Set(),
+  failure: StoreFailure = new ProtocolFailure({ reason: 'unencodable' }),
+) => {
   const published: DomainEvent[] = [];
   const bus: EventBus = {
     publish: published_ =>
       refuse.has(published_.id)
-        ? Effect.fail(new Unavailable({ dependency: 'contract-bus' }))
+        ? Effect.fail(failure)
         : Effect.sync(() => {
             published.push(published_);
           }),
@@ -53,8 +65,8 @@ const recordingBus = (refuse: ReadonlySet<string> = new Set()) => {
  * ([ADR 0018](../../../../../docs/adr/0018-one-outbox-ordered-per-aggregate.md)):
  * a duplicate enqueue is recognised, each aggregate publishes in version
  * order, a failing aggregate holds back only itself, a poisoned one is
- * quarantined without blocking another, and a consumer discards a stale
- * version.
+ * quarantined without blocking another, a bus outage spends no attempt, and a
+ * consumer discards a stale version.
  */
 export const describeOutboxContract = (
   name: string,
@@ -110,6 +122,26 @@ export const describeOutboxContract = (
         pending: 0,
         quarantined: 1,
       });
+    });
+
+    // entifix #330: an outage is not the entry's fault, however long it lasts.
+    it('spends no attempt while the bus is down, and publishes once it is back', async () => {
+      const { outbox, drain } = await run(make());
+      await run(outbox.enqueue(event('a', 1)));
+      const down = recordingBus(
+        new Set(['a:1']),
+        new Unavailable({ dependency: 'contract-bus' }),
+      );
+
+      for (let pass = 0; pass < 3; pass += 1) await run(drain(down.bus, 1));
+      expect(await run(outbox.stats())).toMatchObject({
+        pending: 1,
+        quarantined: 0,
+      });
+
+      const back = recordingBus();
+      expect(await run(drain(back.bus, 1))).toBe(1);
+      expect(back.published.map(e => e.id)).toEqual(['a:1']);
     });
 
     it('lets a consumer discard a version it already applied', async () => {

@@ -298,6 +298,9 @@ export const MECHANISM_OUTCOME_LEVELS: Readonly<Record<string, Severity>> = {
   sweepFailed: 'Error',
   hookFailed: 'Error',
   drainFailed: 'Warn',
+  // The bus is down and an outbox is waiting on it (entifix #330): one line a
+  // pass per database, loud enough to see and not an error — nothing is lost.
+  held: 'Warn',
   draining: 'Info',
   drained: 'Debug',
 };

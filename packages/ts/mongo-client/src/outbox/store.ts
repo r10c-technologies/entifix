@@ -236,5 +236,16 @@ export const makeMongoOutbox = (db: Db): Outbox => {
           ),
         catch: cause => translateMongoError(cause),
       }).pipe(Effect.asVoid),
+    // No lease to give back here: `pending` reads without claiming, so the
+    // next pass sees the entry again by itself.
+    hold: (entry, reason) =>
+      Effect.tryPromise({
+        try: () =>
+          collection.updateOne(
+            { eventId: entry.eventId },
+            { $set: { lastError: reason } },
+          ),
+        catch: cause => translateMongoError(cause),
+      }).pipe(Effect.asVoid),
   };
 };
