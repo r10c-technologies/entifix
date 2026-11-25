@@ -148,7 +148,6 @@ deletableWhen, readOnlyReasonKey })` names the states a record is saved and
   deleted in: the form renders one outside them read-only and says why, and
   every adapter conditions the write on them, so the service refuses it `409
 unavailableInState` in the same statement — never a read and then a write.
-  A verb's `availableWhen` is enforced the same way for a person's request.
 - **One check for untyped records.** `validateRecords` holds JSON from a build,
   an import or a seed to all of the above, collecting every problem with its
   path. `@entifix/static` runs it before serving bundled records through the
