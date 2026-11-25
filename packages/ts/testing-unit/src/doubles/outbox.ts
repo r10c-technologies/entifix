@@ -1,18 +1,19 @@
 import {
-  aggregateKey,
   type EventBus,
   type Outbox,
   type OutboxEntry,
 } from '@entifix/transactions';
-import { Effect, Result } from 'effect';
+import { drainOutbox } from '@entifix/transactions/engine';
+import { Effect } from 'effect';
 
 export interface InMemoryOutbox extends Outbox {
   /** Every entry, in enqueue order. */
   readonly entries: readonly OutboxEntry[];
   /**
-   * One relay pass with the semantics every relay has: oldest first, in order
-   * within each aggregate, a failing head holding back only its own aggregate,
-   * and quarantine at `maxAttempts`.
+   * One relay pass — the relay's own `drainOutbox`, so the double cannot
+   * drift from it: oldest first, in order within each aggregate, a failing
+   * head holding back only its own aggregate, no attempt spent while the bus
+   * is down, and quarantine at `maxAttempts`.
    */
   readonly drain: (bus: EventBus, maxAttempts: number) => Effect.Effect<number>;
 }
@@ -75,28 +76,9 @@ export const makeInMemoryOutbox = (): InMemoryOutbox => {
   };
 
   const drain = (bus: EventBus, maxAttempts: number) =>
-    Effect.gen(function* () {
-      const held = new Set<string>();
-      let sent = 0;
-      for (const entry of yield* outbox.pending(Number.MAX_SAFE_INTEGER)) {
-        const key = aggregateKey(entry.aggregate);
-        if (held.has(key)) continue;
-        const outcome = yield* Effect.result(bus.publish(entry.event));
-        if (Result.isFailure(outcome)) {
-          const quarantine = entry.attempts + 1 >= maxAttempts;
-          yield* outbox.recordFailure(
-            entry,
-            outcome.failure.message,
-            quarantine,
-          );
-          if (!quarantine) held.add(key);
-          continue;
-        }
-        yield* outbox.markSent(entry);
-        sent += 1;
-      }
-      return sent;
-    }).pipe(Effect.orDie);
+    drainOutbox(outbox, bus, { maxAttempts, database: 'in-memory' }).pipe(
+      Effect.orDie,
+    );
 
   return { ...outbox, entries, drain };
 };
