@@ -1,6 +1,6 @@
 {
   "name": "@entifix/docs-engine",
-  "version": "0.23.12",
+  "version": "0.23.13",
   "description": "A documentation site from sources: decision records, Markdown guides that cite ids, and a reference a host derives from its own metadata, turned into one page tree and exported as static files.",
   "license": "MIT",
   "repository": {
