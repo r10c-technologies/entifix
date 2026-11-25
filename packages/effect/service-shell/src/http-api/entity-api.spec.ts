@@ -1391,14 +1391,14 @@ describe('an entity that declares the states it is saved and deleted in', () => 
     });
   });
 
-  it('declares the 409 on update, delete and a person’s verb — not on a crossing', () => {
+  it('declares the 409 on update and delete, never on a verb', () => {
     const errorsOf = (name: string) =>
       drafts.endpoints.find(({ descriptor }) => descriptor.name === name)
         ?.descriptor.errors ?? [];
 
     expect(errorsOf('update')).toContain(UnavailableInState);
     expect(errorsOf('delete')).toContain(UnavailableInState);
-    expect(errorsOf('publish')).toContain(UnavailableInState);
+    expect(errorsOf('publish')).not.toContain(UnavailableInState);
     expect(errorsOf('stamp')).not.toContain(UnavailableInState);
     expect(errorsOf('get')).not.toContain(UnavailableInState);
   });
@@ -1492,38 +1492,30 @@ describe('an entity that declares the states it is saved and deleted in', () => 
     expect(handled).toEqual(['update d-design', 'delete d-ghost']);
   });
 
-  it('refuses a person’s verb outside its states before its handler runs', async () => {
-    await reset();
-
-    const refused = await call('/api/draft/d-released/publish', {
-      method: 'POST',
-      headers: admin,
-    });
-    const run = await call('/api/draft/d-design/publish', {
-      method: 'POST',
-      headers: admin,
-    });
-
-    expect(refused.status).toBe(409);
-    expect(refused.body).toMatchObject({
-      code: 'unavailableInState',
-      state: 'released',
-    });
-    expect(run.status).toBe(200);
-    expect(handled).toEqual(['publish d-design']);
-  });
-
-  it('refuses a record that holds no state at all, naming none', async () => {
+  it('refuses a record that holds no state at all before an override, naming none', async () => {
     await reset();
     draftStore.seed([Object.assign(new Draft(), { id: 'd-blank' })]);
 
-    const refused = await call('/api/draft/d-blank/publish', {
+    const refused = await call(
+      '/api/kept-draft/d-blank',
+      json('PUT', envelope({ title: 'x' }), admin),
+    );
+
+    expect(refused.status).toBe(409);
+    expect(refused.body).not.toHaveProperty('state');
+    expect(handled).toEqual([]);
+  });
+
+  it('leaves a verb to its handler, which refuses with the domain’s own code', async () => {
+    await reset();
+
+    const answer = await call('/api/draft/d-released/publish', {
       method: 'POST',
       headers: admin,
     });
 
-    expect(refused.status).toBe(409);
-    expect(refused.body).not.toHaveProperty('state');
+    expect(answer.status).toBe(200);
+    expect(handled).toEqual(['publish d-released']);
   });
 
   it('leaves a crossing verb to its own handler, whatever the state', async () => {
@@ -1591,18 +1583,6 @@ describe('a narrowed entity that declares its write states', () => {
       404, 404, 404,
     ]);
     expect(draftStore.items).toHaveLength(3);
-  });
-
-  it('leaves a verb on a record the caller cannot see to its handler', async () => {
-    reset();
-
-    const answer = await call('/api/my-draft/d-theirs/publish', {
-      method: 'POST',
-      headers: as('ada'),
-    });
-
-    expect(answer.status).not.toBe(409);
-    expect(handled).toEqual(['publish d-theirs']);
   });
 
   it('leaves a crossing compensation to its own handler, whatever the state', async () => {

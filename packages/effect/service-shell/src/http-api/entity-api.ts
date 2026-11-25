@@ -466,12 +466,14 @@ export const entityApi = <
   const rules = describeEntityStateRules(entityConstructor);
 
   /**
-   * The stored record's state against `condition`, before a handler the shell
-   * does not write for — an override of update or delete, or a verb. A record
-   * that is not there passes, so the handler answers for it as it always has.
+   * The stored record's state against `condition`, before an update or a
+   * delete the host wrote itself. A record that is not there passes, so the
+   * handler answers for it as it always has.
    *
-   * Only a refusal is decided here: the handler's own conditional write is
-   * still what makes a race lose
+   * Only a refusal is decided here: the override's own conditional write is
+   * still what makes a race lose. A verb is not checked: its handler refuses
+   * an illegal move with the domain's own code, from the same transition table
+   * its `availableWhen` is derived from
    * ([ADR 0029](../../../../../docs/adr/0029-a-verb-declares-the-states-it-is-legal-from.md)).
    */
   const refuseOutside = (
@@ -497,22 +499,6 @@ export const entityApi = <
         allowed: [...condition.in],
       });
     });
-
-  /**
-   * The states a verb is checked against before its handler: a verb a person
-   * reaches, declared on a record. A crossing verb is a flow's step, replayed
-   * by redelivery and answered by its own handler — a compensation that finds
-   * its work already done says so, it is not refused.
-   */
-  const verbCondition = (
-    verb: VerbEndpoint<unknown>,
-  ): UseCaseAvailability | undefined =>
-    verb.useCase.binding === 'entity' && verbGuard(verb).kind !== 'crossing'
-      ? describeEntityUseCases(entityConstructor).find(
-          declared =>
-            declared.key === verb.useCase.key && declared.binding === 'entity',
-        )?.availableWhen
-      : undefined;
 
   const narrowingOf = (caller: EntityApiContext): Narrowing<T> | undefined =>
     options.narrowing === undefined || caller.verified === undefined
@@ -915,10 +901,7 @@ export const entityApi = <
           : {}),
         ...(payload === undefined ? {} : { payload }),
         success: useCase.success ?? JsonBody,
-        errors: [
-          ...(useCase.errors ?? []),
-          ...(verbCondition(verb) === undefined ? [] : [UnavailableInState]),
-        ],
+        errors: [...(useCase.errors ?? [])],
         guard: endpointGuardFor(verbGuard(verb), () =>
           permissionForUseCase(entityConstructor, useCase.key),
         ),
@@ -928,13 +911,9 @@ export const entityApi = <
           : { idempotent: verb.idempotent }),
         ...(verb.accepted === true ? { accepted: true } : {}),
       } as AnyEndpoint);
-      const condition = verbCondition(verb);
       return implement(descriptor, ((request: EntityApiRequest) =>
         Effect.flatMap(context, caller =>
-          Effect.andThen(
-            refuseOutside(caller, request.params?.id as string, condition),
-            () => verb.handler(request, caller),
-          ),
+          verb.handler(request, caller),
         )) as never) as Implemented;
     }),
     ...verbs.flatMap(verb => {

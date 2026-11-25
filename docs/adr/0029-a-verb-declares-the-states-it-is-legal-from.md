@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-11-13
-- Revised: 2026-11-24 by [#327](https://github.com/r10c-technologies/entifix/issues/327) — Save and Delete take the same declaration (§6), the service refuses from it (§7), and §4 says where presentation ends.
+- Revised: 2026-11-24 by [#327](https://github.com/r10c-technologies/entifix/issues/327) — Save and Delete take the same declaration (§6), the service refuses them from it (§7), and §4 says where presentation ends.
 - Area: ui
 - Read when: a record's form offers a Save its service always refuses, a released or closed record still renders editable inputs, a hand-written status check refuses an update or a delete, a record's form offers every verb whatever its status, a button that applies to one status sits beside three that apply to others, a verb the record has moved past is still clickable, focus falls to `<body>` after a verb runs, or about to disable a button with a tooltip explaining why it does not apply
 
@@ -82,20 +82,28 @@ And a verb that answers a **different** record — a New version is a new
 record — opens it, so the person lands on the one they can edit rather than
 the frozen one they pressed it on.
 
-**7. The service refuses from the declaration, in the write itself.** The
-repository port takes `{ expect: { member, in } }` on `save` and `delete`, and
-every adapter conjoins it onto the one conditional statement that writes —
-beside the revision of
+**7. The service refuses Save and Delete from the declaration, in the write
+itself.** The repository port takes `{ expect: { member, in } }` on `save` and
+`delete`, and every adapter conjoins it onto the one conditional statement that
+writes — beside the revision of
 [ADR 0032](0032-a-save-names-the-revision-it-read.md) when there is one —
 answering `UnavailableInState` (`409 unavailableInState`, naming the member,
 the state and the allowed ones) when the record is in another. A save with
 `expect` never creates. The derived update and delete pass the entity's
-declaration; an update or delete a host overrides, and a record-bound verb a
-person reaches, are checked against the stored record before the handler runs.
-A **crossing** verb is not: it is a flow's step, replayed by redelivery, and a
-compensation that finds its work already done answers so rather than being
-refused. One declaration therefore drives the form, the table, `$metadata` and
-the refusal, and the hand-written status check it replaces goes.
+declaration; an update or delete a host overrides is checked against the stored
+record before its handler runs, and its own write stays conditional. A
+**crossing** override is not checked: it is a flow's step, replayed by
+redelivery, and a compensation that finds its work already done answers so.
+Every check reads through the caller's narrowing, so a `409` never says that a
+record the caller may not read exists — and a derived update or delete of such
+a record answers `404`, as a read of it does.
+
+A **verb** is not checked by the shell. Its handler already refuses an illegal
+move, in its own conditional write, with the domain's own code — "this channel
+is retired", not a generic refusal — and a host derives the verb's `in` from
+the same transition table that handler writes against (Consequences), so the
+two cannot drift. Checking it again before the handler would cost a read and
+trade a specific refusal for a generic one.
 
 ## Consequences
 
