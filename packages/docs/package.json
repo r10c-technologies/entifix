@@ -1,6 +1,6 @@
 {
   "name": "@entifix/docs",
-  "version": "0.23.15",
+  "version": "0.23.16",
   "description": "entifix's decision records as they stood at this release, an index of them, and the reader that parses a collection in their format.",
   "license": "MIT",
   "repository": {
