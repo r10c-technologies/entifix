@@ -127,6 +127,12 @@ interface Consumer {
   tags: readonly string[];
 }
 
+/** The first wait before a consumer's connector tries the broker again. */
+export const RECONNECT_FIRST_MS = 500;
+
+/** The longest wait between two tries, which the doubling stops at. */
+export const RECONNECT_MAX_MS = 15_000;
+
 /**
  * Builds the connector. Exported for the specs; services take it from the layer.
  */
@@ -135,6 +141,7 @@ export const makeAmqpConnector = (uri: string) => {
   let opening: Promise<Live> | undefined;
   let closed = false;
   let cancelled = false;
+  let retry: ReturnType<typeof setTimeout> | undefined;
   const consumers: Consumer[] = [];
 
   /**
@@ -173,6 +180,32 @@ export const makeAmqpConnector = (uri: string) => {
     }
   };
 
+  /**
+   * Try the broker again after `delay`, doubling the wait on every miss, until
+   * the consumers are bound again.
+   *
+   * Reopening on the next call is enough for a publisher, and it is all a
+   * process that only consumes never makes: with nothing to publish, nothing
+   * called `withChannel`, so after a broker restart its queues were never
+   * declared again and it heard nothing until it was restarted — measured
+   * live, a projector that missed every publication after an outage. So a
+   * connector holding consumers does not wait to be called. A pass that binds
+   * nothing new is harmless, which is also what retries a setup that threw.
+   */
+  const reconnect = (delay: number) => {
+    if (closed || cancelled || consumers.length === 0 || retry !== undefined) {
+      return;
+    }
+    retry = setTimeout(() => {
+      retry = undefined;
+      ensure()
+        .then(current => bindAll(current.channel))
+        .catch(() => reconnect(Math.min(delay * 2, RECONNECT_MAX_MS)));
+    }, delay);
+    // A pending try never keeps a process alive that is otherwise done.
+    retry.unref();
+  };
+
   const open = async (): Promise<Live> => {
     const connection = await amqp.connect(uri);
     const channel = await connection.createChannel();
@@ -189,6 +222,7 @@ export const makeAmqpConnector = (uri: string) => {
       if (live?.connection === connection) {
         live = undefined;
       }
+      reconnect(RECONNECT_FIRST_MS);
     };
     connection.on('close', drop);
     connection.on('error', drop);
@@ -258,6 +292,8 @@ export const makeAmqpConnector = (uri: string) => {
 
   const close = async () => {
     closed = true;
+    clearTimeout(retry);
+    retry = undefined;
     const current = live;
     live = undefined;
     await current?.connection.close().catch(() => undefined);
