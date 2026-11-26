@@ -208,6 +208,21 @@ export function ActionBar({
       </span>
     );
 
+  /**
+   * Runs a folded item's action once the menu has closed. The menu is modal:
+   * while it is open everything else is inert, and closing it hands focus
+   * back to its trigger. A dialog the action opens in the same tick is born
+   * inert, takes no focus, and the trigger's restore leaves the keyboard on
+   * the page behind it (WCAG 2.4.3). One task later the menu is gone, and the
+   * dialog takes focus as it does from a button.
+   */
+  const afterMenuCloses = (onSelect: (() => void) | undefined) =>
+    onSelect === undefined
+      ? undefined
+      : () => {
+          globalThis.setTimeout(onSelect, 0);
+        };
+
   const menu = (folded: readonly ActionBarItem[], key: string): ReactNode => {
     if (folded.length === 0) return undefined;
     const firstDestructive = folded.findIndex(item => item.destructive);
@@ -224,7 +239,7 @@ export function ActionBar({
                 tone={item.destructive ? 'destructive' : 'neutral'}
                 disabled={item.disabled}
                 aria-keyshortcuts={keyShortcuts(item)}
-                onClick={item.onSelect}
+                onClick={afterMenuCloses(item.onSelect)}
               >
                 {item.label}
               </Menu.Item>

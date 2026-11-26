@@ -1,5 +1,5 @@
 import type { UseCaseDescriptor } from '@entifix/core';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -125,6 +125,51 @@ describe('ActionBar', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'go' }));
     expect(onSelect).toHaveBeenCalledOnce();
+  });
+
+  it('runs a folded action only once its menu has closed, so a dialog it opens can take focus', async () => {
+    const menus: number[] = [];
+    const onSelect = vi.fn(() => {
+      menus.push(document.querySelectorAll('[role="menu"]').length);
+    });
+    renderBar({
+      surface: 'form-header',
+      items: [
+        item('a'),
+        item('b'),
+        item('main', { emphasis: 'primary' }),
+        item('c'),
+        item('d', { onSelect }),
+      ],
+    });
+
+    await userEvent.click(
+      arrangement('wide').getByRole('button', { name: 'Más acciones' }),
+    );
+    await userEvent.click(screen.getByRole('menuitem', { name: 'd' }));
+
+    await waitFor(() => expect(onSelect).toHaveBeenCalledOnce());
+    expect(menus).toEqual([0]);
+  });
+
+  it('closes its menu on a folded item that runs nothing', async () => {
+    renderBar({
+      surface: 'form-header',
+      items: [
+        item('a'),
+        item('b'),
+        item('main', { emphasis: 'primary' }),
+        item('c'),
+        item('d', { onSelect: undefined }),
+      ],
+    });
+
+    await userEvent.click(
+      arrangement('wide').getByRole('button', { name: 'Más acciones' }),
+    );
+    await userEvent.click(screen.getByRole('menuitem', { name: 'd' }));
+
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   });
 
   it('keeps a link a link, beside the primary and never folded', () => {
