@@ -11,11 +11,14 @@ import {
   describeEntityRepositoryContract,
   describeEntityRepositoryRevisionContract,
   describeEntityRepositoryStateContract,
+  describeEntityRepositoryUniqueContract,
   makeContractWidget,
   makeRevisedWidget,
   makeStatedWidget,
+  makeUniqueWidget,
   RevisedWidget,
   StatedWidget,
+  UniqueWidget,
 } from '@entifix/testing-unit/contracts';
 import { makeFakeMongoDb } from '@entifix/testing-unit/drivers';
 import { Exit } from 'effect';
@@ -447,5 +450,84 @@ describe('makeMongoRepository for a revisioned entity with a state condition', (
       ),
     )) as { _tag: string };
     expect(failure._tag).toBe('NotFound');
+  });
+});
+
+const withUniqueDb = (seed: UniqueWidget[] = []) => {
+  const fake = makeFakeMongoDb({
+    'unique-widget': seed.map(widget => serializeEntity(UniqueWidget, widget)),
+  });
+  return {
+    fake,
+    repository: makeMongoRepository(fake.db as Db, UniqueWidget),
+  };
+};
+
+describeEntityRepositoryUniqueContract('mongo adapter over a fake driver', {
+  makeRepository: seed => withUniqueDb(seed).repository,
+});
+
+describe('makeMongoRepository for an entity that declares a unique member', () => {
+  const indexes = (fake: ReturnType<typeof makeFakeMongoDb>) =>
+    fake.operations.filter(operation => operation.op === 'createIndex');
+
+  it('holds the member to a partial index under its stored key, beside the one on id', async () => {
+    const { fake, repository } = withUniqueDb();
+    const created: unknown[] = [];
+    const db = fake.db as Db;
+    const original = db.collection.bind(db);
+    (db as { collection: Db['collection'] }).collection = ((name: string) => {
+      const collection = original(name);
+      const createIndex = collection.createIndex.bind(collection);
+      return Object.assign(collection, {
+        createIndex: (spec: object, options?: object) => {
+          created.push({ spec, options });
+          return createIndex(spec as never, options as never);
+        },
+      });
+    }) as Db['collection'];
+
+    await run(
+      makeMongoRepository(db, UniqueWidget).save<UniqueWidget>(
+        makeUniqueWidget(undefined, 'Alpha', 'A-1'),
+      ),
+    );
+
+    expect(created).toEqual([
+      { spec: { id: 1 }, options: { unique: true } },
+      {
+        spec: { sku: 1 },
+        options: {
+          unique: true,
+          name: 'unique_sku',
+          partialFilterExpression: { sku: { $type: 'string' } },
+        },
+      },
+    ]);
+    expect(repository).toBeDefined();
+  });
+
+  it('ensures the indexes before an update too, since an update can collide', async () => {
+    const { fake, repository } = withUniqueDb([
+      makeUniqueWidget('u-1', 'Alpha', 'A-1', 1),
+    ]);
+
+    await run(
+      repository.save<UniqueWidget>(makeUniqueWidget('u-1', 'Alpha', 'A-2', 1)),
+    );
+
+    expect(indexes(fake)).toHaveLength(2);
+  });
+
+  it('still answers a create over an existing id as a stale revision', async () => {
+    const { repository } = withUniqueDb([
+      makeUniqueWidget('u-1', 'Alpha', 'A-1', 1),
+    ]);
+
+    const failure = await runFailure(
+      repository.save<UniqueWidget>(makeUniqueWidget('u-1', 'Again', 'A-9')),
+    );
+
+    expect(failure).toMatchObject({ _tag: 'StaleRevision' });
   });
 });

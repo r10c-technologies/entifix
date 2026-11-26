@@ -8,6 +8,7 @@ import {
   applySorting,
   declaresRevision,
   deserializeSingleEntity,
+  DuplicateKey,
   type EntifixFailure,
   type Entity,
   type EntityConstructor,
@@ -22,6 +23,7 @@ import {
   serializeEntity,
   StaleRevision,
   UnavailableInState,
+  uniqueMembersOf,
   type UseCaseAvailability,
 } from '@entifix/core';
 import { Effect } from 'effect';
@@ -132,6 +134,31 @@ export const makeInMemoryEntityRepository = (
     });
 
   /**
+   * The unique rule (ADR 0034): no other record may hold a value `candidate`
+   * holds in a member its entity declares `unique`. An absent value never
+   * collides. Called in the same synchronous step as the write it guards.
+   */
+  const clashOf = (candidate: Entity): DuplicateKey | undefined => {
+    const members = uniqueMembersOf(
+      candidate.constructor as EntityConstructor<Entity>,
+    );
+    for (const member of members) {
+      const value = (candidate as unknown as Record<string, unknown>)[
+        member.name
+      ];
+      if (value == null) continue;
+      const clash = items.some(
+        item =>
+          item.constructor === candidate.constructor &&
+          item.id !== candidate.id &&
+          (item as unknown as Record<string, unknown>)[member.name] === value,
+      );
+      if (clash) return new DuplicateKey({ key: member.key });
+    }
+    return undefined;
+  };
+
+  /**
    * The revision rule (ADR 0032): a create never overwrites, an update names
    * the revision it read, and a mismatch writes nothing. The decision and the
    * write share one synchronous step, so two saves cannot both pass at one
@@ -158,6 +185,8 @@ export const makeInMemoryEntityRepository = (
               return Effect.fail(new StaleRevision({ entity: key, current }));
             }
           }
+          const clash = clashOf(stored);
+          if (clash !== undefined) return Effect.fail(clash);
           const next = (read ?? 0) + 1;
           (stored as { revision?: number }).revision = next;
           (entity as { revision?: number }).revision = next;
@@ -222,13 +251,16 @@ export const makeInMemoryEntityRepository = (
       // second save — which a real adapter guarantees by construction.
       return copyOf(entity).pipe(
         Effect.tap(stored =>
-          Effect.sync(() => {
+          Effect.suspend(() => {
+            const clash = clashOf(stored);
+            if (clash !== undefined) return Effect.fail(clash);
             const index = items.findIndex(item => item.id === stored.id);
             if (index === -1) {
               items.push(stored);
             } else {
               items[index] = stored;
             }
+            return Effect.void;
           }),
         ),
         Effect.flatMap(copyOf),

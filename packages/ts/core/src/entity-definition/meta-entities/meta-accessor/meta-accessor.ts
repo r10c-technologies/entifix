@@ -149,6 +149,19 @@ export interface MetaAccessorOptions {
    */
   resetOnClone?: boolean;
   /**
+   * No two records of the store may hold the same value — a code a person
+   * types, a vendor's own SKU. The **store** enforces it, not a read before
+   * the write: a check-then-insert loses to the request racing it, and an
+   * index does not. A collision answers `DuplicateKey` naming this member,
+   * which a form shows on the field.
+   *
+   * An absent value is never a collision, so an optional unique member may be
+   * left empty on any number of records. Legal on a `string`, `id` or `number`
+   * member only; describing the entity fails otherwise. Implies `resetOnClone`:
+   * a copy that kept the value could never be saved.
+   */
+  unique?: boolean;
+  /**
    * The fewest values a collection member may hold — `1` for "not empty". Only
    * meaningful on a collection type (`scalarCollection`, `linkCollection`,
    * `composition`); declaring it elsewhere fails when the entity is described.
@@ -308,6 +321,7 @@ export class MetaAccessor {
   readonly linkSerialization?: EntityLinkSerialization;
   readonly childType?: () => ChildConstructor;
   readonly resetOnClone?: boolean;
+  readonly unique?: boolean;
   readonly minItems?: number;
   readonly maxItems?: number;
   readonly notBefore?: string;
@@ -347,6 +361,7 @@ export class MetaAccessor {
     this.linkSerialization = options?.linkSerialization;
     this.childType = options?.childType;
     this.resetOnClone = options?.resetOnClone;
+    this.unique = options?.unique;
     this.minItems = options?.minItems;
     this.maxItems = options?.maxItems;
     this.notBefore = options?.notBefore;

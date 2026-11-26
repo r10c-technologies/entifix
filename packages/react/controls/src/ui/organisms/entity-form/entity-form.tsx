@@ -369,6 +369,22 @@ export function EntityForm<TEntity extends Entity>({
   // the one thing a failure decoded in a browser is sure to carry, and it is
   // not a retry: the fields keep what was typed and the person chooses.
   const conflicted = error?.code === 'staleRevision';
+  // A save refused because a member declared `unique` holds a value another
+  // record has (ADR 0034). The failure names the member's stored key, so it is
+  // that field's error — next to what has to change — and not a banner.
+  const duplicated =
+    error?.code === 'duplicateKey'
+      ? fields.find(field => field.key === (error as { key?: string }).key)
+      : undefined;
+  const fieldErrors =
+    duplicated === undefined
+      ? errors
+      : {
+          ...errors,
+          [duplicated.name]: t('form.duplicateValue', {
+            field: duplicated.label,
+          }),
+        };
   const conflict = useRef<HTMLDivElement>(null);
   useEffect(() => {
     // Focus moves to the explanation, so a keyboard or screen-reader user is
@@ -378,7 +394,7 @@ export function EntityForm<TEntity extends Entity>({
   const summary = useRef<HTMLDivElement>(null);
   const summaryId = useId();
   const invalid = editing
-    ? fields.filter(field => errors?.[field.name] !== undefined)
+    ? fields.filter(field => fieldErrors?.[field.name] !== undefined)
     : [];
   const focusedAttempt = useRef(0);
   useEffect(() => {
@@ -457,7 +473,7 @@ export function EntityForm<TEntity extends Entity>({
       draft={draft}
       value={readDraftString(draft, field.name)}
       editing={editing}
-      error={editing ? errors?.[field.name] : undefined}
+      error={editing ? fieldErrors?.[field.name] : undefined}
       setField={setField}
       linkSource={linkSources?.[field.name]}
       onLinkChange={onLinkChange}
@@ -569,7 +585,7 @@ export function EntityForm<TEntity extends Entity>({
 
       <RegionState
         plural={entityNoun(metaEntity, 'plural')}
-        error={conflicted ? undefined : error}
+        error={conflicted || duplicated !== undefined ? undefined : error}
         onRetry={onRetry}
         // Only a load that can be retried leaves an out-of-date record; a
         // failed save leaves what the reader typed, which is current.
@@ -603,7 +619,7 @@ export function EntityForm<TEntity extends Entity>({
                     document.getElementById(`${formId}-${field.name}`)?.focus();
                   }}
                 >
-                  {errors?.[field.name]}
+                  {fieldErrors?.[field.name]}
                 </a>
               </li>
             ))}

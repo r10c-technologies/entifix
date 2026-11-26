@@ -44,4 +44,24 @@ describe('translateSqlError', () => {
 
     expect(translateSqlError(taken)).toBe(taken);
   });
+
+  it('names the column a unique violation reports, wherever its detail sits', () => {
+    expect(
+      translateSqlError({
+        cause: {
+          code: '23505',
+          detail: 'Key (sku)=(A-1) already exists.',
+        },
+      }),
+    ).toMatchObject({ _tag: 'DuplicateKey', key: 'sku' });
+    expect(
+      translateSqlError({
+        code: '23505',
+        detail: 'Key ("organizationId", code)=(o, c) already exists.',
+      }),
+    ).toMatchObject({ key: 'organizationId,code' });
+    expect(
+      translateSqlError({ code: '23505', detail: 'something else' }),
+    ).not.toHaveProperty('key');
+  });
 });

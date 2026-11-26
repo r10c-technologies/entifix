@@ -60,6 +60,7 @@ export const controls: EsControls = {
     back: 'Back',
     loading: 'Loading…',
     pending: 'Waiting for the server…',
+    duplicateValue: 'Another record already has this {{field}}',
     conflictTitle: 'This record changed while you were editing it',
     conflictBody:
       'Someone else saved a newer version. What you typed is still below and nothing was saved.',

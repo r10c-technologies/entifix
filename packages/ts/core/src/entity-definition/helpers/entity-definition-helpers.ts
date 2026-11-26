@@ -269,6 +269,31 @@ export function extractMetaAccessors(target: ChildConstructor): MetaAccessor[] {
   return (metadata?.[META_ACCESSOR_KEY] as MetaAccessor[] | undefined) ?? [];
 }
 
+/** A member an entity declares `unique` (ADR 0034), as a store indexes it. */
+export interface UniqueMember {
+  /** The member's name on the instance. */
+  readonly name: string;
+  /** The key it is stored and queried under: its alias, else its name. */
+  readonly key: string;
+  /** What an index holds: a number member's value, or text. */
+  readonly type: 'string' | 'number';
+}
+
+/**
+ * The members an entity declares `unique` (ADR 0034) — hidden ones included,
+ * since a store enforces a value whether or not a screen shows it. Never the
+ * identity: every store already keeps that one unique.
+ */
+export function uniqueMembersOf(target: ChildConstructor): UniqueMember[] {
+  return extractMetaAccessors(target)
+    .filter(accessor => accessor.kind === 'getter' && accessor.unique === true)
+    .map(accessor => ({
+      name: String(accessor.name),
+      key: String(accessor.alias ?? accessor.name),
+      type: accessor.type === 'number' ? 'number' : 'string',
+    }));
+}
+
 export function extractMetaMethods<TEntity extends Entity>(
   target: EntityConstructor<TEntity>,
 ): MetaMethod[] {

@@ -64,6 +64,8 @@ export interface EntityFieldDescriptor {
    * stamp. The identity member is always reset and is not flagged.
    */
   resetOnClone: boolean;
+  /** No two records of the store may hold the same value; present only when declared. */
+  unique?: true;
   /** The fewest values a collection member may hold. */
   minItems?: number;
   /** The most values a collection member may hold. */
@@ -220,6 +222,26 @@ function assertParentType(metaAccessor: MetaAccessor, type: MetaAccessorType) {
   if (type === 'id' || type === 'string') return;
   throw new Error(
     `"${String(metaAccessor.name)}" is a ${type} and cannot be the parent member — a parent is one record's id, so it is an id or a string.`,
+  );
+}
+
+/** The types a unique member may have: one scalar a store can index. */
+export const UNIQUE_TYPES: readonly MetaAccessorType[] = [
+  'string',
+  'id',
+  'number',
+];
+
+/**
+ * A unique value is one scalar an index can hold. A collection would be one
+ * index entry per element, a date or a boolean is never a key a person
+ * chooses, and a localized text is several values at once.
+ */
+function assertUniqueType(metaAccessor: MetaAccessor, type: MetaAccessorType) {
+  if (metaAccessor.unique !== true) return;
+  if (UNIQUE_TYPES.includes(type)) return;
+  throw new Error(
+    `"${String(metaAccessor.name)}" is a ${type} and cannot be unique — only a string, id or number member can.`,
   );
 }
 
@@ -521,6 +543,7 @@ function toDescriptor(
   assertScaled(metaAccessor, type);
   assertEnumTones(metaAccessor, type);
   assertMinWidth(metaAccessor);
+  assertUniqueType(metaAccessor, type);
   const child = type === 'composition' ? metaAccessor.childType?.() : undefined;
   if (child !== undefined) assertChildHasNoRevision(child);
   // A localized member is queried one locale at a time (`name.en`), which
@@ -548,7 +571,9 @@ function toDescriptor(
     linkSearchProperty: metaAccessor.linkSearchProperty ?? linkLabelProperty,
     linkSerialization: metaAccessor.linkSerialization ?? 'id',
     childType: metaAccessor.childType?.(),
-    resetOnClone: metaAccessor.resetOnClone ?? false,
+    resetOnClone:
+      (metaAccessor.resetOnClone ?? false) || metaAccessor.unique === true,
+    ...(metaAccessor.unique === true ? { unique: true as const } : {}),
     minItems: metaAccessor.minItems,
     maxItems: metaAccessor.maxItems,
     notBefore: metaAccessor.notBefore,

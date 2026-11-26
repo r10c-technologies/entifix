@@ -351,12 +351,17 @@ const runPipeline = (docs: Document[], pipeline: Document[]): Document[] =>
  */
 class FakeDuplicateKeyError extends Error {
   readonly code = 11000;
+  /** The index's fields, as the server names them, so a caller can tell which index refused. */
+  readonly keyPattern: Document;
 
   constructor(collection: string, key: Document) {
     super(
       `fake mongo: E11000 duplicate key error collection: ${collection} dup key: ${JSON.stringify(key)}`,
     );
     this.name = 'MongoServerError';
+    this.keyPattern = Object.fromEntries(
+      Object.keys(key).map(field => [field, 1]),
+    );
   }
 }
 
@@ -469,9 +474,9 @@ export const makeFakeMongoDb = (
    *
    * `ignored` is the document being replaced by an update, which must not count
    * as its own duplicate. A key whose value is `undefined` on the candidate is
-   * skipped: a real index treats a missing field as `null` and would collide,
-   * but nothing in this repo indexes an optional member, and guessing wrong
-   * here would fail writes the server accepts.
+   * skipped, as is `null`: a unique member is indexed **partially**, over the
+   * documents that hold a value (ADR 0034), so an absent value never collides —
+   * which is what every unique index in this repo asks for.
    */
   const assertUnique = (
     name: string,
@@ -479,7 +484,7 @@ export const makeFakeMongoDb = (
     ignored?: Document,
   ): void => {
     for (const fields of uniqueIndexesOf(name)) {
-      if (fields.some(field => candidate[field] === undefined)) continue;
+      if (fields.some(field => candidate[field] == null)) continue;
       const clash = documentsOf(name).find(
         doc =>
           doc !== ignored &&
