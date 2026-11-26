@@ -1,5 +1,5 @@
 import type { UseCaseDescriptor } from '@entifix/core';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -258,6 +258,33 @@ describe('ActionBar', () => {
       expect(
         screen.getByRole('menuitem', { name: 'archive' }),
       ).toBeInTheDocument();
+    });
+
+    it('runs a menu entry once the menu has handed focus back', async () => {
+      // What had focus when the entry ran: the trigger, once the menu has
+      // handed it back, rather than the menu entry that is going away.
+      let focusedAtRun: Element | null = null;
+      const onSelect = vi.fn(() => {
+        focusedAtRun = document.activeElement;
+      });
+      renderBar({
+        surface: 'row-menu',
+        menuLabel: 'Acciones para Acme',
+        items: [item('archive', { onSelect }), { key: 'noop', label: 'noop' }],
+      });
+      const trigger = screen.getByRole('button', {
+        name: 'Acciones para Acme',
+      });
+
+      await userEvent.click(trigger);
+      await userEvent.click(screen.getByRole('menuitem', { name: 'archive' }));
+      await waitFor(() => expect(onSelect).toHaveBeenCalledOnce());
+      expect(focusedAtRun).toBe(trigger);
+
+      // An entry with nothing to run closes the menu and does nothing else.
+      await userEvent.click(trigger);
+      await userEvent.click(screen.getByRole('menuitem', { name: 'noop' }));
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     });
 
     it('renders no menu when every verb is inline', () => {

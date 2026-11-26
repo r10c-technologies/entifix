@@ -9,7 +9,7 @@ import {
   Unavailable,
   type UseCaseDescriptor,
 } from '@entifix/core';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 
@@ -870,7 +870,7 @@ describe('EntityTable row menu', () => {
     );
 
     expect(onUseCase).not.toHaveBeenCalled();
-    expect(screen.getByTestId('confirm-dialog')).toBeInTheDocument();
+    expect(await screen.findByTestId('confirm-dialog')).toBeInTheDocument();
 
     await user.click(confirmButton());
 
@@ -890,7 +890,7 @@ describe('EntityTable row menu', () => {
     await user.click(
       screen.getByRole('menuitem', { name: 'gizmo.useCases.archive' }),
     );
-    await user.click(screen.getByRole('button', { name: 'Cancelar' }));
+    await user.click(await screen.findByRole('button', { name: 'Cancelar' }));
 
     expect(onUseCase).not.toHaveBeenCalled();
     expect(screen.queryByTestId('confirm-dialog')).not.toBeInTheDocument();
@@ -910,8 +910,10 @@ describe('EntityTable row menu', () => {
       screen.getByRole('menuitem', { name: 'gizmo.useCases.tag' }),
     );
 
+    await waitFor(() =>
+      expect(onUseCase).toHaveBeenCalledWith('tag', ITEMS[0]),
+    );
     expect(screen.queryByTestId('confirm-dialog')).not.toBeInTheDocument();
-    expect(onUseCase).toHaveBeenCalledWith('tag', ITEMS[0]);
   });
 
   it('offers a state-bound verb only on the rows whose state allows it', async () => {
@@ -975,7 +977,7 @@ describe('EntityTable row menu', () => {
       };
       const props = {
         metadata: metadata(ship),
-        onUseCase: () => undefined,
+        onUseCase: vi.fn(),
         hrefFor: (id: EntityId) => `/gizmo/${String(id)}`,
       };
       const user = userEvent.setup();
@@ -993,6 +995,7 @@ describe('EntityTable row menu', () => {
       await user.click(
         screen.getByRole('menuitem', { name: 'gizmo.useCases.ship' }),
       );
+      await waitFor(() => expect(props.onUseCase).toHaveBeenCalled());
       // The record moved on: Alpha is shipped, and its row has no verb left.
       rerender(
         <EntityTable<Gizmo>
