@@ -1,3 +1,13 @@
+## 0.23.16 (2026-11-26)
+
+### 🩹 Fixes
+
+- **react-controls:** an overflow entry runs after its menu hands focus back ([#339](https://github.com/r10c-technologies/entifix/pull/339))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.23.15 (2026-11-26)
 
 ### 🚀 Features
