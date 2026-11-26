@@ -208,6 +208,24 @@ export function ActionBar({
       </span>
     );
 
+  /**
+   * Runs an overflow entry's act once the menu has finished closing.
+   *
+   * Closing a menu hands focus back to its trigger on its next frame — two
+   * animation frames — unless focus by then sits on something tabbable. A verb
+   * that opens a dialog focuses the dialog's own frame, which is not
+   * tabbable, so the menu pulled focus back out behind the dialog and Tab
+   * walked the page underneath it. One frame after that hand-back, the dialog
+   * opens from a settled trigger, exactly as it does from a visible button.
+   */
+  const afterMenuCloses = (act: (() => void) | undefined) =>
+    act === undefined
+      ? undefined
+      : () =>
+          requestAnimationFrame(() =>
+            requestAnimationFrame(() => requestAnimationFrame(act)),
+          );
+
   const menu = (folded: readonly ActionBarItem[], key: string): ReactNode => {
     if (folded.length === 0) return undefined;
     const firstDestructive = folded.findIndex(item => item.destructive);
@@ -224,7 +242,7 @@ export function ActionBar({
                 tone={item.destructive ? 'destructive' : 'neutral'}
                 disabled={item.disabled}
                 aria-keyshortcuts={keyShortcuts(item)}
-                onClick={item.onSelect}
+                onClick={afterMenuCloses(item.onSelect)}
               >
                 {item.label}
               </Menu.Item>

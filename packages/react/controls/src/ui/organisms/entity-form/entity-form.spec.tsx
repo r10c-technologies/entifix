@@ -1393,6 +1393,7 @@ describe('EntityForm actions from served metadata', () => {
 
       // A folded verb is still a verb: the confirmation is not skipped.
       expect(onUseCase).not.toHaveBeenCalled();
+      await screen.findByTestId('confirm-dialog');
       await userEvent.click(confirmButton());
       expect(onUseCase).toHaveBeenCalledWith('purge');
     });
