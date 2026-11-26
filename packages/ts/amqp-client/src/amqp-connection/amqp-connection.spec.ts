@@ -1,6 +1,6 @@
 import type * as amqp from 'amqplib';
 import { Cause, Effect, Exit, Option } from 'effect';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   type AmqpConsumerControl,
@@ -8,6 +8,8 @@ import {
   EVENTS_DLX,
   EVENTS_EXCHANGE,
   makeAmqpConnector,
+  RECONNECT_FIRST_MS,
+  RECONNECT_MAX_MS,
 } from './amqp-connection.js';
 
 const connect = vi.hoisted(() => vi.fn());
@@ -349,6 +351,137 @@ describe('makeAmqpConnector', () => {
         throw new Error('mid-flight shutdown');
       }),
     ).rejects.toThrow('mid-flight shutdown');
+  });
+
+  // Measured live: a projector that only consumes never called `withChannel`
+  // again after a broker restart, so its queue was never declared again and
+  // every publication after the outage was lost to it.
+  describe('a connector holding consumers reconnects by itself', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    const consumed = async () => {
+      const boundTo: unknown[] = [];
+      const built = makeAmqpConnector('amqp://localhost');
+      await built.connector.addConsumer(async channel => {
+        boundTo.push(channel);
+      });
+      return { ...built, boundTo };
+    };
+
+    it('binds its consumers again once the broker is back, with nothing published', async () => {
+      const first = makeFakeConnection();
+      const second = makeFakeConnection();
+      connect.mockResolvedValueOnce(first.connection);
+      connect.mockResolvedValueOnce(second.connection);
+      const { boundTo } = await consumed();
+
+      first.emitConnection('close');
+      await vi.advanceTimersByTimeAsync(RECONNECT_FIRST_MS);
+
+      expect(boundTo).toEqual([first.channel, second.channel]);
+    });
+
+    it('tries once for a connection and its channel dropping together', async () => {
+      const first = makeFakeConnection();
+      connect.mockResolvedValueOnce(first.connection);
+      connect.mockResolvedValue(makeFakeConnection().connection);
+      await consumed();
+
+      first.emitConnection('error');
+      first.emitConnection('close');
+      await vi.advanceTimersByTimeAsync(RECONNECT_FIRST_MS);
+
+      expect(connect).toHaveBeenCalledTimes(2);
+    });
+
+    it('waits twice as long after each miss, up to the cap, while the broker is down', async () => {
+      const first = makeFakeConnection();
+      const back = makeFakeConnection();
+      connect.mockResolvedValueOnce(first.connection);
+      const { boundTo } = await consumed();
+      connect.mockRejectedValue(new Error('ECONNREFUSED'));
+
+      first.emitConnection('close');
+      const waits = [];
+      for (
+        let wait = RECONNECT_FIRST_MS;
+        wait < RECONNECT_MAX_MS;
+        wait = wait * 2
+      )
+        waits.push(wait);
+      for (const wait of waits) {
+        const before = connect.mock.calls.length;
+        await vi.advanceTimersByTimeAsync(wait - 1);
+        expect(connect).toHaveBeenCalledTimes(before);
+        await vi.advanceTimersByTimeAsync(1);
+        expect(connect).toHaveBeenCalledTimes(before + 1);
+      }
+      connect.mockResolvedValue(back.connection);
+      await vi.advanceTimersByTimeAsync(RECONNECT_MAX_MS);
+
+      expect(boundTo).toEqual([first.channel, back.channel]);
+    });
+
+    it('tries a setup that threw on the reconnect again on the next try', async () => {
+      const first = makeFakeConnection();
+      connect.mockResolvedValueOnce(first.connection);
+      connect.mockResolvedValue(makeFakeConnection().connection);
+      const { connector } = makeAmqpConnector('amqp://localhost');
+      let attempts = 0;
+      await connector.addConsumer(async () => {
+        attempts += 1;
+        if (attempts === 2) throw new Error('queue not ready');
+        return [];
+      });
+
+      first.emitConnection('close');
+      await vi.advanceTimersByTimeAsync(RECONNECT_FIRST_MS);
+      await vi.advanceTimersByTimeAsync(RECONNECT_FIRST_MS * 2);
+
+      expect(attempts).toBe(3);
+      expect(connect).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not try once closed', async () => {
+      const first = makeFakeConnection();
+      connect.mockResolvedValue(first.connection);
+      const { close } = await consumed();
+
+      first.emitConnection('close');
+      await close();
+      await vi.advanceTimersByTimeAsync(RECONNECT_MAX_MS * 4);
+
+      expect(connect).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not try once its consumers are cancelled', async () => {
+      const first = makeFakeConnection();
+      connect.mockResolvedValue(first.connection);
+      const { connector } = await consumed();
+
+      await connector.cancelConsumers();
+      first.emitConnection('close');
+      await vi.advanceTimersByTimeAsync(RECONNECT_MAX_MS * 4);
+
+      expect(connect).toHaveBeenCalledTimes(1);
+    });
+
+    it('leaves a publisher to reopen on its next call', async () => {
+      const first = makeFakeConnection();
+      connect.mockResolvedValue(first.connection);
+      const { connector } = makeAmqpConnector('amqp://localhost');
+      await connector.withChannel(async () => undefined);
+
+      first.emitConnection('close');
+      await vi.advanceTimersByTimeAsync(RECONNECT_MAX_MS * 4);
+
+      expect(connect).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('closing before anything connected is a no-op', async () => {
