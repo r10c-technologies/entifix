@@ -1,3 +1,13 @@
+## 0.23.17 (2026-11-26)
+
+### 🩹 Fixes
+
+- **amqp:** a connector holding consumers reconnects by itself after the broker drops ([#341](https://github.com/r10c-technologies/entifix/pull/341))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.23.16 (2026-11-26)
 
 ### 🩹 Fixes
