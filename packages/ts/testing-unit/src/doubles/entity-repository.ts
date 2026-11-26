@@ -101,6 +101,8 @@ export const makeInMemoryEntityRepository = (
       const matched = applySorting(
         applyFiltering(items as TEntity[], request.filtering),
         request.sorting,
+        // Relevance scores against the words the filtering asks for.
+        request.filtering,
       );
       const page = request.page ?? 1;
       const pageSize = request.pageSize ?? 10;

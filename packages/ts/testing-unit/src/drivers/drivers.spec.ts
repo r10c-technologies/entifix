@@ -2076,8 +2076,55 @@ describe('makeFakeMongoDb aggregation', () => {
     ).toHaveLength(2);
   });
 
+  it('scores, orders, pages and drops a computed field, as a relevance load sends it', async () => {
+    // ADR 0033: $addFields with $add, $cond and $regexMatch, then $sort,
+    // $skip, $limit and an excluding $project.
+    expect(
+      await aggregate([
+        { $match: { id: { $ne: 'd' } } },
+        {
+          $addFields: {
+            score: {
+              $add: [
+                {
+                  $cond: [
+                    {
+                      $regexMatch: {
+                        input: '$brand',
+                        regex: '^X',
+                        options: 'i',
+                      },
+                    },
+                    3,
+                    1,
+                  ],
+                },
+                {
+                  $cond: [
+                    { $regexMatch: { input: '$brand', regex: 'y' } },
+                    2,
+                    0,
+                  ],
+                },
+              ],
+            },
+          },
+        },
+        { $sort: { score: -1, id: -1 } },
+        { $skip: 1 },
+        { $limit: 1 },
+        { $project: { score: 0, tags: 0 } },
+      ]),
+    ).toEqual([{ id: 'a', brand: 'x' }]);
+  });
+
   it.each([
-    ['an unknown stage', [{ $sort: { id: 1 } }]],
+    ['an unknown stage', [{ $lookup: { from: 'other' } }]],
+    ['a $project that includes a field', [{ $project: { id: 1 } }]],
+    [
+      'an unknown $addFields expression',
+      [{ $addFields: { n: { $multiply: [1, 2] } } }],
+    ],
     ['a stage with two operators', [{ $match: {}, $limit: 1 }]],
     [
       'an $unwind that preserves nulls',

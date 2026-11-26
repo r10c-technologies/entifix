@@ -96,6 +96,8 @@ export function makeStaticRepository<TEntity extends Entity>(
       const matched = applySorting(
         applyFiltering(stored, request.filtering),
         request.sorting,
+        // Relevance scores against the words the filtering asks for.
+        request.filtering,
       );
       const page = request.page ?? DEFAULT_PAGE;
       const pageSize = request.pageSize ?? DEFAULT_PAGE_SIZE;

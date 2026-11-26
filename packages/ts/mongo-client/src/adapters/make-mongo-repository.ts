@@ -14,6 +14,8 @@ import {
   holdsStoredState,
   NotFound,
   readRevision,
+  relevanceLabelKey,
+  relevanceTerms,
   serializeEntity,
   StaleRevision,
   type StoredStateCondition,
@@ -24,7 +26,12 @@ import { Effect } from 'effect';
 import type { ClientSession, Db } from 'mongodb';
 
 import { translateMongoError } from '../errors/translate-mongo-error.js';
-import { translateFiltering, translateSorting } from './filter-translator.js';
+import {
+  RELEVANCE_FIELD,
+  relevanceExpression,
+  translateFiltering,
+  translateSorting,
+} from './filter-translator.js';
 
 /** Projection that drops Mongo's internal `_id` from read results. */
 const WITHOUT_MONGO_ID = { projection: { _id: 0 } } as const;
@@ -99,14 +106,38 @@ export function makeMongoRepository<TEntity extends Entity>(
       const pageSize = request.pageSize ?? 10;
       const skip = (page - 1) * pageSize;
 
+      // A relevance order is a field computed from the request's own words,
+      // which a `find` cannot sort by: the same page through a pipeline
+      // (ADR 0033).
       const docs = yield* Effect.tryPromise({
         try: () =>
-          collection
-            .find(filter, { ...WITHOUT_MONGO_ID, ...inSession })
-            .sort(sort)
-            .skip(skip)
-            .limit(pageSize)
-            .toArray(),
+          RELEVANCE_FIELD in sort
+            ? collection
+                .aggregate(
+                  [
+                    { $match: filter },
+                    {
+                      $addFields: {
+                        [RELEVANCE_FIELD]: relevanceExpression(
+                          relevanceLabelKey(entityConstructor),
+                          relevanceTerms(request.filtering),
+                        ),
+                      },
+                    },
+                    { $sort: sort },
+                    { $skip: skip },
+                    { $limit: pageSize },
+                    { $project: { _id: 0, [RELEVANCE_FIELD]: 0 } },
+                  ],
+                  inSession,
+                )
+                .toArray()
+            : collection
+                .find(filter, { ...WITHOUT_MONGO_ID, ...inSession })
+                .sort(sort)
+                .skip(skip)
+                .limit(pageSize)
+                .toArray(),
         catch: error => translateMongoError(error),
       });
       const total = yield* Effect.tryPromise({

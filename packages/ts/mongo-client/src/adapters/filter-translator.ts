@@ -5,7 +5,51 @@ import {
   type EntitySorting,
   type FilterGroup,
   foldedPattern,
+  isRelevance,
+  RELEVANCE_ELSEWHERE,
+  RELEVANCE_PREFIX,
+  RELEVANCE_WORD,
 } from '@entifix/core';
+
+/**
+ * The field a relevance load computes and sorts by, dropped before the
+ * records are read back (ADR 0033).
+ */
+export const RELEVANCE_FIELD = '__relevance';
+
+/**
+ * How well a record's label answers each word, as an aggregation expression:
+ * the prefix, word and elsewhere weights of {@link RELEVANCE_PREFIX} and its
+ * siblings, accent-blind through the same folded pattern `like` matches with.
+ * No label or no words is `0` for every record.
+ */
+export function relevanceExpression(
+  labelKey: string | undefined,
+  terms: readonly string[],
+): unknown {
+  if (labelKey === undefined || terms.length === 0) return 0;
+  const tested = (regex: string) => ({
+    $regexMatch: { input: `$${labelKey}`, regex, options: 'i' },
+  });
+  return {
+    $add: terms.map(term => {
+      const pattern = foldedPattern(term);
+      return {
+        $cond: [
+          tested(`^${pattern}`),
+          RELEVANCE_PREFIX,
+          {
+            $cond: [
+              tested(`(^| )${pattern}`),
+              RELEVANCE_WORD,
+              RELEVANCE_ELSEWHERE,
+            ],
+          },
+        ],
+      };
+    }),
+  };
+}
 
 /** A Mongo query document (`{ field: condition, $and: [...], ... }`). */
 export type MongoFilter = Record<string, unknown>;
@@ -124,7 +168,9 @@ export function translateSorting<TEntity extends Entity>(
       .sort((a, b) => a - b)) {
       const entry = record[priority];
       if (entry) {
-        sort[String(entry.property)] = entry.type === 'desc' ? -1 : 1;
+        // Relevance is a computed field, best first, whatever was asked.
+        if (isRelevance(entry.property)) sort[RELEVANCE_FIELD] = -1;
+        else sort[String(entry.property)] = entry.type === 'desc' ? -1 : 1;
       }
     }
   }

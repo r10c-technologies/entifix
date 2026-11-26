@@ -6,6 +6,7 @@ import {
   type EntityFiltering,
   type EntityId,
   type EntitySorting,
+  RELEVANCE,
   resetLocales,
 } from '@entifix/core';
 import { makeFakeSqlClient } from '@entifix/testing-unit/drivers';
@@ -24,7 +25,8 @@ import {
  * **column** rather than the accessor name — the entity's own metadata is the
  * only column mapping this adapter has.
  */
-@entity({ key: 'widget' })
+// `labelMember` is what relevance scores against (ADR 0033).
+@entity({ key: 'widget', labelMember: 'name' })
 class Widget implements Entity {
   #id?: EntityId;
   #name?: string;
@@ -402,6 +404,59 @@ describe('translateFiltering', () => {
 describe('translateSorting', () => {
   const orderBy = (sorting?: EntitySorting<Widget>[]) =>
     compile(translateSorting(sql, Widget, sorting));
+
+  it('orders by relevance best first, weighing each like word on the label', () => {
+    // ADR 0033: per word, 3 for a label that starts with it, 2 for a word of
+    // the label that does, 1 otherwise; the keys after it break ties.
+    const [text, params] = compile(
+      translateSorting(
+        sql,
+        Widget,
+        [
+          {
+            0: { property: RELEVANCE, type: 'asc' },
+            1: { property: 'size', type: 'desc' },
+          },
+        ],
+        [{ property: 'name', operator: 'like', value: 'Lámp' }],
+      ),
+    ) as [string, unknown[]];
+
+    expect(text).toMatch(/^\(\(CASE WHEN translate\("widget_name"/);
+    expect(text).toMatch(/END\)\) DESC,"size" DESC$/);
+    expect(params).toEqual(
+      expect.arrayContaining(['lamp%', '% lamp%', 3, 2, 1]),
+    );
+  });
+
+  it('leaves relevance out when there is no word, or no label, to weigh', () => {
+    const sorting = [
+      {
+        0: { property: RELEVANCE, type: 'desc' },
+        1: { property: 'size', type: 'desc' },
+      },
+    ] as EntitySorting<Widget>[];
+    expect(orderBy(sorting)).toEqual(['"size" DESC', []]);
+    @entity({ key: 'unlabelled' })
+    class Unlabelled implements Entity {
+      #id?: EntityId;
+      @accessor({ type: 'id', filterable: true })
+      get id(): EntityId {
+        return this.#id;
+      }
+      set id(value: EntityId) {
+        this.#id = value;
+      }
+    }
+    expect(
+      translateSorting(
+        sql,
+        Unlabelled,
+        [{ 0: { property: RELEVANCE, type: 'desc' } }],
+        [{ property: 'id', operator: 'like', value: 'x' }],
+      ),
+    ).toBeUndefined();
+  });
 
   it('returns undefined for absent or empty sorting', () => {
     expect(translateSorting(sql, Widget)).toBeUndefined();

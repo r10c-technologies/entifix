@@ -1,3 +1,4 @@
+import { isRelevance, RELEVANCE } from '../query/relevance.js';
 import type { Entity, EntityConstructor } from '../types/Entity.js';
 import type { EntitySorting, EntitySortType } from '../types/EntitySorting.js';
 import { allowedDescriptors, resolveAllowedProperty } from './coerce-rsql.js';
@@ -39,7 +40,11 @@ export function serializeSort<TEntity extends Entity>(
   if (!sorting || sorting.length === 0) return '';
 
   return orderedEntries(sorting)
-    .map(([property, type]) => `${type === 'desc' ? '-' : '+'}${property}`)
+    .map(([property, type]) =>
+      isRelevance(property)
+        ? `-${property}`
+        : `${type === 'desc' ? '-' : '+'}${property}`,
+    )
     .join(SEPARATOR);
 }
 
@@ -72,8 +77,14 @@ export function parseSort<TEntity extends Entity>(
     const term = rawTerm.trim();
     if (term === '') continue;
 
-    const type: EntitySortType = term.startsWith('-') ? 'desc' : 'asc';
     const name = term.replace(/^[+-]/, '');
+    // Relevance names no member, so the allowlist does not apply, and it is
+    // always best first whatever sign was sent (ADR 0033).
+    if (isRelevance(name)) {
+      record[priority++] = { property: RELEVANCE, type: 'desc' };
+      continue;
+    }
+    const type: EntitySortType = term.startsWith('-') ? 'desc' : 'asc';
     const { key } = resolveAllowedProperty(allowed, name, 'sortable');
 
     record[priority++] = { property: key as keyof TEntity, type };
