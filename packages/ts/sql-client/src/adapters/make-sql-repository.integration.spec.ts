@@ -6,8 +6,10 @@ import {
   describeEntityRepositoryContract,
   describeEntityRepositoryRevisionContract,
   describeEntityRepositoryStateContract,
+  describeEntityRepositoryUniqueContract,
   RevisedWidget,
   StatedWidget,
+  UniqueWidget,
 } from '@entifix/testing-unit/contracts';
 import { Effect, Layer, ManagedRuntime, Redacted } from 'effect';
 import { SqlClient } from 'effect/sql';
@@ -68,6 +70,34 @@ const makeRepository = async (seed: RevisedWidget[]) => {
 };
 
 describeEntityRepositoryRevisionContract('Postgres', { makeRepository });
+
+// A unique member is the host migration's `UNIQUE` column (the adapter owns no
+// DDL); Postgres lets any number of rows hold NULL in it, which is the rule.
+describeEntityRepositoryUniqueContract('Postgres', {
+  makeRepository: async seed => {
+    const sql = await runtime.runPromise(
+      Effect.gen(function* () {
+        const client = yield* SqlClient.SqlClient;
+        yield* client`
+          CREATE TABLE IF NOT EXISTS "unique-widget" (
+            id text PRIMARY KEY,
+            name text,
+            sku text UNIQUE,
+            revision integer NOT NULL
+          )`;
+        yield* client`TRUNCATE "unique-widget"`;
+        for (const widget of seed) {
+          yield* client`
+            INSERT INTO "unique-widget" ${client.insert(
+              serializeEntity(UniqueWidget, widget),
+            )}`;
+        }
+        return client;
+      }),
+    );
+    return makeSqlRepository(sql, UniqueWidget);
+  },
+});
 
 // The state condition is one statement's `AND stage IN (…)`, and the race a
 // release runs against a conditioned delete is decided by Postgres, not here.

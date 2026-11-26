@@ -41,6 +41,7 @@ import {
   defineEndpoint,
   describeEntityStateRules,
   describeEntityUseCases,
+  DuplicateKey,
   type EndpointGuard,
   type Entity,
   ENTITY_ACTIONS,
@@ -68,6 +69,7 @@ import {
   readRevision,
   StaleRevision,
   UnavailableInState,
+  uniqueMembersOf,
   type UseCaseAvailability,
   verbPath,
 } from '@entifix/core';
@@ -597,6 +599,8 @@ export const entityApi = <
     });
 
   const revised = declaresRevision(entityConstructor);
+  // A member declared `unique` makes a write refusable for its value (ADR 0034).
+  const uniquelyKeyed = uniqueMembersOf(entityConstructor).length > 0;
 
   const save = (verb: 'create' | 'update', body: unknown, id?: string) =>
     Effect.gen(function* () {
@@ -809,6 +813,7 @@ export const entityApi = <
         ...(verb === 'list' ? [InvalidQuery] : []),
         ...(takesBody ? (options.errors ?? []) : []),
         ...(revised && takesBody ? [StaleRevision] : []),
+        ...(uniquelyKeyed && takesBody ? [DuplicateKey] : []),
         ...((override === undefined ? stateOf(verb) : overrideStateOf(verb)) ===
         undefined
           ? []

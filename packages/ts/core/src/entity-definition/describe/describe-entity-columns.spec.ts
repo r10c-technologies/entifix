@@ -10,6 +10,7 @@ import {
   MetaAccessorType,
   MetaAccessorTypes,
   SCALAR_TYPES,
+  uniqueMembersOf,
 } from '../../index.js';
 
 @entity({ key: 'brand' })
@@ -906,5 +907,92 @@ describe('describeEntityColumns scaled', () => {
     expect(
       measured(`unit-${key}`, { type: 'number', scaled: byUnit }, unit),
     ).toThrow(/reads its unit from "unit"/);
+  });
+});
+
+describe('describeEntityColumns unique', () => {
+  @entity({ key: 'coded' })
+  class Coded implements Entity {
+    #id?: EntityId;
+    #sku?: string;
+    #seq?: number;
+    #name?: string;
+
+    @accessor({ type: 'id' })
+    get id(): EntityId {
+      return this.#id;
+    }
+    set id(value: EntityId) {
+      this.#id = value;
+    }
+
+    @accessor({ type: 'string', unique: true, alias: 'code' })
+    get sku(): string | undefined {
+      return this.#sku;
+    }
+    set sku(value: string | undefined) {
+      this.#sku = value;
+    }
+
+    @accessor({ type: 'number', unique: true, hidden: true })
+    get seq(): number | undefined {
+      return this.#seq;
+    }
+    set seq(value: number | undefined) {
+      this.#seq = value;
+    }
+
+    @accessor({ type: 'string' })
+    get name(): string | undefined {
+      return this.#name;
+    }
+    set name(value: string | undefined) {
+      this.#name = value;
+    }
+  }
+
+  it('marks a unique member, and resets it on a copy without saying so', () => {
+    const columns = describeEntityColumns(Coded);
+    const sku = columns.find(column => column.name === 'sku');
+    const name = columns.find(column => column.name === 'name');
+
+    expect(sku).toMatchObject({ unique: true, resetOnClone: true });
+    expect(name).not.toHaveProperty('unique');
+    expect(name?.resetOnClone).toBe(false);
+  });
+
+  it('names every unique member as a store indexes it, hidden ones included', () => {
+    expect(uniqueMembersOf(Coded)).toEqual([
+      { name: 'sku', key: 'code', type: 'string' },
+      { name: 'seq', key: 'seq', type: 'number' },
+    ]);
+  });
+
+  it('refuses a unique member a store cannot index as one scalar', () => {
+    @entity({ key: 'badly-coded' })
+    class BadlyCoded implements Entity {
+      #id?: EntityId;
+      #tags?: string[];
+
+      @accessor({ type: 'id' })
+      get id(): EntityId {
+        return this.#id;
+      }
+      set id(value: EntityId) {
+        this.#id = value;
+      }
+
+      @accessor({ type: 'scalarCollection', unique: true })
+      get tags(): string[] | undefined {
+        return this.#tags;
+      }
+      set tags(value: string[] | undefined) {
+        this.#tags = value;
+      }
+    }
+
+    expect(() => describeEntityColumns(BadlyCoded)).toThrow(
+      '"tags" is a scalarCollection and cannot be unique',
+    );
   });
 });

@@ -768,6 +768,185 @@ export const describeEntityRepositoryRevisionContract = (
   });
 };
 
+/**
+ * The entity the unique contract runs against: a revised record with an
+ * optional code no two records may share (ADR 0034). The code is stored under
+ * an alias, so an adapter that indexes the member's name rather than its stored
+ * key fails the suite.
+ */
+@entity({ key: 'unique-widget' })
+export class UniqueWidget implements Entity {
+  #id?: EntityId;
+  #name?: string;
+  #code?: string;
+  #revision?: number;
+
+  @accessor({ type: 'id' })
+  get id(): EntityId {
+    return this.#id;
+  }
+  set id(value: EntityId) {
+    this.#id = value;
+  }
+
+  @accessor({ type: 'string' })
+  get name(): string | undefined {
+    return this.#name;
+  }
+  set name(value: string | undefined) {
+    this.#name = value;
+  }
+
+  @accessor({ type: 'string', unique: true, alias: 'sku' })
+  get code(): string | undefined {
+    return this.#code;
+  }
+  set code(value: string | undefined) {
+    this.#code = value;
+  }
+
+  @accessor({ type: 'revision' })
+  get revision(): number | undefined {
+    return this.#revision;
+  }
+  set revision(value: number | undefined) {
+    this.#revision = value;
+  }
+}
+
+export const makeUniqueWidget = (
+  id: EntityId,
+  name: string,
+  code?: string,
+  revision?: number,
+): UniqueWidget => {
+  const widget = new UniqueWidget();
+  widget.id = id;
+  widget.name = name;
+  widget.code = code;
+  widget.revision = revision;
+  return widget;
+};
+
+export interface EntityRepositoryUniqueContractOptions {
+  /**
+   * Builds a repository over `seed`, whose records are stored at revision 1.
+   * Called fresh for each test.
+   */
+  makeRepository(
+    seed: UniqueWidget[],
+  ): EntityRepository | Promise<EntityRepository>;
+}
+
+/**
+ * What a member declared `unique` means on every adapter that writes: no two
+ * records hold one value, a collision names the member's stored key, an absent
+ * value never collides, and two creates racing for one value leave one winner.
+ */
+export const describeEntityRepositoryUniqueContract = (
+  name: string,
+  { makeRepository }: EntityRepositoryUniqueContractOptions,
+): void => {
+  describe(`EntityRepository unique contract: ${name}`, () => {
+    const seeded = () => [
+      makeUniqueWidget('u-1', 'Alpha', 'A-1', 1),
+      makeUniqueWidget('u-2', 'Beta', undefined, 1),
+    ];
+
+    const failureOf = (effect: ReturnType<EntityRepository['get']>) =>
+      runFailure(effect) as Promise<{ _tag: string; key?: string }>;
+
+    it('refuses a create holding a value another record holds, naming the stored key', async () => {
+      const repository = await makeRepository(seeded());
+
+      const failure = await failureOf(
+        repository.save<UniqueWidget>(
+          makeUniqueWidget(undefined, 'Gamma', 'A-1'),
+        ),
+      );
+
+      expect(failure).toMatchObject({ _tag: 'DuplicateKey', key: 'sku' });
+      const page = await run(repository.load<UniqueWidget>({}));
+      expect(page.items).toHaveLength(2);
+    });
+
+    it("refuses an update onto another record's value and leaves both unchanged", async () => {
+      const repository = await makeRepository(seeded());
+
+      const failure = await failureOf(
+        repository.save<UniqueWidget>(
+          makeUniqueWidget('u-2', 'Beta', 'A-1', 1),
+        ),
+      );
+
+      expect(failure).toMatchObject({ _tag: 'DuplicateKey', key: 'sku' });
+      const stored = await run(repository.get<UniqueWidget>('u-2'));
+      // Absent, however the store spells it: SQL reads an empty column as null.
+      expect(stored.code ?? undefined).toBeUndefined();
+      expect(stored.revision).toBe(1);
+    });
+
+    it('saves a record that keeps its own value', async () => {
+      const repository = await makeRepository(seeded());
+
+      const saved = await run(
+        repository.save<UniqueWidget>(
+          makeUniqueWidget('u-1', 'Alpha renamed', 'A-1', 1),
+        ),
+      );
+
+      expect(saved.revision).toBe(2);
+    });
+
+    it('never counts two absent values as a collision', async () => {
+      const repository = await makeRepository(seeded());
+
+      const created = await run(
+        repository.save<UniqueWidget>(makeUniqueWidget(undefined, 'Gamma')),
+      );
+
+      expect(created.revision).toBe(1);
+      const page = await run(repository.load<UniqueWidget>({}));
+      expect(page.items.filter(item => item.code == null)).toHaveLength(2);
+    });
+
+    it('frees a value its holder gave up', async () => {
+      const repository = await makeRepository(seeded());
+
+      await run(
+        repository.save<UniqueWidget>(
+          makeUniqueWidget('u-1', 'Alpha', 'A-2', 1),
+        ),
+      );
+      const created = await run(
+        repository.save<UniqueWidget>(
+          makeUniqueWidget(undefined, 'Gamma', 'A-1'),
+        ),
+      );
+
+      expect(created.code).toBe('A-1');
+    });
+
+    it('leaves exactly one winner when creates race for one value', async () => {
+      const repository = await makeRepository(seeded());
+
+      const exits = await Promise.all(
+        ['Left', 'Middle', 'Right'].map(label =>
+          runExit(
+            repository.save<UniqueWidget>(
+              makeUniqueWidget(undefined, label, 'B-1'),
+            ),
+          ),
+        ),
+      );
+
+      expect(exits.filter(exit => Exit.isSuccess(exit))).toHaveLength(1);
+      const page = await run(repository.load<UniqueWidget>({}));
+      expect(page.items.filter(item => item.code === 'B-1')).toHaveLength(1);
+    });
+  });
+};
+
 const STATED_PHASES = ['draft', 'released'] as const;
 const IN_DRAFT = { member: 'phase', in: ['draft'] } as const;
 

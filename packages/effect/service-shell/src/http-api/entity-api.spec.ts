@@ -22,6 +22,7 @@ import {
 } from '@entifix/business';
 import {
   accessor,
+  DuplicateKey,
   type Entity,
   entity,
   type EntityId,
@@ -394,6 +395,36 @@ const memos = entityApi(
   }),
 );
 
+/** A record whose code no two may share (ADR 0034), stored under an alias. */
+@entity({ domain: 'catalog', key: 'badge' })
+class Badge implements Entity {
+  #id?: EntityId;
+  #code?: string;
+
+  @accessor({ type: 'id' })
+  get id(): EntityId {
+    return this.#id;
+  }
+  set id(value: EntityId) {
+    this.#id = value;
+  }
+
+  @accessor({ type: 'string', unique: true, alias: 'sku' })
+  get code(): string | undefined {
+    return this.#code;
+  }
+  set code(value: string | undefined) {
+    this.#code = value;
+  }
+}
+
+const badges = entityApi(
+  defineEntityApi(Badge, 'badge', {
+    verbs: ['create', 'update'],
+    guard: { kind: 'permission' },
+  }),
+);
+
 const DRAFT_STATES = ['in-design', 'released'] as const;
 const IN_DESIGN = { member: 'status', in: ['in-design'] } as const;
 
@@ -595,6 +626,7 @@ const GRANTS = {
     'catalog:order:archive',
     'catalog:memo:read',
     'catalog:memo:write',
+    'catalog:badge:write',
     'catalog:draft:read',
     'catalog:draft:write',
     'catalog:draft:delete',
@@ -635,6 +667,7 @@ beforeAll(async () => {
       orders,
       notes,
       memos,
+      badges,
       drafts,
       keptDrafts,
       myDrafts,
@@ -1241,6 +1274,42 @@ describe('verbs derived from @useCase()', () => {
         { compositions: POLISHING },
       ),
     ).toThrow("serve 'ship', declared on another entity");
+  });
+});
+
+describe('an entity that declares a unique member', () => {
+  const post = (code: string) =>
+    call(
+      '/api/badge',
+      json(
+        'POST',
+        { meta: { type: 'entity', entity: 'badge' }, data: { sku: code } },
+        bearer(['admin']),
+      ),
+    );
+
+  it('declares the refusal on the writes, and not on a read', () => {
+    expect(
+      badges.endpoints
+        .filter(({ descriptor }) =>
+          ['create', 'update'].includes(descriptor.name),
+        )
+        .map(({ descriptor }) => descriptor.errors.includes(DuplicateKey)),
+    ).toEqual([true, true]);
+    expect(
+      memos.endpoints.some(({ descriptor }) =>
+        descriptor.errors.includes(DuplicateKey),
+      ),
+    ).toBe(false);
+  });
+
+  it('answers a second record with the same value 409 duplicateKey, naming the stored key', async () => {
+    expect((await post('B-7')).status).toBe(200);
+
+    const refused = await post('B-7');
+
+    expect(refused.status).toBe(409);
+    expect(refused.body).toMatchObject({ code: 'duplicateKey', key: 'sku' });
   });
 });
 

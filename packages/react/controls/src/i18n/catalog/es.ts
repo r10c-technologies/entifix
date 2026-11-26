@@ -76,6 +76,7 @@ export const controls = {
     back: 'Volver',
     loading: 'Cargando…',
     pending: 'Esperando al servidor…',
+    duplicateValue: 'Otro registro ya tiene este valor en {{field}}',
     conflictTitle: 'Este registro cambió mientras lo editaba',
     conflictBody:
       'Otra persona guardó una versión más reciente. Lo que escribió sigue abajo y no se guardó nada.',

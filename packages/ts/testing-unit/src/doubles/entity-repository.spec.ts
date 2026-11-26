@@ -9,6 +9,7 @@ import {
   describeEntityRepositoryContract,
   describeEntityRepositoryRevisionContract,
   describeEntityRepositoryStateContract,
+  describeEntityRepositoryUniqueContract,
   makeContractWidget,
 } from '../contracts/entity-repository.contract.js';
 import { run, runExit, runFailure } from '../effect/run.js';
@@ -437,6 +438,10 @@ describeEntityRepositoryRevisionContract('in-memory fake', {
   makeRepository: seed => makeInMemoryEntityRepository(seed),
 });
 
+describeEntityRepositoryUniqueContract('in-memory fake', {
+  makeRepository: seed => makeInMemoryEntityRepository(seed),
+});
+
 describeEntityRepositoryStateContract('in-memory fake', {
   makeRepository: seed => makeInMemoryEntityRepository(seed),
 });
@@ -475,5 +480,56 @@ describe('makeInMemoryEntityRepository refusing a write for its state', () => {
 
     expect(failure.entity).toBe('Phased');
     expect(failure).not.toHaveProperty('state');
+  });
+});
+
+describe('makeInMemoryEntityRepository with a unique member and no revision', () => {
+  @entity({ key: 'plain-coded' })
+  class PlainCoded implements Entity {
+    #id?: EntityId;
+    #code?: string;
+
+    @accessor({ type: 'id' })
+    get id(): EntityId {
+      return this.#id;
+    }
+    set id(value: EntityId) {
+      this.#id = value;
+    }
+
+    @accessor({ type: 'string', unique: true })
+    get code(): string | undefined {
+      return this.#code;
+    }
+    set code(value: string | undefined) {
+      this.#code = value;
+    }
+  }
+
+  @entity({ key: 'other-coded' })
+  class OtherCoded extends PlainCoded {}
+
+  const coded = <T extends PlainCoded>(make: new () => T, code: string) => {
+    const record = new make();
+    record.code = code;
+    return record;
+  };
+
+  it('refuses an unchecked save onto a value another record holds', async () => {
+    const repository = makeInMemoryEntityRepository([]);
+    await run(repository.save(coded(PlainCoded, 'C-1')));
+
+    const failure = await runFailure(repository.save(coded(PlainCoded, 'C-1')));
+
+    expect(failure).toMatchObject({ _tag: 'DuplicateKey', key: 'code' });
+  });
+
+  it('holds each entity to its own values, never another’s', async () => {
+    const repository = makeInMemoryEntityRepository([]);
+    await run(repository.save(coded(PlainCoded, 'C-1')));
+
+    const saved = await run(repository.save(coded(OtherCoded, 'C-1')));
+
+    expect(saved.code).toBe('C-1');
   });
 });

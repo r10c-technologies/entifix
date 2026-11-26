@@ -21,6 +21,8 @@ import {
   type StoredStateCondition,
   storedStateCondition,
   unavailableInState,
+  type UniqueMember,
+  uniqueMembersOf,
 } from '@entifix/core';
 import { Effect } from 'effect';
 import type { ClientSession, Db } from 'mongodb';
@@ -45,21 +47,46 @@ export function mongoCollectionName<TEntity extends Entity>(
 }
 
 /**
- * The collections whose unique index on `id` is known to exist, per database.
- * A create is atomic only against that index: two concurrent creates of one
- * client-minted id would otherwise both insert. Keyed on the `Db` so a fake or
- * a reset database starts clean, and a rejected attempt is forgotten so the
- * next create tries again.
+ * The collections whose unique indexes are known to exist, per database: the
+ * one on `id`, and one per member the entity declares `unique` (ADR 0034).
+ *
+ * A create is atomic only against an index: two concurrent creates of one
+ * client-minted id — or of one vendor's code — would otherwise both insert.
+ * Keyed on the `Db` so a fake or a reset database starts clean, and a rejected
+ * attempt is forgotten so the next write tries again.
  */
-const ensuredIdIndexes = new WeakMap<Db, Set<string>>();
+const ensuredIndexes = new WeakMap<Db, Set<string>>();
 
-const ensureIdIndex = (db: Db, name: string) =>
+/** The index a unique member is held to: named for the member, partial. */
+export const uniqueIndexName = (member: UniqueMember): string =>
+  `unique_${member.key}`;
+
+const ensureIndexes = (
+  db: Db,
+  name: string,
+  uniques: readonly UniqueMember[],
+) =>
   Effect.suspend(() => {
-    const ensured = ensuredIdIndexes.get(db) ?? new Set<string>();
-    ensuredIdIndexes.set(db, ensured);
+    const ensured = ensuredIndexes.get(db) ?? new Set<string>();
+    ensuredIndexes.set(db, ensured);
     if (ensured.has(name)) return Effect.void;
+    const collection = db.collection(name);
     return Effect.tryPromise({
-      try: () => db.collection(name).createIndex({ id: 1 }, { unique: true }),
+      try: async () => {
+        await collection.createIndex({ id: 1 }, { unique: true });
+        // Partial over the documents that hold a value of the member's type,
+        // so an optional member left empty never collides with another.
+        for (const member of uniques) {
+          await collection.createIndex(
+            { [member.key]: 1 },
+            {
+              unique: true,
+              name: uniqueIndexName(member),
+              partialFilterExpression: { [member.key]: { $type: member.type } },
+            },
+          );
+        }
+      },
       catch: error => translateMongoError(error),
     }).pipe(Effect.tap(() => Effect.sync(() => ensured.add(name))));
   });
@@ -95,6 +122,13 @@ export function makeMongoRepository<TEntity extends Entity>(
 ): EntityRepository {
   const collectionName = mongoCollectionName(entityConstructor);
   const collection = db.collection(collectionName);
+  const uniques = uniqueMembersOf(entityConstructor);
+  // Every write is held to the unique members' indexes, not only a create: an
+  // update onto another record's value collides exactly as a create does.
+  const indexed =
+    uniques.length === 0
+      ? Effect.void
+      : ensureIndexes(db, collectionName, uniques);
   // Spread into every call, so a repository with no session passes none.
   const inSession = options?.session ? { session: options.session } : {};
 
@@ -222,14 +256,16 @@ export function makeMongoRepository<TEntity extends Entity>(
       const read = readRevision(entity);
       const id = entity.id ?? randomUUID();
       if (read === undefined) {
-        yield* ensureIdIndex(db, collectionName);
+        yield* ensureIndexes(db, collectionName, uniques);
         yield* Effect.tryPromise({
           try: () =>
             collection.insertOne({ ...doc, id, revision: 1 }, inSession),
           catch: error => translateMongoError(error),
         }).pipe(
+          // Only the identity's index means "someone created it first"; a
+          // unique member's names the member, which a form shows on the field.
           Effect.mapError(failure =>
-            failure._tag === 'DuplicateKey'
+            failure._tag === 'DuplicateKey' && failure.key === 'id'
               ? new StaleRevision({ entity: key })
               : failure,
           ),
@@ -274,10 +310,12 @@ export function makeMongoRepository<TEntity extends Entity>(
 
   const save = <T extends Entity>(entity: T, options?: EntityWriteOptions) => {
     const condition = conditionOf(options);
-    if (revised) return saveRevised(entity, condition);
-    return condition === undefined
-      ? saveUnchecked(entity)
-      : saveConditioned(entity, condition);
+    const write = revised
+      ? saveRevised(entity, condition)
+      : condition === undefined
+        ? saveUnchecked(entity)
+        : saveConditioned(entity, condition);
+    return Effect.andThen(indexed, write);
   };
 
   /**
