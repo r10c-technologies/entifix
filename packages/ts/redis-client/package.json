@@ -1,6 +1,6 @@
 {
   "name": "@entifix/redis",
-  "version": "0.23.14",
+  "version": "0.23.15",
   "description": "Redis adapters for sessions and one-time tokens.",
   "license": "MIT",
   "repository": {

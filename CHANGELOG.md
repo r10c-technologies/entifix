@@ -1,3 +1,13 @@
+## 0.23.15 (2026-11-26)
+
+### 🚀 Features
+
+- a member can be unique within its store ([#336](https://github.com/r10c-technologies/entifix/pull/336))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.23.14 (2026-11-26)
 
 ### 🚀 Features
