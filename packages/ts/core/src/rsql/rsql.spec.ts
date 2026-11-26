@@ -621,6 +621,22 @@ describe('sort parameter', () => {
     ]);
   });
 
+  it('reads relevance as best first whatever its sign, past the allowlist', () => {
+    // ADR 0033: relevance names no member, so no accessor has to allow it.
+    expect(parseSort(Widget, '$relevance,+name')).toEqual([
+      {
+        0: { property: '$relevance', type: 'desc' },
+        1: { property: 'name', type: 'asc' },
+      },
+    ]);
+    expect(parseSort(Widget, '+$relevance')).toEqual([
+      { 0: { property: '$relevance', type: 'desc' } },
+    ]);
+    expect(
+      serializeSort(sorting({ 0: { property: '$relevance', type: 'asc' } })),
+    ).toBe('-$relevance');
+  });
+
   it('treats an unsigned term as ascending', () => {
     expect(parseSort(Widget, 'name')).toEqual([
       { 0: { property: 'name', type: 'asc' } },

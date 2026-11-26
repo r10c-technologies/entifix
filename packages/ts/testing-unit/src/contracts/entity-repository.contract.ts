@@ -1,5 +1,11 @@
 import type { EntityRepository, RepositoryFailure } from '@entifix/business';
-import { accessor, type Entity, entity, type EntityId } from '@entifix/core';
+import {
+  accessor,
+  type Entity,
+  entity,
+  type EntityId,
+  RELEVANCE,
+} from '@entifix/core';
 import { Effect, Exit } from 'effect';
 import { describe, expect, it } from 'vitest';
 
@@ -10,7 +16,8 @@ import { run, runExit, runFailure } from '../effect/run.js';
  * declared here rather than by each caller so the suite controls exactly which
  * fields exist.
  */
-@entity({ key: 'contract-widget' })
+// `labelMember` is what relevance scores against (ADR 0033).
+@entity({ key: 'contract-widget', labelMember: 'name' })
 export class ContractWidget implements Entity {
   #id?: EntityId;
   #name?: string;
@@ -351,6 +358,63 @@ export const describeEntityRepositoryReadContract = (
         );
 
         expect(page.items.map(item => item.size)).toEqual([30, 20, 10]);
+      });
+    });
+
+    it('ranks by relevance: a label prefix, then a word start, then anywhere', async () => {
+      // ADR 0033: one point per word matched elsewhere, two for a word that
+      // starts a word of the label, three for one the label starts with;
+      // ties fall to the next key.
+      await withRepository(
+        async repository => {
+          const page = await run(
+            repository.load<ContractWidget>({
+              filtering: [
+                { property: 'name', operator: 'like', value: 'lamp' },
+              ],
+              sorting: [
+                {
+                  0: { property: RELEVANCE, type: 'desc' },
+                  1: { property: 'size', type: 'asc' },
+                },
+              ],
+            }),
+          );
+
+          expect(page.items.map(item => item.id)).toEqual([
+            'w-4',
+            'w-2',
+            'w-3',
+            'w-1',
+          ]);
+          expect(page.total).toBe(4);
+        },
+        [
+          makeContractWidget('w-1', 'Superlamp', 10),
+          makeContractWidget('w-2', 'Desk lamp', 20),
+          makeContractWidget('w-3', 'Floor lamp', 30),
+          makeContractWidget('w-4', 'Lámpara', 40),
+          makeContractWidget('w-5', 'Chair', 50),
+        ],
+      );
+    });
+
+    it('falls to the next key when relevance has no word to weigh', async () => {
+      await withRepository(async repository => {
+        const page = await run(
+          repository.load<ContractWidget>({
+            sorting: [
+              {
+                0: { property: RELEVANCE, type: 'desc' },
+                1: { property: 'size', type: 'desc' },
+              },
+            ],
+            page: 1,
+            pageSize: 2,
+          }),
+        );
+
+        expect(page.items.map(item => item.size)).toEqual([30, 20]);
       });
     });
 

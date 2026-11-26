@@ -10,6 +10,12 @@ import {
   type FilterGroup,
   FOLD_TABLE,
   foldText,
+  isRelevance,
+  RELEVANCE_ELSEWHERE,
+  RELEVANCE_PREFIX,
+  RELEVANCE_WORD,
+  relevanceLabelKey,
+  relevanceTerms,
   resolveAllowedProperty,
 } from '@entifix/core';
 import type { SqlClient } from 'effect/sql';
@@ -287,10 +293,34 @@ export function translateFiltering<TEntity extends Entity>(
  * outcome Mongo's sort document produces by assignment, so the two adapters
  * order identically.
  */
+/** The key a relevance order takes in the sort, apart from any member's. */
+const RELEVANCE_KEY = '$relevance';
+
+/**
+ * How well each row's label answers the words, as a SQL expression: per word,
+ * the prefix, word and elsewhere weights core's `relevanceScore` gives,
+ * folded by the same `translate` the `like` filter uses. `undefined` when
+ * there is no label or no word to weigh.
+ */
+function relevanceScoreSql(
+  sql: SqlClient.SqlClient,
+  labelKey: string | undefined,
+  terms: readonly string[],
+): Statement.Fragment | undefined {
+  if (labelKey === undefined || terms.length === 0) return undefined;
+  const label = sql`translate(${sql(labelKey)}, ${FOLD_TRANSLATION.from}, ${FOLD_TRANSLATION.to})`;
+  const scores = terms.map(term => {
+    const word = escapeLikePattern(foldText(term));
+    return sql`(CASE WHEN ${label} ILIKE ${`${word}%`} THEN ${RELEVANCE_PREFIX} WHEN ${label} ILIKE ${`% ${word}%`} THEN ${RELEVANCE_WORD} ELSE ${RELEVANCE_ELSEWHERE} END)`;
+  });
+  return sql`(${sql.join(' + ', false)(scores)})`;
+}
+
 export function translateSorting<TEntity extends Entity>(
   sql: SqlClient.SqlClient,
   entityConstructor: EntityConstructor<TEntity>,
   sorting?: EntitySorting<TEntity>[],
+  filtering?: EntityFiltering<TEntity>[],
 ): Statement.Fragment | undefined {
   if (!sorting || sorting.length === 0) {
     return undefined;
@@ -313,7 +343,21 @@ export function translateSorting<TEntity extends Entity>(
       .map(Number)
       .sort((left, right) => left - right)) {
       const entry = record[priority];
-      if (entry) {
+      if (entry && isRelevance(entry.property)) {
+        // Best first, whatever was asked (ADR 0033); no label or no words
+        // scores every row alike and leaves the order to the keys after it.
+        const score = relevanceScoreSql(
+          sql,
+          relevanceLabelKey(entityConstructor),
+          relevanceTerms(filtering),
+        );
+        if (score !== undefined) {
+          directions.set(RELEVANCE_KEY, {
+            expression: score,
+            direction: 'DESC',
+          });
+        }
+      } else if (entry) {
         const { key, expression } = resolveExpression(
           sql,
           entry.property,

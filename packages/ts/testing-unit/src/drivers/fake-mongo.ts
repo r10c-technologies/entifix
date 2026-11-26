@@ -102,6 +102,19 @@ const evaluateExpression = (doc: Document, node: unknown): unknown => {
     );
   }
   const [operator, operand] = entries[0];
+  // A relevance score (ADR 0033): a regex test on a field, as `$regexMatch`
+  // takes it — an object, not a list of operands.
+  if (operator === '$regexMatch') {
+    const { input, regex, options } = operand as {
+      readonly input: unknown;
+      readonly regex: string;
+      readonly options?: string;
+    };
+    const value = evaluateExpression(doc, input);
+    return (
+      typeof value === 'string' && new RegExp(regex, options ?? '').test(value)
+    );
+  }
   const operands = (operand as unknown[]).map(child =>
     evaluateExpression(doc, child),
   );
@@ -110,7 +123,9 @@ const evaluateExpression = (doc: Document, node: unknown): unknown => {
     case '$subtract':
       return (operands[0] as number) - (operands[1] as number);
     case '$add':
-      return (operands[0] as number) + (operands[1] as number);
+      return (operands as number[]).reduce((sum, value) => sum + value, 0);
+    case '$cond':
+      return operands[0] === true ? operands[1] : operands[2];
     case '$gte':
       return compare(operands[0], operands[1]) >= 0;
     case '$gt':
@@ -248,6 +263,26 @@ const group = (docs: Document[], spec: unknown): Document[] => {
   return Array.from(tally, ([id, count]) => ({ _id: id, [counted]: count }));
 };
 
+/**
+ * Documents in a `{ field: 1 | -1 }` order, the first key deciding, as the
+ * server sorts a `find` and a `$sort` stage alike.
+ */
+const sortDocuments = (
+  docs: Document[],
+  sortSpec: Record<string, number>,
+): Document[] =>
+  Object.entries(sortSpec).reduceRight(
+    (items, [field, direction]) =>
+      [...items].sort(
+        (left, right) =>
+          // A dotted field sorts by the value it names, as the server does —
+          // one locale of a localized member, say.
+          compare(valuesAt(left, field)[0], valuesAt(right, field)[0]) *
+          direction,
+      ),
+    docs,
+  );
+
 const runPipeline = (docs: Document[], pipeline: Document[]): Document[] =>
   pipeline.reduce<Document[]>((current, stage) => {
     const entries = Object.entries(stage);
@@ -262,6 +297,37 @@ const runPipeline = (docs: Document[], pipeline: Document[]): Document[] =>
         return unwind(current, spec);
       case '$group':
         return group(current, spec);
+      // The stages a relevance load sends (ADR 0033): a computed field, the
+      // order by it, the page, and the field dropped again.
+      case '$addFields':
+        return current.map(doc => ({
+          ...doc,
+          ...Object.fromEntries(
+            Object.entries(spec as Document).map(([field, expression]) => [
+              field,
+              evaluateExpression(doc, expression),
+            ]),
+          ),
+        }));
+      case '$sort':
+        return sortDocuments(current, spec as Record<string, number>);
+      case '$skip':
+        return current.slice(spec as number);
+      case '$limit':
+        return current.slice(0, spec as number);
+      case '$project':
+        return current.map(doc => {
+          const kept = { ...doc };
+          for (const [field, include] of Object.entries(spec as Document)) {
+            if (include !== 0) {
+              throw new TypeError(
+                'fake mongo: $project supports exclusion only',
+              );
+            }
+            delete kept[field];
+          }
+          return kept;
+        });
       case '$facet':
         return [
           Object.fromEntries(
@@ -475,19 +541,7 @@ export const makeFakeMongoDb = (
             const matched = documentsOf(name).filter(doc =>
               matches(doc, query),
             );
-            const sorted = Object.entries(sortSpec).reduceRight(
-              (items, [field, direction]) =>
-                [...items].sort(
-                  (left, right) =>
-                    // A dotted field sorts by the value it names, as the
-                    // server does — one locale of a localized member, say.
-                    compare(
-                      valuesAt(left, field)[0],
-                      valuesAt(right, field)[0],
-                    ) * direction,
-                ),
-              matched,
-            );
+            const sorted = sortDocuments(matched, sortSpec);
             return sorted
               .slice(skipCount, skipCount + limitCount)
               .map(doc => project(doc, options));

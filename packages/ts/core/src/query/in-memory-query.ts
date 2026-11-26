@@ -1,5 +1,7 @@
+import { findMetaEntity } from '../entity-definition/helpers/entity-definition-helpers.js';
 import { EntityCollectionLink } from '../entity-definition/links/entity-collection-link/index.js';
 import { EntityLink } from '../entity-definition/links/entity-link/index.js';
+import type { ChildConstructor } from '../entity-definition/meta-entities/meta-accessor/meta-accessor.js';
 import type { Entity } from '../types/Entity.js';
 import type {
   EntityFacetCounts,
@@ -13,6 +15,7 @@ import type {
 } from '../types/EntityFiltering.js';
 import type { EntitySorting } from '../types/EntitySorting.js';
 import { containsFolded } from './fold.js';
+import { isRelevance, relevanceScore, relevanceTerms } from './relevance.js';
 
 /**
  * An {@link EntityLoadRequest}'s filtering and sorting, answered over records
@@ -251,10 +254,15 @@ export function applyFiltering<TEntity extends Entity>(
  * The records in the order a request asks for, as a new array. `EntitySorting`
  * is a record keyed by priority rather than a list, so two keys cannot tie by
  * accident. No key leaves the order the records were given in.
+ *
+ * {@link RELEVANCE} orders by how well each record's label — its entity's
+ * `labelMember` — answers the `like` words in `filtering`, best first
+ * (ADR 0033); a record whose entity declares no label scores nothing.
  */
 export function applySorting<TEntity extends Entity>(
   records: readonly TEntity[],
   sorting: readonly EntitySorting<TEntity>[] | undefined,
+  filtering?: readonly EntityFiltering<TEntity>[],
 ): TEntity[] {
   const keys = (sorting ?? []).flatMap(entry =>
     Object.keys(entry)
@@ -265,8 +273,31 @@ export function applySorting<TEntity extends Entity>(
   );
   if (keys.length === 0) return [...records];
 
+  const terms = relevanceTerms(filtering);
+  const scores = new Map<TEntity, number>();
+  const scoreOf = (record: TEntity): number => {
+    let score = scores.get(record);
+    if (score === undefined) {
+      // A plain record, or a class with no `@entity()`, has no label.
+      const labelMember = findMetaEntity(
+        record.constructor as ChildConstructor,
+      )?.labelMember;
+      score =
+        labelMember === undefined
+          ? 0
+          : relevanceScore(valueAt(record, labelMember), terms);
+      scores.set(record, score);
+    }
+    return score;
+  };
+
   return [...records].sort((left, right) => {
     for (const key of keys) {
+      if (isRelevance(key.property)) {
+        const compared = scoreOf(right) - scoreOf(left);
+        if (compared !== 0) return compared;
+        continue;
+      }
       const property = String(key.property);
       const compared = compareStoredValues(
         valueAt(left, property),

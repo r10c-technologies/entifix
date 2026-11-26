@@ -137,6 +137,8 @@ export function makeSqlRepository<TEntity extends Entity>(
             sql,
             entityConstructor,
             request.sorting as EntityLoadRequest<TEntity>['sorting'],
+            // Relevance weighs the words the filtering asks for (ADR 0033).
+            request.filtering as EntityLoadRequest<TEntity>['filtering'],
           ),
         }),
         // The translator refuses a member the entity did not declare, by
