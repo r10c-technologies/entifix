@@ -1,3 +1,13 @@
+## 0.23.14 (2026-11-26)
+
+### 🚀 Features
+
+- **core:** a search ranks by relevance ([#333](https://github.com/r10c-technologies/entifix/pull/333))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.23.13 (2026-11-25)
 
 ### 🩹 Fixes
