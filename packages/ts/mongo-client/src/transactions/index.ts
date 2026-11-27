@@ -14,7 +14,10 @@
  * write conflict the unit retries on is never hidden behind a failure of the
  * body's choosing.
  */
-export { mongoUnitFault } from '../errors/translate-mongo-error.js';
+export {
+  duplicatedKeyOf,
+  mongoUnitFault,
+} from '../errors/translate-mongo-error.js';
 export * from '../idempotency/store.js';
 export * from '../inbox/store.js';
 export * from '../outbox/relay.js';

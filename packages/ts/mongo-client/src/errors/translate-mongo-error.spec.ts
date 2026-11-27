@@ -2,6 +2,7 @@ import { Contention, DuplicateKey, Unavailable } from '@entifix/core';
 import { describe, expect, it } from 'vitest';
 
 import {
+  duplicatedKeyOf,
   isMongoContention,
   mongoErrorLabelled,
   mongoUnitFault,
@@ -12,6 +13,26 @@ import {
 /** A driver error as the driver raises it: a name, a code, maybe labels. */
 const driverError = (fields: Record<string, unknown>) =>
   Object.assign(new Error('driver said no'), fields);
+
+describe('duplicatedKeyOf', () => {
+  it('names the key a duplicate was on, and nothing for any other error', () => {
+    expect(
+      duplicatedKeyOf(driverError({ code: 11000, keyPattern: { sku: 1 } })),
+    ).toBe('sku');
+    expect(
+      duplicatedKeyOf(
+        driverError({
+          writeErrors: [{ code: 11000 }],
+          keyPattern: { a: 1, b: 1 },
+        }),
+      ),
+    ).toBe('a,b');
+    // A duplicate the driver did not say the key of is still a duplicate.
+    expect(duplicatedKeyOf(driverError({ code: 11000 }))).toBe('');
+    expect(duplicatedKeyOf(driverError({ code: 112 }))).toBeUndefined();
+    expect(duplicatedKeyOf(undefined)).toBeUndefined();
+  });
+});
 
 describe('translateMongoError', () => {
   it('reads a duplicate key on a declared uniqueness as a conflict, naming the key', () => {
