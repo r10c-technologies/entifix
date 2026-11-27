@@ -1,3 +1,13 @@
+## 0.23.18 (2026-11-27)
+
+### 🚀 Features
+
+- **mongo:** a cell writing through the driver ensures an entity's unique indexes ([#343](https://github.com/r10c-technologies/entifix/pull/343))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.23.17 (2026-11-26)
 
 ### 🩹 Fixes
