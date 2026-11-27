@@ -1,3 +1,13 @@
+## 0.23.19 (2026-11-27)
+
+### 🩹 Fixes
+
+- what the MVP-6 rehearsal found — stale pending flows, collection counts, pagination plurals ([#348](https://github.com/r10c-technologies/entifix/pull/348))
+
+### ❤️ Thank You
+
+- Herber Colop @Herber230
+
 ## 0.23.18 (2026-11-27)
 
 ### 🚀 Features
