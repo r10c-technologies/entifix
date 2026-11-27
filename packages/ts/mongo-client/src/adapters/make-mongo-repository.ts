@@ -91,6 +91,25 @@ const ensureIndexes = (
     }).pipe(Effect.tap(() => Effect.sync(() => ensured.add(name))));
   });
 
+/**
+ * Make sure the indexes an entity's repository holds its writes to exist in
+ * `db`: the unique one on `id`, and one per member declared `unique`
+ * (ADR 0034). The repository does this itself before a write; a cell that
+ * writes an entity's documents through the driver, inside a unit of work,
+ * calls it first, or a fresh database enforces no uniqueness until the first
+ * repository write happens to arrive. Ensured once per database and
+ * collection, shared with the repository.
+ */
+export const ensureEntityIndexes = <TEntity extends Entity>(
+  db: Db,
+  entityConstructor: EntityConstructor<TEntity>,
+) =>
+  ensureIndexes(
+    db,
+    mongoCollectionName(entityConstructor),
+    uniqueMembersOf(entityConstructor),
+  );
+
 function toEntityId(entityOrId: EntityId | Entity): EntityId {
   return entityOrId != null && typeof entityOrId === 'object'
     ? (entityOrId as Entity).id

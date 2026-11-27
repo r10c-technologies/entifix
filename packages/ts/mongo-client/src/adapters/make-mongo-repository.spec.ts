@@ -25,7 +25,10 @@ import { Exit } from 'effect';
 import type { Db } from 'mongodb';
 import { describe, expect, it } from 'vitest';
 
-import { makeMongoRepository } from './make-mongo-repository.js';
+import {
+  ensureEntityIndexes,
+  makeMongoRepository,
+} from './make-mongo-repository.js';
 
 const COLLECTION = 'contract-widget';
 
@@ -505,6 +508,23 @@ describe('makeMongoRepository for an entity that declares a unique member', () =
       },
     ]);
     expect(repository).toBeDefined();
+  });
+
+  // A cell writing through the driver inside a unit of work asks for the
+  // indexes first, and shares the repository's once-per-database record.
+  it('ensures the indexes for a cell that writes through the driver, once', async () => {
+    const { fake } = withUniqueDb();
+    const db = fake.db as Db;
+
+    await run(ensureEntityIndexes(db, UniqueWidget));
+    await run(ensureEntityIndexes(db, UniqueWidget));
+    await run(
+      makeMongoRepository(db, UniqueWidget).save<UniqueWidget>(
+        makeUniqueWidget(undefined, 'Alpha', 'A-1'),
+      ),
+    );
+
+    expect(indexes(fake)).toHaveLength(2);
   });
 
   it('ensures the indexes before an update too, since an update can collide', async () => {

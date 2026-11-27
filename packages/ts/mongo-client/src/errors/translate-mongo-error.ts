@@ -82,6 +82,17 @@ const duplicatedKey = (error: DriverErrorShape): string | undefined =>
     : undefined;
 
 /**
+ * The key a driver error says was duplicated (`sku`, or `a,b` for a compound
+ * index), or `undefined` when it is no duplicate. For a unit of work's body,
+ * which answers its own driver calls with {@link mongoUnitFault} and needs to
+ * tell a value already taken — a row to refuse — from the store failing.
+ */
+export const duplicatedKeyOf = (error: unknown): string | undefined => {
+  const driver = shape(error);
+  return isDuplicate(driver) ? (duplicatedKey(driver) ?? '') : undefined;
+};
+
+/**
  * Whether a driver error is a transaction losing a race: a write conflict, or
  * anything the server labels `TransientTransactionError`. A unit of work runs
  * itself again on exactly this — so a body that maps its own driver errors

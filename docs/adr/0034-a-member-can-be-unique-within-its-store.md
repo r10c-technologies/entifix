@@ -2,6 +2,7 @@
 
 - Status: Proposed
 - Date: 2026-11-26
+- Revised: 2026-11-27 — a cell that writes through the driver ensures the indexes first, with `ensureEntityIndexes`
 - Area: adapters
 - Read when: a create answers `409 staleRevision` although nobody else saved first, two records hold a code a person types and should never share, a save is refused because "this already exists" and the form does not say which field, or about to check a value's uniqueness by reading before writing
 
@@ -50,6 +51,11 @@ fact about the value, whichever verb writes it.
   type, so absent and `null` are not indexed. The index is ensured lazily,
   once per database, beside the one on `id` and before **every** write. An
   update onto another record's value collides exactly as a create does.
+  A cell that writes an entity's documents through the driver, inside a unit
+  of work, calls `ensureEntityIndexes(db, Entity)` first: the repository's
+  lazy ensure never runs on its path, and a fresh database would enforce
+  nothing. `duplicatedKeyOf` reads which key a duplicate was on, so the body
+  can tell a value already taken from the store failing.
 - **SQL:** the host migration's `UNIQUE` column, since the adapter owns no
   DDL. Postgres admits any number of `NULL`s, which is the same rule.
   `23505` names the column from its `detail`.
