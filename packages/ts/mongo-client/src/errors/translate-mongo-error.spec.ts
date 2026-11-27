@@ -21,7 +21,10 @@ describe('duplicatedKeyOf', () => {
     ).toBe('sku');
     expect(
       duplicatedKeyOf(
-        driverError({ writeErrors: [{ code: 11000 }], keyPattern: { a: 1, b: 1 } }),
+        driverError({
+          writeErrors: [{ code: 11000 }],
+          keyPattern: { a: 1, b: 1 },
+        }),
       ),
     ).toBe('a,b');
     // A duplicate the driver did not say the key of is still a duplicate.
