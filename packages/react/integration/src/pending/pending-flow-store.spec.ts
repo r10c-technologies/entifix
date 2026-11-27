@@ -66,6 +66,31 @@ describe('makePendingFlowStore', () => {
     expect(store.list()).toEqual([]);
   });
 
+  it('forgets a flow without an outcome, telling no settle listener, and persists it', async () => {
+    const { storage, items } = memoryStorage();
+    const store = makePendingFlowStore({ storage, now, anonymous: true });
+    await store.ready;
+    const changed = vi.fn();
+    const settled = vi.fn();
+    store.subscribe(changed);
+    store.add({ flowId: 'f-1' });
+    store.onSettled('f-1', settled);
+
+    expect(store.forget('f-1')).toBe(true);
+    expect(store.forget('f-1')).toBe(false);
+    // A later settle finds nothing: the listener was dropped with the flow.
+    expect(store.settle('f-1', { kind: 'confirmed' })).toBe(false);
+    await flush();
+
+    expect(settled).not.toHaveBeenCalled();
+    expect(changed).toHaveBeenCalledTimes(2);
+    expect(store.list()).toEqual([]);
+    expect(JSON.parse(items.get('entifix.pending-flows') ?? '')).toEqual({
+      v: PENDING_FLOW_STORE_VERSION,
+      flows: [],
+    });
+  });
+
   it('stops telling a list listener that unsubscribed', () => {
     const store = makePendingFlowStore();
     const changed = vi.fn();

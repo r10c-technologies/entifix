@@ -159,6 +159,18 @@ export function usePendingFlowSettlement({
         );
       }
     };
+    // A flow nothing can read the status of ages out without a connection too:
+    // when its topic is one the stream refuses, the stream never connects, and
+    // an expiry that waited for one would keep the flow — and the refusal —
+    // forever.
+    const expireUnreadable = () => {
+      const read = latest.current.readStatus;
+      for (const flow of store.list()) {
+        if (read === undefined || flow.status === undefined) expire(flow);
+      }
+    };
+    void store.ready.then(expireUnreadable);
+    const stopList = store.subscribe(expireUnreadable);
     const stopConnect = channel.onConnect(() => {
       void store.ready.then(() => reconcile(store.list()));
     });
@@ -166,6 +178,7 @@ export function usePendingFlowSettlement({
       reconcile(store.list().filter(flow => topics.includes(flow.topic)));
     });
     return () => {
+      stopList();
       stopConnect();
       stopResync();
     };

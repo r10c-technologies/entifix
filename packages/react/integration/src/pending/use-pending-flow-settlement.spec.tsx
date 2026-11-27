@@ -211,6 +211,35 @@ describe('usePendingFlowSettlement', () => {
     expect(onFailure).not.toHaveBeenCalled();
   });
 
+  it('ages out an unreadable flow read back from storage with no connection at all', async () => {
+    // The stream refuses a topic it has no capability for, so it never
+    // connects: an expiry that waited for a connection kept the flow, and its
+    // refused topic, forever.
+    const stored = JSON.stringify({
+      v: 1,
+      flows: [{ flowId: 'stale', createdAt: new Date(CREATED).toISOString() }],
+    });
+    const storage = {
+      getItem: () => Promise.resolve(stored),
+      setItem: () => Promise.resolve(),
+    };
+    const { channel, store, onFailure } = setup({
+      now: CREATED + MAX_AGE + 1,
+      storage,
+    });
+
+    await waitFor(() => expect(store.list()).toEqual([]));
+    expect(channel.topics()).toEqual([]);
+    expect(onFailure).not.toHaveBeenCalled();
+  });
+
+  it('keeps an unreadable flow inside the age bound, connected or not', async () => {
+    const { store } = setup({ now: CREATED + MAX_AGE - 1 });
+    store.add({ flowId: 'young' });
+    await store.ready;
+    expect(store.list()).toHaveLength(1);
+  });
+
   it('settles by push alone without a status reader, and drops only what aged out', async () => {
     const young = setup();
     young.store.add({ flowId: 'f-1', status: '/f/f-1' });

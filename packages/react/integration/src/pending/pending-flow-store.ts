@@ -78,6 +78,13 @@ export interface PendingFlowStore {
    * that ended it, so a redelivered outcome is told apart from the first.
    */
   settle(flowId: string, outcome: FlowOutcome): boolean;
+  /**
+   * Drops a pending flow without an outcome: nothing settled, no `onSettled`
+   * listener runs and the host is told nothing. For a flow the store can no
+   * longer settle — an anonymous one whose capability went with the view that
+   * held it — so its topic stops riding the stream. Answers whether it was held.
+   */
+  forget(flowId: string): boolean;
   /** Runs whenever the list changes. */
   subscribe(listener: () => void): () => void;
   /** Runs once, when the named flow settles. */
@@ -213,6 +220,13 @@ export function makePendingFlowStore({
       const waiting = settledListeners.get(flowId);
       settledListeners.delete(flowId);
       for (const listener of waiting ?? []) listener(outcome);
+      return true;
+    },
+    forget(flowId) {
+      if (!flows.some(flow => flow.flowId === flowId)) return false;
+      changed(flows.filter(flow => flow.flowId !== flowId));
+      persist();
+      settledListeners.delete(flowId);
       return true;
     },
     subscribe(listener) {
