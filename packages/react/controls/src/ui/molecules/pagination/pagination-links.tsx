@@ -49,6 +49,10 @@ export function PaginationLinks({
   className,
 }: PaginationLinksProps) {
   const totalPages = pageCount(totalItems, pageSize);
+  // One page has nowhere to go: no navigation, and the count is the host's to
+  // say — a "Page 1 of 1" beside a listing that already said "1 product" only
+  // repeats it.
+  if (totalPages <= 1) return null;
   const step = button({ variant: 'secondary', size: 'sm' });
   const number = button({ variant: 'ghost', size: 'sm' });
   const unavailable = cn(step, 'pointer-events-none opacity-50');
@@ -80,6 +84,7 @@ export function PaginationLinks({
           current: currentPage,
           total: totalPages,
           items: totalItems,
+          count: totalItems,
         })}
       </Text>
 
