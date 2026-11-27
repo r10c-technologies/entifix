@@ -117,8 +117,8 @@ describe('the no-provider fallback', () => {
   });
 
   it('picks the singular and the plural form from a count', () => {
-    render(<Bare k="value.rowCount" params={{ count: 1 }} />);
-    expect(screen.getByTestId('out')).toHaveTextContent('1 fila');
+    render(<Bare k="table.results" params={{ count: 1 }} />);
+    expect(screen.getByTestId('out')).toHaveTextContent('1 resultado');
   });
 
   it('interpolates a parameter, and leaves an unmatched placeholder alone', () => {

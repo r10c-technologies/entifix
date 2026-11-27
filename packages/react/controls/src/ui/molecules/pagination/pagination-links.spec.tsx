@@ -30,7 +30,9 @@ describe('PaginationLinks', () => {
     renderLinks();
 
     expect(
-      screen.getByText('pagination.summary {"current":2,"total":4,"items":35}'),
+      screen.getByText(
+        'pagination.summary {"current":2,"total":4,"items":35,"count":35}',
+      ),
     ).toBeInTheDocument();
   });
 
@@ -97,19 +99,24 @@ describe('PaginationLinks', () => {
     );
   });
 
+  it('renders nothing for a single page: there is nowhere to go', () => {
+    const { container } = renderLinks({ currentPage: 1, totalItems: 1 });
+    expect(container).toBeEmptyDOMElement();
+  });
+
   /** The reason it exists: no hook, so a server component can render it. */
   it('renders to static markup with no provider around it', () => {
     const html = renderToStaticMarkup(
       <PaginationLinks
         currentPage={1}
         pageSize={10}
-        totalItems={5}
+        totalItems={15}
         hrefFor={hrefFor}
         t={t}
       />,
     );
 
     expect(html).toContain('pagination.next');
-    expect(html).not.toContain('href="/list?page=2"');
+    expect(html).toContain('href="/list?page=2"');
   });
 });

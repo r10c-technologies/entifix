@@ -75,6 +75,7 @@ export function Pagination({
           current: currentPage,
           total: totalPages,
           items: totalItems,
+          count: totalItems,
         })}
       </Text>
       <span role="status" className="sr-only">

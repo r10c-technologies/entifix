@@ -416,6 +416,7 @@ describe('the accessor-type partition', () => {
     );
 
     expect(lines?.childType).toBe(Brand);
+    expect(lines).not.toHaveProperty('countLabelKey');
     // The child is described by the very same walk — that is the whole
     // mechanism, and the reason a child needs no `@entity()` and no `id`.
     expect(describeEntityColumns(lines?.childType ?? Brand)).not.toHaveLength(
@@ -636,6 +637,26 @@ describe('describeEntityColumns money', () => {
       expect(
         describeEntityColumns(Plain).find(d => d.name === 'status'),
       ).not.toHaveProperty('enumTones');
+    });
+
+    it('carries a composition count noun, and refuses one anywhere else', () => {
+      class Receipt {}
+      const Owner = tonedEntity('count-owner', {
+        type: 'composition',
+        childType: () => Receipt,
+        countLabelKey: 'entity:receipt.count',
+      });
+      expect(
+        describeEntityColumns(Owner).find(d => d.name === 'status'),
+      ).toMatchObject({ countLabelKey: 'entity:receipt.count' });
+
+      const Counted = tonedEntity('counted', {
+        type: 'string',
+        countLabelKey: 'entity:receipt.count',
+      });
+      expect(() => describeEntityColumns(Counted)).toThrow(
+        /"status" is a string and declares countLabelKey/,
+      );
     });
 
     it('refuses tones on a member that is not an enum', () => {

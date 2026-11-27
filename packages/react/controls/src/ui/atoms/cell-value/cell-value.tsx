@@ -19,6 +19,7 @@ import {
   useFormatters,
   useLocale,
   useT,
+  useTranslateKey,
 } from '../../../i18n/index.js';
 import {
   useReferenceLabel,
@@ -126,7 +127,8 @@ function formatByType(
     case 'composition':
       // Owned rows have no useful one-line form — a receipt's lines are not a
       // sentence — and the master's own screen is where they are read and
-      // edited. So the cell reports the count and stops.
+      // edited. So the cell reports the count, in the noun the member declares
+      // (`countLabelKey`), and stops: never in the table's own word for a row.
       return Array.isArray(value)
         ? formatting.rowCount(value.length)
         : String(value);
@@ -146,6 +148,7 @@ function useCellFormatting(): (
   descriptor: EntityFieldDescriptor,
 ) => CellFormatting {
   const t = useT();
+  const translate = useTranslateKey();
   const formatters = useFormatters();
   const enumLabel = useEnumLabel();
   const locale = useLocale();
@@ -155,11 +158,14 @@ function useCellFormatting(): (
       yes: t('value.yes'),
       no: t('value.no'),
       enumLabel: raw => enumLabel(descriptor, raw),
-      rowCount: count => t('value.rowCount', { count }),
+      rowCount: count =>
+        descriptor.countLabelKey === undefined
+          ? formatters.number(count)
+          : translate(descriptor.countLabelKey, { count }),
       locale,
       fixedScale: descriptor.scaled?.scale,
     }),
-    [enumLabel, formatters, locale, t],
+    [enumLabel, formatters, locale, t, translate],
   );
 }
 

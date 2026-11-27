@@ -110,7 +110,8 @@ export const controls = {
   },
   pagination: {
     label: 'Páginas',
-    summary: 'Página {{current}} de {{total}} · {{items}} registros',
+    summary_one: 'Página {{current}} de {{total}} · {{items}} registro',
+    summary_other: 'Página {{current}} de {{total}} · {{items}} registros',
     rows: 'Filas',
     first: 'Primera',
     previous: 'Anterior',
@@ -225,12 +226,6 @@ export const controls = {
     none: '— ninguno —',
     yes: 'Sí',
     no: 'No',
-    /**
-     * Una `composition` en una tabla: sus filas se editan en la pantalla del
-     * maestro, no en la celda, así que la celda dice cuántas hay.
-     */
-    rowCount_one: '{{count}} fila',
-    rowCount_other: '{{count}} filas',
   },
   /**
    * `required`…`option` son las reglas derivadas de la metadata. El resto es el

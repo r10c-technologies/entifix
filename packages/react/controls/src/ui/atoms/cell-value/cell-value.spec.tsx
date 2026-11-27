@@ -319,13 +319,31 @@ describe('CellValue', () => {
     /**
      * Owned rows have no useful one-line form — a receipt's lines are not a
      * sentence — and they are read on the master's own screen, so the cell
-     * reports the count and stops.
+     * reports the count and stops — in the member's own noun, never in the
+     * table's word for a row.
      */
-    it('reports how many rows an owned collection holds', () => {
+    it('reports a bare count when the member names no noun', () => {
       renderCell([{ sku: 'a' }, { sku: 'b' }], 'composition');
 
-      // Spanish is the default locale; the count drives the plural form.
-      expect(screen.getByText('2 filas')).toBeInTheDocument();
+      expect(screen.getByText('2')).toBeInTheDocument();
+    });
+
+    it("reports the count in the member's declared noun, singular and plural", () => {
+      const counted = (value: unknown) =>
+        render(
+          <CellValue
+            value={value}
+            descriptor={{
+              ...descriptor('composition'),
+              // A key the default catalogs hold with plural forms.
+              countLabelKey: 'table.results',
+            }}
+          />,
+        );
+      counted([{ sku: 'a' }]);
+      expect(screen.getByText('1 resultado')).toBeInTheDocument();
+      counted([{ sku: 'a' }, { sku: 'b' }]);
+      expect(screen.getByText('2 resultados')).toBeInTheDocument();
     });
 
     it('falls back to the raw text when a composition is not an array', () => {

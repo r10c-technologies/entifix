@@ -31,5 +31,4 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {};
 export const FirstPage: Story = { args: { currentPage: 1 } };
 export const LastPage: Story = { args: { currentPage: 20 } };
-export const SinglePage: Story = { args: { currentPage: 1, totalItems: 5 } };
 export const WideWindow: Story = { args: { currentPage: 10, radius: 2 } };

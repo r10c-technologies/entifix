@@ -89,7 +89,8 @@ export const controls: EsControls = {
   },
   pagination: {
     label: 'Pages',
-    summary: 'Page {{current}} of {{total}} · {{items}} items',
+    summary_one: 'Page {{current}} of {{total}} · {{items}} item',
+    summary_other: 'Page {{current}} of {{total}} · {{items}} items',
     rows: 'Rows',
     first: 'First',
     previous: 'Previous',
@@ -190,12 +191,6 @@ export const controls: EsControls = {
     none: '— none —',
     yes: 'Yes',
     no: 'No',
-    /**
-     * A `composition` in a table: its rows are edited on the master's own
-     * screen rather than in the cell, so the cell says how many there are.
-     */
-    rowCount_one: '{{count}} row',
-    rowCount_other: '{{count}} rows',
   },
   /**
    * `required`…`option` are the metadata-derived rules. The rest are the
