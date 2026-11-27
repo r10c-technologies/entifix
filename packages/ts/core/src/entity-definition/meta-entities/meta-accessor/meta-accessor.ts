@@ -92,6 +92,14 @@ export interface MetaAccessorOptions {
    */
   enumLabelKey?: string;
   /**
+   * The noun a `composition`'s count is read in where its rows cannot be shown
+   * — a list cell: a catalog key with plural forms, called with `count`
+   * (`'{{count}} receipt'` / `'{{count}} receipts'`). Without one the cell
+   * shows the bare count, never a table's own word for a row. Legal only on a
+   * `composition`.
+   */
+  countLabelKey?: string;
+  /**
    * The tone each value reads in where it is shown as a status: `success`,
    * `warning`, `danger`, `info` or `neutral`. Legal only on an `enum` member,
    * and every key must be one of its {@link enumValues}; a value left out reads
@@ -315,6 +323,7 @@ export class MetaAccessor {
   readonly order?: number;
   readonly enumValues?: readonly string[];
   readonly enumLabelKey?: string;
+  readonly countLabelKey?: string;
   readonly enumTones?: Readonly<Record<string, EnumTone>>;
   readonly linkLabelProperty?: string;
   readonly linkSearchProperty?: string;
@@ -355,6 +364,7 @@ export class MetaAccessor {
     this.order = options?.order;
     this.enumValues = options?.enumValues;
     this.enumLabelKey = options?.enumLabelKey;
+    this.countLabelKey = options?.countLabelKey;
     this.enumTones = options?.enumTones;
     this.linkLabelProperty = options?.linkLabelProperty;
     this.linkSearchProperty = options?.linkSearchProperty;

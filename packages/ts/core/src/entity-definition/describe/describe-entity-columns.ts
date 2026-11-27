@@ -46,6 +46,8 @@ export interface EntityFieldDescriptor {
   enumValues?: readonly string[];
   /** Catalog prefix for {@link enumValues}; a value reads as `${enumLabelKey}.${value}`. */
   enumLabelKey?: string;
+  /** Catalog key, with plural forms, a `composition`'s count reads in. */
+  countLabelKey?: string;
   /** The tone each value reads in as a status, when the member declares them. */
   enumTones?: Readonly<Record<string, EnumTone>>;
   /** Property of a `link` target used as its display label. */
@@ -407,6 +409,15 @@ function assertScaled(metaAccessor: MetaAccessor, type: MetaAccessorType) {
   }
 }
 
+/** A count's noun belongs to a composition: no other member is shown as one. */
+function assertCountLabel(metaAccessor: MetaAccessor, type: MetaAccessorType) {
+  if (metaAccessor.countLabelKey === undefined || type === 'composition')
+    return;
+  throw new Error(
+    `"${String(metaAccessor.name)}" is a ${type} and declares countLabelKey — only a composition is shown as a count.`,
+  );
+}
+
 /**
  * Tones belong to an enum's values: on any other member, or keyed by a value
  * the enum does not have, they would colour nothing — or the wrong thing.
@@ -542,6 +553,7 @@ function toDescriptor(
   assertMoneyType(metaAccessor, type);
   assertScaled(metaAccessor, type);
   assertEnumTones(metaAccessor, type);
+  assertCountLabel(metaAccessor, type);
   assertMinWidth(metaAccessor);
   assertUniqueType(metaAccessor, type);
   const child = type === 'composition' ? metaAccessor.childType?.() : undefined;
@@ -564,6 +576,9 @@ function toDescriptor(
     required: metaAccessor.required ?? false,
     enumValues: metaAccessor.enumValues,
     enumLabelKey: metaAccessor.enumLabelKey,
+    ...(metaAccessor.countLabelKey === undefined
+      ? {}
+      : { countLabelKey: metaAccessor.countLabelKey }),
     ...(metaAccessor.enumTones === undefined
       ? {}
       : { enumTones: metaAccessor.enumTones }),
